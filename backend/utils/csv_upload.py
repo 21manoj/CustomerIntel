@@ -34,9 +34,33 @@ class FileTypeInfo:
     canonical_filename: str
     model_category: str             # 'regular_model' | 'context_graph_model'
     required_columns: tuple[str, ...]
-    optional_columns: tuple[str, ...]
+    optional_columns: tuple[str, ...]   # schema's optional_columns + recommended_columns
     auto_generated: bool = False
     platform_curated: bool = False
+
+
+# A required column is satisfied by any of its aliases. The load-driver (and
+# the old repo's REST /api/onboarding/upload path it always used) emits
+# `account_id`; the schema names it `source_account_id`. The ingest reads
+# both. Without this, real load-driver output failed strict validation
+# here — found 2026-09-01 during the Tier 2A-3 live-parity run.
+_COLUMN_ALIASES: dict[str, tuple[str, ...]] = {
+    'source_account_id': ('account_id',),
+}
+
+
+def _known_columns(info: 'FileTypeInfo') -> set[str]:
+    known = set(info.required_columns) | set(info.optional_columns)
+    for col in info.required_columns:
+        known.update(_COLUMN_ALIASES.get(col, ()))
+    return known
+
+
+def _missing_required(info: 'FileTypeInfo', headers: set[str]) -> list[str]:
+    return sorted(
+        col for col in info.required_columns
+        if col not in headers and not any(a in headers for a in _COLUMN_ALIASES.get(col, ()))
+    )
 
 
 # Alias → canonical filename mapping
@@ -75,12 +99,19 @@ def _build_registry() -> dict[str, FileTypeInfo]:
 
     reg: dict[str, FileTypeInfo] = {}
 
+    # recommended_columns is a real key in csv_schemas.json (account_details'
+    # csm/champion/products/contract fields) that the old registry never
+    # read — so every one of those columns was warned as "unknown, will be
+    # ignored" while the ingest read them. Folded into optional here.
+    def _optional(spec: dict) -> tuple[str, ...]:
+        return tuple(spec.get('optional_columns', [])) + tuple(spec.get('recommended_columns', []))
+
     for fname, spec in _flatten_model(schemas.get('regular_model', {})).items():
         reg[fname] = FileTypeInfo(
             canonical_filename=fname,
             model_category='regular_model',
             required_columns=tuple(spec.get('required_columns', [])),
-            optional_columns=tuple(spec.get('optional_columns', [])),
+            optional_columns=_optional(spec),
         )
 
     for fname, spec in _flatten_model(schemas.get('context_graph_model', {})).items():
@@ -88,7 +119,7 @@ def _build_registry() -> dict[str, FileTypeInfo]:
             canonical_filename=fname,
             model_category='context_graph_model',
             required_columns=tuple(spec.get('required_columns', [])),
-            optional_columns=tuple(spec.get('optional_columns', [])),
+            optional_columns=_optional(spec),
             auto_generated=bool(spec.get('auto_generated')),
             platform_curated=bool(spec.get('platform_curated')),
         )
@@ -226,11 +257,9 @@ def _upload_csv_impl(
         )
 
     required = set(info.required_columns)
-    optional = set(info.optional_columns)
-    all_known = required | optional
 
-    missing_required = sorted(required - headers)
-    unknown_columns = sorted(headers - all_known)
+    missing_required = _missing_required(info, headers)
+    unknown_columns = sorted(headers - _known_columns(info))
 
     errors: list[str] = []
     warnings: list[str] = []

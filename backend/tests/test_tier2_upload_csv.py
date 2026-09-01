@@ -123,6 +123,48 @@ class TestUploadCsvPersist:
                 customer_id=customer_id, file_type='kpi_measurements.csv',
             ).first() is not None
 
+    def test_load_driver_shaped_file_passes_strict_validation(self, customer_id):
+        """account_id satisfies the source_account_id requirement, and the
+        schema's recommended columns are known, not 'ignored' — the exact
+        shape the load-driver emits (see utils/csv_upload._COLUMN_ALIASES)."""
+        from mcp_server.cs_pulse_onboarding import upload_csv
+        result = upload_csv(customer_id, 'account_details.csv', (
+            "account_id,account_name,industry,region,arr,csm_name,products,renewal_date\n"
+            '359001,Titan,Telco,NA,8200000,Sarah,"[{""name"": ""K8s""}]",2026-06-15\n'
+        ), dry_run=True)
+        assert result['valid'] is True, result
+        assert not result.get('missing_required')
+        assert not any('Unknown columns' in w for w in result.get('warnings', [])), result['warnings']
+
+    def test_outcomes_linked_signal_id_is_a_known_column(self, customer_id):
+        from mcp_server.cs_pulse_onboarding import upload_csv
+        result = upload_csv(customer_id, 'outcomes.csv', (
+            "account_id,outcome_date,outcome_type,title,revenue_value,linked_signal_id\n"
+            "359001,2026-03-01,revenue_at_risk,At risk,-100,narrative_sig_1\n"
+        ), dry_run=True)
+        assert result['valid'] is True, result
+        assert not any('Unknown columns' in w for w in result.get('warnings', [])), result['warnings']
+
+    def test_schema_defines_each_file_once_with_origin_flags(self):
+        """csv_schemas.json used to define every context-graph file twice
+        (a flat `files` block shadowing the categorized sections), so
+        columns added to the visible definition were silently ignored and
+        the auto_generated/platform_curated flags were lost. Lock the
+        single-definition shape and the flags the registry derives from it."""
+        import json
+        from utils.csv_upload import get_registry, _SCHEMAS_PATH
+        schema = json.load(open(_SCHEMAS_PATH))
+        ctx = schema['context_graph_model']
+        assert 'files' not in ctx
+        seen = [f for k in ('customer_provided', 'auto_generated', 'platform_curated')
+                for f in ctx.get(k, {}) if f.endswith('.csv')]
+        assert len(seen) == len(set(seen)) == 7
+        reg = get_registry()
+        assert reg['decisions.csv'].auto_generated and reg['signal_edges.csv'].auto_generated
+        assert reg['industry_benchmarks.csv'].platform_curated
+        assert not reg['outcomes.csv'].auto_generated
+        assert 'linked_signal_id' in reg['outcomes.csv'].optional_columns
+
     def test_invalid_csv_raises_tool_error_not_dry_run(self, customer_id):
         from mcp_server.cs_pulse_onboarding import upload_csv
         with pytest.raises(ToolError):

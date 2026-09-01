@@ -6,11 +6,11 @@ repo's _process_data_impl produced from the same files (diffed 2026-09-01:
 zero delta on every ingest-produced row; only the deliberate created_by
 rename differed). Pinned here so the check survives the old repo.
 
-Fixture note: these files carry `account_id`, not the `source_account_id`
-config/csv_schemas.json requires — the load-driver uploads through the
-REST /api/onboarding/upload path and never met upload_csv's strict
-schema. Staged with strict_validation=False for that reason (see project
-memory: open boundary call on the two onboarding pipelines).
+Fixture note: these files carry `account_id`, not `source_account_id` —
+the load-driver only ever went through the old repo's REST upload path
+and never met upload_csv's strict schema. upload_csv now accepts the
+alias (utils/csv_upload._COLUMN_ALIASES), so this goes through the real
+tool with strict validation, the same way a load-driver run would.
 """
 import os
 import sys
@@ -62,16 +62,15 @@ def loaded():
     _assert_isolated_test_db(app.config['SQLALCHEMY_DATABASE_URI'])
     with app.app_context():
         db.create_all()
-        from mcp_server.cs_pulse_onboarding import create_customer, process_data
-        from utils.csv_upload import _upload_csv_impl
+        from mcp_server.cs_pulse_onboarding import create_customer, upload_csv, process_data
         tag = uuid.uuid4().hex[:8]
         cid = create_customer(
             name=f'Parity 359 {tag}', domain=f'parity359-{tag}.test', vertical='datacenter_v1',
             admin_email=f'parity359_{tag}@t.test', admin_name='Parity',
         )['customer_id']
         for ft in FILES:
-            r = _upload_csv_impl(cid, ft, (FIXTURES / ft).read_text(), strict_validation=False)
-            assert r.status == 'success', r
+            r = upload_csv(cid, ft, (FIXTURES / ft).read_text())
+            assert r['row_count'] > 0, r
         res = process_data(cid)
         yield cid, res
         db.session.remove()
