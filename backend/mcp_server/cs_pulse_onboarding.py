@@ -3,9 +3,10 @@
 CS Pulse MCP — Onboarding Tools (frictionless auth).
 
 Tier 2A port (2026-09-01), sub-checkpoints so far: create_customer,
-upload_csv. Remaining onboarding tools (_process_data_impl/process_data,
-trigger_wizard, etc.) are the next sub-checkpoints — see project memory
-for the full phase breakdown.
+upload_csv, process_data (CSV ingest half; the post-ingest stages land
+one per sub-checkpoint in mcp_server/process_data_pipeline.py). Remaining
+onboarding tools (trigger_wizard, etc.) are later sub-checkpoints — see
+project memory for the full phase breakdown.
 
 Two changes made relative to the old repo's create_customer, not cosmetic:
 
@@ -330,6 +331,155 @@ def upload_csv(customer_id: int, file_type: str, csv_content: str, dry_run: bool
         d = result.to_dict()
         d['scope'] = 'validation' if dry_run else 'customer'
         return d
+
+
+# ===================================================================
+# Tool: process_data
+# ===================================================================
+
+def _process_data_impl(customer_id: int, mode: str = 'auto') -> dict:
+    """Run the data pipeline for a customer.
+
+    Path 2 (staged CSVs exist): ingest them — utils/csv_ingest.py — then
+    run the post-ingest stages. Path 1 (nothing staged, data already in
+    DB): post-ingest stages only. Neither: error.
+
+    Ported 2026-09-01 (Tier 2A-3) from the old repo's 1338-line inline
+    version. The ingest half is utils/csv_ingest.py (its module docstring
+    lists every behavioral change and bug fixed). The post-ingest stages
+    land one per sub-checkpoint in mcp_server/process_data_pipeline.py;
+    the slots below are in the old repo's stage order, already reflecting
+    the items 28/32/38 ordering fixes.
+
+    `mode`: 'auto' (default) — health scores are immutable, only new
+    months get scored; 'full_recalc' — rewrite every month with current
+    weights. Only meaningful once health scoring is ported; accepted and
+    passed through now so callers don't change later.
+    """
+    import time
+    _t0 = time.time()
+
+    _check_mcp_enabled()
+    app = _get_flask_app()
+
+    with app.app_context():
+        from models import Customer, Account, KPIMeasurement
+        from extensions import db
+        from utils.vertical_registry import get_vertical_for_customer
+        from utils.csv_ingest import ingest_staged_csvs, staged_files
+        from mcp_server.process_data_pipeline import link_stakeholders_to_decisions
+
+        customer = db.session.get(Customer, int(customer_id))
+        if not customer:
+            raise ToolError(f"Customer {customer_id} not found.")
+        try:
+            vertical = get_vertical_for_customer(customer_id)
+        except ValueError as e:
+            raise ToolError(str(e))
+
+        steps, errors, timings = [], [], {}
+
+        accounts = Account.query.filter_by(customer_id=customer_id).all()
+        acct_ids = [a.account_id for a in accounts]
+        kpi_count = (
+            KPIMeasurement.query.filter(KPIMeasurement.account_id.in_(acct_ids)).count()
+            if acct_ids else 0
+        )
+        data_in_db = bool(accounts) and kpi_count > 0
+        has_staged = bool(staged_files(customer_id))
+
+        if not data_in_db and not has_staged:
+            raise ToolError(
+                f"No data found for customer {customer_id}. "
+                f"Upload CSV files via upload_csv() first."
+            )
+
+        files_processed = None
+        if has_staged:
+            ingest = ingest_staged_csvs(customer_id, vertical)
+            steps.extend(ingest.steps)
+            errors.extend(ingest.errors)
+            timings.update(ingest.timings)
+            files_processed = ingest.files
+            accounts = Account.query.filter_by(customer_id=customer_id).all()
+            acct_ids = [a.account_id for a in accounts]
+            kpi_count = (
+                KPIMeasurement.query.filter(KPIMeasurement.account_id.in_(acct_ids)).count()
+                if acct_ids else 0
+            )
+        else:
+            timings['csv_load'] = timings['cg_load'] = 0
+            steps.append(f'data_already_in_db_{len(accounts)}_accounts_{kpi_count}_kpis')
+
+        # Stage 2: health scores + event publish        — Tier 2A-5
+        # Stage 2b: product adoption back-fill          — with Stage 2
+        # Stage 2c: proactive signal scan                — later phase
+        # Stage 3: Wizard A (arc classification)        — Tier 2A-4
+
+        # Item 38: stakeholder→decision INVOLVES linking, after Wizard A.
+        _t = time.time()
+        step = link_stakeholders_to_decisions(customer_id)
+        if step:
+            steps.append(step)
+        timings['stakeholder_linking'] = round(time.time() - _t, 2)
+
+        # Stages 3a–8 (LLM tier-1, Wizard B, signal analyst, urgent scanner,
+        # ROI, approval seed, Qdrant, onboarding agent) — later phases.
+
+        status = 'success' if steps and not errors else 'partial' if steps else 'failed'
+        duration = round(time.time() - _t0, 1)
+        timings['total'] = duration
+
+        import logging
+        logging.getLogger(__name__).info(
+            "process_data complete: customer=%s mode=%s duration=%ss timings=%s",
+            customer_id, mode, duration, timings,
+        )
+
+        return {
+            'scope': 'customer',
+            'customer_id': customer_id,
+            'status': status,
+            'mode': mode,
+            'vertical': vertical,
+            'accounts': len(accounts),
+            'kpi_measurements': kpi_count,
+            'csv_files_processed': files_processed,
+            'steps_completed': steps,
+            'context_graph_audit': None,  # populated once Wizard A is ported
+            'errors': errors,
+            'duration_s': duration,
+            'timings': timings,
+            'message': (
+                f"Data processing {'completed' if status == 'success' else 'completed with issues'} "
+                f"(mode={mode}, {duration}s). "
+                f"Steps: {', '.join(steps) if steps else 'none'}."
+            ),
+        }
+
+
+@mcp.tool
+def process_data(customer_id: int, mode: str = 'auto') -> dict:
+    """Trigger the data processing pipeline for a customer.
+
+    Ingests every CSV staged via upload_csv() into the database — accounts,
+    KPI measurements, qualitative signals, and the context-graph files
+    (outcomes, stakeholders, decisions, engagement events, profiles,
+    benchmarks, signal edges) — then runs the post-ingest stages. Staged
+    files are consumed on a fully successful run; if any step errors they
+    are kept so the run can be retried (every loader is idempotent).
+
+    Health scores are immutable: once written for (account, month) they are
+    never retroactively recalculated. Weight changes apply forward only.
+
+    Args:
+        customer_id: The customer ID
+        mode: 'auto' (default, immutable scores) or 'full_recalc' (admin rewrite)
+    """
+    _require_auth_if_key_present('process_data', customer_id)
+    if mode not in ('auto', 'full_recalc'):
+        mode = 'auto'
+    return _process_data_impl(customer_id, mode=mode)
 
 
 def _check_kpi_dependencies(enabled_kpis=None, enabled_pillars=None):
