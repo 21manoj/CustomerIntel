@@ -2,4 +2,5 @@ Flask==3.0.3
 Flask-SQLAlchemy==3.1.1
 SQLAlchemy==2.0.35
 psycopg2-binary==2.9.9
-pyyaml==6.0.2
+PyYAML==6.0.2
+fastmcp==3.1.0
