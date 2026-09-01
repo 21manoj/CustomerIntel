@@ -1,0 +1,157 @@
+{
+  "vertical": "healthcare_provider",
+  "pillars": {
+    "P1": {"name": "Patient Outcomes", "weight_l2": 0.30},
+    "P2": {"name": "Operational Efficiency", "weight_l2": 0.25},
+    "P3": {"name": "Provider Satisfaction", "weight_l2": 0.20},
+    "P4": {"name": "Compliance & Risk", "weight_l2": 0.25}
+  },
+  "pillar_roles": {
+    "compliance": "P4"
+  },
+  "pillar_roles_notes": {
+    "P1_P2_P3": "Patient Outcomes, Operational Efficiency, and Provider Satisfaction have no clean match in the shared vocabulary (revenue/reliability/capacity/partner/expansion/adoption/engagement/compliance) -- this vertical has no partner or expansion pillar at all, by design (no channel/reseller motion, no commercial-expansion pillar). Left unmapped rather than force-fit onto 'reliability' or 'engagement'."
+  },
+  "kpis": {
+    "P1-KPI1": {
+      "name": "Patient Satisfaction Score",
+      "pillar": "P1",
+      "weight_l1": 0.35,
+      "impact": "high",
+      "target": {"value": 85, "operator": ">"},
+      "ranges": {
+        "healthy": {"min": 85, "max": 100},
+        "risk": {"min": 60, "max": 85},
+        "critical": {"min": 0, "max": 60}
+      },
+      "higher_is_better": true,
+      "unit": "percent"
+    },
+    "P1-KPI2": {
+      "name": "Readmission Rate",
+      "pillar": "P1",
+      "weight_l1": 0.35,
+      "impact": "high",
+      "target": {"value": 10, "operator": "<"},
+      "ranges": {
+        "healthy": {"min": 0, "max": 10},
+        "risk": {"min": 10, "max": 20},
+        "critical": {"min": 20, "max": 50}
+      },
+      "higher_is_better": false,
+      "unit": "percent"
+    },
+    "P1-KPI3": {
+      "name": "Treatment Adherence Rate",
+      "pillar": "P1",
+      "weight_l1": 0.30,
+      "impact": "medium",
+      "target": {"value": 90, "operator": ">"},
+      "ranges": {
+        "healthy": {"min": 90, "max": 100},
+        "risk": {"min": 70, "max": 90},
+        "critical": {"min": 0, "max": 70}
+      },
+      "higher_is_better": true,
+      "unit": "percent"
+    },
+    "P2-KPI1": {
+      "name": "Bed Utilization Rate",
+      "pillar": "P2",
+      "weight_l1": 0.40,
+      "impact": "high",
+      "target": {"value": 80, "operator": ">"},
+      "ranges": {
+        "healthy": {"min": 80, "max": 95},
+        "risk": {"min": 60, "max": 80},
+        "critical": {"min": 0, "max": 60}
+      },
+      "higher_is_better": true,
+      "unit": "percent"
+    },
+    "P2-KPI2": {
+      "name": "Average Wait Time",
+      "pillar": "P2",
+      "weight_l1": 0.30,
+      "impact": "medium",
+      "target": {"value": 30, "operator": "<"},
+      "ranges": {
+        "healthy": {"min": 0, "max": 30},
+        "risk": {"min": 30, "max": 60},
+        "critical": {"min": 60, "max": 180}
+      },
+      "higher_is_better": false,
+      "unit": "minutes"
+    },
+    "P2-KPI3": {
+      "name": "Staff-to-Patient Ratio",
+      "pillar": "P2",
+      "weight_l1": 0.30,
+      "impact": "medium",
+      "target": {"value": 5, "operator": "<"},
+      "ranges": {
+        "healthy": {"min": 1, "max": 5},
+        "risk": {"min": 5, "max": 8},
+        "critical": {"min": 8, "max": 15}
+      },
+      "higher_is_better": false,
+      "unit": "ratio"
+    },
+    "P3-KPI1": {
+      "name": "Provider NPS",
+      "pillar": "P3",
+      "weight_l1": 0.50,
+      "impact": "high",
+      "target": {"value": 50, "operator": ">"},
+      "ranges": {
+        "healthy": {"min": 50, "max": 100},
+        "risk": {"min": 20, "max": 50},
+        "critical": {"min": -100, "max": 20}
+      },
+      "higher_is_better": true,
+      "unit": "score"
+    },
+    "P3-KPI2": {
+      "name": "EHR System Uptime",
+      "pillar": "P3",
+      "weight_l1": 0.50,
+      "impact": "high",
+      "target": {"value": 99.5, "operator": ">"},
+      "ranges": {
+        "healthy": {"min": 99.5, "max": 100},
+        "risk": {"min": 97, "max": 99.5},
+        "critical": {"min": 0, "max": 97}
+      },
+      "higher_is_better": true,
+      "unit": "percent"
+    },
+    "P4-KPI1": {
+      "name": "HIPAA Compliance Score",
+      "pillar": "P4",
+      "weight_l1": 0.50,
+      "impact": "high",
+      "target": {"value": 95, "operator": ">"},
+      "ranges": {
+        "healthy": {"min": 95, "max": 100},
+        "risk": {"min": 80, "max": 95},
+        "critical": {"min": 0, "max": 80}
+      },
+      "higher_is_better": true,
+      "unit": "percent"
+    },
+    "P4-KPI2": {
+      "name": "Incident Response Time",
+      "pillar": "P4",
+      "weight_l1": 0.50,
+      "impact": "high",
+      "target": {"value": 4, "operator": "<"},
+      "ranges": {
+        "healthy": {"min": 0, "max": 4},
+        "risk": {"min": 4, "max": 12},
+        "critical": {"min": 12, "max": 48}
+      },
+      "higher_is_better": false,
+      "unit": "hours"
+    }
+  }
+}

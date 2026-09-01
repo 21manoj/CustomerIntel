@@ -1,0 +1,177 @@
+{
+  "vertical": "manufacturing_iot",
+  "pillars": {
+    "P1": { "name": "Equipment Uptime & Reliability", "weight_l2": 0.25 },
+    "P2": { "name": "Production Throughput", "weight_l2": 0.2 },
+    "P3": { "name": "Quality & Defect Management", "weight_l2": 0.2 },
+    "P4": { "name": "Safety & Compliance", "weight_l2": 0.15 },
+    "P5": { "name": "Contract Renewals & Expansion", "weight_l2": 0.2 }
+  },
+  "pillar_roles": {
+    "reliability": "P1",
+    "capacity": "P2",
+    "compliance": "P4",
+    "revenue": "P5",
+    "expansion": "P5"
+  },
+  "pillar_roles_notes": {
+    "P3": "Quality & Defect Management has no clean match in the shared vocabulary (revenue/reliability/capacity/partner/expansion/adoption/engagement/compliance) -- left unmapped rather than force-fit onto 'reliability', which this vertical already uses for a distinct concept (equipment uptime).",
+    "no_partner_no_adoption_no_engagement": "This vertical has no channel/reseller motion (no 'partner' pillar) and no software-onboarding concept (no 'adoption'/'engagement' pillar), by design -- a genuinely new, physical-operations vertical, not a SaaS/platform variant."
+  },
+  "kpis": {
+    "P1-KPI1": {
+      "name": "Overall Equipment Effectiveness (OEE)",
+      "pillar": "P1",
+      "weight_l1": 0.4,
+      "impact": "high",
+      "target": { "value": 75, "operator": ">" },
+      "ranges": {
+        "healthy": { "min": 75, "max": 100 },
+        "risk": { "min": 50, "max": 75 },
+        "critical": { "min": 0, "max": 50 }
+      },
+      "higher_is_better": true,
+      "unit": "percent"
+    },
+    "P1-KPI2": {
+      "name": "Unplanned Downtime Rate",
+      "pillar": "P1",
+      "weight_l1": 0.35,
+      "impact": "high",
+      "target": { "value": 5, "operator": "<" },
+      "ranges": {
+        "healthy": { "min": 0, "max": 5 },
+        "risk": { "min": 5, "max": 15 },
+        "critical": { "min": 15, "max": 50 }
+      },
+      "higher_is_better": false,
+      "unit": "percent"
+    },
+    "P1-KPI3": {
+      "name": "Mean Time To Repair (MTTR)",
+      "pillar": "P1",
+      "weight_l1": 0.25,
+      "impact": "medium",
+      "target": { "value": 4, "operator": "<" },
+      "ranges": {
+        "healthy": { "min": 0, "max": 4 },
+        "risk": { "min": 4, "max": 12 },
+        "critical": { "min": 12, "max": 48 }
+      },
+      "higher_is_better": false,
+      "unit": "hours"
+    },
+    "P2-KPI1": {
+      "name": "Units Produced vs Target",
+      "pillar": "P2",
+      "weight_l1": 0.6,
+      "impact": "high",
+      "target": { "value": 90, "operator": ">" },
+      "ranges": {
+        "healthy": { "min": 90, "max": 110 },
+        "risk": { "min": 70, "max": 90 },
+        "critical": { "min": 0, "max": 70 }
+      },
+      "higher_is_better": true,
+      "unit": "percent"
+    },
+    "P2-KPI2": {
+      "name": "Cycle Time Variance",
+      "pillar": "P2",
+      "weight_l1": 0.4,
+      "impact": "medium",
+      "target": { "value": 10, "operator": "<" },
+      "ranges": {
+        "healthy": { "min": 0, "max": 10 },
+        "risk": { "min": 10, "max": 25 },
+        "critical": { "min": 25, "max": 100 }
+      },
+      "higher_is_better": false,
+      "unit": "percent"
+    },
+    "P3-KPI1": {
+      "name": "Defect Rate",
+      "pillar": "P3",
+      "weight_l1": 0.5,
+      "impact": "high",
+      "target": { "value": 500, "operator": "<" },
+      "ranges": {
+        "healthy": { "min": 0, "max": 500 },
+        "risk": { "min": 500, "max": 2000 },
+        "critical": { "min": 2000, "max": 10000 }
+      },
+      "higher_is_better": false,
+      "unit": "ppm"
+    },
+    "P3-KPI2": {
+      "name": "First Pass Yield",
+      "pillar": "P3",
+      "weight_l1": 0.5,
+      "impact": "high",
+      "target": { "value": 95, "operator": ">" },
+      "ranges": {
+        "healthy": { "min": 95, "max": 100 },
+        "risk": { "min": 80, "max": 95 },
+        "critical": { "min": 0, "max": 80 }
+      },
+      "higher_is_better": true,
+      "unit": "percent"
+    },
+    "P4-KPI1": {
+      "name": "Safety Incident Rate",
+      "pillar": "P4",
+      "weight_l1": 0.6,
+      "impact": "high",
+      "target": { "value": 1, "operator": "<" },
+      "ranges": {
+        "healthy": { "min": 0, "max": 1 },
+        "risk": { "min": 1, "max": 3 },
+        "critical": { "min": 3, "max": 10 }
+      },
+      "higher_is_better": false,
+      "unit": "per_100_workers"
+    },
+    "P4-KPI2": {
+      "name": "Regulatory Audit Score",
+      "pillar": "P4",
+      "weight_l1": 0.4,
+      "impact": "medium",
+      "target": { "value": 90, "operator": ">" },
+      "ranges": {
+        "healthy": { "min": 90, "max": 100 },
+        "risk": { "min": 70, "max": 90 },
+        "critical": { "min": 0, "max": 70 }
+      },
+      "higher_is_better": true,
+      "unit": "percent"
+    },
+    "P5-KPI1": {
+      "name": "Contract Renewal Rate",
+      "pillar": "P5",
+      "weight_l1": 0.6,
+      "impact": "high",
+      "target": { "value": 85, "operator": ">" },
+      "ranges": {
+        "healthy": { "min": 85, "max": 100 },
+        "risk": { "min": 60, "max": 85 },
+        "critical": { "min": 0, "max": 60 }
+      },
+      "higher_is_better": true,
+      "unit": "percent"
+    },
+    "P5-KPI2": {
+      "name": "Expansion Line Additions",
+      "pillar": "P5",
+      "weight_l1": 0.4,
+      "impact": "medium",
+      "target": { "value": 10, "operator": ">" },
+      "ranges": {
+        "healthy": { "min": 10, "max": 100 },
+        "risk": { "min": 0, "max": 10 },
+        "critical": { "min": -50, "max": 0 }
+      },
+      "higher_is_better": true,
+      "unit": "percent"
+    }
+  }
+}

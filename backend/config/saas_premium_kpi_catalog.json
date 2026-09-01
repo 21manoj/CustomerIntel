@@ -1,0 +1,1599 @@
+{
+  "version": "3.1",
+  "vertical": "saas_premium",
+  "description": "SaaS Premium KPI catalog \u2014 aligned with Maturity Framework (Loveable). V3.1: added P1-KPI10 Golden Path Velocity, P2-KPI8 Persona Breadth for Predictive 11 tier.",
+  "pillars": {
+    "P1": {
+      "name": "Product Adoption & Usage",
+      "weight_l2": 0.3,
+      "kpi_count": 10
+    },
+    "P2": {
+      "name": "Customer Engagement",
+      "weight_l2": 0.15,
+      "kpi_count": 8
+    },
+    "P3": {
+      "name": "Customer Sentiment & Support",
+      "weight_l2": 0.2,
+      "kpi_count": 10
+    },
+    "P4": {
+      "name": "Partner & Ecosystem Health",
+      "weight_l2": 0.15,
+      "kpi_count": 7
+    },
+    "P5": {
+      "name": "Revenue & Growth",
+      "weight_l2": 0.2,
+      "kpi_count": 8
+    }
+  },
+  "pillar_roles": {
+    "adoption": "P1",
+    "engagement": "P2",
+    "partner": "P4",
+    "revenue": "P5",
+    "expansion": "P5"
+  },
+  "pillar_roles_notes": {
+    "P5": "'Revenue & Growth' is ambiguous between 'revenue' and 'expansion' in the shared vocabulary -- deliberately mapped to BOTH roles rather than forcing one pick. Precedent: outcome_roi_api.py's POWER_OF_1_PILLAR_MAPS nrr_synthesis designates P5 as the expansion_pillar (weight 0.6) while executive_dashboard_api.py's CFO_PILLAR_INVESTMENT_CONFIG groups NRR under P5's metrics -- this vertical genuinely conflates the two concepts in one pillar, unlike dc2_s/datacenter_v1 which split them across separate pillars.",
+    "P3": "Customer Sentiment & Support has no matching role in the shared vocabulary (revenue/reliability/capacity/partner/expansion/adoption/engagement/compliance) -- left unmapped rather than forced onto 'engagement' or 'reliability'."
+  },
+  "kpis": {
+    "P1-KPI1": {
+      "name": "Daily Active Users (DAU) Rate",
+      "pillar": "P1",
+      "weight_l1": 0.16,
+      "frequency": "daily",
+      "unit": "percentage",
+      "higher_is_better": true,
+      "data_source": "OBR",
+      "data_source_systems": [
+        "Mixpanel",
+        "Amplitude",
+        "Pendo",
+        "Heap"
+      ],
+      "target": {
+        "operator": ">",
+        "value": 60
+      },
+      "ranges": {
+        "healthy": {
+          "min": 60,
+          "max": 95,
+          "color": "green"
+        },
+        "risk": {
+          "min": 35,
+          "max": 60,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 0,
+          "max": 35,
+          "color": "red"
+        }
+      },
+      "impact": "high"
+    },
+    "P1-KPI2": {
+      "name": "Feature Adoption Breadth",
+      "pillar": "P1",
+      "weight_l1": 0.15,
+      "frequency": "weekly",
+      "unit": "percentage",
+      "higher_is_better": true,
+      "data_source": "OBR",
+      "data_source_systems": [
+        "Pendo",
+        "Amplitude",
+        "Heap"
+      ],
+      "target": {
+        "operator": ">",
+        "value": 45
+      },
+      "ranges": {
+        "healthy": {
+          "min": 45,
+          "max": 90,
+          "color": "green"
+        },
+        "risk": {
+          "min": 25,
+          "max": 45,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 0,
+          "max": 25,
+          "color": "red"
+        }
+      },
+      "impact": "medium"
+    },
+    "P1-KPI3": {
+      "name": "Time-to-First-Value (TTFV)",
+      "pillar": "P1",
+      "weight_l1": 0.14,
+      "frequency": "monthly",
+      "unit": "days",
+      "higher_is_better": false,
+      "data_source": "CSR",
+      "data_source_systems": [
+        "Gainsight",
+        "Totango",
+        "ChurnZero"
+      ],
+      "target": {
+        "operator": "<",
+        "value": 21
+      },
+      "ranges": {
+        "healthy": {
+          "min": 1,
+          "max": 21,
+          "color": "green"
+        },
+        "risk": {
+          "min": 21,
+          "max": 45,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 45,
+          "max": 120,
+          "color": "red"
+        }
+      },
+      "impact": "medium"
+    },
+    "P1-KPI4": {
+      "name": "Login Frequency",
+      "pillar": "P1",
+      "weight_l1": 0.12,
+      "frequency": "weekly",
+      "unit": "sessions/user/week",
+      "higher_is_better": true,
+      "data_source": "OBR",
+      "data_source_systems": [
+        "Auth0",
+        "Okta",
+        "Product Analytics"
+      ],
+      "target": {
+        "operator": ">",
+        "value": 3.5
+      },
+      "ranges": {
+        "healthy": {
+          "min": 3.5,
+          "max": 12,
+          "color": "green"
+        },
+        "risk": {
+          "min": 1.5,
+          "max": 3.5,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 0,
+          "max": 1.5,
+          "color": "red"
+        }
+      },
+      "impact": "medium"
+    },
+    "P1-KPI5": {
+      "name": "Onboarding Completion Rate",
+      "pillar": "P1",
+      "weight_l1": 0.12,
+      "frequency": "monthly",
+      "unit": "percentage",
+      "higher_is_better": true,
+      "data_source": "CSR",
+      "data_source_systems": [
+        "Gainsight",
+        "Totango",
+        "ChurnZero"
+      ],
+      "target": {
+        "operator": ">",
+        "value": 80
+      },
+      "ranges": {
+        "healthy": {
+          "min": 80,
+          "max": 100,
+          "color": "green"
+        },
+        "risk": {
+          "min": 50,
+          "max": 80,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 0,
+          "max": 50,
+          "color": "red"
+        }
+      },
+      "impact": "medium"
+    },
+    "P1-KPI6": {
+      "name": "Workflow Completion Rate",
+      "pillar": "P1",
+      "weight_l1": 0.09,
+      "frequency": "weekly",
+      "unit": "percentage",
+      "higher_is_better": true,
+      "data_source": "OBR",
+      "data_source_systems": [
+        "Pendo",
+        "Amplitude",
+        "Product Analytics"
+      ],
+      "target": {
+        "operator": ">",
+        "value": 75
+      },
+      "ranges": {
+        "healthy": {
+          "min": 75,
+          "max": 99,
+          "color": "green"
+        },
+        "risk": {
+          "min": 50,
+          "max": 75,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 0,
+          "max": 50,
+          "color": "red"
+        }
+      },
+      "impact": "medium"
+    },
+    "P1-KPI7": {
+      "name": "Module Activation Rate",
+      "pillar": "P1",
+      "weight_l1": 0.08,
+      "frequency": "monthly",
+      "unit": "percentage",
+      "higher_is_better": true,
+      "data_source": "OBR",
+      "data_source_systems": [
+        "Product Analytics",
+        "License Manager"
+      ],
+      "target": {
+        "operator": ">",
+        "value": 70
+      },
+      "ranges": {
+        "healthy": {
+          "min": 70,
+          "max": 100,
+          "color": "green"
+        },
+        "risk": {
+          "min": 40,
+          "max": 70,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 0,
+          "max": 40,
+          "color": "red"
+        }
+      },
+      "impact": "low"
+    },
+    "P1-KPI8": {
+      "name": "API Integration Usage",
+      "pillar": "P1",
+      "weight_l1": 0.07,
+      "frequency": "weekly",
+      "unit": "percentage",
+      "higher_is_better": true,
+      "data_source": "OBR",
+      "data_source_systems": [
+        "API Gateway",
+        "Kong",
+        "Apigee"
+      ],
+      "target": {
+        "operator": ">",
+        "value": 30
+      },
+      "ranges": {
+        "healthy": {
+          "min": 30,
+          "max": 85,
+          "color": "green"
+        },
+        "risk": {
+          "min": 15,
+          "max": 30,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 0,
+          "max": 15,
+          "color": "red"
+        }
+      },
+      "impact": "low"
+    },
+    "P1-KPI9": {
+      "name": "Knowledge Base Usage",
+      "pillar": "P1",
+      "weight_l1": 0.07,
+      "frequency": "monthly",
+      "unit": "percentage",
+      "higher_is_better": true,
+      "data_source": "OBR",
+      "data_source_systems": [
+        "Zendesk Guide",
+        "Confluence",
+        "Notion"
+      ],
+      "target": {
+        "operator": ">",
+        "value": 40
+      },
+      "ranges": {
+        "healthy": {
+          "min": 40,
+          "max": 90,
+          "color": "green"
+        },
+        "risk": {
+          "min": 20,
+          "max": 40,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 0,
+          "max": 20,
+          "color": "red"
+        }
+      },
+      "impact": "low"
+    },
+    "P1-KPI10": {
+      "name": "Golden Path Velocity",
+      "pillar": "P1",
+      "weight_l1": 0.10,
+      "frequency": "weekly",
+      "unit": "percentage",
+      "higher_is_better": true,
+      "data_source": "OBR",
+      "data_source_systems": [
+        "Amplitude",
+        "Mixpanel",
+        "Pendo",
+        "Heap"
+      ],
+      "target": {
+        "operator": ">",
+        "value": 65
+      },
+      "ranges": {
+        "healthy": {
+          "min": 65,
+          "max": 95,
+          "color": "green"
+        },
+        "risk": {
+          "min": 35,
+          "max": 65,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 0,
+          "max": 35,
+          "color": "red"
+        }
+      },
+      "impact": "high",
+      "_description": "Measures how quickly users complete the key value-delivery workflow (golden path). Behavioral leading indicator — detects stalling before DAU drops. Low velocity + high DAU = frustrated power users (competitor risk)."
+    },
+    "P2-KPI1": {
+      "name": "Executive Sponsor Engagement",
+      "pillar": "P2",
+      "weight_l1": 0.22,
+      "frequency": "monthly",
+      "unit": "score",
+      "higher_is_better": true,
+      "data_source": "CSR",
+      "data_source_systems": [
+        "Gainsight",
+        "Salesforce",
+        "CRM"
+      ],
+      "target": {
+        "operator": ">",
+        "value": 70
+      },
+      "ranges": {
+        "healthy": {
+          "min": 70,
+          "max": 100,
+          "color": "green"
+        },
+        "risk": {
+          "min": 40,
+          "max": 70,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 0,
+          "max": 40,
+          "color": "red"
+        }
+      },
+      "impact": "high"
+    },
+    "P2-KPI2": {
+      "name": "QBR Attendance Rate",
+      "pillar": "P2",
+      "weight_l1": 0.18,
+      "frequency": "quarterly",
+      "unit": "percentage",
+      "higher_is_better": true,
+      "data_source": "CSR",
+      "data_source_systems": [
+        "Gainsight",
+        "Google Calendar",
+        "Salesforce"
+      ],
+      "target": {
+        "operator": ">",
+        "value": 85
+      },
+      "ranges": {
+        "healthy": {
+          "min": 85,
+          "max": 100,
+          "color": "green"
+        },
+        "risk": {
+          "min": 50,
+          "max": 85,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 0,
+          "max": 50,
+          "color": "red"
+        }
+      },
+      "impact": "medium"
+    },
+    "P2-KPI3": {
+      "name": "Training Completion Rate",
+      "pillar": "P2",
+      "weight_l1": 0.15,
+      "frequency": "monthly",
+      "unit": "percentage",
+      "higher_is_better": true,
+      "data_source": "CSR",
+      "data_source_systems": [
+        "LMS",
+        "Academy",
+        "Skilljar"
+      ],
+      "target": {
+        "operator": ">",
+        "value": 60
+      },
+      "ranges": {
+        "healthy": {
+          "min": 60,
+          "max": 100,
+          "color": "green"
+        },
+        "risk": {
+          "min": 30,
+          "max": 60,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 0,
+          "max": 30,
+          "color": "red"
+        }
+      },
+      "impact": "medium"
+    },
+    "P2-KPI4": {
+      "name": "Community Participation Score",
+      "pillar": "P2",
+      "weight_l1": 0.12,
+      "frequency": "monthly",
+      "unit": "score",
+      "higher_is_better": true,
+      "data_source": "CSR",
+      "data_source_systems": [
+        "Community Platform",
+        "Discourse",
+        "Slack"
+      ],
+      "target": {
+        "operator": ">",
+        "value": 40
+      },
+      "ranges": {
+        "healthy": {
+          "min": 40,
+          "max": 100,
+          "color": "green"
+        },
+        "risk": {
+          "min": 20,
+          "max": 40,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 0,
+          "max": 20,
+          "color": "red"
+        }
+      },
+      "impact": "medium"
+    },
+    "P2-KPI5": {
+      "name": "CSM Interaction Frequency",
+      "pillar": "P2",
+      "weight_l1": 0.13,
+      "frequency": "monthly",
+      "unit": "interactions/month",
+      "higher_is_better": true,
+      "data_source": "CSR",
+      "data_source_systems": [
+        "Gainsight",
+        "Salesforce",
+        "Outreach"
+      ],
+      "target": {
+        "operator": ">",
+        "value": 4
+      },
+      "ranges": {
+        "healthy": {
+          "min": 4,
+          "max": 15,
+          "color": "green"
+        },
+        "risk": {
+          "min": 2,
+          "max": 4,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 0,
+          "max": 2,
+          "color": "red"
+        }
+      },
+      "impact": "medium"
+    },
+    "P2-KPI6": {
+      "name": "Webinar/Event Attendance",
+      "pillar": "P2",
+      "weight_l1": 0.1,
+      "frequency": "monthly",
+      "unit": "percentage",
+      "higher_is_better": true,
+      "data_source": "CSR",
+      "data_source_systems": [
+        "Zoom",
+        "Webex",
+        "ON24"
+      ],
+      "target": {
+        "operator": ">",
+        "value": 25
+      },
+      "ranges": {
+        "healthy": {
+          "min": 25,
+          "max": 80,
+          "color": "green"
+        },
+        "risk": {
+          "min": 10,
+          "max": 25,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 0,
+          "max": 10,
+          "color": "red"
+        }
+      },
+      "impact": "low"
+    },
+    "P2-KPI7": {
+      "name": "Customer Advocacy Score",
+      "pillar": "P2",
+      "weight_l1": 0.1,
+      "frequency": "quarterly",
+      "unit": "score",
+      "higher_is_better": true,
+      "data_source": "CSR",
+      "data_source_systems": [
+        "Influitive",
+        "Gainsight",
+        "ReferenceEdge"
+      ],
+      "target": {
+        "operator": ">",
+        "value": 50
+      },
+      "ranges": {
+        "healthy": {
+          "min": 50,
+          "max": 100,
+          "color": "green"
+        },
+        "risk": {
+          "min": 25,
+          "max": 50,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 0,
+          "max": 25,
+          "color": "red"
+        }
+      },
+      "impact": "low"
+    },
+    "P2-KPI8": {
+      "name": "Persona Breadth",
+      "pillar": "P2",
+      "weight_l1": 0.10,
+      "frequency": "monthly",
+      "unit": "ratio",
+      "higher_is_better": true,
+      "data_source": "OBR",
+      "data_source_systems": [
+        "Amplitude",
+        "Mixpanel",
+        "Pendo",
+        "Auth0"
+      ],
+      "target": {
+        "operator": ">",
+        "value": 3.0
+      },
+      "ranges": {
+        "healthy": {
+          "min": 3.0,
+          "max": 8.0,
+          "color": "green"
+        },
+        "risk": {
+          "min": 1.5,
+          "max": 3.0,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 0,
+          "max": 1.5,
+          "color": "red"
+        }
+      },
+      "impact": "high",
+      "_description": "Number of distinct user personas/roles actively using the platform. Structural leading indicator — protects against single-point-of-failure. Low breadth + high champion engagement = top-heavy account (champion departure = silent churn in 30 days)."
+    },
+    "P3-KPI1": {
+      "name": "Ticket Resolution Time",
+      "pillar": "P3",
+      "weight_l1": 0.13,
+      "frequency": "daily",
+      "unit": "hours",
+      "higher_is_better": false,
+      "data_source": "SBR",
+      "data_source_systems": [
+        "Zendesk",
+        "ServiceNow",
+        "Freshdesk",
+        "Jira Service Management"
+      ],
+      "target": {
+        "operator": "<",
+        "value": 24
+      },
+      "ranges": {
+        "healthy": {
+          "min": 1,
+          "max": 24,
+          "color": "green"
+        },
+        "risk": {
+          "min": 24,
+          "max": 48,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 48,
+          "max": 168,
+          "color": "red"
+        }
+      },
+      "impact": "medium"
+    },
+    "P3-KPI2": {
+      "name": "CSAT Score",
+      "pillar": "P3",
+      "weight_l1": 0.14,
+      "frequency": "monthly",
+      "unit": "score",
+      "higher_is_better": true,
+      "data_source": "SBR",
+      "data_source_systems": [
+        "Zendesk",
+        "Qualtrics",
+        "SurveyMonkey",
+        "Delighted"
+      ],
+      "target": {
+        "operator": ">",
+        "value": 85
+      },
+      "ranges": {
+        "healthy": {
+          "min": 85,
+          "max": 100,
+          "color": "green"
+        },
+        "risk": {
+          "min": 65,
+          "max": 85,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 0,
+          "max": 65,
+          "color": "red"
+        }
+      },
+      "impact": "high"
+    },
+    "P3-KPI3": {
+      "name": "Net Promoter Score (NPS)",
+      "pillar": "P3",
+      "weight_l1": 0.14,
+      "frequency": "quarterly",
+      "unit": "score",
+      "higher_is_better": true,
+      "data_source": "CSR",
+      "data_source_systems": [
+        "Qualtrics",
+        "Delighted",
+        "AskNicely",
+        "Gainsight"
+      ],
+      "target": {
+        "operator": ">",
+        "value": 40
+      },
+      "ranges": {
+        "healthy": {
+          "min": 40,
+          "max": 100,
+          "color": "green"
+        },
+        "risk": {
+          "min": 10,
+          "max": 40,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": -100,
+          "max": 10,
+          "color": "red"
+        }
+      },
+      "impact": "high"
+    },
+    "P3-KPI4": {
+      "name": "Escalation Rate",
+      "pillar": "P3",
+      "weight_l1": 0.1,
+      "frequency": "monthly",
+      "unit": "percentage",
+      "higher_is_better": false,
+      "data_source": "SBR",
+      "data_source_systems": [
+        "Zendesk",
+        "ServiceNow",
+        "Freshdesk"
+      ],
+      "target": {
+        "operator": "<",
+        "value": 8
+      },
+      "ranges": {
+        "healthy": {
+          "min": 0,
+          "max": 8,
+          "color": "green"
+        },
+        "risk": {
+          "min": 8,
+          "max": 15,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 15,
+          "max": 50,
+          "color": "red"
+        }
+      },
+      "impact": "medium"
+    },
+    "P3-KPI5": {
+      "name": "First Contact Resolution Rate",
+      "pillar": "P3",
+      "weight_l1": 0.1,
+      "frequency": "monthly",
+      "unit": "percentage",
+      "higher_is_better": true,
+      "data_source": "SBR",
+      "data_source_systems": [
+        "Zendesk",
+        "ServiceNow",
+        "Freshdesk"
+      ],
+      "target": {
+        "operator": ">",
+        "value": 70
+      },
+      "ranges": {
+        "healthy": {
+          "min": 70,
+          "max": 100,
+          "color": "green"
+        },
+        "risk": {
+          "min": 45,
+          "max": 70,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 0,
+          "max": 45,
+          "color": "red"
+        }
+      },
+      "impact": "medium"
+    },
+    "P3-KPI6": {
+      "name": "SLA Compliance Rate",
+      "pillar": "P3",
+      "weight_l1": 0.08,
+      "frequency": "monthly",
+      "unit": "percentage",
+      "higher_is_better": true,
+      "data_source": "SBR",
+      "data_source_systems": [
+        "Zendesk",
+        "ServiceNow",
+        "PagerDuty"
+      ],
+      "target": {
+        "operator": ">",
+        "value": 95
+      },
+      "ranges": {
+        "healthy": {
+          "min": 95,
+          "max": 100,
+          "color": "green"
+        },
+        "risk": {
+          "min": 85,
+          "max": 95,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 0,
+          "max": 85,
+          "color": "red"
+        }
+      },
+      "impact": "low"
+    },
+    "P3-KPI7": {
+      "name": "Support Ticket Volume Trend",
+      "pillar": "P3",
+      "weight_l1": 0.07,
+      "frequency": "monthly",
+      "unit": "percentage_mom",
+      "higher_is_better": false,
+      "data_source": "SBR",
+      "data_source_systems": [
+        "Zendesk",
+        "ServiceNow",
+        "Freshdesk"
+      ],
+      "target": {
+        "operator": "<",
+        "value": 5
+      },
+      "ranges": {
+        "healthy": {
+          "min": -20,
+          "max": 5,
+          "color": "green"
+        },
+        "risk": {
+          "min": 5,
+          "max": 15,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 15,
+          "max": 100,
+          "color": "red"
+        }
+      },
+      "impact": "low"
+    },
+    "P3-KPI8": {
+      "name": "Customer Effort Score (CES)",
+      "pillar": "P3",
+      "weight_l1": 0.1,
+      "frequency": "monthly",
+      "unit": "score",
+      "higher_is_better": true,
+      "data_source": "SBR",
+      "data_source_systems": [
+        "Qualtrics",
+        "Nicereply",
+        "Zendesk"
+      ],
+      "target": {
+        "operator": ">",
+        "value": 5.5
+      },
+      "ranges": {
+        "healthy": {
+          "min": 5.5,
+          "max": 7.0,
+          "color": "green"
+        },
+        "risk": {
+          "min": 4.0,
+          "max": 5.5,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 1.0,
+          "max": 4.0,
+          "color": "red"
+        }
+      },
+      "impact": "medium"
+    },
+    "P3-KPI9": {
+      "name": "Case Deflection Rate",
+      "pillar": "P3",
+      "weight_l1": 0.07,
+      "frequency": "monthly",
+      "unit": "percentage",
+      "higher_is_better": true,
+      "data_source": "SBR",
+      "data_source_systems": [
+        "Zendesk",
+        "Intercom",
+        "Chatbot Platform"
+      ],
+      "target": {
+        "operator": ">",
+        "value": 30
+      },
+      "ranges": {
+        "healthy": {
+          "min": 30,
+          "max": 75,
+          "color": "green"
+        },
+        "risk": {
+          "min": 15,
+          "max": 30,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 0,
+          "max": 15,
+          "color": "red"
+        }
+      },
+      "impact": "low"
+    },
+    "P3-KPI10": {
+      "name": "Customer Complaints Rate",
+      "pillar": "P3",
+      "weight_l1": 0.07,
+      "frequency": "monthly",
+      "unit": "per_1000_users",
+      "higher_is_better": false,
+      "data_source": "SBR",
+      "data_source_systems": [
+        "Zendesk",
+        "Salesforce",
+        "CRM"
+      ],
+      "target": {
+        "operator": "<",
+        "value": 5
+      },
+      "ranges": {
+        "healthy": {
+          "min": 0,
+          "max": 5,
+          "color": "green"
+        },
+        "risk": {
+          "min": 5,
+          "max": 12,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 12,
+          "max": 50,
+          "color": "red"
+        }
+      },
+      "impact": "low"
+    },
+    "P4-KPI1": {
+      "name": "Partner-Sourced Revenue Rate",
+      "pillar": "P4",
+      "weight_l1": 0.2,
+      "frequency": "monthly",
+      "unit": "percentage",
+      "higher_is_better": true,
+      "data_source": "VBR",
+      "data_source_systems": [
+        "Salesforce",
+        "PartnerStack",
+        "Crossbeam"
+      ],
+      "target": {
+        "operator": ">",
+        "value": 25
+      },
+      "ranges": {
+        "healthy": {
+          "min": 25,
+          "max": 70,
+          "color": "green"
+        },
+        "risk": {
+          "min": 12,
+          "max": 25,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 0,
+          "max": 12,
+          "color": "red"
+        }
+      },
+      "impact": "high"
+    },
+    "P4-KPI2": {
+      "name": "Partner Certification Level",
+      "pillar": "P4",
+      "weight_l1": 0.16,
+      "frequency": "quarterly",
+      "unit": "score",
+      "higher_is_better": true,
+      "data_source": "CSR",
+      "data_source_systems": [
+        "Partner Portal",
+        "LMS",
+        "Skilljar"
+      ],
+      "target": {
+        "operator": ">",
+        "value": 60
+      },
+      "ranges": {
+        "healthy": {
+          "min": 60,
+          "max": 100,
+          "color": "green"
+        },
+        "risk": {
+          "min": 35,
+          "max": 60,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 0,
+          "max": 35,
+          "color": "red"
+        }
+      },
+      "impact": "medium"
+    },
+    "P4-KPI3": {
+      "name": "Partner Deal Registration Rate",
+      "pillar": "P4",
+      "weight_l1": 0.15,
+      "frequency": "monthly",
+      "unit": "percentage",
+      "higher_is_better": true,
+      "data_source": "VBR",
+      "data_source_systems": [
+        "Salesforce",
+        "PartnerStack",
+        "Impartner"
+      ],
+      "target": {
+        "operator": ">",
+        "value": 40
+      },
+      "ranges": {
+        "healthy": {
+          "min": 40,
+          "max": 85,
+          "color": "green"
+        },
+        "risk": {
+          "min": 20,
+          "max": 40,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 0,
+          "max": 20,
+          "color": "red"
+        }
+      },
+      "impact": "medium"
+    },
+    "P4-KPI4": {
+      "name": "Channel Conflict Resolution Time",
+      "pillar": "P4",
+      "weight_l1": 0.13,
+      "frequency": "monthly",
+      "unit": "days",
+      "higher_is_better": false,
+      "data_source": "CSR",
+      "data_source_systems": [
+        "CRM",
+        "Partner Portal"
+      ],
+      "target": {
+        "operator": "<",
+        "value": 14
+      },
+      "ranges": {
+        "healthy": {
+          "min": 1,
+          "max": 14,
+          "color": "green"
+        },
+        "risk": {
+          "min": 14,
+          "max": 30,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 30,
+          "max": 90,
+          "color": "red"
+        }
+      },
+      "impact": "medium"
+    },
+    "P4-KPI5": {
+      "name": "Partner Satisfaction Score",
+      "pillar": "P4",
+      "weight_l1": 0.14,
+      "frequency": "quarterly",
+      "unit": "score",
+      "higher_is_better": true,
+      "data_source": "CSR",
+      "data_source_systems": [
+        "Qualtrics",
+        "SurveyMonkey",
+        "Partner Portal"
+      ],
+      "target": {
+        "operator": ">",
+        "value": 75
+      },
+      "ranges": {
+        "healthy": {
+          "min": 75,
+          "max": 100,
+          "color": "green"
+        },
+        "risk": {
+          "min": 50,
+          "max": 75,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 0,
+          "max": 50,
+          "color": "red"
+        }
+      },
+      "impact": "medium"
+    },
+    "P4-KPI6": {
+      "name": "Co-Marketing Campaign ROI",
+      "pillar": "P4",
+      "weight_l1": 0.12,
+      "frequency": "quarterly",
+      "unit": "percentage",
+      "higher_is_better": true,
+      "data_source": "VBR",
+      "data_source_systems": [
+        "HubSpot",
+        "Marketo",
+        "Salesforce"
+      ],
+      "target": {
+        "operator": ">",
+        "value": 200
+      },
+      "ranges": {
+        "healthy": {
+          "min": 200,
+          "max": 800,
+          "color": "green"
+        },
+        "risk": {
+          "min": 100,
+          "max": 200,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 0,
+          "max": 100,
+          "color": "red"
+        }
+      },
+      "impact": "medium"
+    },
+    "P4-KPI7": {
+      "name": "Partner Technical Enablement Score",
+      "pillar": "P4",
+      "weight_l1": 0.1,
+      "frequency": "quarterly",
+      "unit": "score",
+      "higher_is_better": true,
+      "data_source": "CSR",
+      "data_source_systems": [
+        "LMS",
+        "Partner Portal",
+        "Skilljar"
+      ],
+      "target": {
+        "operator": ">",
+        "value": 65
+      },
+      "ranges": {
+        "healthy": {
+          "min": 65,
+          "max": 100,
+          "color": "green"
+        },
+        "risk": {
+          "min": 40,
+          "max": 65,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 0,
+          "max": 40,
+          "color": "red"
+        }
+      },
+      "impact": "low"
+    },
+    "P5-KPI1": {
+      "name": "Net Revenue Retention (NRR)",
+      "pillar": "P5",
+      "weight_l1": 0.2,
+      "frequency": "monthly",
+      "unit": "percentage",
+      "higher_is_better": true,
+      "data_source": "VBR",
+      "data_source_systems": [
+        "Salesforce",
+        "ChartMogul",
+        "Stripe",
+        "Zuora"
+      ],
+      "target": {
+        "operator": ">",
+        "value": 110
+      },
+      "ranges": {
+        "healthy": {
+          "min": 110,
+          "max": 160,
+          "color": "green"
+        },
+        "risk": {
+          "min": 95,
+          "max": 110,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 0,
+          "max": 95,
+          "color": "red"
+        }
+      },
+      "impact": "high"
+    },
+    "P5-KPI2": {
+      "name": "Gross Revenue Retention (GRR)",
+      "pillar": "P5",
+      "weight_l1": 0.16,
+      "frequency": "monthly",
+      "unit": "percentage",
+      "higher_is_better": true,
+      "data_source": "VBR",
+      "data_source_systems": [
+        "Salesforce",
+        "ChartMogul",
+        "Zuora"
+      ],
+      "target": {
+        "operator": ">",
+        "value": 92
+      },
+      "ranges": {
+        "healthy": {
+          "min": 92,
+          "max": 100,
+          "color": "green"
+        },
+        "risk": {
+          "min": 85,
+          "max": 92,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 0,
+          "max": 85,
+          "color": "red"
+        }
+      },
+      "impact": "medium"
+    },
+    "P5-KPI3": {
+      "name": "Expansion Revenue Rate",
+      "pillar": "P5",
+      "weight_l1": 0.13,
+      "frequency": "monthly",
+      "unit": "percentage",
+      "higher_is_better": true,
+      "data_source": "VBR",
+      "data_source_systems": [
+        "Salesforce",
+        "ChartMogul",
+        "Stripe"
+      ],
+      "target": {
+        "operator": ">",
+        "value": 15
+      },
+      "ranges": {
+        "healthy": {
+          "min": 15,
+          "max": 50,
+          "color": "green"
+        },
+        "risk": {
+          "min": 5,
+          "max": 15,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 0,
+          "max": 5,
+          "color": "red"
+        }
+      },
+      "impact": "medium"
+    },
+    "P5-KPI4": {
+      "name": "Annual Contract Value (ACV) Growth",
+      "pillar": "P5",
+      "weight_l1": 0.1,
+      "frequency": "quarterly",
+      "unit": "percentage",
+      "higher_is_better": true,
+      "data_source": "VBR",
+      "data_source_systems": [
+        "Salesforce",
+        "HubSpot CRM"
+      ],
+      "target": {
+        "operator": ">",
+        "value": 12
+      },
+      "ranges": {
+        "healthy": {
+          "min": 12,
+          "max": 40,
+          "color": "green"
+        },
+        "risk": {
+          "min": 5,
+          "max": 12,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": -20,
+          "max": 5,
+          "color": "red"
+        }
+      },
+      "impact": "medium"
+    },
+    "P5-KPI5": {
+      "name": "Renewal Probability (90d)",
+      "pillar": "P5",
+      "weight_l1": 0.14,
+      "frequency": "monthly",
+      "unit": "percentage",
+      "higher_is_better": true,
+      "data_source": "CSR",
+      "data_source_systems": [
+        "Gainsight",
+        "Totango",
+        "ChurnZero"
+      ],
+      "target": {
+        "operator": ">",
+        "value": 85
+      },
+      "ranges": {
+        "healthy": {
+          "min": 85,
+          "max": 100,
+          "color": "green"
+        },
+        "risk": {
+          "min": 60,
+          "max": 85,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 0,
+          "max": 60,
+          "color": "red"
+        }
+      },
+      "impact": "medium"
+    },
+    "P5-KPI6": {
+      "name": "Churn Risk Score",
+      "pillar": "P5",
+      "weight_l1": 0.09,
+      "frequency": "monthly",
+      "unit": "percentage",
+      "higher_is_better": false,
+      "data_source": "CSR",
+      "data_source_systems": [
+        "Gainsight",
+        "Totango",
+        "ChurnZero"
+      ],
+      "target": {
+        "operator": "<",
+        "value": 20
+      },
+      "ranges": {
+        "healthy": {
+          "min": 0,
+          "max": 20,
+          "color": "green"
+        },
+        "risk": {
+          "min": 20,
+          "max": 40,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 40,
+          "max": 100,
+          "color": "red"
+        }
+      },
+      "impact": "low"
+    },
+    "P5-KPI7": {
+      "name": "Customer Lifetime Value Trend",
+      "pillar": "P5",
+      "weight_l1": 0.08,
+      "frequency": "quarterly",
+      "unit": "ratio",
+      "higher_is_better": true,
+      "data_source": "VBR",
+      "data_source_systems": [
+        "ChartMogul",
+        "ProfitWell",
+        "Zuora"
+      ],
+      "target": {
+        "operator": ">",
+        "value": 2.0
+      },
+      "ranges": {
+        "healthy": {
+          "min": 2.0,
+          "max": 8.0,
+          "color": "green"
+        },
+        "risk": {
+          "min": 1.2,
+          "max": 2.0,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 0,
+          "max": 1.2,
+          "color": "red"
+        }
+      },
+      "impact": "low"
+    },
+    "P5-KPI8": {
+      "name": "Share of Wallet",
+      "pillar": "P5",
+      "weight_l1": 0.1,
+      "frequency": "quarterly",
+      "unit": "percentage",
+      "higher_is_better": true,
+      "data_source": "VBR",
+      "data_source_systems": [
+        "Salesforce",
+        "CRM",
+        "Finance Systems"
+      ],
+      "target": {
+        "operator": ">",
+        "value": 35
+      },
+      "ranges": {
+        "healthy": {
+          "min": 35,
+          "max": 80,
+          "color": "green"
+        },
+        "risk": {
+          "min": 15,
+          "max": 35,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 0,
+          "max": 15,
+          "color": "red"
+        }
+      },
+      "impact": "medium"
+    }
+  }
+}

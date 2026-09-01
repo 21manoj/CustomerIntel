@@ -1,0 +1,1209 @@
+{
+  "version": "1.0",
+  "vertical": "datacenter_v1",
+  "description": "GPU-rental neocloud (DataCenterV1) \u2014 rent NVIDIA GPUs hourly / reserved clusters. Health optimized for realized revenue x utilization x goodput x sellable power. See docs/GPU_NEOCLOUD_VERTICAL_SPEC.md.",
+  "pillars": {
+    "P1": {
+      "name": "Revenue & Unit Economics",
+      "weight_l2": 0.25,
+      "kpi_count": 6,
+      "semantic_code": "R1"
+    },
+    "P2": {
+      "name": "Fleet Utilization & Goodput",
+      "weight_l2": 0.22,
+      "kpi_count": 7,
+      "semantic_code": "R2"
+    },
+    "P3": {
+      "name": "Reliability & SLA Delivery",
+      "weight_l2": 0.2,
+      "kpi_count": 8,
+      "semantic_code": "R3"
+    },
+    "P4": {
+      "name": "Power & Facility",
+      "weight_l2": 0.13,
+      "kpi_count": 6,
+      "semantic_code": "R4"
+    },
+    "P5": {
+      "name": "Commercial & Expansion",
+      "weight_l2": 0.15,
+      "kpi_count": 8,
+      "semantic_code": "R5"
+    },
+    "P6": {
+      "name": "Provisioning Velocity",
+      "weight_l2": 0.05,
+      "kpi_count": 3,
+      "semantic_code": "R6"
+    }
+  },
+  "pillar_roles": {
+    "revenue": "P1",
+    "capacity": "P2",
+    "reliability": "P3",
+    "expansion": "P5",
+    "adoption": "P6"
+  },
+  "pillar_roles_notes": {
+    "P4": "Power & Facility has no matching role in the shared vocabulary -- explicitly NOT 'partner' (confirmed by the partner_portal gate this phase retrofits: this pillar is facility/power infrastructure, not a channel/partner relationship) and not 'compliance' either. Left unmapped.",
+    "P6": "Provisioning Velocity mapped to 'adoption' by analogy with dc2_s's P1 Deployment Velocity (also 'adoption') -- both measure time-to-first-value/onboarding speed (Power-of-1 maps P6 to the TTFV metric_id). Moderate-confidence call: 'velocity' isn't literally 'adoption', flagged for review."
+  },
+  "kpis": {
+    "P1-KPI1": {
+      "name": "Realized $/GPU-hour",
+      "pillar": "P1",
+      "weight_l1": 0.25,
+      "frequency": "daily",
+      "unit": "$/gpu-hr",
+      "higher_is_better": true,
+      "target": {
+        "operator": ">",
+        "value": 2.5
+      },
+      "ranges": {
+        "healthy": {
+          "min": 2.5,
+          "max": 4.0,
+          "color": "green"
+        },
+        "risk": {
+          "min": 1.8,
+          "max": 2.5,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 0,
+          "max": 1.8,
+          "color": "red"
+        }
+      },
+      "description": "Realized $/GPU-hour"
+    },
+    "P1-KPI2": {
+      "name": "Effective-utilization revenue capture",
+      "pillar": "P1",
+      "weight_l1": 0.2,
+      "frequency": "daily",
+      "unit": "percentage",
+      "higher_is_better": true,
+      "target": {
+        "operator": ">",
+        "value": 85
+      },
+      "ranges": {
+        "healthy": {
+          "min": 85,
+          "max": 100,
+          "color": "green"
+        },
+        "risk": {
+          "min": 70,
+          "max": 85,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 0,
+          "max": 70,
+          "color": "red"
+        }
+      },
+      "description": "Effective-utilization revenue capture"
+    },
+    "P1-KPI3": {
+      "name": "Reserved revenue coverage",
+      "pillar": "P1",
+      "weight_l1": 0.15,
+      "frequency": "weekly",
+      "unit": "percentage",
+      "higher_is_better": true,
+      "target": {
+        "operator": ">",
+        "value": 60
+      },
+      "ranges": {
+        "healthy": {
+          "min": 60,
+          "max": 100,
+          "color": "green"
+        },
+        "risk": {
+          "min": 40,
+          "max": 60,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 0,
+          "max": 40,
+          "color": "red"
+        }
+      },
+      "description": "Reserved revenue coverage"
+    },
+    "P1-KPI4": {
+      "name": "Gross margin per cluster",
+      "pillar": "P1",
+      "weight_l1": 0.2,
+      "frequency": "monthly",
+      "unit": "percentage",
+      "higher_is_better": true,
+      "target": {
+        "operator": ">",
+        "value": 45
+      },
+      "ranges": {
+        "healthy": {
+          "min": 45,
+          "max": 80,
+          "color": "green"
+        },
+        "risk": {
+          "min": 30,
+          "max": 45,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 0,
+          "max": 30,
+          "color": "red"
+        }
+      },
+      "description": "Gross margin per cluster"
+    },
+    "P1-KPI5": {
+      "name": "Rate / discount leakage",
+      "pillar": "P1",
+      "weight_l1": 0.1,
+      "frequency": "weekly",
+      "unit": "percentage",
+      "higher_is_better": false,
+      "target": {
+        "operator": "<",
+        "value": 10
+      },
+      "ranges": {
+        "healthy": {
+          "min": 0,
+          "max": 10,
+          "color": "green"
+        },
+        "risk": {
+          "min": 10,
+          "max": 20,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 20,
+          "max": 40,
+          "color": "red"
+        }
+      },
+      "description": "Rate / discount leakage"
+    },
+    "P1-KPI6": {
+      "name": "Revenue per available MW",
+      "pillar": "P1",
+      "weight_l1": 0.1,
+      "frequency": "monthly",
+      "unit": "$m/MW",
+      "higher_is_better": true,
+      "target": {
+        "operator": ">",
+        "value": 1.2
+      },
+      "ranges": {
+        "healthy": {
+          "min": 1.2,
+          "max": 2.5,
+          "color": "green"
+        },
+        "risk": {
+          "min": 0.8,
+          "max": 1.2,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 0,
+          "max": 0.8,
+          "color": "red"
+        }
+      },
+      "description": "Revenue per available MW"
+    },
+    "P2-KPI1": {
+      "name": "GPU Utilization (allocated)",
+      "pillar": "P2",
+      "weight_l1": 0.22,
+      "frequency": "realtime",
+      "unit": "percentage",
+      "higher_is_better": true,
+      "target": {
+        "operator": ">",
+        "value": 70
+      },
+      "ranges": {
+        "healthy": {
+          "min": 70,
+          "max": 100,
+          "color": "green"
+        },
+        "risk": {
+          "min": 50,
+          "max": 70,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 0,
+          "max": 50,
+          "color": "red"
+        }
+      },
+      "description": "GPU Utilization (allocated)"
+    },
+    "P2-KPI2": {
+      "name": "Effective utilization (goodput)",
+      "pillar": "P2",
+      "weight_l1": 0.22,
+      "frequency": "realtime",
+      "unit": "percentage",
+      "higher_is_better": true,
+      "target": {
+        "operator": ">",
+        "value": 90
+      },
+      "ranges": {
+        "healthy": {
+          "min": 90,
+          "max": 100,
+          "color": "green"
+        },
+        "risk": {
+          "min": 75,
+          "max": 90,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 0,
+          "max": 75,
+          "color": "red"
+        }
+      },
+      "description": "Effective utilization (goodput)"
+    },
+    "P2-KPI3": {
+      "name": "Idle GPU-hour rate",
+      "pillar": "P2",
+      "weight_l1": 0.15,
+      "frequency": "realtime",
+      "unit": "percentage",
+      "higher_is_better": false,
+      "target": {
+        "operator": "<",
+        "value": 10
+      },
+      "ranges": {
+        "healthy": {
+          "min": 0,
+          "max": 10,
+          "color": "green"
+        },
+        "risk": {
+          "min": 10,
+          "max": 20,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 20,
+          "max": 40,
+          "color": "red"
+        }
+      },
+      "description": "Idle GPU-hour rate"
+    },
+    "P2-KPI4": {
+      "name": "Reserved-cluster utilization",
+      "pillar": "P2",
+      "weight_l1": 0.15,
+      "frequency": "daily",
+      "unit": "percentage",
+      "higher_is_better": true,
+      "target": {
+        "operator": ">",
+        "value": 60
+      },
+      "ranges": {
+        "healthy": {
+          "min": 60,
+          "max": 100,
+          "color": "green"
+        },
+        "risk": {
+          "min": 40,
+          "max": 60,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 0,
+          "max": 40,
+          "color": "red"
+        }
+      },
+      "description": "Reserved-cluster utilization"
+    },
+    "P2-KPI5": {
+      "name": "Fleet fragmentation / stranded GPUs",
+      "pillar": "P2",
+      "weight_l1": 0.1,
+      "frequency": "hourly",
+      "unit": "percentage",
+      "higher_is_better": false,
+      "target": {
+        "operator": "<",
+        "value": 5
+      },
+      "ranges": {
+        "healthy": {
+          "min": 0,
+          "max": 5,
+          "color": "green"
+        },
+        "risk": {
+          "min": 5,
+          "max": 12,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 12,
+          "max": 30,
+          "color": "red"
+        }
+      },
+      "description": "Fleet fragmentation / stranded GPUs"
+    },
+    "P2-KPI6": {
+      "name": "Queue time-to-schedule",
+      "pillar": "P2",
+      "weight_l1": 0.08,
+      "frequency": "realtime",
+      "unit": "minutes",
+      "higher_is_better": false,
+      "target": {
+        "operator": "<",
+        "value": 5
+      },
+      "ranges": {
+        "healthy": {
+          "min": 0,
+          "max": 5,
+          "color": "green"
+        },
+        "risk": {
+          "min": 5,
+          "max": 15,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 15,
+          "max": 60,
+          "color": "red"
+        }
+      },
+      "description": "Queue time-to-schedule"
+    },
+    "P2-KPI7": {
+      "name": "GPU memory efficiency",
+      "pillar": "P2",
+      "weight_l1": 0.08,
+      "frequency": "daily",
+      "unit": "percentage",
+      "higher_is_better": true,
+      "target": {
+        "operator": ">",
+        "value": 80
+      },
+      "ranges": {
+        "healthy": {
+          "min": 80,
+          "max": 100,
+          "color": "green"
+        },
+        "risk": {
+          "min": 65,
+          "max": 80,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 0,
+          "max": 65,
+          "color": "red"
+        }
+      },
+      "description": "GPU memory efficiency"
+    },
+    "P3-KPI1": {
+      "name": "Training-job completion rate",
+      "pillar": "P3",
+      "weight_l1": 0.18,
+      "frequency": "daily",
+      "unit": "percentage",
+      "higher_is_better": true,
+      "target": {
+        "operator": ">",
+        "value": 95
+      },
+      "ranges": {
+        "healthy": {
+          "min": 95,
+          "max": 100,
+          "color": "green"
+        },
+        "risk": {
+          "min": 85,
+          "max": 95,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 0,
+          "max": 85,
+          "color": "red"
+        }
+      },
+      "description": "Training-job completion rate"
+    },
+    "P3-KPI2": {
+      "name": "Job interruption / preemption rate",
+      "pillar": "P3",
+      "weight_l1": 0.18,
+      "frequency": "realtime",
+      "unit": "percentage",
+      "higher_is_better": false,
+      "target": {
+        "operator": "<",
+        "value": 2
+      },
+      "ranges": {
+        "healthy": {
+          "min": 0,
+          "max": 2,
+          "color": "green"
+        },
+        "risk": {
+          "min": 2,
+          "max": 5,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 5,
+          "max": 20,
+          "color": "red"
+        }
+      },
+      "description": "Job interruption / preemption rate"
+    },
+    "P3-KPI3": {
+      "name": "GPU/node failure rate",
+      "pillar": "P3",
+      "weight_l1": 0.15,
+      "frequency": "realtime",
+      "unit": "events_per_1k_gpu_hr",
+      "higher_is_better": false,
+      "target": {
+        "operator": "<",
+        "value": 1
+      },
+      "ranges": {
+        "healthy": {
+          "min": 0,
+          "max": 1,
+          "color": "green"
+        },
+        "risk": {
+          "min": 1,
+          "max": 3,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 3,
+          "max": 10,
+          "color": "red"
+        }
+      },
+      "description": "GPU/node failure rate"
+    },
+    "P3-KPI4": {
+      "name": "Fabric error rate (IB/NVLink RDMA)",
+      "pillar": "P3",
+      "weight_l1": 0.13,
+      "frequency": "realtime",
+      "unit": "errors_per_hr",
+      "higher_is_better": false,
+      "target": {
+        "operator": "<",
+        "value": 1
+      },
+      "ranges": {
+        "healthy": {
+          "min": 0,
+          "max": 1,
+          "color": "green"
+        },
+        "risk": {
+          "min": 1,
+          "max": 5,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 5,
+          "max": 25,
+          "color": "red"
+        }
+      },
+      "description": "Fabric error rate (IB/NVLink RDMA)"
+    },
+    "P3-KPI5": {
+      "name": "Checkpoint-restart frequency",
+      "pillar": "P3",
+      "weight_l1": 0.08,
+      "frequency": "per_run",
+      "unit": "restarts_per_run",
+      "higher_is_better": false,
+      "target": {
+        "operator": "<",
+        "value": 1
+      },
+      "ranges": {
+        "healthy": {
+          "min": 0,
+          "max": 1,
+          "color": "green"
+        },
+        "risk": {
+          "min": 1,
+          "max": 3,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 3,
+          "max": 10,
+          "color": "red"
+        }
+      },
+      "description": "Checkpoint-restart frequency"
+    },
+    "P3-KPI6": {
+      "name": "SLA attainment",
+      "pillar": "P3",
+      "weight_l1": 0.14,
+      "frequency": "monthly",
+      "unit": "percentage",
+      "higher_is_better": true,
+      "target": {
+        "operator": ">",
+        "value": 99.5
+      },
+      "ranges": {
+        "healthy": {
+          "min": 99.5,
+          "max": 100,
+          "color": "green"
+        },
+        "risk": {
+          "min": 99.0,
+          "max": 99.5,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 0,
+          "max": 99.0,
+          "color": "red"
+        }
+      },
+      "description": "SLA attainment"
+    },
+    "P3-KPI7": {
+      "name": "MTBF",
+      "pillar": "P3",
+      "weight_l1": 0.08,
+      "frequency": "monthly",
+      "unit": "hours",
+      "higher_is_better": true,
+      "target": {
+        "operator": ">",
+        "value": 8760
+      },
+      "ranges": {
+        "healthy": {
+          "min": 8760,
+          "max": 100000,
+          "color": "green"
+        },
+        "risk": {
+          "min": 4380,
+          "max": 8760,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 0,
+          "max": 4380,
+          "color": "red"
+        }
+      },
+      "description": "MTBF"
+    },
+    "P3-KPI8": {
+      "name": "Inference latency (P95)",
+      "pillar": "P3",
+      "weight_l1": 0.06,
+      "frequency": "realtime",
+      "unit": "milliseconds",
+      "higher_is_better": false,
+      "target": {
+        "operator": "<",
+        "value": 50
+      },
+      "ranges": {
+        "healthy": {
+          "min": 0,
+          "max": 50,
+          "color": "green"
+        },
+        "risk": {
+          "min": 50,
+          "max": 100,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 100,
+          "max": 300,
+          "color": "red"
+        }
+      },
+      "description": "Inference latency (P95)"
+    },
+    "P4-KPI1": {
+      "name": "Sellable MW / power-capacity utilization",
+      "pillar": "P4",
+      "weight_l1": 0.28,
+      "frequency": "daily",
+      "unit": "percentage",
+      "higher_is_better": true,
+      "target": {
+        "operator": ">",
+        "value": 80
+      },
+      "ranges": {
+        "healthy": {
+          "min": 80,
+          "max": 95,
+          "color": "green"
+        },
+        "risk": {
+          "min": 60,
+          "max": 80,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 0,
+          "max": 60,
+          "color": "red"
+        }
+      },
+      "description": "Sellable MW / power-capacity utilization"
+    },
+    "P4-KPI2": {
+      "name": "Stranded power (provisioned-unsellable)",
+      "pillar": "P4",
+      "weight_l1": 0.18,
+      "frequency": "daily",
+      "unit": "percentage",
+      "higher_is_better": false,
+      "target": {
+        "operator": "<",
+        "value": 10
+      },
+      "ranges": {
+        "healthy": {
+          "min": 0,
+          "max": 10,
+          "color": "green"
+        },
+        "risk": {
+          "min": 10,
+          "max": 20,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 20,
+          "max": 45,
+          "color": "red"
+        }
+      },
+      "description": "Stranded power (provisioned-unsellable)"
+    },
+    "P4-KPI3": {
+      "name": "Power Efficiency (PUE)",
+      "pillar": "P4",
+      "weight_l1": 0.15,
+      "frequency": "realtime",
+      "unit": "ratio",
+      "higher_is_better": false,
+      "target": {
+        "operator": "<",
+        "value": 1.3
+      },
+      "ranges": {
+        "healthy": {
+          "min": 0,
+          "max": 1.3,
+          "color": "green"
+        },
+        "risk": {
+          "min": 1.3,
+          "max": 1.5,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 1.5,
+          "max": 2.2,
+          "color": "red"
+        }
+      },
+      "description": "Power Efficiency (PUE)"
+    },
+    "P4-KPI4": {
+      "name": "Cooling / DLC headroom",
+      "pillar": "P4",
+      "weight_l1": 0.17,
+      "frequency": "realtime",
+      "unit": "percentage",
+      "higher_is_better": true,
+      "target": {
+        "operator": ">",
+        "value": 20
+      },
+      "ranges": {
+        "healthy": {
+          "min": 20,
+          "max": 60,
+          "color": "green"
+        },
+        "risk": {
+          "min": 10,
+          "max": 20,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 0,
+          "max": 10,
+          "color": "red"
+        }
+      },
+      "description": "Cooling / DLC headroom"
+    },
+    "P4-KPI5": {
+      "name": "Power cost per GPU-hour",
+      "pillar": "P4",
+      "weight_l1": 0.12,
+      "frequency": "monthly",
+      "unit": "$/gpu-hr",
+      "higher_is_better": false,
+      "target": {
+        "operator": "<",
+        "value": 0.6
+      },
+      "ranges": {
+        "healthy": {
+          "min": 0,
+          "max": 0.6,
+          "color": "green"
+        },
+        "risk": {
+          "min": 0.6,
+          "max": 1.0,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 1.0,
+          "max": 2.5,
+          "color": "red"
+        }
+      },
+      "description": "Power cost per GPU-hour"
+    },
+    "P4-KPI6": {
+      "name": "Thermal management score",
+      "pillar": "P4",
+      "weight_l1": 0.1,
+      "frequency": "realtime",
+      "unit": "percentage",
+      "higher_is_better": true,
+      "target": {
+        "operator": ">",
+        "value": 95
+      },
+      "ranges": {
+        "healthy": {
+          "min": 95,
+          "max": 100,
+          "color": "green"
+        },
+        "risk": {
+          "min": 85,
+          "max": 95,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 0,
+          "max": 85,
+          "color": "red"
+        }
+      },
+      "description": "Thermal management score"
+    },
+    "P5-KPI1": {
+      "name": "Reserved commitment coverage",
+      "pillar": "P5",
+      "weight_l1": 0.18,
+      "frequency": "weekly",
+      "unit": "months",
+      "higher_is_better": true,
+      "target": {
+        "operator": ">",
+        "value": 6
+      },
+      "ranges": {
+        "healthy": {
+          "min": 6,
+          "max": 24,
+          "color": "green"
+        },
+        "risk": {
+          "min": 3,
+          "max": 6,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 0,
+          "max": 3,
+          "color": "red"
+        }
+      },
+      "description": "Reserved commitment coverage"
+    },
+    "P5-KPI2": {
+      "name": "Ramp-to-commit",
+      "pillar": "P5",
+      "weight_l1": 0.18,
+      "frequency": "weekly",
+      "unit": "percentage",
+      "higher_is_better": true,
+      "target": {
+        "operator": ">",
+        "value": 90
+      },
+      "ranges": {
+        "healthy": {
+          "min": 90,
+          "max": 100,
+          "color": "green"
+        },
+        "risk": {
+          "min": 70,
+          "max": 90,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 0,
+          "max": 70,
+          "color": "red"
+        }
+      },
+      "description": "Ramp-to-commit"
+    },
+    "P5-KPI3": {
+      "name": "Compute-hour consumption trend",
+      "pillar": "P5",
+      "weight_l1": 0.15,
+      "frequency": "monthly",
+      "unit": "percentage_change",
+      "higher_is_better": true,
+      "target": {
+        "operator": ">",
+        "value": 15
+      },
+      "ranges": {
+        "healthy": {
+          "min": 15,
+          "max": 200,
+          "color": "green"
+        },
+        "risk": {
+          "min": 0,
+          "max": 15,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 0,
+          "max": 0,
+          "color": "red"
+        }
+      },
+      "description": "Compute-hour consumption trend"
+    },
+    "P5-KPI4": {
+      "name": "Expansion probability (90d)",
+      "pillar": "P5",
+      "weight_l1": 0.13,
+      "frequency": "monthly",
+      "unit": "percentage",
+      "higher_is_better": true,
+      "target": {
+        "operator": ">",
+        "value": 50
+      },
+      "ranges": {
+        "healthy": {
+          "min": 50,
+          "max": 100,
+          "color": "green"
+        },
+        "risk": {
+          "min": 30,
+          "max": 50,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 0,
+          "max": 30,
+          "color": "red"
+        }
+      },
+      "description": "Expansion probability (90d)"
+    },
+    "P5-KPI5": {
+      "name": "Silicon-refresh readiness",
+      "pillar": "P5",
+      "weight_l1": 0.08,
+      "frequency": "quarterly",
+      "unit": "score",
+      "higher_is_better": true,
+      "target": {
+        "operator": ">",
+        "value": 60
+      },
+      "ranges": {
+        "healthy": {
+          "min": 60,
+          "max": 100,
+          "color": "green"
+        },
+        "risk": {
+          "min": 40,
+          "max": 60,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 0,
+          "max": 40,
+          "color": "red"
+        }
+      },
+      "description": "Silicon-refresh readiness"
+    },
+    "P5-KPI6": {
+      "name": "Customer runway / solvency",
+      "pillar": "P5",
+      "weight_l1": 0.13,
+      "frequency": "monthly",
+      "unit": "months",
+      "higher_is_better": true,
+      "target": {
+        "operator": ">",
+        "value": 12
+      },
+      "ranges": {
+        "healthy": {
+          "min": 12,
+          "max": 48,
+          "color": "green"
+        },
+        "risk": {
+          "min": 6,
+          "max": 12,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 0,
+          "max": 6,
+          "color": "red"
+        }
+      },
+      "description": "Customer runway / solvency"
+    },
+    "P5-KPI7": {
+      "name": "Technical champion engagement",
+      "pillar": "P5",
+      "weight_l1": 0.07,
+      "frequency": "monthly",
+      "unit": "score",
+      "higher_is_better": true,
+      "target": {
+        "operator": ">",
+        "value": 75
+      },
+      "ranges": {
+        "healthy": {
+          "min": 75,
+          "max": 100,
+          "color": "green"
+        },
+        "risk": {
+          "min": 55,
+          "max": 75,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 0,
+          "max": 55,
+          "color": "red"
+        }
+      },
+      "description": "Technical champion engagement"
+    },
+    "P5-KPI8": {
+      "name": "Multi-cloud diversification (share elsewhere)",
+      "pillar": "P5",
+      "weight_l1": 0.08,
+      "frequency": "quarterly",
+      "unit": "percentage",
+      "higher_is_better": false,
+      "target": {
+        "operator": "<",
+        "value": 25
+      },
+      "ranges": {
+        "healthy": {
+          "min": 0,
+          "max": 25,
+          "color": "green"
+        },
+        "risk": {
+          "min": 25,
+          "max": 45,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 45,
+          "max": 90,
+          "color": "red"
+        }
+      },
+      "description": "Multi-cloud diversification (share elsewhere)"
+    },
+    "P6-KPI1": {
+      "name": "Time-to-first-job",
+      "pillar": "P6",
+      "weight_l1": 0.5,
+      "frequency": "per_onboard",
+      "unit": "hours",
+      "higher_is_better": false,
+      "target": {
+        "operator": "<",
+        "value": 24
+      },
+      "ranges": {
+        "healthy": {
+          "min": 0,
+          "max": 24,
+          "color": "green"
+        },
+        "risk": {
+          "min": 24,
+          "max": 72,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 72,
+          "max": 240,
+          "color": "red"
+        }
+      },
+      "description": "Time-to-first-job"
+    },
+    "P6-KPI2": {
+      "name": "Provisioning / quota-grant time",
+      "pillar": "P6",
+      "weight_l1": 0.25,
+      "frequency": "per_onboard",
+      "unit": "hours",
+      "higher_is_better": false,
+      "target": {
+        "operator": "<",
+        "value": 4
+      },
+      "ranges": {
+        "healthy": {
+          "min": 0,
+          "max": 4,
+          "color": "green"
+        },
+        "risk": {
+          "min": 4,
+          "max": 12,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 12,
+          "max": 72,
+          "color": "red"
+        }
+      },
+      "description": "Provisioning / quota-grant time"
+    },
+    "P6-KPI3": {
+      "name": "Configuration accuracy",
+      "pillar": "P6",
+      "weight_l1": 0.25,
+      "frequency": "per_onboard",
+      "unit": "percentage",
+      "higher_is_better": true,
+      "target": {
+        "operator": ">",
+        "value": 95
+      },
+      "ranges": {
+        "healthy": {
+          "min": 95,
+          "max": 100,
+          "color": "green"
+        },
+        "risk": {
+          "min": 85,
+          "max": 95,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 0,
+          "max": 85,
+          "color": "red"
+        }
+      },
+      "description": "Configuration accuracy"
+    }
+  },
+  "metadata": {
+    "kpi_total": 38,
+    "pillar_weight_sum": 1.0,
+    "pillar_map": {
+      "P1": "R1",
+      "P2": "R2",
+      "P3": "R3",
+      "P4": "R4",
+      "P5": "R5",
+      "P6": "R6"
+    },
+    "source": "docs/GPU_NEOCLOUD_VERTICAL_SPEC.md"
+  }
+}

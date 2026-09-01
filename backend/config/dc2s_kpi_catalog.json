@@ -1,0 +1,1419 @@
+{
+  "version": "3.0",
+  "pillars": {
+    "P1": {
+      "name": "Deployment Velocity",
+      "weight_l2": 0.15,
+      "kpi_count": 8,
+      "description": "Speed and efficiency of hardware deployment and configuration",
+      "saas_equivalent": "Product Usage & Onboarding"
+    },
+    "P2": {
+      "name": "Operational Stability",
+      "weight_l2": 0.2,
+      "kpi_count": 8,
+      "description": "Hardware reliability, uptime, and failure prevention",
+      "saas_equivalent": "Support Engagement"
+    },
+    "P3": {
+      "name": "AI Workload Performance",
+      "weight_l2": 0.25,
+      "kpi_count": 8,
+      "description": "GPU utilization and AI workload execution efficiency",
+      "saas_equivalent": "Product Usage & Onboarding"
+    },
+    "P4": {
+      "name": "Channel & Partner Health",
+      "weight_l2": 0.15,
+      "kpi_count": 6,
+      "description": "Partner engagement and channel relationship strength",
+      "saas_equivalent": "Relationship Strength"
+    },
+    "P5": {
+      "name": "Expansion Readiness",
+      "weight_l2": 0.25,
+      "kpi_count": 8,
+      "description": "Capacity utilization and expansion probability indicators",
+      "saas_equivalent": "Business Outcomes"
+    }
+  },
+  "pillar_roles": {
+    "adoption": "P1",
+    "reliability": "P2",
+    "capacity": "P3",
+    "partner": "P4",
+    "expansion": "P5"
+  },
+  "pillar_roles_notes": {
+    "P3": "AI Workload Performance ('GPU utilization and AI workload execution efficiency') maps to 'capacity' rather than 'adoption' -- it measures utilization of provisioned resources, the same concept datacenter_v1's Fleet Utilization & Goodput (P2) plays as 'capacity', not usage/onboarding."
+  },
+  "kpis": {
+    "P1-KPI1": {
+      "name": "Time-to-First-Workload",
+      "pillar": "P1",
+      "weight_l1": 0.2,
+      "frequency": "monthly",
+      "unit": "days",
+      "higher_is_better": false,
+      "target": {
+        "operator": "<",
+        "value": 14
+      },
+      "ranges": {
+        "healthy": {
+          "min": 0,
+          "max": 14,
+          "color": "green"
+        },
+        "risk": {
+          "min": 14,
+          "max": 21,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 21,
+          "max": 60,
+          "color": "red"
+        }
+      },
+      "description": "Days from hardware arrival to first AI workload running in production",
+      "impact": "high",
+      "correlation": 0.45,
+      "saas_kpi_code": "TTFV",
+      "saas_category": "Product Usage & Onboarding",
+      "data_source": "deployment_tracking",
+      "calculation": "DATE(first_workload_completion) - DATE(hardware_delivery)"
+    },
+    "P1-KPI2": {
+      "name": "Installation Completion Rate",
+      "pillar": "P1",
+      "weight_l1": 0.15,
+      "frequency": "monthly",
+      "unit": "percentage",
+      "higher_is_better": true,
+      "target": {
+        "operator": ">",
+        "value": 90
+      },
+      "ranges": {
+        "healthy": {
+          "min": 90,
+          "max": 100,
+          "color": "green"
+        },
+        "risk": {
+          "min": 75,
+          "max": 90,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 0,
+          "max": 75,
+          "color": "red"
+        }
+      },
+      "description": "Percentage of planned hardware successfully installed on first attempt",
+      "impact": "medium",
+      "correlation": 0.35,
+      "saas_kpi_code": "ONBOARDING_COMPLETION",
+      "saas_category": "Product Usage & Onboarding",
+      "data_source": "installation_logs",
+      "calculation": "(successful_installs / total_planned_installs) * 100"
+    },
+    "P1-KPI3": {
+      "name": "Configuration Accuracy",
+      "pillar": "P1",
+      "weight_l1": 0.12,
+      "frequency": "weekly",
+      "unit": "percentage",
+      "higher_is_better": true,
+      "target": {
+        "operator": ">",
+        "value": 95
+      },
+      "ranges": {
+        "healthy": {
+          "min": 95,
+          "max": 100,
+          "color": "green"
+        },
+        "risk": {
+          "min": 85,
+          "max": 95,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 0,
+          "max": 85,
+          "color": "red"
+        }
+      },
+      "description": "Percentage of servers configured correctly without rework",
+      "impact": "medium",
+      "correlation": 0.28,
+      "saas_kpi_code": "SETUP_ACCURACY",
+      "saas_category": "Product Usage & Onboarding",
+      "data_source": "configuration_validation",
+      "calculation": "(correct_configs / total_configs) * 100"
+    },
+    "P1-KPI4": {
+      "name": "Deployment Cycle Time",
+      "pillar": "P1",
+      "weight_l1": 0.15,
+      "frequency": "monthly",
+      "unit": "days",
+      "higher_is_better": false,
+      "target": {
+        "operator": "<",
+        "value": 30
+      },
+      "ranges": {
+        "healthy": {
+          "min": 0,
+          "max": 30,
+          "color": "green"
+        },
+        "risk": {
+          "min": 30,
+          "max": 45,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 45,
+          "max": 90,
+          "color": "red"
+        }
+      },
+      "description": "Average days to complete full deployment (all phases)",
+      "impact": "medium",
+      "correlation": 0.38,
+      "saas_kpi_code": "TIME_TO_VALUE",
+      "saas_category": "Product Usage & Onboarding",
+      "data_source": "project_tracking",
+      "calculation": "AVG(deployment_end_date - deployment_start_date)"
+    },
+    "P1-KPI5": {
+      "name": "Hardware Commissioning Time",
+      "pillar": "P1",
+      "weight_l1": 0.13,
+      "frequency": "monthly",
+      "unit": "days",
+      "higher_is_better": false,
+      "target": {
+        "operator": "<",
+        "value": 7
+      },
+      "ranges": {
+        "healthy": {
+          "min": 0,
+          "max": 7,
+          "color": "green"
+        },
+        "risk": {
+          "min": 7,
+          "max": 14,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 14,
+          "max": 30,
+          "color": "red"
+        }
+      },
+      "description": "Days from rack delivery to operational status",
+      "impact": "medium",
+      "correlation": 0.32,
+      "saas_kpi_code": "ACTIVATION_TIME",
+      "saas_category": "Product Usage & Onboarding",
+      "data_source": "commissioning_logs"
+    },
+    "P1-KPI6": {
+      "name": "Network Readiness Score",
+      "pillar": "P1",
+      "weight_l1": 0.1,
+      "frequency": "weekly",
+      "unit": "percentage",
+      "higher_is_better": true,
+      "target": {
+        "operator": ">",
+        "value": 90
+      },
+      "ranges": {
+        "healthy": {
+          "min": 90,
+          "max": 100,
+          "color": "green"
+        },
+        "risk": {
+          "min": 70,
+          "max": 90,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 0,
+          "max": 70,
+          "color": "red"
+        }
+      },
+      "description": "Percentage of network requirements met at deployment",
+      "impact": "medium",
+      "correlation": 0.25,
+      "saas_kpi_code": "INFRASTRUCTURE_READINESS",
+      "saas_category": "Product Usage & Onboarding"
+    },
+    "P1-KPI7": {
+      "name": "Deployment Team Velocity",
+      "pillar": "P1",
+      "weight_l1": 0.08,
+      "frequency": "weekly",
+      "unit": "servers/day",
+      "higher_is_better": true,
+      "target": {
+        "operator": ">",
+        "value": 5
+      },
+      "ranges": {
+        "healthy": {
+          "min": 5,
+          "max": 20,
+          "color": "green"
+        },
+        "risk": {
+          "min": 3,
+          "max": 5,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 0,
+          "max": 3,
+          "color": "red"
+        }
+      },
+      "description": "Servers deployed per day per field engineer",
+      "impact": "low",
+      "correlation": 0.2,
+      "saas_kpi_code": "TEAM_PRODUCTIVITY",
+      "saas_category": "Product Usage & Onboarding"
+    },
+    "P1-KPI8": {
+      "name": "Documentation Completeness",
+      "pillar": "P1",
+      "weight_l1": 0.07,
+      "frequency": "monthly",
+      "unit": "percentage",
+      "higher_is_better": true,
+      "target": {
+        "operator": ">",
+        "value": 95
+      },
+      "ranges": {
+        "healthy": {
+          "min": 95,
+          "max": 100,
+          "color": "green"
+        },
+        "risk": {
+          "min": 80,
+          "max": 95,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 0,
+          "max": 80,
+          "color": "red"
+        }
+      },
+      "description": "Percentage of deployment docs completed and validated",
+      "impact": "low",
+      "correlation": 0.15,
+      "saas_kpi_code": "ONBOARDING_DOCS_COMPLETE",
+      "saas_category": "Product Usage & Onboarding"
+    },
+    "P2-KPI1": {
+      "name": "RMA Frequency Rate",
+      "pillar": "P2",
+      "weight_l1": 0.2,
+      "frequency": "weekly",
+      "unit": "percentage",
+      "higher_is_better": false,
+      "target": {
+        "operator": "<",
+        "value": 2.6
+      },
+      "ranges": {
+        "healthy": {
+          "min": 0,
+          "max": 1.2,
+          "color": "green"
+        },
+        "risk": {
+          "min": 1.2,
+          "max": 2.6,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 2.6,
+          "max": 10,
+          "color": "red"
+        }
+      },
+      "description": "Percentage of hardware requiring RMA (return/replacement) \u2b50 CRITICAL",
+      "impact": "high",
+      "correlation": -0.82,
+      "saas_kpi_code": "CRITICAL_ISSUES",
+      "saas_category": "Support Engagement",
+      "data_source": "rma_tracking",
+      "calculation": "(rma_units / total_deployed_units) * 100",
+      "critical_threshold": 2.6,
+      "critical_impact": "Each 1% above 2.6% = $4.4M annual margin loss"
+    },
+    "P2-KPI2": {
+      "name": "MTBF (Mean Time Between Failures)",
+      "pillar": "P2",
+      "weight_l1": 0.18,
+      "frequency": "weekly",
+      "unit": "hours",
+      "higher_is_better": true,
+      "target": {
+        "operator": ">",
+        "value": 8760
+      },
+      "ranges": {
+        "healthy": {
+          "min": 8760,
+          "max": 100000,
+          "color": "green"
+        },
+        "risk": {
+          "min": 4380,
+          "max": 8760,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 0,
+          "max": 4380,
+          "color": "red"
+        }
+      },
+      "description": "Average hours between hardware failures",
+      "impact": "high",
+      "correlation": 0.65,
+      "saas_kpi_code": "SYSTEM_UPTIME",
+      "saas_category": "Support Engagement",
+      "data_source": "failure_tracking"
+    },
+    "P2-KPI3": {
+      "name": "Critical Incidents (30d)",
+      "pillar": "P2",
+      "weight_l1": 0.17,
+      "frequency": "daily",
+      "unit": "count",
+      "higher_is_better": false,
+      "target": {
+        "operator": "<",
+        "value": 3
+      },
+      "ranges": {
+        "healthy": {
+          "min": 0,
+          "max": 1,
+          "color": "green"
+        },
+        "risk": {
+          "min": 1,
+          "max": 3,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 3,
+          "max": 20,
+          "color": "red"
+        }
+      },
+      "description": "Count of P1/P2 incidents in last 30 days",
+      "impact": "medium",
+      "correlation": -0.58,
+      "saas_kpi_code": "CRITICAL_TICKETS",
+      "saas_category": "Support Engagement",
+      "data_source": "incident_management"
+    },
+    "P2-KPI4": {
+      "name": "System Uptime Percentage",
+      "pillar": "P2",
+      "weight_l1": 0.15,
+      "frequency": "daily",
+      "unit": "percentage",
+      "higher_is_better": true,
+      "target": {
+        "operator": ">",
+        "value": 99.5
+      },
+      "ranges": {
+        "healthy": {
+          "min": 99.5,
+          "max": 100,
+          "color": "green"
+        },
+        "risk": {
+          "min": 98.0,
+          "max": 99.5,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 0,
+          "max": 98.0,
+          "color": "red"
+        }
+      },
+      "description": "Percentage of time systems are operational (30d)",
+      "impact": "medium",
+      "correlation": 0.52,
+      "saas_kpi_code": "PLATFORM_UPTIME",
+      "saas_category": "Support Engagement"
+    },
+    "P2-KPI5": {
+      "name": "Thermal Management Score",
+      "pillar": "P2",
+      "weight_l1": 0.12,
+      "frequency": "realtime",
+      "unit": "percentage",
+      "higher_is_better": true,
+      "target": {
+        "operator": ">",
+        "value": 95
+      },
+      "ranges": {
+        "healthy": {
+          "min": 95,
+          "max": 100,
+          "color": "green"
+        },
+        "risk": {
+          "min": 85,
+          "max": 95,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 0,
+          "max": 85,
+          "color": "red"
+        }
+      },
+      "description": "Percentage of time temps within optimal range",
+      "impact": "medium",
+      "correlation": 0.42,
+      "saas_kpi_code": "ENVIRONMENTAL_HEALTH",
+      "saas_category": "Support Engagement"
+    },
+    "P2-KPI6": {
+      "name": "Power Efficiency (PUE)",
+      "pillar": "P2",
+      "weight_l1": 0.08,
+      "frequency": "realtime",
+      "unit": "ratio",
+      "higher_is_better": false,
+      "target": {
+        "operator": "<",
+        "value": 1.3
+      },
+      "ranges": {
+        "healthy": {
+          "min": 1.0,
+          "max": 1.2,
+          "color": "green"
+        },
+        "risk": {
+          "min": 1.2,
+          "max": 1.4,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 1.4,
+          "max": 3.0,
+          "color": "red"
+        }
+      },
+      "description": "Power Usage Effectiveness ratio",
+      "impact": "low",
+      "correlation": -0.28,
+      "saas_kpi_code": "RESOURCE_EFFICIENCY",
+      "saas_category": "Support Engagement"
+    },
+    "P2-KPI7": {
+      "name": "Mean Time To Repair (MTTR)",
+      "pillar": "P2",
+      "weight_l1": 0.06,
+      "frequency": "weekly",
+      "unit": "hours",
+      "higher_is_better": false,
+      "target": {
+        "operator": "<",
+        "value": 4
+      },
+      "ranges": {
+        "healthy": {
+          "min": 0,
+          "max": 4,
+          "color": "green"
+        },
+        "risk": {
+          "min": 4,
+          "max": 12,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 12,
+          "max": 72,
+          "color": "red"
+        }
+      },
+      "description": "Average hours to resolve hardware failures",
+      "impact": "low",
+      "correlation": -0.35,
+      "saas_kpi_code": "RESOLUTION_TIME",
+      "saas_category": "Support Engagement"
+    },
+    "P2-KPI8": {
+      "name": "Preventive Maintenance Compliance",
+      "pillar": "P2",
+      "weight_l1": 0.04,
+      "frequency": "monthly",
+      "unit": "percentage",
+      "higher_is_better": true,
+      "target": {
+        "operator": ">",
+        "value": 95
+      },
+      "ranges": {
+        "healthy": {
+          "min": 95,
+          "max": 100,
+          "color": "green"
+        },
+        "risk": {
+          "min": 80,
+          "max": 95,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 0,
+          "max": 80,
+          "color": "red"
+        }
+      },
+      "description": "Percentage of scheduled maintenance completed on time",
+      "impact": "low",
+      "correlation": 0.38,
+      "saas_kpi_code": "MAINTENANCE_COMPLIANCE",
+      "saas_category": "Support Engagement"
+    },
+    "P3-KPI1": {
+      "name": "GPU Utilization Rate",
+      "pillar": "P3",
+      "weight_l1": 0.22,
+      "frequency": "realtime",
+      "unit": "percentage",
+      "higher_is_better": true,
+      "target": {
+        "operator": ">",
+        "value": 65
+      },
+      "ranges": {
+        "healthy": {
+          "min": 65,
+          "max": 100,
+          "color": "green"
+        },
+        "risk": {
+          "min": 45,
+          "max": 65,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 0,
+          "max": 45,
+          "color": "red"
+        }
+      },
+      "description": "Average GPU utilization percentage \u2b50 TOP EXPANSION DRIVER",
+      "impact": "high",
+      "correlation": 0.88,
+      "saas_kpi_code": "FEATURE_USAGE",
+      "saas_category": "Product Usage & Onboarding",
+      "data_source": "gpu_monitoring",
+      "calculation": "AVG(gpu_active_time / total_time) * 100",
+      "expansion_signal": ">75% utilization = high Phase 2 probability"
+    },
+    "P3-KPI2": {
+      "name": "Training Job Completion Rate",
+      "pillar": "P3",
+      "weight_l1": 0.2,
+      "frequency": "daily",
+      "unit": "percentage",
+      "higher_is_better": true,
+      "target": {
+        "operator": ">",
+        "value": 90
+      },
+      "ranges": {
+        "healthy": {
+          "min": 90,
+          "max": 100,
+          "color": "green"
+        },
+        "risk": {
+          "min": 75,
+          "max": 90,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 0,
+          "max": 75,
+          "color": "red"
+        }
+      },
+      "description": "Percentage of AI training jobs completing successfully",
+      "impact": "high",
+      "correlation": 0.72,
+      "saas_kpi_code": "TASK_SUCCESS_RATE",
+      "saas_category": "Product Usage & Onboarding"
+    },
+    "P3-KPI3": {
+      "name": "Inference Latency (P95)",
+      "pillar": "P3",
+      "weight_l1": 0.15,
+      "frequency": "realtime",
+      "unit": "milliseconds",
+      "higher_is_better": false,
+      "target": {
+        "operator": "<",
+        "value": 50
+      },
+      "ranges": {
+        "healthy": {
+          "min": 0,
+          "max": 50,
+          "color": "green"
+        },
+        "risk": {
+          "min": 50,
+          "max": 100,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 100,
+          "max": 1000,
+          "color": "red"
+        }
+      },
+      "description": "95th percentile inference response time",
+      "impact": "medium",
+      "correlation": -0.55,
+      "saas_kpi_code": "RESPONSE_TIME",
+      "saas_category": "Product Usage & Onboarding"
+    },
+    "P3-KPI4": {
+      "name": "Model Training Time",
+      "pillar": "P3",
+      "weight_l1": 0.14,
+      "frequency": "daily",
+      "unit": "hours",
+      "higher_is_better": false,
+      "target": {
+        "operator": "<",
+        "value": 24
+      },
+      "ranges": {
+        "healthy": {
+          "min": 0,
+          "max": 24,
+          "color": "green"
+        },
+        "risk": {
+          "min": 24,
+          "max": 48,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 48,
+          "max": 168,
+          "color": "red"
+        }
+      },
+      "description": "Average time to train standard benchmark model",
+      "impact": "medium",
+      "correlation": -0.48,
+      "saas_kpi_code": "PROCESSING_TIME",
+      "saas_category": "Product Usage & Onboarding"
+    },
+    "P3-KPI5": {
+      "name": "GPU Memory Efficiency",
+      "pillar": "P3",
+      "weight_l1": 0.12,
+      "frequency": "realtime",
+      "unit": "percentage",
+      "higher_is_better": true,
+      "target": {
+        "operator": ">",
+        "value": 80
+      },
+      "ranges": {
+        "healthy": {
+          "min": 80,
+          "max": 100,
+          "color": "green"
+        },
+        "risk": {
+          "min": 60,
+          "max": 80,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 0,
+          "max": 60,
+          "color": "red"
+        }
+      },
+      "description": "Percentage of GPU memory effectively utilized",
+      "impact": "medium",
+      "correlation": 0.62,
+      "saas_kpi_code": "RESOURCE_UTILIZATION",
+      "saas_category": "Product Usage & Onboarding"
+    },
+    "P3-KPI6": {
+      "name": "Distributed Training Efficiency",
+      "pillar": "P3",
+      "weight_l1": 0.09,
+      "frequency": "daily",
+      "unit": "percentage",
+      "higher_is_better": true,
+      "target": {
+        "operator": ">",
+        "value": 85
+      },
+      "ranges": {
+        "healthy": {
+          "min": 85,
+          "max": 100,
+          "color": "green"
+        },
+        "risk": {
+          "min": 70,
+          "max": 85,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 0,
+          "max": 70,
+          "color": "red"
+        }
+      },
+      "description": "Scaling efficiency across multiple GPUs",
+      "impact": "low",
+      "correlation": 0.52,
+      "saas_kpi_code": "PARALLEL_EFFICIENCY",
+      "saas_category": "Product Usage & Onboarding"
+    },
+    "P3-KPI7": {
+      "name": "Workload Diversity Score",
+      "pillar": "P3",
+      "weight_l1": 0.05,
+      "frequency": "weekly",
+      "unit": "count",
+      "higher_is_better": true,
+      "target": {
+        "operator": ">",
+        "value": 3
+      },
+      "ranges": {
+        "healthy": {
+          "min": 3,
+          "max": 10,
+          "color": "green"
+        },
+        "risk": {
+          "min": 2,
+          "max": 3,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 0,
+          "max": 2,
+          "color": "red"
+        }
+      },
+      "description": "Number of distinct AI workload types running",
+      "impact": "low",
+      "correlation": 0.44,
+      "saas_kpi_code": "FEATURE_BREADTH",
+      "saas_category": "Product Usage & Onboarding"
+    },
+    "P3-KPI8": {
+      "name": "Batch Processing Throughput",
+      "pillar": "P3",
+      "weight_l1": 0.03,
+      "frequency": "daily",
+      "unit": "samples/hour",
+      "higher_is_better": true,
+      "target": {
+        "operator": ">",
+        "value": 10000
+      },
+      "ranges": {
+        "healthy": {
+          "min": 10000,
+          "max": 1000000,
+          "color": "green"
+        },
+        "risk": {
+          "min": 5000,
+          "max": 10000,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 0,
+          "max": 5000,
+          "color": "red"
+        }
+      },
+      "description": "Samples processed per hour",
+      "impact": "low",
+      "correlation": 0.35,
+      "saas_kpi_code": "THROUGHPUT",
+      "saas_category": "Product Usage & Onboarding"
+    },
+    "P4-KPI1": {
+      "name": "Partner Engagement Score",
+      "pillar": "P4",
+      "weight_l1": 0.22,
+      "frequency": "monthly",
+      "unit": "score",
+      "higher_is_better": true,
+      "target": {
+        "operator": ">",
+        "value": 75
+      },
+      "ranges": {
+        "healthy": {
+          "min": 75,
+          "max": 100,
+          "color": "green"
+        },
+        "risk": {
+          "min": 50,
+          "max": 75,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 0,
+          "max": 50,
+          "color": "red"
+        }
+      },
+      "description": "Composite score of partner interaction quality",
+      "impact": "medium",
+      "correlation": 0.68,
+      "saas_kpi_code": "EXECUTIVE_ENGAGEMENT",
+      "saas_category": "Relationship Strength",
+      "data_source": "partner_crm"
+    },
+    "P4-KPI2": {
+      "name": "VAR Performance Rating",
+      "pillar": "P4",
+      "weight_l1": 0.2,
+      "frequency": "monthly",
+      "unit": "score",
+      "higher_is_better": true,
+      "target": {
+        "operator": ">",
+        "value": 80
+      },
+      "ranges": {
+        "healthy": {
+          "min": 80,
+          "max": 100,
+          "color": "green"
+        },
+        "risk": {
+          "min": 60,
+          "max": 80,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 0,
+          "max": 60,
+          "color": "red"
+        }
+      },
+      "description": "Value-added reseller satisfaction and performance",
+      "impact": "medium",
+      "correlation": 0.55,
+      "saas_kpi_code": "PARTNER_SATISFACTION",
+      "saas_category": "Relationship Strength"
+    },
+    "P4-KPI3": {
+      "name": "Joint QBR Frequency",
+      "pillar": "P4",
+      "weight_l1": 0.18,
+      "frequency": "quarterly",
+      "unit": "count",
+      "higher_is_better": true,
+      "target": {
+        "operator": ">",
+        "value": 4
+      },
+      "ranges": {
+        "healthy": {
+          "min": 4,
+          "max": 12,
+          "color": "green"
+        },
+        "risk": {
+          "min": 2,
+          "max": 4,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 0,
+          "max": 2,
+          "color": "red"
+        }
+      },
+      "description": "Quarterly business reviews with partners (annual)",
+      "impact": "medium",
+      "correlation": 0.62,
+      "saas_kpi_code": "EXECUTIVE_TOUCHPOINTS",
+      "saas_category": "Relationship Strength"
+    },
+    "P4-KPI4": {
+      "name": "Channel Conflict Score",
+      "pillar": "P4",
+      "weight_l1": 0.15,
+      "frequency": "monthly",
+      "unit": "score",
+      "higher_is_better": false,
+      "target": {
+        "operator": "<",
+        "value": 20
+      },
+      "ranges": {
+        "healthy": {
+          "min": 0,
+          "max": 20,
+          "color": "green"
+        },
+        "risk": {
+          "min": 20,
+          "max": 50,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 50,
+          "max": 100,
+          "color": "red"
+        }
+      },
+      "description": "Reverse score - lower is better (0-100)",
+      "impact": "medium",
+      "correlation": -0.48,
+      "saas_kpi_code": "PARTNER_HEALTH",
+      "saas_category": "Relationship Strength"
+    },
+    "P4-KPI5": {
+      "name": "Co-selling Opportunities",
+      "pillar": "P4",
+      "weight_l1": 0.13,
+      "frequency": "monthly",
+      "unit": "count",
+      "higher_is_better": true,
+      "target": {
+        "operator": ">",
+        "value": 3
+      },
+      "ranges": {
+        "healthy": {
+          "min": 3,
+          "max": 20,
+          "color": "green"
+        },
+        "risk": {
+          "min": 1,
+          "max": 3,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 0,
+          "max": 1,
+          "color": "red"
+        }
+      },
+      "description": "Active joint sales opportunities with partners",
+      "impact": "low",
+      "correlation": 0.72,
+      "saas_kpi_code": "EXPANSION_PIPELINE",
+      "saas_category": "Relationship Strength"
+    },
+    "P4-KPI6": {
+      "name": "Partner NPS",
+      "pillar": "P4",
+      "weight_l1": 0.12,
+      "frequency": "quarterly",
+      "unit": "score",
+      "higher_is_better": true,
+      "target": {
+        "operator": ">",
+        "value": 50
+      },
+      "ranges": {
+        "healthy": {
+          "min": 50,
+          "max": 100,
+          "color": "green"
+        },
+        "risk": {
+          "min": 0,
+          "max": 50,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": -100,
+          "max": 0,
+          "color": "red"
+        }
+      },
+      "description": "Net Promoter Score from channel partners",
+      "impact": "low",
+      "correlation": 0.58,
+      "saas_kpi_code": "NPS",
+      "saas_category": "Relationship Strength"
+    },
+    "P5-KPI1": {
+      "name": "Capacity Utilization Rate",
+      "pillar": "P5",
+      "weight_l1": 0.18,
+      "frequency": "daily",
+      "unit": "percentage",
+      "higher_is_better": true,
+      "target": {
+        "operator": ">",
+        "value": 70
+      },
+      "ranges": {
+        "healthy": {
+          "min": 70,
+          "max": 90,
+          "color": "green"
+        },
+        "risk": {
+          "min": 50,
+          "max": 70,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 0,
+          "max": 50,
+          "color": "red"
+        }
+      },
+      "description": "Percentage of deployed capacity currently in use",
+      "impact": "high",
+      "correlation": 0.82,
+      "saas_kpi_code": "RESOURCE_CONSUMPTION",
+      "saas_category": "Business Outcomes",
+      "expansion_signal": ">80% = strong expansion signal"
+    },
+    "P5-KPI2": {
+      "name": "Capacity Utilization Trajectory",
+      "pillar": "P5",
+      "weight_l1": 0.18,
+      "frequency": "monthly",
+      "unit": "percentage_change",
+      "higher_is_better": true,
+      "target": {
+        "operator": ">",
+        "value": 5
+      },
+      "ranges": {
+        "healthy": {
+          "min": 5,
+          "max": 50,
+          "color": "green"
+        },
+        "risk": {
+          "min": -5,
+          "max": 5,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": -50,
+          "max": -5,
+          "color": "red"
+        }
+      },
+      "description": "Month-over-month change in capacity utilization",
+      "impact": "high",
+      "correlation": 0.92,
+      "saas_kpi_code": "GROWTH_RATE",
+      "saas_category": "Business Outcomes",
+      "expansion_signal": ">10% MoM growth = expansion likely"
+    },
+    "P5-KPI3": {
+      "name": "Workload Growth Velocity",
+      "pillar": "P5",
+      "weight_l1": 0.18,
+      "frequency": "monthly",
+      "unit": "percentage_change",
+      "higher_is_better": true,
+      "target": {
+        "operator": ">",
+        "value": 10
+      },
+      "ranges": {
+        "healthy": {
+          "min": 10,
+          "max": 100,
+          "color": "green"
+        },
+        "risk": {
+          "min": 0,
+          "max": 10,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": -50,
+          "max": 0,
+          "color": "red"
+        }
+      },
+      "description": "Rate of increase in AI workloads (MoM)",
+      "impact": "high",
+      "correlation": 0.88,
+      "saas_kpi_code": "USAGE_GROWTH",
+      "saas_category": "Business Outcomes"
+    },
+    "P5-KPI4": {
+      "name": "Compute Hour Consumption Trend",
+      "pillar": "P5",
+      "weight_l1": 0.15,
+      "frequency": "weekly",
+      "unit": "percentage_change",
+      "higher_is_better": true,
+      "target": {
+        "operator": ">",
+        "value": 15
+      },
+      "ranges": {
+        "healthy": {
+          "min": 15,
+          "max": 200,
+          "color": "green"
+        },
+        "risk": {
+          "min": 0,
+          "max": 15,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": -100,
+          "max": 0,
+          "color": "red"
+        }
+      },
+      "description": "Change in total compute hours consumed (30d)",
+      "impact": "medium",
+      "correlation": 0.85,
+      "saas_kpi_code": "CONSUMPTION_TREND",
+      "saas_category": "Business Outcomes"
+    },
+    "P5-KPI5": {
+      "name": "Budget Availability Signals",
+      "pillar": "P5",
+      "weight_l1": 0.1,
+      "frequency": "monthly",
+      "unit": "score",
+      "higher_is_better": true,
+      "target": {
+        "operator": ">",
+        "value": 70
+      },
+      "ranges": {
+        "healthy": {
+          "min": 70,
+          "max": 100,
+          "color": "green"
+        },
+        "risk": {
+          "min": 40,
+          "max": 70,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 0,
+          "max": 40,
+          "color": "red"
+        }
+      },
+      "description": "Indicators of expansion budget availability",
+      "impact": "medium",
+      "correlation": 0.65,
+      "saas_kpi_code": "EXPANSION_READINESS",
+      "saas_category": "Business Outcomes"
+    },
+    "P5-KPI6": {
+      "name": "New Use Case Adoption",
+      "pillar": "P5",
+      "weight_l1": 0.05,
+      "frequency": "monthly",
+      "unit": "count",
+      "higher_is_better": true,
+      "target": {
+        "operator": ">",
+        "value": 2
+      },
+      "ranges": {
+        "healthy": {
+          "min": 2,
+          "max": 10,
+          "color": "green"
+        },
+        "risk": {
+          "min": 1,
+          "max": 2,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 0,
+          "max": 1,
+          "color": "red"
+        }
+      },
+      "description": "New AI use cases adopted in last 90 days",
+      "impact": "low",
+      "correlation": 0.58,
+      "saas_kpi_code": "FEATURE_ADOPTION",
+      "saas_category": "Business Outcomes"
+    },
+    "P5-KPI7": {
+      "name": "Expansion Probability (90d)",
+      "pillar": "P5",
+      "weight_l1": 0.13,
+      "frequency": "weekly",
+      "unit": "percentage",
+      "higher_is_better": true,
+      "target": {
+        "operator": ">",
+        "value": 50
+      },
+      "ranges": {
+        "healthy": {
+          "min": 50,
+          "max": 100,
+          "color": "green"
+        },
+        "risk": {
+          "min": 25,
+          "max": 50,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 0,
+          "max": 25,
+          "color": "red"
+        }
+      },
+      "description": "ML-predicted probability of expansion in next 90 days",
+      "impact": "medium",
+      "correlation": 0.95,
+      "saas_kpi_code": "EXPANSION_LIKELIHOOD",
+      "saas_category": "Business Outcomes",
+      "expansion_signal": ">70% = high confidence expansion"
+    },
+    "P5-KPI8": {
+      "name": "Technical Champion Engagement",
+      "pillar": "P5",
+      "weight_l1": 0.03,
+      "frequency": "monthly",
+      "unit": "score",
+      "higher_is_better": true,
+      "target": {
+        "operator": ">",
+        "value": 75
+      },
+      "ranges": {
+        "healthy": {
+          "min": 75,
+          "max": 100,
+          "color": "green"
+        },
+        "risk": {
+          "min": 50,
+          "max": 75,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 0,
+          "max": 50,
+          "color": "red"
+        }
+      },
+      "description": "Engagement score of technical decision makers",
+      "impact": "low",
+      "correlation": 0.68,
+      "saas_kpi_code": "CHAMPION_ENGAGEMENT",
+      "saas_category": "Business Outcomes"
+    }
+  },
+  "vertical": "dc2_s",
+  "description": "KPI framework for data center hardware infrastructure customers (AI/ML workloads)",
+  "metadata": {
+    "total_kpis": 38,
+    "pillar_count": 5,
+    "measurement_frequencies": {
+      "realtime": 5,
+      "daily": 7,
+      "weekly": 9,
+      "monthly": 15,
+      "quarterly": 2
+    },
+    "key_predictors": [
+      {
+        "kpi": "P5-KPI7",
+        "name": "Expansion Probability (90d)",
+        "correlation": 0.95,
+        "type": "ML-derived"
+      },
+      {
+        "kpi": "P5-KPI2",
+        "name": "Capacity Utilization Trajectory",
+        "correlation": 0.92,
+        "type": "growth"
+      },
+      {
+        "kpi": "P3-KPI1",
+        "name": "GPU Utilization Rate",
+        "correlation": 0.88,
+        "type": "usage"
+      },
+      {
+        "kpi": "P5-KPI3",
+        "name": "Workload Growth Velocity",
+        "correlation": 0.88,
+        "type": "growth"
+      },
+      {
+        "kpi": "P5-KPI4",
+        "name": "Compute Hour Consumption Trend",
+        "correlation": 0.85,
+        "type": "consumption"
+      }
+    ],
+    "critical_kpis": [
+      {
+        "kpi": "P2-KPI1",
+        "name": "RMA Frequency Rate",
+        "threshold": 2.6,
+        "impact": "$4.4M per 1% increase"
+      }
+    ]
+  }
+}

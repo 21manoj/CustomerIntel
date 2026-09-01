@@ -1,0 +1,28 @@
+{
+  "thresholds": {
+    "healthy": {
+      "min": 70,
+      "label": "Healthy",
+      "color": "green",
+      "hex": "#16a34a",
+      "bg_class": "bg-green-100",
+      "text_class": "text-green-800"
+    },
+    "at_risk": {
+      "min": 50,
+      "label": "At Risk",
+      "color": "yellow",
+      "hex": "#ca8a04",
+      "bg_class": "bg-yellow-100",
+      "text_class": "text-yellow-800"
+    },
+    "critical": {
+      "min": 0,
+      "label": "Critical",
+      "color": "red",
+      "hex": "#dc2626",
+      "bg_class": "bg-red-100",
+      "text_class": "text-red-800"
+    }
+  }
+}
