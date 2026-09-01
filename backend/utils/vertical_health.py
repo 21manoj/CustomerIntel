@@ -101,12 +101,21 @@ def _make_generic_calculator(vertical: str, customer_id: int = None):
 
     logger.info(f"Using generic scorer for vertical '{vertical}' ({len(kpi_catalog)} KPIs)")
 
-    def calculate_kpi_health(kpi_values, customer_id=None, vertical=None):
-        """Generic health calculator using JSON catalog."""
-        # Get weight overrides from CustomerConfig if available
-        pillar_weight_overrides = None
+    def calculate_kpi_health(kpi_values, customer_id=None, vertical=None,
+                             pillar_weight_overrides=None):
+        """Generic health calculator using JSON catalog.
+
+        `pillar_weight_overrides` (explicit, e.g. a lifecycle-stage profile
+        from utils/lifecycle_stages.py) takes precedence over the
+        customer's CustomerConfig.pillar_weights. The old repo's pipeline
+        passed this kwarg to a calculator that didn't accept it, caught the
+        TypeError and silently fell back to config weights — so lifecycle
+        stage weights were never applied for any customer. Accepted here.
+        """
         enabled_pillars = None
-        if customer_id is not None:
+        if pillar_weight_overrides:
+            enabled_pillars = set(pillar_weight_overrides.keys())
+        elif customer_id is not None:
             try:
                 from models import CustomerConfig as CC
                 cc = CC.query.filter_by(customer_id=int(customer_id)).first()

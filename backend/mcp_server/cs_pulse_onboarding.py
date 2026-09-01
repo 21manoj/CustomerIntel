@@ -367,7 +367,11 @@ def _process_data_impl(customer_id: int, mode: str = 'auto') -> dict:
         from extensions import db
         from utils.vertical_registry import get_vertical_for_customer
         from utils.csv_ingest import ingest_staged_csvs, staged_files
-        from mcp_server.process_data_pipeline import link_stakeholders_to_decisions
+        from mcp_server.process_data_pipeline import (
+            calculate_health_scores,
+            backfill_product_adoption,
+            link_stakeholders_to_decisions,
+        )
 
         customer = db.session.get(Customer, int(customer_id))
         if not customer:
@@ -411,10 +415,25 @@ def _process_data_impl(customer_id: int, mode: str = 'auto') -> dict:
             timings['csv_load'] = timings['cg_load'] = 0
             steps.append(f'data_already_in_db_{len(accounts)}_accounts_{kpi_count}_kpis')
 
-        # Stage 2: health scores + event publish        — Tier 2A-5
-        # Stage 2b: product adoption back-fill          — with Stage 2
+        # Stage 2: health scores (immutable — only new months in 'auto')
+        health_step, changed_account_ids, health_timings = calculate_health_scores(
+            customer_id, accounts, mode=mode,
+        )
+        if health_step:
+            steps.append(health_step)
+        timings.update(health_timings)
+        # Stage 2 event publish (HEALTH_SCORES_UPDATED) — deferred with its
+        # subscribers; see process_data_pipeline's module docstring.
+
+        # Stage 2b: adoption-pillar score → profile_metadata products
+        _t = time.time()
+        step = backfill_product_adoption(customer_id, accounts, vertical)
+        if step:
+            steps.append(step)
+        timings['product_adoption'] = round(time.time() - _t, 2)
+
         # Stage 2c: proactive signal scan                — later phase
-        # Stage 3: Wizard A (arc classification)        — Tier 2A-4
+        # Stage 3: Wizard A (arc classification)        — Tier 2A-5
 
         # Item 38: stakeholder→decision INVOLVES linking, after Wizard A.
         _t = time.time()

@@ -40,7 +40,9 @@ app = _make_app()
 import mcp_server.common as _common
 _common._flask_app = app
 
-from models import Account, KPIMeasurement, QualitativeSignal, ContextNode, ContextEdge, CsvUploadStaging
+from models import (
+    Account, KPIMeasurement, QualitativeSignal, ContextNode, ContextEdge, CsvUploadStaging, HealthScore,
+)
 
 FIXTURES = Path(__file__).resolve().parent / 'fixtures' / 'customer359_datacenter_v1'
 FILES = ('account_details.csv', 'kpi_measurements.csv', 'enhanced_qualitative_signals.csv', 'outcomes.csv')
@@ -104,10 +106,15 @@ def test_accounts(loaded):
         assert all(a.vertical == 'datacenter_v1' for a in accts)
         assert all(a.external_account_id for a in accts)
         assert [len(a.profile_metadata['products']) for a in accts] == [4, 5, 4, 5, 3, 3, 4, 4, 3, 4, 5, 4]
+        # 'product_adoption' is written by the Stage 2b back-fill (Tier 2A-4).
+        # The old repo's back-fill ran on this data too but never persisted
+        # the key — it mutated the loaded JSON dict in place and reassigned
+        # the same object, which SQLAlchemy's by-value change detection
+        # treats as unchanged (verified: NULL on all 12 accounts there).
         assert sorted(accts[0].profile_metadata) == [
             'cloud_provider', 'contract_end', 'contract_start', 'csm_email', 'csm_manager',
             'csm_name', 'deployment_type', 'employee_count', 'primary_champion_engagement_score',
-            'products', 'renewal_date', 'tech_stack', 'tier',
+            'product_adoption', 'products', 'renewal_date', 'tech_stack', 'tier',
         ]
         # blank champion/sponsor cells never became the string 'nan'
         assert not any(str(v) == 'nan' for a in accts for v in a.profile_metadata.values())
@@ -162,6 +169,72 @@ def test_context_nodes(loaded):
             'churn_averted': 2, 'revenue_at_risk': 2,
         }
         assert sum(float(n.revenue_impact) for n in by_type['OUTCOME']) == 3_280_000.0
+
+
+def _expected_health_rows():
+    import csv
+    with open(FIXTURES / 'expected_health_scores_old_repo.csv') as f:
+        return list(csv.DictReader(f))
+
+
+def test_health_scores_match_old_repo(loaded):
+    """Tier 2A-4 parity: the old repo's full pipeline wrote 72 HealthScore
+    rows for this data (12 accounts x Nov 2025..Apr 2026); score, status
+    and pillar breakdown must match exactly. change_from_last_month is
+    the one column that must NOT match: the old raw-SQL UPDATE subtracted
+    the row's own score from itself, so it was 0.00 on every row of the
+    fixture (see calculate_health_scores docstring); here it must equal
+    the real month-over-month delta."""
+    import json
+    from datetime import date
+    cid, res = loaded
+    assert any(s == 'health_scores_auto_72_written' for s in res['steps_completed']), res['steps_completed']
+    expected = _expected_health_rows()
+    assert len(expected) == 72
+    with app.app_context():
+        names = {a.account_id: a.account_name for a in _accounts(cid)}
+        got = {
+            (names[hs.account_id], hs.measurement_month): hs
+            for hs in HealthScore.query.filter(HealthScore.account_id.in_(list(names))).all()
+        }
+        assert len(got) == 72
+        prev_by_acct = {}
+        for row in expected:
+            key = (row['account_name'], date.fromisoformat(row['measurement_month']))
+            hs = got[key]
+            assert float(hs.health_score) == float(row['health_score']), key
+            assert hs.health_status == row['health_status'], key
+            assert hs.contributing_pillars == json.loads(row['contributing_pillars']), key
+            assert hs.kpi_only_score == hs.health_score
+            assert row['change_from_last_month'] in ('', '0.00')   # the old bug, on record
+            prev = prev_by_acct.get(row['account_name'])
+            if prev is None:
+                assert hs.change_from_last_month is None, key
+            else:
+                assert float(hs.change_from_last_month) == round(float(hs.health_score) - prev, 2), key
+            prev_by_acct[row['account_name']] = float(hs.health_score)
+
+
+def test_account_status_synced_like_old_repo(loaded):
+    """Item 28 sync produced this split in the old repo for the same data."""
+    cid, _ = loaded
+    with app.app_context():
+        got = {a.account_name: a.account_status for a in _accounts(cid)}
+        assert got == {
+            'Apex Compute': 'active', 'Cirrus AI': 'at_risk', 'Helix Compute': 'at_risk',
+            'Meridian AI': 'at_risk', 'Nova Foundry': 'at_risk', 'Orion Models': 'at_risk',
+            'Pacific Dataworks': 'active', 'Quantum Labs': 'at_risk', 'Stellar Inference': 'active',
+            'Titan Hyperscale Labs': 'at_risk', 'Vector Dynamics': 'active', 'Zenith Training': 'active',
+        }
+
+
+def test_adoption_backfill_uses_p6_for_datacenter(loaded):
+    cid, _ = loaded
+    with app.app_context():
+        for a in _accounts(cid):
+            latest = HealthScore.query.filter_by(account_id=a.account_id).order_by(
+                HealthScore.measurement_month.desc()).first()
+            assert a.profile_metadata['product_adoption'] == round(float(latest.contributing_pillars['P6']), 1)
 
 
 def test_linked_signal_edges(loaded):
