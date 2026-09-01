@@ -303,13 +303,15 @@ def extract_stakeholders_from_profiles(customer_id: int) -> int:
                 node_type='STAKEHOLDER', node_subtype=role,
             ).first():
                 continue
-            title_val = (pm.get(title_field) if title_field else None) or role.replace('_', ' ').title()
+            # Roles with a title column use it (blank → name only); roles
+            # without one are labelled by role. Same as the old loader.
+            title_val = (pm.get(title_field) or '') if title_field else role.replace('_', ' ').title()
             email_val = (pm.get(email_field) if email_field else None) or ''
             db.session.add(ContextNode(
                 customer_id=customer_id, account_id=acct.account_id,
                 node_type='STAKEHOLDER', node_subtype=role,
                 source='observed',
-                title=f'{name_val} ({title_val})',
+                title=f'{name_val} ({title_val})' if title_val else str(name_val),
                 properties={
                     'name': str(name_val), 'role': role,
                     'job_title': str(title_val), 'email': str(email_val),
