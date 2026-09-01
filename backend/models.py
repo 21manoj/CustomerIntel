@@ -43,6 +43,41 @@ class Customer(db.Model):
     updated_at = db.Column(db.DateTime, server_default=db.func.now(), onupdate=db.func.now())
 
 
+class User(db.Model):
+    """Ported 2026-09-01 (Tier 2A) — create_customer's admin-user step needs it."""
+    __tablename__ = 'users'
+    user_id = db.Column(db.Integer, primary_key=True)
+    customer_id = db.Column(db.Integer, db.ForeignKey('customers.customer_id'))
+    user_name = db.Column(db.String, nullable=False)
+    email = db.Column(db.String, nullable=False)
+    # 255, not the old repo's 128: that size fit Werkzeug 2.2.3's pinned
+    # default (pbkdf2:sha256, ~110 chars) but not this build's unpinned
+    # Werkzeug, whose current default (scrypt) produces a ~162-char hash —
+    # caught by test_tier2_create_customer.py inserting a real row, not a
+    # guess. Widening the column rather than pinning to the older, weaker
+    # default hash method just to fit the old size.
+    password_hash = db.Column(db.String(255))
+    active = db.Column(db.Boolean, default=True)
+    last_login = db.Column(db.DateTime)
+    uuid = db.Column(db.String(60), nullable=True, unique=True)
+    customer_uuid = db.Column(db.String(60), nullable=True)
+    created_at = db.Column(db.DateTime, server_default=db.func.now())
+    updated_at = db.Column(db.DateTime, server_default=db.func.now(), onupdate=db.func.now())
+    vertical = db.Column(db.String(50))
+    role = db.Column(db.String(50))
+    allowed_account_ids = db.Column(db.JSON, nullable=True)
+    allowed_customer_ids = db.Column(db.JSON, nullable=True)
+    expires_at = db.Column(db.DateTime, nullable=True)
+    is_contractor = db.Column(db.Boolean, default=False)
+    magic_link_token = db.Column(db.String(100), nullable=True, index=True)
+    magic_link_expires_at = db.Column(db.DateTime, nullable=True)
+
+    __table_args__ = (
+        db.UniqueConstraint('customer_id', 'user_name', name='unique_customer_username'),
+        db.UniqueConstraint('email', name='unique_user_email'),
+    )
+
+
 class CustomerConfig(db.Model):
     __tablename__ = 'customer_configs'
     config_id = db.Column(db.Integer, primary_key=True)

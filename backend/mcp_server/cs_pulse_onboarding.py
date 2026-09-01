@@ -1,0 +1,322 @@
+#!/usr/bin/env python3
+"""
+CS Pulse MCP — Onboarding Tools (frictionless auth).
+
+Tier 2A port (2026-09-01), sub-checkpoint 1: create_customer only, plus its
+private helpers. The remaining 14 onboarding tools (upload_csv,
+_process_data_impl/process_data, trigger_wizard, etc.) are the next
+sub-checkpoints — see project memory for the full phase breakdown.
+
+Two changes made relative to the old repo's create_customer, not cosmetic:
+
+1. The verticals.provision_dc_customer.provision_customer() call is
+   dropped entirely, not carried forward wrapped in its old try/except.
+   It provisioned a per-customer filesystem directory
+   (verticals/customerNNN-{vertical}/...) — a pattern Tier 1 already
+   established doesn't exist in this build (no verticals/ directory at
+   all; every vertical is DB rows + a JSON catalog). The old repo's own
+   try/except already proves this call could only ever fail there too —
+   porting a call that can never succeed, just to silently swallow its
+   failure, is exactly the kind of dead code this rebuild is meant to
+   drop rather than reproduce.
+
+2. _check_kpi_dependencies() dropped its cust_vertical parameter — grep
+   confirmed it was never referenced inside the function body in the old
+   repo either, a genuinely unused parameter, not just an unused default.
+
+All tools register on the shared `mcp` instance from cs_pulse_mcp_server.
+"""
+
+from mcp_server.cs_pulse_mcp_server import mcp, _check_mcp_enabled, _get_flask_app, ToolError
+from mcp_server.auth import require_auth_if_key_present as _require_auth_if_key_present
+
+
+# ===================================================================
+# KPI Tier resolution (SaaS verticals)
+# ===================================================================
+
+def _load_tier_config():
+    """Load the SaaS KPI tier definitions from config."""
+    import json
+    import os
+    path = os.path.join(os.path.dirname(__file__), '..', 'config', 'saas_kpi_tiers.json')
+    try:
+        with open(path) as f:
+            return json.load(f)
+    except Exception:
+        return None
+
+
+def _resolve_kpi_tier(tier: str, vertical: str) -> dict:
+    """Resolve tier name to tier definition. Returns None for non-SaaS or unrecognized tier."""
+    if vertical not in ('saas_premium', 'saas'):
+        return None  # Non-SaaS verticals use the full catalog — no tiers yet
+
+    config = _load_tier_config()
+    if not config:
+        return None
+
+    tiers = config.get('tiers', {})
+
+    if tier and tier in tiers:
+        return tiers[tier]
+
+    default = config.get('default_tier', 'saas_starter_9')
+    return tiers.get(default)
+
+
+def _apply_kpi_tier(customer_config, tier_def: dict) -> dict:
+    """Apply tier KPI selection AND pillar weights to a CustomerConfig.
+
+    Shift-left: sets both enabled_kpis and pillar_weights at creation time
+    so health scores are computed correctly from the first process_data call.
+    Without pillar_weights, the scorer falls back to full-catalog defaults
+    which spread weight across all pillars — including pillars with zero
+    KPIs in the tier, diluting the score.
+    """
+    kpi_codes = tier_def.get('kpi_codes')
+    if kpi_codes == 'all':
+        customer_config.enabled_kpis = None
+        customer_config.pillar_weights = None  # use catalog defaults
+    elif kpi_codes:
+        customer_config.enabled_kpis = kpi_codes
+
+        active_pillars = tier_def.get('pillars')
+        if active_pillars and len(active_pillars) < 5:
+            equal_weight = round(1.0 / len(active_pillars), 4)
+            pw = {p: equal_weight for p in active_pillars}
+            diff = round(1.0 - sum(pw.values()), 4)
+            if diff != 0:
+                pw[active_pillars[-1]] = round(pw[active_pillars[-1]] + diff, 4)
+            customer_config.pillar_weights = pw
+
+    return {
+        'name': tier_def.get('display_name'),
+        'model_grade': tier_def.get('model_grade'),
+        'kpi_count': tier_def.get('kpi_count'),
+        'pillars': tier_def.get('pillars'),
+        'upgrade_path': tier_def.get('upgrade_path'),
+    }
+
+
+# ===================================================================
+# Tool: create_customer
+# ===================================================================
+
+@mcp.tool
+def create_customer(
+    name: str,
+    domain: str,
+    vertical: str,
+    admin_email: str,
+    admin_name: str,
+    tier: str = None,
+) -> dict:
+    """Create a new customer with admin user and auto-generated API key.
+
+    This is the first write step in onboarding. Creates:
+    1. Customer record (with UUID)
+    2. Admin user (with generated password)
+    3. CustomerConfig (vertical defaults)
+    4. API key (returned once — save it! Not issued yet if api_key_service
+       isn't available in this build — known gap, see project memory)
+
+    No authentication required — this is the entry point for new prospects.
+
+    After creation, onboard with the 4-CSV canonical set:
+        1. accounts.csv — enriched with products, champion, contract, firmographic data
+        2. kpi_measurements.csv — KPI time-series from customer systems
+        3. enhanced_qualitative_signals.csv — signal feed (NPS, escalations, champion changes)
+        4. outcomes.csv — CRM renewal/churn/expansion history
+        Then call process_data() — Wizard A auto-generates context graph.
+
+    Args:
+        name: Company name
+        domain: Email domain (e.g. 'acme.com')
+        vertical: Vertical slug (e.g. 'datacenter_v1')
+        admin_email: Admin user email
+        admin_name: Admin user display name
+        tier: Optional KPI tier for SaaS verticals. Options:
+            'saas_starter_9' — 9 KPIs, 4 pillars, 1-hour onboarding (default for SaaS)
+            'saas_predictive_11' — 11 KPIs, behavioral signals, requires product analytics
+            'saas_full_43' — all KPIs, enterprise deployment
+            If omitted, SaaS defaults to 'saas_starter_9'. Other verticals use the full catalog.
+    """
+    _require_auth_if_key_present('create_customer', None)
+    _check_mcp_enabled()
+    app = _get_flask_app()
+
+    with app.app_context():
+        from models import Customer, User, CustomerConfig
+        from extensions import db
+        from werkzeug.security import generate_password_hash
+        import secrets as _secrets
+
+        existing = Customer.query.filter_by(domain=domain).first()
+        if existing:
+            raise ToolError(
+                f"A customer with domain '{domain}' already exists "
+                f"(customer_id={existing.customer_id}). "
+                f"Use complete_onboarding(check_only=True) to check its state."
+            )
+
+        existing_user = User.query.filter_by(email=admin_email).first()
+        if existing_user:
+            raise ToolError(f"Email '{admin_email}' is already registered.")
+
+        try:
+            from id_generator import generate_id
+            uuid_vertical = 'dc' if vertical.startswith('dc') else vertical
+            customer_uuid = generate_id(uuid_vertical, 'customer')
+        except Exception:
+            customer_uuid = None
+
+        customer = Customer(
+            customer_name=name,
+            email=admin_email,
+            domain=domain,
+            vertical=vertical,
+        )
+        if customer_uuid:
+            customer.uuid = customer_uuid
+        db.session.add(customer)
+        db.session.flush()
+
+        customer_id = customer.customer_id
+
+        generated_password = _secrets.token_urlsafe(16)
+        user = User(
+            customer_id=customer_id,
+            user_name=admin_name,
+            email=admin_email,
+            password_hash=generate_password_hash(generated_password),
+            role='admin',
+            vertical=vertical,
+        )
+        if customer_uuid:
+            user.customer_uuid = customer_uuid
+        try:
+            from id_generator import generate_id as _gen_id
+            user.uuid = _gen_id('dc' if vertical.startswith('dc') else vertical, 'user')
+        except Exception:
+            pass
+        db.session.add(user)
+        db.session.flush()
+
+        config = CustomerConfig(
+            customer_id=customer_id,
+            vertical=vertical,
+        )
+
+        # ── Apply KPI tier (SaaS verticals) ──
+        resolved_tier = _resolve_kpi_tier(tier, vertical)
+        tier_info = None
+        if resolved_tier:
+            tier_info = _apply_kpi_tier(config, resolved_tier)
+
+        db.session.add(config)
+
+        # Known gap: api_key_service.py + CustomerApiKey aren't ported yet
+        # (see mcp_server/auth.py's module docstring) — degrades to no key
+        # issued, same as the old repo's own try/except around this call.
+        try:
+            from api_key_service import generate_api_key as _gen_api_key
+            full_key, _key_record = _gen_api_key(
+                customer_id=customer_id,
+                created_by=user.user_id,
+                name='MCP Onboarding Key',
+                scopes=['read', 'write'],
+            )
+        except Exception:
+            full_key = None
+
+        # ── Auto-enable ALL features for Beta ──
+        ALL_FEATURES = [
+            'context_graph', 'story_arcs', 'signal_edges',
+            'stakeholder_tracking', 'decision_lifecycle',
+            'outcome_economics', 'industry_benchmarks',
+        ]
+        from models import FeatureToggle as _FT
+        for feat in ALL_FEATURES:
+            existing_toggle = _FT.query.filter_by(customer_id=customer_id, feature_name=feat).first()
+            if not existing_toggle:
+                db.session.add(_FT(
+                    customer_id=customer_id,
+                    feature_name=feat,
+                    enabled=True,
+                    config={sub: True for sub in ALL_FEATURES if sub != 'context_graph'} if feat == 'context_graph' else {},
+                    description='Auto-enabled at customer creation (Beta)',
+                ))
+
+        db.session.commit()
+
+        result = {
+            'scope': 'customer',
+            'customer_id': customer_id,
+            'customer_name': name,
+            'customer_uuid': customer_uuid,
+            'domain': domain,
+            'vertical': vertical,
+            'created_at': customer.created_at.isoformat() if customer.created_at else None,
+            'admin_user_id': user.user_id,
+            'admin_email': admin_email,
+        }
+
+        if full_key:
+            result['api_key'] = full_key
+            result['api_key_note'] = (
+                'Save this API key — it is shown only once. '
+                'Use it for the intelligence tools (list_accounts, get_account_health, etc.).'
+            )
+            import logging as _key_log
+            _masked = full_key[:12] + '...' + full_key[-4:] if len(full_key) > 16 else '***'
+            _key_log.getLogger(__name__).info(
+                f"API key generated for customer {customer_id}: {_masked}"
+            )
+
+        if tier_info:
+            result['tier'] = tier_info
+
+        return result
+
+
+# ===================================================================
+# KPI Dependency Guard
+# ===================================================================
+
+def _check_kpi_dependencies(enabled_kpis=None, enabled_pillars=None):
+    """Check if disabled KPIs/pillars affect downstream engines (ROI, arc classifier).
+
+    Returns list of warning strings. Empty list = no issues.
+    Only warns when the customer has EXPLICITLY selected a subset of KPIs/pillars
+    (not when using defaults = all enabled).
+    """
+    if not enabled_kpis and not enabled_pillars:
+        return []  # Using all defaults — no warnings needed
+
+    import json
+    import os
+    deps_path = os.path.join(os.path.dirname(__file__), '..', 'config', 'kpi_dependencies.json')
+    try:
+        with open(deps_path) as f:
+            deps = json.load(f)
+    except Exception:
+        return []  # Can't load deps file — skip silently
+
+    warnings = []
+
+    if enabled_pillars:
+        all_pillars = set(deps.get('pillar_dependencies', {}).keys())
+        disabled_pillars = all_pillars - set(enabled_pillars)
+        for p in sorted(disabled_pillars):
+            dep = deps['pillar_dependencies'].get(p)
+            if dep:
+                warnings.append(dep['warning'])
+
+    if enabled_kpis:
+        all_kpi_deps = deps.get('dependencies', {})
+        for kpi_code, dep in all_kpi_deps.items():
+            if kpi_code not in enabled_kpis:
+                warnings.append(dep['warning'])
+
+    return warnings

@@ -1,0 +1,112 @@
+{
+  "_description": "SaaS KPI Tiers — tiered onboarding catalog for SaaS Premium vertical. Each tier is a curated KPI set that matches a customer's integration maturity.",
+  "_note": "Tier names are prefixed 'SaaS' for clarity. DC2_S will get its own tier config when needed.",
+
+  "default_tier": "saas_starter_9",
+
+  "tiers": {
+    "saas_starter_9": {
+      "display_name": "SaaS Starter 9",
+      "description": "Minimal viable KPI set for 1-hour self-service onboarding. Covers all 6 Power-of-1 ROI metrics. No product analytics integration required.",
+      "model_grade": "B+",
+      "kpi_count": 9,
+      "pillar_count": 4,
+      "pillars": ["P1", "P2", "P3", "P5"],
+      "kpi_codes": [
+        "P1-KPI1", "P1-KPI3",
+        "P2-KPI1",
+        "P3-KPI1", "P3-KPI3", "P3-KPI4",
+        "P5-KPI1", "P5-KPI2", "P5-KPI3"
+      ],
+      "roi_coverage": {
+        "TTFV": "P1-KPI3",
+        "NRR": "P5-KPI1",
+        "GRR": "P5-KPI2",
+        "ticket_resolution_time": "P3-KPI1",
+        "product_adoption": "P1-KPI1",
+        "expansion_rate": "P5-KPI3"
+      },
+      "prerequisites": "CRM + support system connected",
+      "upgrade_path": "saas_predictive_11",
+      "manifest": "starter_9_saas.json"
+    },
+
+    "saas_predictive_11": {
+      "display_name": "SaaS Predictive 11",
+      "description": "Behavioral Gold set. Adds Golden Path Velocity (product stalling detection) and Persona Breadth (single-point-of-failure protection). Requires product analytics integration.",
+      "model_grade": "A-",
+      "kpi_count": 11,
+      "pillar_count": 4,
+      "pillars": ["P1", "P2", "P3", "P5"],
+      "kpi_codes": [
+        "P1-KPI1", "P1-KPI3", "P1-KPI10",
+        "P2-KPI1", "P2-KPI8",
+        "P3-KPI1", "P3-KPI3", "P3-KPI4",
+        "P5-KPI1", "P5-KPI2", "P5-KPI3"
+      ],
+      "added_vs_previous": ["P1-KPI10", "P2-KPI8"],
+      "capabilities_unlocked": [
+        "Single Point of Failure simulation (Persona Breadth)",
+        "Friction vs Value gap analysis (Golden Path + NPS)",
+        "138-day early warning (Golden Path + Exec Engagement)"
+      ],
+      "roi_coverage": {
+        "TTFV": "P1-KPI3",
+        "NRR": "P5-KPI1",
+        "GRR": "P5-KPI2",
+        "ticket_resolution_time": "P3-KPI1",
+        "product_adoption": "P1-KPI1",
+        "expansion_rate": "P5-KPI3"
+      },
+      "prerequisites": "CRM + support + product analytics (Amplitude/Mixpanel/Pendo)",
+      "upgrade_path": "saas_growth_15",
+      "manifest": "predictive_11_saas.json"
+    },
+
+    "saas_growth_15": {
+      "display_name": "SaaS Growth 15",
+      "description": "Full Amplitude integration. Adds Feature Adoption Breadth, Login Frequency, Workflow Completion Rate, and Module Activation Rate for deep product usage intelligence.",
+      "model_grade": "A",
+      "kpi_count": 15,
+      "pillar_count": 4,
+      "pillars": ["P1", "P2", "P3", "P5"],
+      "kpi_codes": [
+        "P1-KPI1", "P1-KPI2", "P1-KPI3", "P1-KPI4", "P1-KPI6", "P1-KPI7", "P1-KPI10",
+        "P2-KPI1", "P2-KPI8",
+        "P3-KPI1", "P3-KPI3", "P3-KPI4",
+        "P5-KPI1", "P5-KPI2", "P5-KPI3"
+      ],
+      "added_vs_previous": ["P1-KPI2", "P1-KPI4", "P1-KPI6", "P1-KPI7"],
+      "capabilities_unlocked": [
+        "Feature adoption depth analysis (which features drive retention)",
+        "Login frequency anomaly detection (disengagement early warning)",
+        "Workflow completion funnel analysis (friction point identification)",
+        "Module activation tracking (upsell readiness scoring)"
+      ],
+      "roi_coverage": {
+        "TTFV": "P1-KPI3",
+        "NRR": "P5-KPI1",
+        "GRR": "P5-KPI2",
+        "ticket_resolution_time": "P3-KPI1",
+        "product_adoption": "P1-KPI1",
+        "expansion_rate": "P5-KPI3"
+      },
+      "prerequisites": "CRM + support + full Amplitude/Mixpanel integration (event tracking, user flows, feature flags)",
+      "upgrade_path": "saas_full_43",
+      "manifest": "growth_15_saas.json"
+    },
+
+    "saas_full_43": {
+      "display_name": "SaaS Full 43",
+      "description": "Complete enterprise catalog. All 5 pillars including P4 (Partner & Ecosystem). Full simulation engine, board-ready NRR forecasting.",
+      "model_grade": "A+",
+      "kpi_count": 43,
+      "pillar_count": 5,
+      "pillars": ["P1", "P2", "P3", "P4", "P5"],
+      "kpi_codes": "all",
+      "prerequisites": "All integrations: CRM, support, product analytics, partner portal, billing",
+      "upgrade_path": null,
+      "manifest": null
+    }
+  }
+}

@@ -1,0 +1,100 @@
+{
+  "_description": "KPI dependency map — which downstream engines depend on each KPI. Used by configure_customer_kpis to warn when disabling load-bearing KPIs.",
+  "_source": "Derived from power_of_1_economics.json linked_kpi_codes + arc_classifier rules",
+
+  "dependencies": {
+    "P1-KPI1": {
+      "engines": ["roi_engine"],
+      "metrics": ["TTFV"],
+      "warning": "Disabling P1-KPI1 (Time-to-First-Workload) degrades TTFV projection in ROI engine"
+    },
+    "P2-KPI1": {
+      "engines": ["roi_engine"],
+      "metrics": ["ticket_resolution_time"],
+      "warning": "Disabling P2-KPI1 (RMA Frequency Rate) degrades ticket resolution time projection"
+    },
+    "P2-KPI2": {
+      "engines": ["roi_engine"],
+      "metrics": ["ticket_resolution_time"],
+      "warning": "Disabling P2-KPI2 (MTBF) degrades ticket resolution time projection"
+    },
+    "P2-KPI3": {
+      "engines": ["roi_engine"],
+      "metrics": ["GRR"],
+      "warning": "Disabling P2-KPI3 (Critical Incidents) degrades GRR projection"
+    },
+    "P3-KPI1": {
+      "engines": ["roi_engine", "arc_classifier"],
+      "metrics": ["product_adoption"],
+      "warning": "Disabling P3-KPI1 (GPU Utilization) degrades product adoption projection and arc classification"
+    },
+    "P3-KPI2": {
+      "engines": ["roi_engine"],
+      "metrics": ["product_adoption"],
+      "warning": "Disabling P3-KPI2 (Training Job Completion) degrades product adoption projection"
+    },
+    "P3-KPI3": {
+      "engines": ["roi_engine"],
+      "metrics": ["product_adoption"],
+      "warning": "Disabling P3-KPI3 (Inference Latency) degrades product adoption projection"
+    },
+    "P4-KPI1": {
+      "engines": ["roi_engine"],
+      "metrics": ["GRR"],
+      "warning": "Disabling P4-KPI1 (Partner Engagement) degrades GRR projection"
+    },
+    "P4-KPI2": {
+      "engines": ["roi_engine"],
+      "metrics": ["GRR"],
+      "warning": "Disabling P4-KPI2 (VAR Performance) degrades GRR projection"
+    },
+    "P4-KPI3": {
+      "engines": ["roi_engine"],
+      "metrics": ["NRR"],
+      "warning": "Disabling P4-KPI3 (Joint QBR Frequency) degrades NRR projection"
+    },
+    "P5-KPI1": {
+      "engines": ["roi_engine", "arc_classifier"],
+      "metrics": ["NRR", "expansion_rate"],
+      "warning": "Disabling P5-KPI1 (Capacity Utilization) degrades NRR and expansion rate projections — high impact on ROI story"
+    },
+    "P5-KPI2": {
+      "engines": ["roi_engine"],
+      "metrics": ["NRR"],
+      "warning": "Disabling P5-KPI2 (Capacity Utilization Trajectory) degrades NRR projection"
+    },
+    "P5-KPI3": {
+      "engines": ["roi_engine"],
+      "metrics": ["expansion_rate"],
+      "warning": "Disabling P5-KPI3 (Workload Growth Velocity) degrades expansion rate projection"
+    }
+  },
+
+  "pillar_dependencies": {
+    "P1": {
+      "engines": ["roi_engine"],
+      "metrics": ["TTFV"],
+      "warning": "Disabling P1 (Deployment Velocity) removes TTFV from ROI projections"
+    },
+    "P2": {
+      "engines": ["roi_engine"],
+      "metrics": ["ticket_resolution_time", "GRR"],
+      "warning": "Disabling P2 (Operational Stability) removes ticket resolution and partially degrades GRR projections"
+    },
+    "P3": {
+      "engines": ["roi_engine", "arc_classifier"],
+      "metrics": ["product_adoption"],
+      "warning": "Disabling P3 (AI Workload Performance) removes product adoption projection and weakens arc classification"
+    },
+    "P4": {
+      "engines": ["roi_engine"],
+      "metrics": ["GRR", "NRR"],
+      "warning": "Disabling P4 (Channel & Partner Health) degrades GRR and NRR projections"
+    },
+    "P5": {
+      "engines": ["roi_engine", "arc_classifier"],
+      "metrics": ["NRR", "expansion_rate"],
+      "warning": "Disabling P5 (Expansion Readiness) removes NRR and expansion rate projections — major ROI impact"
+    }
+  }
+}
