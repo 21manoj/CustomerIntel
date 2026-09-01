@@ -28,7 +28,7 @@ def test_models_import_and_create_all():
         db.create_all()
         assert 'context_nodes' in db.metadata.tables
         assert 'context_edges' in db.metadata.tables
-        assert 'dc2s_kpis' in db.metadata.tables
+        assert 'kpi_measurements' in db.metadata.tables
         assert 'qualitative_signals' in db.metadata.tables
 
 

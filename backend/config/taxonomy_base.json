@@ -1,0 +1,53 @@
+{
+  "version": "0.1",
+  "description": "Vertical-agnostic base taxonomy. Merged with per-vertical overlays at load time. See docs/governance/AI_GOVERNANCE_FRAMEWORK.md and policy_taxonomy_runtime_auto_fix.md.",
+  "polarity_ambiguous_outcome_subtypes": [
+    "playbook_outcome",
+    "intervention_outcome"
+  ],
+  "polarity_ambiguous_signal_subtypes": [
+    "arc_detection"
+  ],
+  "revenue_buckets": {
+    "at_risk": [
+      "renewal_at_risk",
+      "revenue_at_risk",
+      "renewal_uncertainty",
+      "churn_risk",
+      "engagement_decline",
+      "partial_recovery",
+      "capacity_constraint",
+      "partner_friction"
+    ],
+    "lost": [
+      "churn_lost",
+      "contraction"
+    ],
+    "expansion": [
+      "expansion_closed",
+      "new_logo",
+      "revenue_expanded",
+      "revenue_growth"
+    ],
+    "pipeline": [
+      "expansion_approved",
+      "expansion_opportunity"
+    ],
+    "protected": [
+      "revenue_protected",
+      "churn_averted",
+      "renewal_secured",
+      "escalation_resolved"
+    ]
+  },
+  "auto_recovery_outcome_subtypes": [
+    "churn_averted",
+    "revenue_protected",
+    "engagement_recovery",
+    "renewal_secured",
+    "expansion_approved",
+    "revenue_growth",
+    "partial_recovery",
+    "capacity_constraint"
+  ]
+}

@@ -287,9 +287,9 @@ class ApprovalQueueService:
         if scope == 'global':
             # Apply global pillar + KPI weights
             if payload.get('pillar_weights'):
-                config.dc2s_pillar_weights = payload['pillar_weights']
+                config.pillar_weights = payload['pillar_weights']
             if payload.get('kpi_weights'):
-                config.dc2s_kpi_weights = payload['kpi_weights']
+                config.kpi_weights = payload['kpi_weights']
             config.customized_by = f'wizard_c_approved_{request.decided_by}'
             logger.info(
                 f"Applied Wizard C global weights for customer {request.customer_id} "
@@ -299,7 +299,7 @@ class ApprovalQueueService:
         elif scope == 'lifecycle_stage':
             # Apply per-stage weights
             stage_name = payload.get('stage_name')
-            lc = config.dc2s_lifecycle_stage_weights
+            lc = config.lifecycle_stage_weights
             if lc and stage_name:
                 import copy
                 updated_lc = copy.deepcopy(lc)
@@ -307,7 +307,7 @@ class ApprovalQueueService:
                     if stage.get('name') == stage_name:
                         stage['pillar_weights'] = payload['pillar_weights']
                         break
-                config.dc2s_lifecycle_stage_weights = updated_lc
+                config.lifecycle_stage_weights = updated_lc
                 logger.info(
                     f"Applied Wizard C stage '{stage_name}' weights for customer "
                     f"{request.customer_id} (approved by {request.decided_by})"

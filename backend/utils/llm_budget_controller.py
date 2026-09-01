@@ -51,15 +51,15 @@ def _get_budget_limits(customer_id: int) -> dict:
     """
     Load per-customer budget limits from CustomerConfig, with defaults.
 
-    Budget fields are stored in CustomerConfig.dc2s_kpi_overrides JSON
+    Budget fields are stored in CustomerConfig.kpi_overrides JSON
     under the key 'llm_budget' to avoid adding new columns:
       {"llm_budget": {"daily_calls": 300, "daily_usd": 15, "monthly_usd": 300, "max_proactive": 80}}
     """
     try:
         from models import CustomerConfig
         config = CustomerConfig.query.filter_by(customer_id=customer_id).first()
-        if config and config.dc2s_kpi_overrides:
-            overrides = config.dc2s_kpi_overrides
+        if config and config.kpi_overrides:
+            overrides = config.kpi_overrides
             if isinstance(overrides, dict):
                 llm = overrides.get('llm_budget', {})
                 return {

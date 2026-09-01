@@ -1,0 +1,15 @@
+{
+  "version": "0.1",
+  "extends": "base",
+  "vertical": "saas_premium",
+  "description": "SaaS Premium vertical overlay. Empty today — extend here when SaaS-specific subtypes appear.",
+  "polarity_ambiguous_outcome_subtypes": [],
+  "polarity_ambiguous_signal_subtypes": [],
+  "revenue_buckets": {
+    "at_risk": [],
+    "lost": [],
+    "expansion": [],
+    "protected": []
+  },
+  "auto_recovery_outcome_subtypes": []
+}

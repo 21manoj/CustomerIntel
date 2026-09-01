@@ -441,30 +441,35 @@ def _deduplicate_outcome_amounts(amounts: List[float], threshold: float = 0.20) 
 def churn_pct_for_health(health: float) -> float:
     """Sanctioned health→churn-probability band (single source of the model).
 
-    Churn-probability bands (aligned with health thresholds):
-      - Critical (health < 50):  40 % of ARR at risk
-      - At-risk  (50 ≤ h < 70): 20 % of ARR at risk
-      - Healthy  (h ≥ 70):       5 % of ARR at risk
+    Churn-probability bands, keyed off utils.health_thresholds' classify()
+    rather than hardcoded boundary values -- the old repo hardcoded 50/70
+    here directly, with a comment claiming they were "aligned with health
+    thresholds" that nothing actually enforced: reconfiguring thresholds
+    via the Settings UI (health_thresholds.py's own docstring references
+    one) would have silently desynced this function's bands from the rest
+    of the system. Reading classify() directly makes that claim true by
+    construction instead of by convention.
+      - critical: 40 % of ARR at risk
+      - at_risk:  20 % of ARR at risk
+      - healthy:   5 % of ARR at risk
 
     Kept as one function so the 40/20/5 bands have exactly one definition —
     both ``_calculate_at_risk_from_health`` (revenue-at-risk) and the CFO
     per-account impact allocation read from here, never a second copy.
     """
-    if health < 50:
-        return 0.40
-    elif health < 70:
-        return 0.20
-    return 0.05
+    from utils.health_thresholds import classify
+
+    band = classify(health)
+    return {'critical': 0.40, 'at_risk': 0.20, 'healthy': 0.05}[band]
 
 
 def _calculate_at_risk_from_health(account_id: int) -> float:
     """
     Derive at-risk revenue from the account's health score and ARR.
 
-    Churn-probability bands (aligned with health thresholds):
-      - Critical (health < 50):  40 % of ARR at risk
-      - At-risk  (50 ≤ h < 70): 20 % of ARR at risk
-      - Healthy  (h ≥ 70):       5 % of ARR at risk
+    Churn-probability band comes from churn_pct_for_health() above (the
+    single source for the 40/20/5 model, itself keyed off
+    utils.health_thresholds rather than a second hardcoded copy).
 
     Health score is read from the ``health_scores`` table (latest
     measurement month).  ARR comes from ``accounts.revenue`` or

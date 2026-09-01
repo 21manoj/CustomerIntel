@@ -4,12 +4,17 @@ Vertical-Aware Health Calculator Resolver
 Single source of truth for getting the correct calculate_kpi_health()
 function based on a customer's vertical.
 
-Resolution priority:
-1. Vertical-specific Python module (verticals/{v}/api_routes.py) — if it exists
-2. Generic JSON-based scorer (utils/generic_scorer.py) — for any vertical with a catalog
+Always uses the generic JSON-based scorer (utils/generic_scorer.py) — this
+build never carries over per-vertical Python modules
+(verticals/{v}/api_routes.py). The old repo tried that path first and fell
+back to the generic scorer for every vertical anyway (dc2_s and
+saas_premium were both explicitly hardcoded to skip it — parity verified,
+190 L1 checks + 8 L2/L3 scenarios, zero delta — and any *other* vertical
+would hit an ImportError since no verticals/ directory exists here), so the
+branch was already permanently dead in practice. Not carried forward.
 
-Design principle: DC2_S is not special. If verticals/dc2_s/ is deleted,
-the generic scorer handles DC2_S via its JSON catalog.
+Design principle: no vertical is special. Every vertical, including dc2_s,
+is defined by its JSON catalog alone — see utils/vertical_registry.py.
 
 Usage:
     from utils.vertical_health import get_health_calculator
@@ -27,35 +32,32 @@ _vertical_cache = {}
 
 
 def resolve_vertical(customer_id: int) -> str:
-    """Resolve the vertical for a customer."""
-    if customer_id is None:
-        return 'dc2_s'  # Legacy default — will be removed
+    """
+    Resolve the vertical for a customer. Delegates to
+    utils.vertical_registry.get_vertical_for_customer() — the canonical,
+    fail-closed lookup (raises ValueError rather than silently defaulting
+    to any vertical, dc2_s included, when a customer has no CustomerConfig
+    row or an unset vertical column).
+
+    The old repo had a second, less safe copy of this exact resolution
+    logic here — defaulting to 'dc2_s' on any lookup failure, plus a
+    directory-existence check tied to a per-customer directory layout this
+    build doesn't have. Both removed: one call, one source of truth,
+    consistent with vertical_registry's own "no fallback to dc2_s"
+    contract instead of quietly working around it a second time.
+
+    customer_id=None is not given a default here either — per
+    get_vertical_for_customer's own docstring, a caller that genuinely
+    needs a "no customer context" behavior must decide and implement that
+    explicitly, not inherit a silent vertical guess from this function.
+    """
+    from utils.vertical_registry import get_vertical_for_customer
 
     cid = int(customer_id)
     if cid in _vertical_cache:
         return _vertical_cache[cid]
 
-    vertical = 'dc2_s'
-    try:
-        from models import CustomerConfig
-        cc = CustomerConfig.query.filter_by(customer_id=cid).first()
-        if cc and cc.vertical:
-            vertical = cc.vertical
-        else:
-            # Check directory-based detection
-            import os
-            base = os.path.join(os.path.dirname(__file__), '..', 'verticals')
-            for suffix in ('saas', 'saas_premium'):
-                if os.path.isdir(os.path.join(base, f'customer{cid}-{suffix}')):
-                    vertical = 'saas_premium'
-                    break
-    except Exception as e:
-        logger.debug(f"Could not resolve vertical for customer {cid}: {e}")
-
-    # Normalize aliases
-    from utils.vertical_registry import normalize_vertical
-    vertical = normalize_vertical(vertical)
-
+    vertical = get_vertical_for_customer(cid)
     _vertical_cache[cid] = vertical
     return vertical
 
@@ -68,50 +70,17 @@ def clear_vertical_cache(customer_id: int = None):
         _vertical_cache.clear()
 
 
-def get_health_calculator(customer_id: int = None):
+def get_health_calculator(customer_id: int):
     """
-    Return the correct calculate_kpi_health function for a customer's vertical.
-
-    Resolution:
-    1. Try vertical-specific Python module (verticals/{v}/api_routes.py)
-    2. Fall back to generic JSON-based scorer (works for ANY vertical with a catalog)
+    Return the correct calculate_kpi_health function for a customer's
+    vertical, via the generic JSON-catalog scorer — see module docstring
+    for why there's no per-vertical-Python-module branch here.
 
     Returns:
         callable: calculate_kpi_health(kpi_values, customer_id=None) -> (float, dict)
     """
     vertical = resolve_vertical(customer_id)
-
-    # Try vertical-specific Python module first (legacy — DC2_S, SaaS Premium)
-    calc = _try_python_module_calculator(vertical, customer_id)
-    if calc:
-        return calc
-
-    # Fall back to generic JSON-based scorer
     return _make_generic_calculator(vertical, customer_id)
-
-
-def _try_python_module_calculator(vertical: str, customer_id: int = None):
-    """Try to load calculate_kpi_health from a vertical's Python module."""
-    try:
-        if vertical == 'dc2_s':
-            # DC2_S now uses generic JSON-catalog scorer (same as SaaS Premium).
-            # Parity verified: 190 L1 checks + 8 L2/L3 scenarios, zero delta.
-            # See tests/test_scorer_parity.py for evidence.
-            return None
-        elif vertical == 'saas_premium':
-            # SaaS Premium Python scorer is a stub (returns 50 for all KPIs).
-            # Skip it — generic JSON-catalog scorer handles SaaS Premium correctly.
-            return None
-        else:
-            # Try dynamic import
-            import importlib
-            mod = importlib.import_module(f'verticals.{vertical}.api_routes')
-            return getattr(mod, 'calculate_kpi_health', None)
-    except (ImportError, ModuleNotFoundError):
-        return None
-    except Exception as e:
-        logger.debug(f"Python module calc not available for {vertical}: {e}")
-        return None
 
 
 def _make_generic_calculator(vertical: str, customer_id: int = None):
@@ -141,9 +110,9 @@ def _make_generic_calculator(vertical: str, customer_id: int = None):
             try:
                 from models import CustomerConfig as CC
                 cc = CC.query.filter_by(customer_id=int(customer_id)).first()
-                if cc and cc.dc2s_pillar_weights:
-                    pillar_weight_overrides = cc.dc2s_pillar_weights
-                    enabled_pillars = set(cc.dc2s_pillar_weights.keys())
+                if cc and cc.pillar_weights:
+                    pillar_weight_overrides = cc.pillar_weights
+                    enabled_pillars = set(cc.pillar_weights.keys())
             except Exception:
                 pass
 
@@ -158,23 +127,20 @@ def _make_generic_calculator(vertical: str, customer_id: int = None):
     return calculate_kpi_health
 
 
-def get_trailing_kpi_values_func(customer_id: int = None):
+def get_trailing_kpi_values_func(customer_id: int):
     """Return the correct _get_trailing_kpi_values function for a customer's vertical."""
     vertical = resolve_vertical(customer_id)
 
-    # All verticals (DC2_S, SaaS Premium, custom) use generic trailing values.
-    # The DC2_S exponential-decay version is preserved in api_routes.py but
-    # most production paths read pre-computed HealthScore tables from DB.
-
-    # Generic fallback: query DC2SKPI table (works for any vertical)
+    # Every vertical uses the same generic trailing-values query — no
+    # per-vertical Python implementation exists in this build.
     def _generic_trailing_kpi_values(account_id, days=30):
-        """Generic trailing KPI values — queries DC2SKPI table for any vertical."""
-        from models import DC2SKPI, db
+        """Generic trailing KPI values — queries KPIMeasurement for any vertical."""
+        from models import KPIMeasurement, db
         from datetime import datetime, timedelta
         cutoff = datetime.utcnow() - timedelta(days=days)
-        rows = DC2SKPI.query.filter(
-            DC2SKPI.account_id == account_id,
-            DC2SKPI.measured_at >= cutoff,
+        rows = KPIMeasurement.query.filter(
+            KPIMeasurement.account_id == account_id,
+            KPIMeasurement.measured_at >= cutoff,
         ).all()
         # Average by KPI code
         kpi_sums = {}
@@ -188,7 +154,7 @@ def get_trailing_kpi_values_func(customer_id: int = None):
     return _generic_trailing_kpi_values
 
 
-def calculate_health_for_customer(kpi_values: dict, customer_id: int = None):
+def calculate_health_for_customer(kpi_values: dict, customer_id: int):
     """One-call convenience: resolve vertical + calculate health."""
     calc = get_health_calculator(customer_id)
     return calc(kpi_values, customer_id=customer_id)

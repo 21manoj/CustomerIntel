@@ -753,14 +753,18 @@ def invariant_i11_revenue_bucket_consistency(customer_id: int) -> List[Violation
 
 
 def invariant_i12_account_status_health_consistency(customer_id: int) -> List[Violation]:
-    """I12: Account.account_status should not be 'at_risk' if health_score >= 70.
+    """I12: Account.account_status should not be 'at_risk' if the account's
+    latest health classifies as 'healthy', or 'active' if it classifies as
+    'critical'.
 
     account_status is either (a) an independent business field that should
     never contradict health, or (b) a stale artifact that should be removed.
-    Either way, a healthy (≥70) account tagged at_risk is a contradiction.
+    Either way, a healthy account tagged at_risk (or a critical account
+    tagged active) is a contradiction.
     """
     from models import Account, HealthScore, db  # noqa: PLC0415
     from sqlalchemy import func  # noqa: PLC0415
+    from utils.health_thresholds import classify  # noqa: PLC0415
 
     # Latest health score per account
     latest_hs_subq = (
@@ -792,7 +796,7 @@ def invariant_i12_account_status_health_consistency(customer_id: int) -> List[Vi
         # Don't flag churned accounts — that's a legitimate terminal state.
         if status == 'churned':
             continue
-        if score >= 70 and status == 'at_risk':
+        if classify(score) == 'healthy' and status == 'at_risk':
             violations.append(Violation(
                 invariant_id='I12',
                 invariant_name='account_status_health_consistency',
@@ -809,7 +813,7 @@ def invariant_i12_account_status_health_consistency(customer_id: int) -> List[Vi
                     'account_status': a.account_status,
                 },
             ))
-        elif score < 50 and status == 'active':
+        elif classify(score) == 'critical' and status == 'active':
             violations.append(Violation(
                 invariant_id='I12',
                 invariant_name='account_status_health_consistency',

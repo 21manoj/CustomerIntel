@@ -1,0 +1,46 @@
+{
+  "version": "0.1",
+  "extends": "base",
+  "vertical": "datacenter_v1",
+  "description": "DataCenterV1 (GPU-rental neocloud) overlay. Rental-native signal subtypes mapped to revenue buckets. See docs/GPU_NEOCLOUD_VERTICAL_SPEC.md sec 3. Additive-only over taxonomy_base.json.",
+  "polarity_ambiguous_outcome_subtypes": [],
+  "polarity_ambiguous_signal_subtypes": [],
+  "revenue_buckets": {
+    "at_risk": [
+      "throughput_below_spec",
+      "job_preemption_complaint",
+      "interconnect_bottleneck",
+      "reliability_sla_breach",
+      "checkpoint_restart_pain",
+      "reserved_cluster_idle",
+      "commitment_ramp_miss",
+      "multicloud_diversification",
+      "byo_cluster_intent",
+      "runway_risk",
+      "payment_delinquency",
+      "spot_price_pressure",
+      "competitor_capacity_offer",
+      "power_capacity_constraint",
+      "thermal_event"
+    ],
+    "lost": [
+      "cluster_decommissioned"
+    ],
+    "expansion": [
+      "utilization_ramp",
+      "burst_overflow",
+      "reservation_expansion_interest",
+      "silicon_refresh_interest",
+      "reservation_closed",
+      "funding_raised"
+    ],
+    "protected": [
+      "goodput_restored",
+      "sla_credit_resolved"
+    ]
+  },
+  "auto_recovery_outcome_subtypes": [
+    "goodput_restored",
+    "sla_credit_resolved"
+  ]
+}

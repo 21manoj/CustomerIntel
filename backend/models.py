@@ -11,8 +11,12 @@ production database settled which ones are real:
   - Of six KPI-shaped tables (KPI, DC2SKPI, KPIScore, KPITimeSeries,
     KPIUpload, KPIReferenceRange), only DC2SKPI had any live data (72,201
     rows) — used as the universal per-vertical KPI store despite its old
-    docstring claiming vertical-specificity that never actually happened in
-    practice. Docstring corrected below; behavior unchanged.
+    name/docstring claiming vertical-specificity that never actually
+    happened in practice. Renamed to KPIMeasurement here (was DC2SKPI);
+    six equally-misnamed dc2s_* columns on CustomerConfig were renamed the
+    same way. See utils/vertical_health.py's module docstring for the
+    related fix (a permanently-dead "try a per-vertical Python module"
+    resolution branch, removed rather than carried forward).
 See docs/lessons/durable-engineering-lessons.md for the full pattern this
 generalizes from (silent duplication, one path dead).
 """
@@ -59,12 +63,18 @@ class CustomerConfig(db.Model):
     # this explicitly, matching that same fail-closed contract.
     vertical = db.Column(db.String(50))  # 'saas_premium', 'dc2_s', 'datacenter_v1', ...
 
-    dc2s_pillar_weights = db.Column(db.JSON, nullable=True)     # {"P1": 0.15, "P2": 0.20, ...}
-    dc2s_enabled_kpis = db.Column(db.JSON, nullable=True)       # ["P3-KPI1", "CUSTOM-GPU-1", ...]
-    dc2s_kpi_overrides = db.Column(db.JSON, nullable=True)      # {"P3-KPI1": {"target": 90}, ...}
-    dc2s_kpi_weights = db.Column(db.JSON, nullable=True)        # {"P3": {"P3-KPI1": 0.4, ...}, ...}
-    dc2s_kpi_definitions = db.Column(db.JSON, nullable=True)    # Custom KPI definitions
-    dc2s_lifecycle_stage_weights = db.Column(db.JSON, nullable=True)  # Lifecycle-stage weight profiles
+    # Renamed from the old repo's dc2s_* prefix (2026-09-01): every one of
+    # these columns is read/written generically for every vertical, not
+    # just dc2_s -- confirmed by the old repo's own code comments
+    # ("works for any vertical") years after the prefix was added. Fixed
+    # here, on day one, while it's free -- see docs/lessons on the
+    # docstring-drift pattern this generalizes from.
+    pillar_weights = db.Column(db.JSON, nullable=True)     # {"P1": 0.15, "P2": 0.20, ...}
+    enabled_kpis = db.Column(db.JSON, nullable=True)       # ["P3-KPI1", "CUSTOM-GPU-1", ...]
+    kpi_overrides = db.Column(db.JSON, nullable=True)      # {"P3-KPI1": {"target": 90}, ...}
+    kpi_weights = db.Column(db.JSON, nullable=True)        # {"P3": {"P3-KPI1": 0.4, ...}, ...}
+    kpi_definitions = db.Column(db.JSON, nullable=True)    # Custom KPI definitions
+    lifecycle_stage_weights = db.Column(db.JSON, nullable=True)  # Lifecycle-stage weight profiles
     # Schema: {"enabled": bool, "date_field": str, "stages": [{name, min_days, max_days, pillar_weights, kpi_weights}]}
 
     nomenclature_overrides = db.Column(db.JSON, nullable=True)  # Deep-merged on top of vertical defaults
@@ -362,17 +372,19 @@ class QualitativeSignal(db.Model):
         }
 
 
-class DC2SKPI(db.Model):
+class KPIMeasurement(db.Model):
     """
-    Universal per-vertical-account KPI store. Despite the name, this is used
-    for every vertical, not just dc2_s — confirmed live in the old repo
-    (72,201 rows, all verticals, zero rows in any of the five other
-    KPI-shaped tables that existed there). Kept the name for now to avoid an
-    unforced rename before anything depends on it either way; see
-    backlog_rename_dc2s_fields in the old repo's memory if this project
-    wants to revisit it.
+    Universal per-vertical-account KPI store. Renamed from the old repo's
+    DC2SKPI (2026-09-01) -- despite that name, it was used for every
+    vertical, not just dc2_s, confirmed live in the old repo (72,201 rows,
+    all verticals, zero rows in any of the five other KPI-shaped tables
+    that existed there). The old repo's own docstring already admitted the
+    name didn't match reality and left the rename as a "later" backlog
+    item that was never done; fixed here on day one instead, while it's
+    free -- see docs/lessons on the docstring-drift pattern this
+    generalizes from.
     """
-    __tablename__ = 'dc2s_kpis'
+    __tablename__ = 'kpi_measurements'
 
     kpi_id = db.Column(db.Integer, primary_key=True)
     account_id = db.Column(db.Integer, db.ForeignKey('accounts.account_id'), nullable=False, index=True)
@@ -386,8 +398,8 @@ class DC2SKPI(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     __table_args__ = (
-        db.UniqueConstraint('account_id', 'kpi_code', 'measured_at', name='unique_dc2s_kpi'),
-        db.Index('idx_dc2s_account_code', 'account_id', 'kpi_code'),
+        db.UniqueConstraint('account_id', 'kpi_code', 'measured_at', name='unique_kpi_measurement'),
+        db.Index('idx_kpi_measurement_account_code', 'account_id', 'kpi_code'),
     )
 
     def to_dict(self):

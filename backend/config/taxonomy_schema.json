@@ -1,0 +1,40 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "CS Pulse Taxonomy",
+  "description": "Vertical-agnostic base taxonomy + per-vertical overlays. Overlays MUST NOT contradict the base (e.g. mark a base negative subtype as ambiguous); they are additive only.",
+  "type": "object",
+  "required": ["version"],
+  "additionalProperties": false,
+  "properties": {
+    "version": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+$"},
+    "description": {"type": "string"},
+    "extends": {"type": "string", "enum": ["base"], "description": "Required for overlays; absent on base"},
+    "vertical": {"type": "string", "description": "Required for overlays; absent on base"},
+    "polarity_ambiguous_outcome_subtypes": {
+      "type": "array",
+      "items": {"type": "string", "pattern": "^[a-z_]+$"},
+      "uniqueItems": true
+    },
+    "polarity_ambiguous_signal_subtypes": {
+      "type": "array",
+      "items": {"type": "string", "pattern": "^[a-z_]+$"},
+      "uniqueItems": true
+    },
+    "revenue_buckets": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "at_risk": {"type": "array", "items": {"type": "string", "pattern": "^[a-z_]+$"}, "uniqueItems": true},
+        "lost": {"type": "array", "items": {"type": "string", "pattern": "^[a-z_]+$"}, "uniqueItems": true},
+        "expansion": {"type": "array", "items": {"type": "string", "pattern": "^[a-z_]+$"}, "uniqueItems": true},
+        "protected": {"type": "array", "items": {"type": "string", "pattern": "^[a-z_]+$"}, "uniqueItems": true}
+      }
+    },
+    "auto_recovery_outcome_subtypes": {
+      "type": "array",
+      "items": {"type": "string", "pattern": "^[a-z_]+$"},
+      "uniqueItems": true,
+      "description": "Load-driver concern. Outcome subtypes that get auto-wired from the account's auto_recovery_* signal when no explicit edge exists."
+    }
+  }
+}

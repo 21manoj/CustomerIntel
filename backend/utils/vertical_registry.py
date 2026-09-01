@@ -2,13 +2,17 @@
 """
 Vertical Registry — single dispatch point for vertical-specific KPI definitions.
 
-Resolution priority (highest first):
-1. CustomerConfig.dc2s_kpi_definitions JSON column (DB — hot-reloadable)
-2. JSON catalog file: config/{vertical}_kpi_catalog.json
-3. Python module: verticals/{vertical}/kpi_definitions.py (legacy, for DC2_S/SaaS)
+Base catalog resolution: JSON catalog file only —
+config/{vertical}_kpi_catalog.json. (A per-customer override layer exists
+separately: get_customer_kpi_overrides() reads CustomerConfig.kpi_definitions
+for hot-reloadable, customer-specific KPI overrides on top of the base
+catalog — that's a distinct concern from resolving the base catalog itself.)
 
-Design principle: DC2_S is not special. Any vertical can be defined via JSON
-catalog without Python code. Python modules are legacy fallback only.
+Design principle: no vertical is special, dc2_s included. Every vertical is
+defined by its JSON catalog alone; there is no Python-module fallback tier
+in this build (the old repo had one, verticals/{vertical}/kpi_definitions.py
+— removed here since every vertical already has a JSON catalog, making that
+tier permanently unreachable dead code, not a real fallback).
 
 Usage:
     from utils.vertical_registry import get_pillars, get_kpis, get_vertical_for_customer
@@ -168,15 +172,15 @@ def get_catalog_for_customer(customer_id: int) -> Tuple[Dict, Dict]:
 
 def get_customer_kpi_overrides(customer_id: int) -> Optional[Dict]:
     """
-    Load custom KPI definitions from CustomerConfig.dc2s_kpi_definitions.
+    Load custom KPI definitions from CustomerConfig.kpi_definitions.
     Returns the JSON dict if set, None otherwise.
     This is the hot-reload path: admin stores custom KPIs in DB, no restart needed.
     """
     try:
         from models import CustomerConfig
         config = CustomerConfig.query.filter_by(customer_id=customer_id).first()
-        if config and hasattr(config, 'dc2s_kpi_definitions') and config.dc2s_kpi_definitions:
-            return config.dc2s_kpi_definitions
+        if config and hasattr(config, 'kpi_definitions') and config.kpi_definitions:
+            return config.kpi_definitions
     except Exception as e:
         log.debug("vertical_registry: could not load kpi_definitions for %s: %s", customer_id, e)
     return None
@@ -226,9 +230,9 @@ def _load_pillar_roles(vertical: str) -> Dict[str, str]:
     """
     Load the `pillar_roles` block (role_name -> pillar_code) from a
     vertical's JSON catalog file. Returns {} if there's no JSON catalog
-    for this vertical, or the catalog has no `pillar_roles` block —
-    Python-module-only legacy verticals (Tier 2 in _load_catalog) have no
-    role map today; that's a gap for a future vertical, not an error here.
+    for this vertical, or the catalog has no `pillar_roles` block — an
+    incomplete role map is a legitimate state (not every vertical fills
+    every role), not an error here.
     """
     path = _find_json_catalog_path(vertical)
     if not path:
@@ -246,53 +250,28 @@ def _load_pillar_roles(vertical: str) -> Dict[str, str]:
         return {}
 
 
-def _load_from_python_module(vertical: str) -> Optional[Tuple[Dict, Dict]]:
-    """
-    Legacy: load from Python module verticals/{vertical}/kpi_definitions.py.
-    Returns (kpis, pillars) or None if module doesn't exist.
-    """
-    try:
-        if vertical == 'dc2_s':
-            from verticals.dc2_s.kpi_definitions import DC2S_KPIS, DC2S_PILLARS
-            return DC2S_KPIS, DC2S_PILLARS
-        elif vertical == 'saas_premium':
-            from verticals.saas_premium.kpi_definitions import SAAS_KPIS, SAAS_PILLARS
-            return SAAS_KPIS, SAAS_PILLARS
-        else:
-            # Try dynamic import for any vertical
-            import importlib
-            mod = importlib.import_module(f'verticals.{vertical}.kpi_definitions')
-            kpis = getattr(mod, f'{vertical.upper()}_KPIS', None)
-            pillars = getattr(mod, f'{vertical.upper()}_PILLARS', None)
-            if kpis and pillars:
-                return kpis, pillars
-    except (ImportError, ModuleNotFoundError):
-        pass
-    except Exception as e:
-        log.warning(f"vertical_registry: Python module error for {vertical}: {e}")
-    return None
-
-
 def _load_catalog(vertical: str) -> Tuple[Dict, Dict]:
     """
-    Load KPI + pillar catalogs using 3-tier resolution.
-    1. JSON catalog file (config/{vertical}_kpi_catalog.json)
-    2. Python module (verticals/{vertical}/kpi_definitions.py) — legacy
-    Raises ValueError if neither found.
+    Load KPI + pillar catalogs from a vertical's JSON catalog file
+    (config/{vertical}_kpi_catalog.json). Raises ValueError if not found.
+
+    The old repo had a second, legacy tier here (a per-vertical Python
+    module, verticals/{v}/kpi_definitions.py) as a fallback. Removed, not
+    carried forward: this build has no verticals/ directory at all, so
+    that branch could only ever raise ImportError and fall through — dead
+    code kept "just in case," the same shape as the equivalent fallback
+    already removed from utils/vertical_health.py. Consistent with the
+    design principle both files now state plainly: no vertical is special,
+    every one is defined by its JSON catalog alone. If a future vertical
+    genuinely needs logic a catalog can't express, that's a real decision
+    to make when it comes up, not a legacy escape hatch kept unused.
     """
-    # Tier 1: JSON catalog file
     result = _load_from_json_catalog(vertical)
     if result:
         return result
 
-    # Tier 2: Python module (legacy)
-    result = _load_from_python_module(vertical)
-    if result:
-        return result
-
     raise ValueError(
-        f"Unknown vertical: '{vertical}'. No JSON catalog at config/{vertical}_kpi_catalog.json "
-        f"and no Python module at verticals/{vertical}/kpi_definitions.py"
+        f"Unknown vertical: '{vertical}'. No JSON catalog at config/{vertical}_kpi_catalog.json"
     )
 
 

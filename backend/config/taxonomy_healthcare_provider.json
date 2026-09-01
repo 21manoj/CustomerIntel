@@ -1,0 +1,15 @@
+{
+  "version": "0.1",
+  "extends": "base",
+  "vertical": "healthcare_provider",
+  "description": "Healthcare Provider vertical overlay. Empty today — extend here when healthcare-specific subtypes appear.",
+  "polarity_ambiguous_outcome_subtypes": [],
+  "polarity_ambiguous_signal_subtypes": [],
+  "revenue_buckets": {
+    "at_risk": [],
+    "lost": [],
+    "expansion": [],
+    "protected": []
+  },
+  "auto_recovery_outcome_subtypes": []
+}
