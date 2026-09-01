@@ -1,0 +1,13 @@
+account_name,arc_type,arc_phase,arc_confidence,account_status
+Apex Compute,expansion_champion,baseline,0.75,active
+Cirrus AI,competitive_displacement,deterioration,0.55,at_risk
+Helix Compute,competitive_displacement,baseline,0.55,at_risk
+Meridian AI,competitive_displacement,intervention,0.55,at_risk
+Nova Foundry,competitive_displacement,intervention,0.55,at_risk
+Orion Models,exec_sponsor_change,intervention,0.8,at_risk
+Pacific Dataworks,expansion_champion,resolution,0.75,active
+Quantum Labs,competitive_displacement,baseline,0.55,at_risk
+Stellar Inference,expansion_champion,baseline,0.75,active
+Titan Hyperscale Labs,exec_sponsor_change,intervention,0.8,at_risk
+Vector Dynamics,land_and_expand,baseline,0.75,active
+Zenith Training,land_and_expand,baseline,0.75,active
