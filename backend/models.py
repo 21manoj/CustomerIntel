@@ -451,6 +451,34 @@ class KPIMeasurement(db.Model):
         }
 
 
+class CsvUploadStaging(db.Model):
+    """Holds raw uploaded CSV content between upload_csv() and the later
+    process_data() call, keyed by (customer_id, file_type). Added 2026-09-01
+    (Tier 2A) as this build's replacement for the old repo's disk-based
+    staging (upload_csv wrote to verticals/customerNNN-{vertical}/{subdir}/
+    -- a per-customer filesystem layout Tier 1 already established doesn't
+    exist here, DB + JSON catalogs only). A re-upload of the same file_type
+    before processing replaces the staged content (upsert on the unique
+    constraint) rather than the old repo's disk-append -- simpler, and
+    correct for the canonical 4-CSV-then-process_data() flow this build
+    targets; the old repo's append mode existed for a different pattern
+    (incremental uploads across separate already-processed runs) not in
+    scope here.
+    """
+    __tablename__ = 'csv_upload_staging'
+    staging_id = db.Column(db.Integer, primary_key=True)
+    customer_id = db.Column(db.Integer, db.ForeignKey('customers.customer_id'), nullable=False, index=True)
+    file_type = db.Column(db.String(100), nullable=False)  # canonical filename, e.g. 'accounts.csv'
+    csv_content = db.Column(db.Text, nullable=False)
+    row_count = db.Column(db.Integer, default=0)
+    uploaded_at = db.Column(db.DateTime, server_default=db.func.now())
+    updated_at = db.Column(db.DateTime, server_default=db.func.now(), onupdate=db.func.now())
+
+    __table_args__ = (
+        db.UniqueConstraint('customer_id', 'file_type', name='unique_customer_staged_file'),
+    )
+
+
 class HealthScore(db.Model):
     """L3: Overall health score (weighted average of pillar scores)."""
     __tablename__ = 'health_scores'

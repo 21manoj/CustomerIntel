@@ -2,10 +2,10 @@
 """
 CS Pulse MCP — Onboarding Tools (frictionless auth).
 
-Tier 2A port (2026-09-01), sub-checkpoint 1: create_customer only, plus its
-private helpers. The remaining 14 onboarding tools (upload_csv,
-_process_data_impl/process_data, trigger_wizard, etc.) are the next
-sub-checkpoints — see project memory for the full phase breakdown.
+Tier 2A port (2026-09-01), sub-checkpoints so far: create_customer,
+upload_csv. Remaining onboarding tools (_process_data_impl/process_data,
+trigger_wizard, etc.) are the next sub-checkpoints — see project memory
+for the full phase breakdown.
 
 Two changes made relative to the old repo's create_customer, not cosmetic:
 
@@ -283,6 +283,54 @@ def create_customer(
 # ===================================================================
 # KPI Dependency Guard
 # ===================================================================
+
+@mcp.tool
+def upload_csv(customer_id: int, file_type: str, csv_content: str, dry_run: bool = False) -> dict:
+    """Upload CSV data for a customer.
+
+    Stages the CSV content in the database (CsvUploadStaging) — see that
+    model's docstring for why this build stages to a DB table rather than
+    the old repo's per-customer disk directory. The file can then be
+    processed via process_data().
+
+    When dry_run=True, validates the CSV against the platform schema
+    (required/optional columns, row count) but does NOT persist data.
+
+    Canonical 4-CSV onboarding set:
+      'accounts.csv' — enriched with products, champion, contract, firmographic
+      'kpi_measurements.csv' — KPI time-series
+      'enhanced_qualitative_signals.csv' — signal feed
+      'outcomes.csv' — CRM renewal/churn/expansion history
+
+    Args:
+        customer_id: The customer ID
+        file_type: The CSV file type (e.g. 'accounts.csv', 'kpi_measurements.csv')
+        csv_content: The raw CSV content as a string
+        dry_run: If True, validate only — do not persist. Returns validation result.
+    """
+    _require_auth_if_key_present('upload_csv', customer_id)
+    _check_mcp_enabled()
+
+    app = _get_flask_app()
+    with app.app_context():
+        from utils.csv_upload import _upload_csv_impl
+        result = _upload_csv_impl(
+            customer_id=customer_id,
+            file_type=file_type,
+            csv_content=csv_content,
+            dry_run=dry_run,
+        )
+
+        if result.status == 'error' or (result.status == 'validation_error' and not dry_run):
+            raise ToolError(
+                f"CSV upload failed for {file_type}: {'; '.join(result.errors)}. "
+                f"Use dry_run=True to inspect details."
+            )
+
+        d = result.to_dict()
+        d['scope'] = 'validation' if dry_run else 'customer'
+        return d
+
 
 def _check_kpi_dependencies(enabled_kpis=None, enabled_pillars=None):
     """Check if disabled KPIs/pillars affect downstream engines (ROI, arc classifier).
