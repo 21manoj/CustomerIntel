@@ -4,3 +4,4 @@ SQLAlchemy==2.0.35
 psycopg2-binary==2.9.9
 PyYAML==6.0.2
 fastmcp==3.1.0
+python-dotenv==1.2.2
