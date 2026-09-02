@@ -48,8 +48,13 @@ from datetime import date, datetime
 from typing import Dict, List, Optional
 
 PREREGISTERED = {'median_lead_days_min': 60, 'recall_min': 0.70, 'false_alarms_per_100_max': 5.0}
-H1 = {'name': 'H1_retention', 'event_buckets': ('lost',), 'warning_label': 'early_warning', 'qual_below_at_risk_counts': True}
-H2 = {'name': 'H2_growth', 'event_buckets': ('expansion',), 'warning_label': 'recovery_watch', 'qual_below_at_risk_counts': False}
+H1 = {'name': 'H1_retention', 'event_buckets': ('lost',), 'warning_label': 'early_warning', 'qual_below_at_risk_counts': True,
+      'warning_roles': ()}
+# H2's leading indicator is expansion-INTENT behavior in the window (the
+# roles), not qual far above kpi — a healthy account's qual can't exceed
+# its kpi layer by the divergence threshold, so the label alone never fires.
+H2 = {'name': 'H2_growth', 'event_buckets': ('expansion',), 'warning_label': 'recovery_watch', 'qual_below_at_risk_counts': False,
+      'warning_roles': ('expansion_intent', 'expansion_realized')}
 
 
 def _month_end(m: date) -> datetime:
@@ -71,9 +76,11 @@ def _warning_months(series: List[dict], hyp: dict, at_risk_min: float, healthy_m
     for s in series:
         m = date.fromisoformat(s['month'])
         if layer == 'leading':
+            roles = s.get('roles') or {}
             if s.get('qual') is not None and (
                     s.get('early_warning') == hyp['warning_label']
-                    or (hyp['qual_below_at_risk_counts'] and s['qual'] < at_risk_min)):
+                    or (hyp['qual_below_at_risk_counts'] and s['qual'] < at_risk_min)
+                    or any(roles.get(r) for r in hyp.get('warning_roles', ()))):
                 out.append(m)
         else:
             # Trailing comparator = the KPI layer's own threshold crossing:
@@ -87,28 +94,49 @@ def _warning_months(series: List[dict], hyp: dict, at_risk_min: float, healthy_m
     return out
 
 
+LAYERS = ('leading', 'trailing', 'crm')
+
+
 def _evaluate(journeys: List[dict], hyp: dict, horizon_days: int, at_risk_min: float, healthy_min: float) -> dict:
     events = []
-    leads = {'leading': [], 'trailing': []}
-    hits = {'leading': 0, 'trailing': 0}
-    fa = {'leading': 0, 'trailing': 0}
+    leads = {layer: [] for layer in LAYERS}
+    hits = {layer: 0 for layer in LAYERS}
+    fa = {layer: 0 for layer in LAYERS}
+    censored = {layer: 0 for layer in LAYERS}
     account_months = 0
     per_event = []
+
+    # Right-censoring: a warning less than `horizon_days` before the end of
+    # the data can't be judged yet — the story is still open. Those are
+    # reported as `censored`, not counted as false alarms.
+    data_end = max(
+        (_month_end(date.fromisoformat(s['month'])) for j in journeys for s in j['leading_vs_trailing']['series']),
+        default=datetime.utcnow(),
+    )
 
     for j in journeys:
         series = j['leading_vs_trailing']['series']
         account_months += len(series)
         ev = [e for e in j['episodes'] if e['kind'] == 'outcome' and e.get('revenue_bucket') in hyp['event_buckets']]
         ev_dates = [datetime.fromisoformat(e['date']) for e in ev]
-        warn = {layer: _warning_months(series, hyp, at_risk_min, healthy_min, layer) for layer in ('leading', 'trailing')}
+        # Each warning = (available_at, window_start). Monthly layers are
+        # available at the month's END (conservative) and judged from the
+        # month's START; the CRM flag is a dated episode, used as-is.
+        warn: Dict[str, List[tuple]] = {}
+        for layer in ('leading', 'trailing'):
+            warn[layer] = [(_month_end(m), datetime(m.year, m.month, 1))
+                           for m in _warning_months(series, hyp, at_risk_min, healthy_min, layer)]
+        warn['crm'] = sorted({
+            (datetime.fromisoformat(e['date']), datetime.fromisoformat(e['date'])) for e in j['episodes']
+            if hyp['name'] == 'H1_retention' and e['kind'] == 'signal' and e.get('role') == 'crm_flag'
+        })
 
         for e, t_f in zip(ev, ev_dates):
             events.append(e)
             rec = {'account': j['account_name'], 'event': e['subtype'], 'event_date': t_f.date().isoformat(),
                    'revenue': e.get('revenue')}
-            for layer in ('leading', 'trailing'):
-                cands = [_month_end(m) for m in warn[layer]
-                         if _month_end(m) <= t_f and (t_f - _month_end(m)).days <= horizon_days]
+            for layer in LAYERS:
+                cands = [avail for avail, _ in warn[layer] if avail <= t_f and (t_f - avail).days <= horizon_days]
                 if cands:
                     t_w = min(cands)
                     lead = (t_f - t_w).days
@@ -121,24 +149,29 @@ def _evaluate(journeys: List[dict], hyp: dict, horizon_days: int, at_risk_min: f
                     rec[f'{layer}_lead_days'] = None
             per_event.append(rec)
 
-        # A warning month is a false alarm only if no event follows within
-        # the horizon of the month's START — a crossing in the same month
-        # as the event is a late warning (no lead time credited above),
-        # not a false one.
-        for layer in ('leading', 'trailing'):
-            for m in warn[layer]:
-                t_start = datetime(m.year, m.month, 1)
-                if not any(t_start <= t_f and (t_f - t_start).days <= horizon_days for t_f in ev_dates):
+        # A warning is a false alarm only if no event follows within the
+        # horizon of its window start — a crossing in the same month as
+        # the event is a late warning (no lead credited), not a false one —
+        # and only once enough data exists after it to know.
+        for layer in LAYERS:
+            for _avail, t_start in warn[layer]:
+                if any(t_start <= t_f and (t_f - t_start).days <= horizon_days for t_f in ev_dates):
+                    continue
+                if (data_end - t_start).days < horizon_days:
+                    censored[layer] += 1
+                else:
                     fa[layer] += 1
 
     n = len(events)
-    result = {'hypothesis': hyp['name'], 'events': n, 'account_months': account_months, 'per_event': per_event}
-    for layer in ('leading', 'trailing'):
+    result = {'hypothesis': hyp['name'], 'events': n, 'account_months': account_months,
+              'data_end': data_end.date().isoformat(), 'per_event': per_event}
+    for layer in LAYERS:
         q = _quantiles(leads[layer])
         result[layer] = {
             **q,
             'recall': round(hits[layer] / n, 3) if n else None,
             'false_alarm_months': fa[layer],
+            'censored_warning_months': censored[layer],
             'false_alarms_per_100_account_months': round(100.0 * fa[layer] / account_months, 2) if account_months else None,
         }
     lm, tm = result['leading']['median'], result['trailing']['median']
@@ -214,17 +247,23 @@ def format_report(rep: dict) -> str:
     for name, r in rep['results'].items():
         lines.append(f"{name}: events={r['events']}  account_months={r['account_months']}  verdict={r['verdict']}"
                      + (f"  ({r.get('reason')})" if r.get('reason') else ''))
-        for layer in ('leading', 'trailing'):
+        for layer in LAYERS:
             L = r[layer]
+            if layer == 'crm' and L['n'] == 0 and L['false_alarm_months'] == 0:
+                continue   # no CRM flags in this tenant's data
             lines.append(f"  {layer:8s} n={L['n']:<3} median={L['median']!s:<6} p25={L['p25']!s:<6} p75={L['p75']!s:<6} "
-                         f"recall={L['recall']!s:<6} FA/100mo={L['false_alarms_per_100_account_months']!s}")
+                         f"recall={L['recall']!s:<6} FA/100mo={L['false_alarms_per_100_account_months']!s:<6} "
+                         f"open={L['censored_warning_months']}")
         if r['leading_minus_trailing_median_days'] is not None:
             lines.append(f"  behavioral layer bought {r['leading_minus_trailing_median_days']} days over trailing (median)")
+        if r['crm']['median'] is not None and r['leading']['median'] is not None:
+            lines.append(f"  behavioral layer bought {r['leading']['median'] - r['crm']['median']} days over the CSM's own flag (median)")
         if r.get('checks'):
             for k, c in r['checks'].items():
                 lines.append(f"  check {k}: {c['value']} vs {c['threshold']} → {'pass' if c['pass'] else 'FAIL'}")
         for e in r['per_event'][:12]:
-            lines.append(f"    {e['account']:22s} {e['event']:20s} {e['event_date']}  lead={e['leading_lead_days']!s:<5} trail={e['trailing_lead_days']!s}")
+            lines.append(f"    {e['account']:22s} {e['event']:20s} {e['event_date']}  lead={e['leading_lead_days']!s:<5} "
+                         f"trail={e['trailing_lead_days']!s:<5} crm={e['crm_lead_days']!s}")
         lines.append('')
     return '\n'.join(lines)
 

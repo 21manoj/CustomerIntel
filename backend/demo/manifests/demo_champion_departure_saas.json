@@ -1,0 +1,247 @@
+{
+  "manifest_id": "demo_champion_departure_saas",
+  "scenario": "C — Champion departure, intervention, counterfactual (saas_premium, H1 with action)",
+  "narrative": "The person who bought us left. Here's what we did, and what would have happened if we hadn't. docs/design/demo-narratives.md §3C",
+  "vertical": "saas_premium",
+  "customer_name": "Brightline Software (demo)",
+  "domain_prefix": "brightline-demo",
+  "default_product": "Analytics Suite",
+  "default_csm": "Maya Johnson",
+  "csm_manager": "Chris Park",
+  "seed": 4303,
+  "timeline": {
+    "t0": "2026-04-25",
+    "history_days": 270,
+    "future_days": 10,
+    "kpi_cadence_days": 7
+  },
+  "accounts": [
+    {
+      "source_account_id": "NORTHWIND",
+      "name": "Northwind Analytics",
+      "arr": 1800000,
+      "industry": "Financial Services",
+      "region": "North America",
+      "champion": "Elena Rossi",
+      "champion_title": "VP Data",
+      "executive_sponsor": "Tom Becker",
+      "renewal_day": 0,
+      "role": "featured",
+      "health": {
+        "shape": "dip_recover",
+        "start": 80,
+        "dip": 52,
+        "dip_day": -30,
+        "end": 60,
+        "noise": 1.5
+      },
+      "signals": [
+        {
+          "day": -106,
+          "type": "champion_departure",
+          "sentiment": -0.7,
+          "stakeholder": "Elena Rossi",
+          "title": "VP Data",
+          "content": "Champion (VP Data) left the company — CRM contact updated"
+        },
+        {
+          "day": -90,
+          "type": "engagement_decline",
+          "sentiment": -0.5,
+          "stakeholder": "Ravi Menon",
+          "title": "Interim Data Lead",
+          "content": "Weekly syncs lapsed; replacement lead's NPS response was a 5"
+        },
+        {
+          "day": -75,
+          "type": "support_spike",
+          "sentiment": -0.55,
+          "stakeholder": "Ravi Menon",
+          "title": "Interim Data Lead",
+          "content": "Ticket volume spike from a team that used to self-serve"
+        },
+        {
+          "day": -66,
+          "type": "csm_intervention",
+          "sentiment": 0.3,
+          "stakeholder": "Maya Johnson",
+          "title": "CSM",
+          "content": "Playbook 'exec sponsor rebuild' executed: exec-to-exec intro, value review scheduled"
+        },
+        {
+          "day": -45,
+          "type": "champion_reengagement",
+          "sentiment": 0.6,
+          "stakeholder": "Ravi Menon",
+          "title": "Head of Data (new)",
+          "content": "New champion identified; engagement recovering, sentiment turning positive"
+        },
+        {
+          "day": -10,
+          "type": "executive_engagement",
+          "sentiment": 0.5,
+          "stakeholder": "Tom Becker",
+          "title": "CFO",
+          "content": "CFO joined the renewal value review"
+        }
+      ],
+      "crm_flag_day": -40,
+      "events": [
+        {
+          "day": 0,
+          "type": "contraction",
+          "amount": -144000,
+          "title": "Renewal secured at -8% — Northwind Analytics",
+          "evidence": "Renewal order form dated 2026-04-25; seats reduced 8% vs arc expected path of full churn",
+          "linked_signal_index": 0
+        }
+      ]
+    },
+    {
+      "source_account_id": "BLUEHARBOR",
+      "name": "Blue Harbor Logistics",
+      "arr": 950000,
+      "industry": "Logistics",
+      "region": "EMEA",
+      "champion": "Femi Adeyemi",
+      "champion_title": "Director of Operations",
+      "renewal_day": 140,
+      "role": "false_alarm",
+      "health": {
+        "shape": "dip_recover",
+        "start": 83,
+        "dip": 74,
+        "dip_day": -50,
+        "end": 84,
+        "noise": 1.5
+      },
+      "signals": [
+        {
+          "day": -75,
+          "type": "stakeholder_change",
+          "sentiment": -0.5,
+          "stakeholder": "Femi Adeyemi",
+          "title": "Director of Operations",
+          "content": "Champion moved to a new role internally; successor named the same week"
+        },
+        {
+          "day": -55,
+          "type": "positive_engagement",
+          "sentiment": 0.5,
+          "stakeholder": "Grace Okafor",
+          "title": "Director of Operations (new)",
+          "content": "Successor ran the QBR; no change in plans"
+        },
+        {
+          "day": -20,
+          "type": "advocacy",
+          "sentiment": 0.6,
+          "stakeholder": "Grace Okafor",
+          "title": "Director of Operations (new)",
+          "content": "Recommended the product to a peer company"
+        }
+      ],
+      "events": []
+    },
+    {
+      "source_account_id": "CASCADE",
+      "name": "Cascade Retail",
+      "arr": 1200000,
+      "industry": "Retail",
+      "region": "North America",
+      "champion": "Luis Ortega",
+      "champion_title": "Head of BI",
+      "renewal_day": 45,
+      "role": "featured_live",
+      "health": {
+        "shape": "decline",
+        "start": 78,
+        "end": 64,
+        "trailing_cross_day": 30,
+        "noise": 1.5
+      },
+      "signals": [
+        {
+          "day": -40,
+          "type": "champion_departure",
+          "sentiment": -0.65,
+          "stakeholder": "Luis Ortega",
+          "title": "Head of BI",
+          "content": "Head of BI announced departure; no successor named"
+        },
+        {
+          "day": -25,
+          "type": "engagement_gap",
+          "sentiment": -0.4,
+          "stakeholder": "Unknown",
+          "title": "",
+          "content": "Two scheduled syncs cancelled"
+        }
+      ],
+      "events": []
+    },
+    {
+      "source_account_id": "GRANITE",
+      "name": "Granite Insurance",
+      "arr": 2100000,
+      "industry": "Insurance",
+      "region": "North America",
+      "renewal_day": 200,
+      "role": "unclassified",
+      "health": {
+        "shape": "decline",
+        "start": 77,
+        "end": 58,
+        "trailing_cross_day": 45,
+        "noise": 1.8
+      },
+      "signals": [
+        {
+          "day": -30,
+          "type": "routine_review",
+          "sentiment": 0.0,
+          "stakeholder": "Pat Quinn",
+          "title": "Analytics Manager",
+          "content": "Routine review; usage down, no reason surfaced"
+        }
+      ],
+      "events": []
+    }
+  ],
+  "background": {
+    "names": [
+      "Amber Health",
+      "Copperline Media",
+      "Delta Freight",
+      "Evergreen Foods",
+      "Fjord Energy",
+      "Harbor Bank",
+      "Juniper Pharma",
+      "Kestrel Labs"
+    ],
+    "health_range": [
+      74,
+      88
+    ],
+    "arr_choices": [
+      600000,
+      900000,
+      1400000,
+      2200000
+    ],
+    "industries": [
+      "Healthcare",
+      "Media",
+      "Logistics",
+      "Food & Beverage",
+      "Energy",
+      "Banking",
+      "Pharma"
+    ],
+    "regions": [
+      "North America",
+      "EMEA",
+      "APAC"
+    ]
+  }
+}

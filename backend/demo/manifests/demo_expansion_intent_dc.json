@@ -1,0 +1,85 @@
+{
+  "manifest_id": "demo_expansion_intent_dc",
+  "scenario": "B — Expansion intent the CRM couldn't see (datacenter_v1, H2 growth)",
+  "narrative": "They were going to ask for more capacity in April. We knew in January. docs/design/demo-narratives.md §3B",
+  "vertical": "datacenter_v1",
+  "customer_name": "Hyperion GPU Cloud (demo)",
+  "domain_prefix": "hyperion-demo",
+  "default_product": "H100 Reserved Cluster",
+  "default_csm": "Alex Chen",
+  "csm_manager": "Sam Rivera",
+  "seed": 4202,
+  "timeline": {"t0": "2026-04-10", "history_days": 270, "future_days": 10, "kpi_cadence_days": 7},
+  "accounts": [
+    {
+      "source_account_id": "STELLAR", "name": "Stellar Inference", "arr": 3400000, "industry": "AI/ML", "region": "North America",
+      "champion": "Riya Patel", "champion_title": "VP Infrastructure", "executive_sponsor": "Noah Brooks", "renewal_day": 200,
+      "role": "featured",
+      "health": {"shape": "ramp", "start": 78, "end": 90, "noise": 1.5},
+      "signals": [
+        {"day": -72, "type": "funding_raised", "sentiment": 0.6, "stakeholder": "Noah Brooks", "title": "CTO",
+         "content": "Series C announced; utilization ramp 71% → 88% over four weeks"},
+        {"day": -60, "type": "reservation_expansion_interest", "sentiment": 0.7, "stakeholder": "Riya Patel", "title": "VP Infrastructure",
+         "content": "Customer engineer asks about H100 reservation windows in a support thread"},
+        {"day": -48, "type": "silicon_refresh_interest", "sentiment": 0.6, "stakeholder": "Riya Patel", "title": "VP Infrastructure",
+         "content": "Asked for B200 availability and pricing"},
+        {"day": -46, "type": "executive_engagement", "sentiment": 0.7, "stakeholder": "Noah Brooks", "title": "CTO",
+         "content": "CTO joined the monthly review"},
+        {"day": -30, "type": "utilization_ramp", "sentiment": 0.6, "stakeholder": "Riya Patel", "title": "VP Infrastructure",
+         "content": "Sustained >90% reserved utilization; burst overflow twice"}
+      ],
+      "events": [
+        {"day": 0, "type": "expansion_closed", "amount": 900000, "title": "+$900K reserved capacity expansion booked — Stellar Inference",
+         "evidence": "Order form dated 2026-04-10; AE opportunity created 2026-03-21 after customer email", "linked_signal_index": 1}
+      ]
+    },
+    {
+      "source_account_id": "ZENITH", "name": "Zenith Training", "arr": 2700000, "industry": "AI/ML", "region": "EMEA",
+      "champion": "Oscar Nilsson", "champion_title": "Head of Platform", "renewal_day": 240,
+      "role": "featured_live",
+      "health": {"shape": "ramp", "start": 80, "end": 88, "noise": 1.5},
+      "signals": [
+        {"day": -50, "type": "utilization_ramp", "sentiment": 0.5, "stakeholder": "Oscar Nilsson", "title": "Head of Platform",
+         "content": "Utilization 74% → 86% over three weeks"},
+        {"day": -36, "type": "reservation_expansion_interest", "sentiment": 0.65, "stakeholder": "Oscar Nilsson", "title": "Head of Platform",
+         "content": "Asked about extending the reservation to a second zone"},
+        {"day": -21, "type": "champion_advocacy", "sentiment": 0.7, "stakeholder": "Oscar Nilsson", "title": "Head of Platform",
+         "content": "Presented internal results crediting the platform"}
+      ],
+      "events": []
+    },
+    {
+      "source_account_id": "VECTOR", "name": "Vector Dynamics", "arr": 2100000, "industry": "Robotics", "region": "North America",
+      "renewal_day": 300,
+      "role": "watch_not_warned",
+      "health": {"shape": "ramp", "start": 79, "end": 84, "noise": 1.5},
+      "signals": [
+        {"day": -45, "type": "utilization_ramp", "sentiment": 0.4, "stakeholder": "Mia Torres", "title": "Platform Lead",
+         "content": "Utilization up 9 points; no capacity conversation initiated"},
+        {"day": -30, "type": "routine_review", "sentiment": 0.1, "stakeholder": "Mia Torres", "title": "Platform Lead",
+         "content": "Routine review; no expansion topics raised"}
+      ],
+      "events": []
+    },
+    {
+      "source_account_id": "CIRRUS", "name": "Cirrus AI", "arr": 1500000, "industry": "AI/ML", "region": "APAC",
+      "renewal_day": 100,
+      "role": "false_alarm",
+      "health": {"shape": "flat", "start": 82, "noise": 1.5},
+      "signals": [
+        {"day": -70, "type": "reservation_expansion_interest", "sentiment": 0.6, "stakeholder": "Wei Zhang", "title": "Director of Engineering",
+         "content": "Asked about a larger reservation for a pilot"},
+        {"day": -40, "type": "routine_review", "sentiment": 0.0, "stakeholder": "Wei Zhang", "title": "Director of Engineering",
+         "content": "Pilot deferred to next fiscal year"}
+      ],
+      "events": []
+    }
+  ],
+  "background": {
+    "names": ["Apex Compute", "Helix Compute", "Meridian AI", "Nova Foundry", "Orion Models", "Pacific Dataworks", "Quantum Labs", "Titan Hyperscale Labs"],
+    "health_range": [72, 86],
+    "arr_choices": [1200000, 2400000, 3600000, 5100000],
+    "industries": ["AI/ML", "Telecommunications", "Research", "Media"],
+    "regions": ["North America", "EMEA", "APAC"]
+  }
+}

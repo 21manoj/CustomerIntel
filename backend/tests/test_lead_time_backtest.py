@@ -108,9 +108,10 @@ def test_h1_numbers(report):
     L, T = h1['leading'], h1['trailing']
     assert L['n'] == 1 and L['median'] == 111 and L['recall'] == 1.0
     assert T['n'] == 0 and T['recall'] == 0.0
-    # Quiet's Mar + Apr warnings had no event → 2 false-alarm months of 12
-    assert L['false_alarm_months'] == 2 and L['false_alarms_per_100_account_months'] == 16.67
-    assert T['false_alarm_months'] == 0
+    # Quiet's Mar + Apr warnings had no event — but the data ends Jun 30,
+    # less than the 180-day horizon after them: still open, not false.
+    assert L['false_alarm_months'] == 0 and L['censored_warning_months'] == 2
+    assert T['false_alarm_months'] == 0 and T['censored_warning_months'] == 0   # June's crossing is in the event's month
 
 
 def test_verdict_and_evidence_label(report):
@@ -127,9 +128,14 @@ def test_refutation_check_runs_when_enough_events(report):
         from evals.lead_time_backtest import run_backtest
         rep = run_backtest(cid, horizon_days=180, min_events=1)
     h1 = rep['results']['H1_retention']
-    assert h1['verdict'] == 'refuted'                          # median 111 ok, recall 1.0 ok, FA 16.67 > 5
-    assert h1['checks']['median_lead_days']['pass'] and h1['checks']['recall']['pass']
-    assert not h1['checks']['false_alarms_per_100']['pass']
+    assert h1['verdict'] == 'supported'                        # median 111, recall 1.0, FA 0 (2 open, censored)
+    assert all(c['pass'] for c in h1['checks'].values())
+    # with a 60-day horizon: Quiet's two warnings are old enough to judge, and Churner's
+    # Feb/Mar warnings are now too far ahead of the June event to count → 4 false alarms → refuted
+    with app.app_context():
+        short = run_backtest(cid, horizon_days=60, min_events=1)['results']['H1_retention']
+    assert short['leading']['false_alarm_months'] == 4 and short['verdict'] == 'refuted'
+    assert not short['checks']['false_alarms_per_100']['pass']
 
 
 def test_measured_label_requires_null_origin_and_assertion(report):

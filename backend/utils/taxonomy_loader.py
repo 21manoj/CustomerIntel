@@ -58,7 +58,10 @@ NEGATIVE_SIGNAL_ROLES = frozenset({
 POSITIVE_SIGNAL_ROLES = frozenset({
     'expansion_intent', 'expansion_realized', 'advocacy', 'recovery',
 })
-LEADING_EXCLUDED_ROLES = frozenset({'announcement'})
+# 'crm_flag' = the CSM's / CRM's own risk assessment — the human comparator
+# the lead-time claim is measured against, so it can never feed the layer
+# it is compared with.
+LEADING_EXCLUDED_ROLES = frozenset({'announcement', 'crm_flag'})
 
 # Module-level cache keyed by (vertical or None)
 _taxonomy_cache: Dict[Optional[str], 'Taxonomy'] = {}

@@ -272,6 +272,7 @@ def leading_series(points: List[tuple], kpi_only: Dict[date, float], episodes: L
         num = den = 0.0
         n = 0
         contributors = []
+        roles: Dict[str, int] = {}
         for e in behavioral:
             if end - window < e.date <= end:
                 w = math.exp(-lam * (end - e.date).days)
@@ -280,6 +281,8 @@ def leading_series(points: List[tuple], kpi_only: Dict[date, float], episodes: L
                 den += w
                 n += 1
                 contributors.append(e.episode_id)
+                if e.role:
+                    roles[e.role] = roles.get(e.role, 0) + 1
         qual = round(num / den, 2) if den else None
         trailing = kpi_only.get(m, score)
         div = round(qual - trailing, 2) if qual is not None else None
@@ -298,7 +301,7 @@ def leading_series(points: List[tuple], kpi_only: Dict[date, float], episodes: L
         series.append({
             'month': m.isoformat(), 'kpi_only': round(trailing, 2), 'qual': qual,
             'divergence': div, 'early_warning': label, 'signal_count': n,
-            'contributing_episode_ids': contributors,
+            'contributing_episode_ids': contributors, 'roles': roles,
         })
     lead_days = (first_trailing - first_leading).days if first_leading and first_trailing else None
     return {

@@ -61,6 +61,7 @@
     "delivery_stall": ["deployment_delay", "onboarding_delay", "ttfv_exceeded", "expansion_stall", "deployment_blocked", "integration_failure"],
     "commercial_pressure": ["competitor_mention", "competitor_evaluation", "budget_pressure", "budget_review", "budget_change", "contract_dispute", "downsizing", "expansion_cancelled", "renewal_risk"],
     "announcement": ["churn_notice", "cancellation_request", "non_renewal_notice"],
+    "crm_flag": ["csm_risk_flag", "crm_renewal_risk_flag"],
     "expansion_intent": ["expansion_signal", "expansion_discussion", "usage_spike", "feature_adoption", "feature_adoption_increase", "rapid_adoption"],
     "expansion_realized": ["expansion_completed"],
     "advocacy": ["advocacy", "champion_advocacy", "nps_increase", "positive_engagement", "champion_reengagement", "executive_engagement"],

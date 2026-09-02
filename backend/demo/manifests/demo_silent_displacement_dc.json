@@ -1,0 +1,243 @@
+{
+  "manifest_id": "demo_silent_displacement_dc",
+  "scenario": "A — Silent displacement (datacenter_v1, H1 retention)",
+  "narrative": "They didn't complain. They just started moving workloads. docs/design/demo-narratives.md §3A",
+  "vertical": "datacenter_v1",
+  "customer_name": "NovaGrid Cloud (demo)",
+  "domain_prefix": "novagrid-demo",
+  "default_product": "GPU Compute Cluster",
+  "default_csm": "Sarah Rivera",
+  "csm_manager": "Sam Rivera",
+  "seed": 4101,
+  "timeline": {
+    "t0": "2026-04-20",
+    "history_days": 270,
+    "future_days": 10,
+    "kpi_cadence_days": 7
+  },
+  "accounts": [
+    {
+      "source_account_id": "MERIDIAN",
+      "name": "Meridian AI",
+      "arr": 4100000,
+      "industry": "AI/ML",
+      "region": "North America",
+      "champion": "Priya Sharma",
+      "champion_title": "Head of ML Infra",
+      "executive_sponsor": "Dana Wu",
+      "renewal_day": 95,
+      "role": "featured",
+      "health": {
+        "shape": "decline",
+        "start": 81,
+        "end": 44,
+        "trailing_cross_day": -48,
+        "noise": 1.5
+      },
+      "signals": [
+        {
+          "day": -104,
+          "type": "reserved_cluster_idle",
+          "sentiment": -0.45,
+          "stakeholder": "Priya Sharma",
+          "title": "Head of ML Infra",
+          "content": "Reserved cluster idle share rose from 12% to 31% over three weeks"
+        },
+        {
+          "day": -96,
+          "type": "engagement_gap",
+          "sentiment": -0.4,
+          "stakeholder": "Priya Sharma",
+          "title": "Head of ML Infra",
+          "content": "QBR postponed by the customer; champion login cadence halved"
+        },
+        {
+          "day": -88,
+          "type": "multicloud_diversification",
+          "sentiment": -0.6,
+          "stakeholder": "Marcus Lee",
+          "title": "Platform Engineer",
+          "content": "Ticket #4412 mentions validating a second provider for training jobs"
+        },
+        {
+          "day": -80,
+          "type": "commitment_ramp_miss",
+          "sentiment": -0.65,
+          "stakeholder": "Priya Sharma",
+          "title": "Head of ML Infra",
+          "content": "Consumed 68% of committed capacity vs 85% plan"
+        },
+        {
+          "day": -22,
+          "type": "spot_price_pressure",
+          "sentiment": -0.5,
+          "stakeholder": "Dana Wu",
+          "title": "VP Engineering",
+          "content": "Email cites competitor spot pricing; asks for a pricing review"
+        }
+      ],
+      "crm_flag_day": -14,
+      "events": [
+        {
+          "day": 0,
+          "type": "contraction",
+          "amount": -1400000,
+          "title": "Renewal signed at -$1.4M (contraction) — Meridian AI",
+          "evidence": "Renewal order form dated 2026-04-20; committed capacity reduced from $4.1M to $2.7M",
+          "linked_signal_index": 3
+        }
+      ]
+    },
+    {
+      "source_account_id": "HELIX",
+      "name": "Helix Compute",
+      "arr": 2900000,
+      "industry": "AI/ML",
+      "region": "North America",
+      "champion": "Jordan Ali",
+      "champion_title": "Director of Platform",
+      "renewal_day": 60,
+      "role": "featured_live",
+      "health": {
+        "shape": "decline",
+        "start": 79,
+        "end": 62,
+        "trailing_cross_day": 25,
+        "noise": 1.5
+      },
+      "signals": [
+        {
+          "day": -70,
+          "type": "reserved_cluster_idle",
+          "sentiment": -0.4,
+          "stakeholder": "Jordan Ali",
+          "title": "Director of Platform",
+          "content": "Reserved cluster idle share up to 27%"
+        },
+        {
+          "day": -58,
+          "type": "engagement_gap",
+          "sentiment": -0.35,
+          "stakeholder": "Jordan Ali",
+          "title": "Director of Platform",
+          "content": "Weekly sync skipped twice; no response on capacity planning thread"
+        },
+        {
+          "day": -40,
+          "type": "multicloud_diversification",
+          "sentiment": -0.55,
+          "stakeholder": "Sam Ortiz",
+          "title": "ML Engineer",
+          "content": "Support thread references benchmarking jobs on another provider"
+        }
+      ],
+      "events": []
+    },
+    {
+      "source_account_id": "QUANTUM",
+      "name": "Quantum Labs",
+      "arr": 3300000,
+      "industry": "Research",
+      "region": "EMEA",
+      "champion": "Lena Fischer",
+      "champion_title": "Head of Research Computing",
+      "renewal_day": 210,
+      "role": "false_alarm",
+      "health": {
+        "shape": "dip_recover",
+        "start": 84,
+        "dip": 72,
+        "dip_day": -45,
+        "end": 85,
+        "noise": 1.5
+      },
+      "signals": [
+        {
+          "day": -60,
+          "type": "reserved_cluster_idle",
+          "sentiment": -0.5,
+          "stakeholder": "Lena Fischer",
+          "title": "Head of Research Computing",
+          "content": "Idle share spike to 34% during batch-job migration"
+        },
+        {
+          "day": -38,
+          "type": "kpi_recovery",
+          "sentiment": 0.5,
+          "stakeholder": "Lena Fischer",
+          "title": "Head of Research Computing",
+          "content": "Migration complete; utilization back above plan"
+        },
+        {
+          "day": -20,
+          "type": "advocacy",
+          "sentiment": 0.7,
+          "stakeholder": "Lena Fischer",
+          "title": "Head of Research Computing",
+          "content": "Agreed to a reference call"
+        }
+      ],
+      "events": []
+    },
+    {
+      "source_account_id": "ORION",
+      "name": "Orion Models",
+      "arr": 1800000,
+      "industry": "AI/ML",
+      "region": "APAC",
+      "renewal_day": 150,
+      "role": "unclassified",
+      "health": {
+        "shape": "decline",
+        "start": 76,
+        "end": 57,
+        "trailing_cross_day": 40,
+        "noise": 1.8
+      },
+      "signals": [
+        {
+          "day": -40,
+          "type": "routine_review",
+          "sentiment": 0.0,
+          "stakeholder": "Ken Tanaka",
+          "title": "Platform Lead",
+          "content": "Routine review; no concerns raised"
+        }
+      ],
+      "events": []
+    }
+  ],
+  "background": {
+    "names": [
+      "Apex Compute",
+      "Cirrus AI",
+      "Nova Foundry",
+      "Pacific Dataworks",
+      "Stellar Inference",
+      "Titan Hyperscale Labs",
+      "Vector Dynamics",
+      "Zenith Training"
+    ],
+    "health_range": [
+      74,
+      88
+    ],
+    "arr_choices": [
+      1200000,
+      2400000,
+      3600000,
+      5100000
+    ],
+    "industries": [
+      "AI/ML",
+      "Telecommunications",
+      "Research",
+      "Media"
+    ],
+    "regions": [
+      "North America",
+      "EMEA",
+      "APAC"
+    ]
+  }
+}
