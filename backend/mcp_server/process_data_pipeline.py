@@ -49,9 +49,14 @@ def calculate_health_scores(
 ) -> Tuple[Optional[str], Set[int], Dict[str, float]]:
     """Score every unscored (account, month) pair from KPIMeasurement.
 
-    'auto': existing HealthScore rows are immutable — only new months are
-    scored (weight changes apply forward only). 'full_recalc': every month
-    is rewritten with current weights.
+    'auto': a scored (account, month) is immutable while its INPUTS are
+    unchanged — weight changes apply forward only. If KPI rows for that
+    month arrived after the row's calculated_at (a late batch, a partial
+    month completed by a second upload) the month is rescored: immutability
+    protects closed months, not half-scored ones. Decided 2026-09-02 after
+    live tenant 415 showed a March score computed from 47 of 94 rows and
+    never updated under the old always-immutable rule. 'full_recalc':
+    every month is rewritten with current weights.
 
     Rewritten on the ORM (Tier 2A-4). The old repo's version opened its own
     raw-SQL engine to write health_scores, which is why score_calculator's
@@ -95,26 +100,39 @@ def calculate_health_scores(
         cc = CustomerConfig.query.filter_by(customer_id=customer_id).first()
         lifecycle = cc.lifecycle_stage_weights if cc and cc.lifecycle_stage_weights else None
 
-        scored: Set[tuple] = set()
+        scored: Dict[tuple, datetime] = {}
         if mode != 'full_recalc':
             scored = {
-                (r[0], r[1]) for r in HealthScore.query.filter(HealthScore.account_id.in_(acct_ids))
-                .with_entities(HealthScore.account_id, HealthScore.measurement_month).all()
+                (r[0], r[1]): r[2] for r in HealthScore.query.filter(HealthScore.account_id.in_(acct_ids))
+                .with_entities(HealthScore.account_id, HealthScore.measurement_month, HealthScore.calculated_at).all()
             }
+
+        kpis = KPIMeasurement.query.filter(KPIMeasurement.account_id.in_(acct_ids)).all()
+        latest_input: Dict[tuple, datetime] = {}
+        for k in kpis:
+            month = (k.measured_at.date() if k.measured_at else date.today()).replace(day=1)
+            if k.created_at and (month, k.account_id) and (
+                    latest_input.get((k.account_id, month)) is None or k.created_at > latest_input[(k.account_id, month)]):
+                latest_input[(k.account_id, month)] = k.created_at
+        reopened = {
+            key for key, calc_at in scored.items()
+            if calc_at is not None and latest_input.get(key) is not None and latest_input[key] > calc_at
+        }
 
         groups: Dict[tuple, Dict[str, list]] = defaultdict(lambda: defaultdict(list))
         skipped_immutable = 0
-        for k in KPIMeasurement.query.filter(KPIMeasurement.account_id.in_(acct_ids)).all():
+        for k in kpis:
             month = (k.measured_at.date() if k.measured_at else date.today()).replace(day=1)
-            if (k.account_id, month) in scored:
+            key = (k.account_id, month)
+            if key in scored and key not in reopened:
                 skipped_immutable += 1
                 continue
-            groups[(k.account_id, month)][k.kpi_code].append(float(k.value))
+            groups[key][k.kpi_code].append(float(k.value))
         timings['kpi_grouping'] = round(time.time() - t0, 2)
-        if skipped_immutable:
+        if skipped_immutable or reopened:
             logger.info(
-                'Immutable scores: skipped %d KPI rows (%d scored months preserved) — %d new pairs',
-                skipped_immutable, len(scored), len(groups),
+                'Immutable scores: skipped %d KPI rows (%d scored months preserved, %d reopened by late inputs) — %d pairs to score',
+                skipped_immutable, len(scored) - len(reopened), len(reopened), len(groups),
             )
 
         now = datetime.utcnow()
@@ -146,26 +164,30 @@ def calculate_health_scores(
 
         written = 0
         if rows:
+            # Every row here is either a new (account, month) or one reopened
+            # by late inputs (or full_recalc) — immutable rows were excluded
+            # above, so the conflict action is always "update".
             stmt = pg_insert(HealthScore.__table__).values(rows)
-            if mode == 'full_recalc':
-                stmt = stmt.on_conflict_do_update(
-                    index_elements=['account_id', 'measurement_month'],
-                    set_={c: stmt.excluded[c] for c in _HEALTH_UPSERT_COLUMNS},
-                )
-            else:
-                stmt = stmt.on_conflict_do_nothing(index_elements=['account_id', 'measurement_month'])
+            stmt = stmt.on_conflict_do_update(
+                index_elements=['account_id', 'measurement_month'],
+                set_={c: stmt.excluded[c] for c in _HEALTH_UPSERT_COLUMNS},
+            )
             res = db.session.execute(stmt)
             written = res.rowcount if res.rowcount is not None else len(rows)
             changed = {r['account_id'] for r in rows}
             _update_month_over_month(changed)
             db.session.commit()
         timings['health_write'] = round(time.time() - t0, 2)
-        logger.info('Health scores: %d written — customer %s (mode=%s)', written, customer_id, mode)
+        logger.info('Health scores: %d written (%d reopened) — customer %s (mode=%s)',
+                    written, len(reopened), customer_id, mode)
 
         if changed:
             _sync_account_status(customer_id, changed)
 
-        return f'health_scores_{mode}_{written}_written', changed, timings
+        step = f'health_scores_{mode}_{written}_written'
+        if reopened:
+            step += f'_{len(reopened)}_reopened'
+        return step, changed, timings
     except Exception as e:
         logger.error('Health score calculation failed: %s', e, exc_info=True)
         db.session.rollback()

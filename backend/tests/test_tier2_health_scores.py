@@ -180,6 +180,42 @@ class TestImmutability:
             db.session.commit()
 
 
+class TestOpenMonthRescoring:
+    def test_late_rows_for_a_scored_month_reopen_it_in_auto_mode(self):
+        """Immutability protects closed months, not half-scored ones: a
+        second upload with more rows for an already-scored month rescores
+        that month (and only that month) in 'auto' mode."""
+        from mcp_server.cs_pulse_onboarding import process_data
+        with app.app_context():
+            cid = _new_customer('reopen')
+        _upload(cid, {'account_details.csv': ACCOUNTS_CSV, 'kpi_measurements.csv': (
+            "source_account_id,kpi_code,measured_at,value\n"
+            "ACC-1,P1-KPI1,2025-11-03,1.0\nACC-1,P6-KPI1,2025-11-03,40\n"
+            "ACC-1,P1-KPI1,2025-12-03,1.0\nACC-1,P6-KPI1,2025-12-03,40\n"
+        )})
+        res = process_data(cid)
+        assert 'health_scores_auto_2_written' in res['steps_completed'], res['steps_completed']
+        with app.app_context():
+            before = {k: float(v.health_score) for k, v in _scores_by_name(cid).items()}
+        # the rest of December arrives: much better numbers
+        _upload(cid, {'kpi_measurements.csv': (
+            "source_account_id,kpi_code,measured_at,value\n"
+            "ACC-1,P1-KPI1,2025-12-17,3.0\nACC-1,P6-KPI1,2025-12-17,95\n"
+            "ACC-1,P1-KPI1,2025-12-24,3.0\nACC-1,P6-KPI1,2025-12-24,95\n"
+        )})
+        res = process_data(cid)
+        assert 'health_scores_auto_1_written_1_reopened' in res['steps_completed'], res['steps_completed']
+        with app.app_context():
+            after = {k: float(v.health_score) for k, v in _scores_by_name(cid).items()}
+            assert after[('Titan', date(2025, 11, 1))] == before[('Titan', date(2025, 11, 1))]   # closed month untouched
+            assert after[('Titan', date(2025, 12, 1))] != before[('Titan', date(2025, 12, 1))]   # open month rescored
+            assert after[('Titan', date(2025, 12, 1))] > before[('Titan', date(2025, 12, 1))]
+        # nothing new → nothing reopened
+        res = process_data(cid)
+        assert 'health_scores_auto_0_written' in res['steps_completed'], res['steps_completed']
+        assert not any('reopened' in s for s in res['steps_completed'])
+
+
 class TestAccountStatusSync:
     def test_item28_mapping_and_churned_terminal(self):
         from mcp_server.process_data_pipeline import _sync_account_status
