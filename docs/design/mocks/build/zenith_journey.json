@@ -1,0 +1,1394 @@
+{
+ "version": "3.0",
+ "account_id": 3,
+ "account_name": "Zenith Data Corp",
+ "vertical": "dc2_s",
+ "as_of": "2026-03-31T23:59:59",
+ "arc": {
+  "state": "classified",
+  "arc_type": "competitive_displacement",
+  "confidence": 0.75,
+  "confidence_semantics": "rule_match_constant",
+  "matched_rule": "competitive_displacement",
+  "supporting_episode_ids": [
+   "sig:83",
+   "sig:84"
+  ],
+  "contradicting_evidence": [
+   "positive role present: recovery"
+  ],
+  "alternatives": [
+   {
+    "arc_type": "silent_churn",
+    "present": [
+     "sig:76",
+     "sig:77",
+     "sig:78",
+     "sig:79",
+     "sig:80",
+     "sig:81",
+     "sig:82"
+    ],
+    "missing": [
+     "excluded_role_present:commercial_pressure"
+    ]
+   }
+  ],
+  "observed_roles": [
+   "commercial_pressure",
+   "engagement_decline",
+   "intervention",
+   "recovery",
+   "usage_decline"
+  ],
+  "evidence_scope": "whole_journey"
+ },
+ "state": "classified",
+ "current_phase": "baseline",
+ "phases": [
+  {
+   "name": "baseline",
+   "entered_at": "2025-07-01",
+   "exited_at": "2025-09-01",
+   "months": 2,
+   "health_start": 77.47,
+   "health_end": 75.05,
+   "trigger_episode_id": "sig:76"
+  },
+  {
+   "name": "deterioration",
+   "entered_at": "2025-09-01",
+   "exited_at": "2026-03-01",
+   "months": 6,
+   "health_start": 72.06,
+   "health_end": 56.73,
+   "trigger_episode_id": "sig:77"
+  },
+  {
+   "name": "baseline",
+   "entered_at": "2026-03-01",
+   "exited_at": null,
+   "months": 1,
+   "health_start": 71.25,
+   "health_end": 71.25,
+   "trigger_episode_id": "out:181"
+  }
+ ],
+ "episodes": [
+  {
+   "episode_id": "sig:76",
+   "date": "2025-07-31T00:00:00",
+   "kind": "signal",
+   "subtype": "kpi_decline",
+   "role": "usage_decline",
+   "polarity": -1,
+   "source": "observed",
+   "title": "KPI metrics declining below threshold (Zenith Data Corp)",
+   "evidence_node_ids": [
+    76
+   ],
+   "sentiment": -0.53,
+   "revenue": null,
+   "revenue_bucket": null,
+   "meta": {
+    "source_platform": "csv_import",
+    "stakeholder": "Alex Patel"
+   }
+  },
+  {
+   "episode_id": "sig:77",
+   "date": "2025-09-09T00:00:00",
+   "kind": "signal",
+   "subtype": "usage_decline",
+   "role": "usage_decline",
+   "polarity": -1,
+   "source": "observed",
+   "title": "Usage quietly trending down with no explicit escalation (Zenith Data Corp)",
+   "evidence_node_ids": [
+    77
+   ],
+   "sentiment": 0.69,
+   "revenue": null,
+   "revenue_bucket": null,
+   "meta": {
+    "source_platform": "csv_import",
+    "stakeholder": "Lisa Park"
+   }
+  },
+  {
+   "episode_id": "hs:22",
+   "date": "2025-10-01T00:00:00",
+   "kind": "health_transition",
+   "subtype": "healthy->at_risk",
+   "role": null,
+   "polarity": -1,
+   "source": "system",
+   "title": "Health healthy \u2192 at_risk (68.7)",
+   "evidence_node_ids": [],
+   "sentiment": null,
+   "revenue": null,
+   "revenue_bucket": null,
+   "meta": {
+    "health_score": 68.65,
+    "from": "healthy",
+    "to": "at_risk"
+   }
+  },
+  {
+   "episode_id": "sig:78",
+   "date": "2025-10-04T00:00:00",
+   "kind": "signal",
+   "subtype": "usage_decline",
+   "role": "usage_decline",
+   "polarity": -1,
+   "source": "observed",
+   "title": "Usage quietly trending down with no explicit escalation (Zenith Data Corp)",
+   "evidence_node_ids": [
+    78
+   ],
+   "sentiment": 0.55,
+   "revenue": null,
+   "revenue_bucket": null,
+   "meta": {
+    "source_platform": "csv_import",
+    "stakeholder": "Lisa Park"
+   }
+  },
+  {
+   "episode_id": "sig:79",
+   "date": "2025-10-15T00:00:00",
+   "kind": "signal",
+   "subtype": "engagement_gap",
+   "role": "engagement_decline",
+   "polarity": -1,
+   "source": "observed",
+   "title": "Champion Lisa Park declined last two QBR invitations.",
+   "evidence_node_ids": [
+    79
+   ],
+   "sentiment": -0.6,
+   "revenue": null,
+   "revenue_bucket": null,
+   "meta": {
+    "source_platform": "csv_import",
+    "stakeholder": "Lisa Park"
+   }
+  },
+  {
+   "episode_id": "sig:80",
+   "date": "2025-10-15T00:00:00",
+   "kind": "signal",
+   "subtype": "engagement_gap",
+   "role": "engagement_decline",
+   "polarity": -1,
+   "source": "observed",
+   "title": "Champion Lisa Park declined last two QBR invitations.",
+   "evidence_node_ids": [
+    80
+   ],
+   "sentiment": -0.6,
+   "revenue": null,
+   "revenue_bucket": null,
+   "meta": {
+    "source_platform": "csv_import",
+    "stakeholder": "Lisa Park"
+   }
+  },
+  {
+   "episode_id": "sig:81",
+   "date": "2025-11-15T00:00:00",
+   "kind": "signal",
+   "subtype": "usage_decline",
+   "role": "usage_decline",
+   "polarity": -1,
+   "source": "observed",
+   "title": "Storage utilization dropped from 78% to 55%. DR tests skipped.",
+   "evidence_node_ids": [
+    81
+   ],
+   "sentiment": -0.6,
+   "revenue": null,
+   "revenue_bucket": null,
+   "meta": {
+    "source_platform": "csv_import",
+    "stakeholder": "Lisa Park"
+   }
+  },
+  {
+   "episode_id": "sig:82",
+   "date": "2025-11-15T00:00:00",
+   "kind": "signal",
+   "subtype": "usage_decline",
+   "role": "usage_decline",
+   "polarity": -1,
+   "source": "observed",
+   "title": "Storage utilization dropped from 78% to 55%. DR tests skipped.",
+   "evidence_node_ids": [
+    82
+   ],
+   "sentiment": -0.6,
+   "revenue": null,
+   "revenue_bucket": null,
+   "meta": {
+    "source_platform": "csv_import",
+    "stakeholder": "Lisa Park"
+   }
+  },
+  {
+   "episode_id": "out:178",
+   "date": "2025-11-28T00:00:00",
+   "kind": "outcome",
+   "subtype": "renewal_uncertainty",
+   "role": null,
+   "polarity": -1,
+   "source": "observed",
+   "title": "Renewal at Risk \u2014 Zenith Data Corp",
+   "evidence_node_ids": [
+    178
+   ],
+   "sentiment": null,
+   "revenue": -960000.0,
+   "revenue_bucket": "at_risk",
+   "meta": {
+    "evidence_clamped": false
+   }
+  },
+  {
+   "episode_id": "out:179",
+   "date": "2025-12-05T00:00:00",
+   "kind": "outcome",
+   "subtype": "engagement_decline",
+   "role": null,
+   "polarity": -1,
+   "source": "observed",
+   "title": "Engagement Declining \u2014 Zenith Data Corp",
+   "evidence_node_ids": [
+    179
+   ],
+   "sentiment": null,
+   "revenue": -480000.0,
+   "revenue_bucket": "at_risk",
+   "meta": {
+    "evidence_clamped": false
+   }
+  },
+  {
+   "episode_id": "sig:83",
+   "date": "2026-01-05T00:00:00",
+   "kind": "signal",
+   "subtype": "competitor_mention",
+   "role": "commercial_pressure",
+   "polarity": -1,
+   "source": "observed",
+   "title": "Internal source reports Zenith evaluating AWS Direct Connect as alternative.",
+   "evidence_node_ids": [
+    83
+   ],
+   "sentiment": -0.9,
+   "revenue": null,
+   "revenue_bucket": null,
+   "meta": {
+    "source_platform": "csv_import",
+    "stakeholder": "Lisa Park"
+   }
+  },
+  {
+   "episode_id": "sig:84",
+   "date": "2026-01-05T00:00:00",
+   "kind": "signal",
+   "subtype": "competitor_mention",
+   "role": "commercial_pressure",
+   "polarity": -1,
+   "source": "observed",
+   "title": "Internal source reports Zenith evaluating AWS Direct Connect as alternative.",
+   "evidence_node_ids": [
+    84
+   ],
+   "sentiment": -0.9,
+   "revenue": null,
+   "revenue_bucket": null,
+   "meta": {
+    "source_platform": "csv_import",
+    "stakeholder": "Lisa Park"
+   }
+  },
+  {
+   "episode_id": "sig:85",
+   "date": "2026-02-07T00:00:00",
+   "kind": "signal",
+   "subtype": "churn_averted",
+   "role": "recovery",
+   "polarity": 1,
+   "source": "observed",
+   "title": "Renewal secured after proactive outreach reconnected the account team. \u2014 Zenith Data Corp",
+   "evidence_node_ids": [
+    85
+   ],
+   "sentiment": 0.93,
+   "revenue": null,
+   "revenue_bucket": null,
+   "meta": {
+    "source_platform": "csv_import",
+    "stakeholder": "Lisa Park"
+   }
+  },
+  {
+   "episode_id": "hs:27",
+   "date": "2026-03-01T00:00:00",
+   "kind": "health_transition",
+   "subtype": "at_risk->healthy",
+   "role": null,
+   "polarity": 1,
+   "source": "system",
+   "title": "Health at_risk \u2192 healthy (71.2)",
+   "evidence_node_ids": [],
+   "sentiment": null,
+   "revenue": null,
+   "revenue_bucket": null,
+   "meta": {
+    "health_score": 71.25,
+    "from": "at_risk",
+    "to": "healthy"
+   }
+  },
+  {
+   "episode_id": "sig:86",
+   "date": "2026-03-05T00:00:00",
+   "kind": "signal",
+   "subtype": "kpi_stabilized",
+   "role": "recovery",
+   "polarity": 1,
+   "source": "observed",
+   "title": "Usage metrics holding steady for three consecutive weeks. \u2014 Zenith Data Corp",
+   "evidence_node_ids": [
+    86
+   ],
+   "sentiment": 0.6,
+   "revenue": null,
+   "revenue_bucket": null,
+   "meta": {
+    "source_platform": "csv_import",
+    "stakeholder": "Lisa Park"
+   }
+  },
+  {
+   "episode_id": "sig:87",
+   "date": "2026-03-08T00:00:00",
+   "kind": "signal",
+   "subtype": "csm_intervention",
+   "role": "intervention",
+   "polarity": 0,
+   "source": "observed",
+   "title": "New CSM assigned and onboarding completed (Zenith Data Corp)",
+   "evidence_node_ids": [
+    87
+   ],
+   "sentiment": 0.69,
+   "revenue": null,
+   "revenue_bucket": null,
+   "meta": {
+    "source_platform": "csv_import",
+    "stakeholder": "Jordan Blake"
+   }
+  },
+  {
+   "episode_id": "sig:88",
+   "date": "2026-03-15T00:00:00",
+   "kind": "signal",
+   "subtype": "kpi_recovery",
+   "role": "recovery",
+   "polarity": 1,
+   "source": "observed",
+   "title": "KPI metrics recovering toward target (Zenith Data Corp)",
+   "evidence_node_ids": [
+    88
+   ],
+   "sentiment": 0.77,
+   "revenue": null,
+   "revenue_bucket": null,
+   "meta": {
+    "source_platform": "csv_import",
+    "stakeholder": "Alex Patel"
+   }
+  },
+  {
+   "episode_id": "out:180",
+   "date": "2026-03-23T00:00:00",
+   "kind": "outcome",
+   "subtype": "revenue_protected",
+   "role": null,
+   "polarity": 1,
+   "source": "observed",
+   "title": "Revenue Protected \u2014 Zenith Data Corp",
+   "evidence_node_ids": [
+    180
+   ],
+   "sentiment": null,
+   "revenue": 240000.0,
+   "revenue_bucket": "protected",
+   "meta": {
+    "evidence_clamped": false
+   }
+  },
+  {
+   "episode_id": "sig:89",
+   "date": "2026-03-28T00:00:00",
+   "kind": "signal",
+   "subtype": "churn_averted",
+   "role": "recovery",
+   "polarity": 1,
+   "source": "observed",
+   "title": "Renewal secured after proactive outreach reconnected the account team. \u2014 Zenith Data Corp",
+   "evidence_node_ids": [
+    89
+   ],
+   "sentiment": 0.93,
+   "revenue": null,
+   "revenue_bucket": null,
+   "meta": {
+    "source_platform": "csv_import",
+    "stakeholder": "Lisa Park"
+   }
+  },
+  {
+   "episode_id": "out:181",
+   "date": "2026-03-28T00:00:00",
+   "kind": "outcome",
+   "subtype": "churn_averted",
+   "role": null,
+   "polarity": 1,
+   "source": "observed",
+   "title": "Churn Risk Averted \u2014 Zenith Data Corp",
+   "evidence_node_ids": [
+    181
+   ],
+   "sentiment": null,
+   "revenue": 1920000.0,
+   "revenue_bucket": "protected",
+   "meta": {
+    "evidence_clamped": false
+   }
+  },
+  {
+   "episode_id": "sig:90",
+   "date": "2026-04-02T00:00:00",
+   "kind": "signal",
+   "subtype": "kpi_stabilized",
+   "role": "recovery",
+   "polarity": 1,
+   "source": "observed",
+   "title": "Usage metrics holding steady for three consecutive weeks. \u2014 Zenith Data Corp",
+   "evidence_node_ids": [
+    90
+   ],
+   "sentiment": 0.6,
+   "revenue": null,
+   "revenue_bucket": null,
+   "meta": {
+    "source_platform": "csv_import",
+    "stakeholder": "Lisa Park"
+   }
+  },
+  {
+   "episode_id": "renewal",
+   "date": "2026-08-01T00:00:00",
+   "kind": "renewal",
+   "subtype": "renewal_date",
+   "role": null,
+   "polarity": 0,
+   "source": "observed",
+   "title": "Renewal date",
+   "evidence_node_ids": [],
+   "sentiment": null,
+   "revenue": null,
+   "revenue_bucket": null,
+   "meta": {
+    "renewal_date": "2026-08-01"
+   }
+  }
+ ],
+ "leading_vs_trailing": {
+  "series": [
+   {
+    "month": "2025-07-01",
+    "kpi_only": 77.47,
+    "qual": 23.5,
+    "divergence": -53.97,
+    "early_warning": "early_warning",
+    "signal_count": 1,
+    "contributing_episode_ids": [
+     "sig:76"
+    ],
+    "roles": {
+     "usage_decline": 1
+    }
+   },
+   {
+    "month": "2025-08-01",
+    "kpi_only": 75.05,
+    "qual": 23.5,
+    "divergence": -51.55,
+    "early_warning": "early_warning",
+    "signal_count": 1,
+    "contributing_episode_ids": [
+     "sig:76"
+    ],
+    "roles": {
+     "usage_decline": 1
+    }
+   },
+   {
+    "month": "2025-09-01",
+    "kpi_only": 72.06,
+    "qual": 84.5,
+    "divergence": 12.44,
+    "early_warning": "recovery_watch",
+    "signal_count": 1,
+    "contributing_episode_ids": [
+     "sig:77"
+    ],
+    "roles": {
+     "usage_decline": 1
+    }
+   },
+   {
+    "month": "2025-10-01",
+    "kpi_only": 68.65,
+    "qual": 42.66,
+    "divergence": -25.99,
+    "early_warning": "early_warning",
+    "signal_count": 4,
+    "contributing_episode_ids": [
+     "sig:77",
+     "sig:78",
+     "sig:79",
+     "sig:80"
+    ],
+    "roles": {
+     "usage_decline": 2,
+     "engagement_decline": 2
+    }
+   },
+   {
+    "month": "2025-11-01",
+    "kpi_only": 65.82,
+    "qual": 26.51,
+    "divergence": -39.31,
+    "early_warning": "early_warning",
+    "signal_count": 5,
+    "contributing_episode_ids": [
+     "sig:78",
+     "sig:79",
+     "sig:80",
+     "sig:81",
+     "sig:82"
+    ],
+    "roles": {
+     "usage_decline": 3,
+     "engagement_decline": 2
+    }
+   },
+   {
+    "month": "2025-12-01",
+    "kpi_only": 62.67,
+    "qual": 20.0,
+    "divergence": -42.67,
+    "early_warning": "early_warning",
+    "signal_count": 2,
+    "contributing_episode_ids": [
+     "sig:81",
+     "sig:82"
+    ],
+    "roles": {
+     "usage_decline": 2
+    }
+   },
+   {
+    "month": "2026-01-01",
+    "kpi_only": 59.59,
+    "qual": 5.0,
+    "divergence": -54.59,
+    "early_warning": "early_warning",
+    "signal_count": 2,
+    "contributing_episode_ids": [
+     "sig:83",
+     "sig:84"
+    ],
+    "roles": {
+     "commercial_pressure": 2
+    }
+   },
+   {
+    "month": "2026-02-01",
+    "kpi_only": 56.73,
+    "qual": 52.26,
+    "divergence": -4.47,
+    "early_warning": "aligned",
+    "signal_count": 3,
+    "contributing_episode_ids": [
+     "sig:83",
+     "sig:84",
+     "sig:85"
+    ],
+    "roles": {
+     "commercial_pressure": 2,
+     "recovery": 1
+    }
+   },
+   {
+    "month": "2026-03-01",
+    "kpi_only": 71.25,
+    "qual": 89.43,
+    "divergence": 18.18,
+    "early_warning": "recovery_watch",
+    "signal_count": 5,
+    "contributing_episode_ids": [
+     "sig:85",
+     "sig:86",
+     "sig:87",
+     "sig:88",
+     "sig:89"
+    ],
+    "roles": {
+     "recovery": 4,
+     "intervention": 1
+    }
+   }
+  ],
+  "first_leading_warning_at": "2025-07-01",
+  "first_trailing_warning_at": null,
+  "lead_days": null,
+  "window_days": 60,
+  "divergence_warning_pts": 10,
+  "note": "qual is computed from signals only and is never blended into kpi_only (absolute-separation invariant)."
+ },
+ "counterfactual_hooks": [
+  {
+   "episode_id": "sig:87",
+   "date": "2026-03-08T00:00:00",
+   "title": "New CSM assigned and onboarding completed (Zenith Data Corp)",
+   "health_before": {
+    "n": 3,
+    "mean": 59.66,
+    "last": 56.73
+   },
+   "health_after": {
+    "n": 1,
+    "mean": 71.25,
+    "last": 71.25
+   },
+   "outcomes_after": [
+    {
+     "episode_id": "out:180",
+     "bucket": "protected",
+     "revenue": 240000.0
+    },
+    {
+     "episode_id": "out:181",
+     "bucket": "protected",
+     "revenue": 1920000.0
+    }
+   ]
+  }
+ ],
+ "expected_path": {
+  "arc_type": "competitive_displacement",
+  "arc_name": "Competitive Displacement",
+  "source": "story_arc_template",
+  "note": "Typical path for this arc from the reference narrative \u2014 a prior, not this account's data.",
+  "total_weeks": 36,
+  "phases": [
+   {
+    "phase_id": 1,
+    "name": "Stable Relationship",
+    "starts_week": 0,
+    "duration_weeks": 8,
+    "health_start": 76,
+    "health_end": 74,
+    "description": "Account is healthy and productive. GPU clusters running at capacity, partner engagement strong, renewal not yet on the horizon. Subtle early signals begin appearing: CTO attends a competitor-sponsored industry event, routine QBR is rescheduled."
+   },
+   {
+    "phase_id": 2,
+    "name": "Competitive Approach",
+    "starts_week": 8,
+    "duration_weeks": 6,
+    "health_start": 74,
+    "health_end": 69,
+    "description": "Competitor AE makes formal contact with CTO offering 30% lower TCO. Competitor sends technical team for informal benchmarking conversation. Engagement metrics begin declining as CTO diverts attention. Budget discussions go silent."
+   },
+   {
+    "phase_id": 3,
+    "name": "Evaluation Period",
+    "starts_week": 14,
+    "duration_weeks": 8,
+    "health_start": 69,
+    "health_end": 62,
+    "description": "CTO initiates formal vendor evaluation. Competitor runs benchmark POC on a subset of workloads. Internal engagement drops as stakeholders hedge. GPU utilization data becomes a competitive battleground. Health score dips into at-risk territory."
+   },
+   {
+    "phase_id": 4,
+    "name": "Defense & Counter",
+    "starts_week": 22,
+    "duration_weeks": 8,
+    "health_start": 62,
+    "health_end": 73,
+    "description": "CS deploys multi-pronged competitive defense. VP Sales initiates executive alignment with CTO. Value-realization report delivered to CFO showing true TCO advantage and switching costs. Engineering team provides benchmark counter-data proving superior distributed training performance. Health begins recovery."
+   },
+   {
+    "phase_id": 5,
+    "name": "Retention & Strengthening",
+    "starts_week": 30,
+    "duration_weeks": 6,
+    "health_start": 73,
+    "health_end": 80,
+    "description": "Account commits to multi-year renewal with expanded scope. Competitor retreats. Champion engagement rebounds to all-time high. Budget signals return with expansion discussion. Health score exceeds pre-threat baseline."
+   }
+  ],
+  "typical_decisions": [
+   {
+    "phase_id": 1,
+    "week": 14,
+    "title": "Escalate competitive threat to VP Sales with full signal dossier",
+    "decision_maker_role": "champion"
+   },
+   {
+    "phase_id": 3,
+    "week": 24,
+    "title": "Deploy value-realization report for CFO with TCO defense",
+    "decision_maker_role": "exec_sponsor"
+   },
+   {
+    "phase_id": 3,
+    "week": 29,
+    "title": "Negotiate multi-year retention agreement with investment incentives",
+    "decision_maker_role": "exec_sponsor"
+   }
+  ],
+  "revenue_narrative": {
+   "arr_start": 3800000,
+   "arr_end": 4200000,
+   "arr_at_risk_peak": 3800000,
+   "roi_of_intervention": 720,
+   "cost_of_inaction": 4370000,
+   "time_horizon_weeks": 36,
+   "intervention_cost": 528000,
+   "net_revenue_saved": 3272000
+  }
+ },
+ "features": {
+  "as_of": "2026-03-31T23:59:59",
+  "health_now": 71.25,
+  "health_band": "healthy",
+  "health_slope_1mo": 14.52,
+  "health_slope_3mo": 2.86,
+  "volatility_3mo": 8.25,
+  "months_scored": 9,
+  "min_health": 56.73,
+  "dipped_below_at_risk": false,
+  "current_phase": "baseline",
+  "phases_seen": [
+   "baseline",
+   "deterioration",
+   "baseline"
+  ],
+  "had_negative_phase": true,
+  "time_in_phase_days": 30,
+  "days_to_renewal": 122,
+  "days_to_renewal_band": "91-180",
+  "signal_role_counts_90d": {
+   "commercial_pressure": 2,
+   "recovery": 4,
+   "intervention": 1
+  },
+  "signal_role_counts_total": {
+   "usage_decline": 5,
+   "engagement_decline": 2,
+   "commercial_pressure": 2,
+   "recovery": 5,
+   "intervention": 1
+  },
+  "unmapped_signals_90d": 0,
+  "last_role_at": {
+   "usage_decline": "2025-11-15",
+   "engagement_decline": "2025-10-15",
+   "commercial_pressure": "2026-01-05",
+   "recovery": "2026-03-28",
+   "intervention": "2026-03-08"
+  },
+  "stakeholder_roles_present": [
+   "champion",
+   "cs_manager",
+   "csm",
+   "executive_sponsor"
+  ],
+  "adoption_pillar": "P1",
+  "adoption_delta_3mo": 11.4,
+  "qual_now": 89.43,
+  "divergence_now": 18.18,
+  "early_warning_now": "recovery_watch",
+  "first_leading_warning_at": "2025-07-01",
+  "first_trailing_warning_at": null,
+  "lead_days": null,
+  "latest_outcome_bucket": "protected",
+  "trajectory": "declining",
+  "trajectory_confidence": 0.95
+ },
+ "summary": {
+  "starting_health": 77.47,
+  "ending_health": 71.25,
+  "lowest_health": 56.73,
+  "highest_health": 77.47,
+  "months_scored": 9,
+  "episodes_by_kind": {
+   "signal": 15,
+   "health_transition": 2,
+   "outcome": 4,
+   "renewal": 1
+  },
+  "trajectory": "declining",
+  "trajectory_confidence": 0.95
+ },
+ "pattern_type": "competitive_displacement",
+ "starting_health": 77.47,
+ "ending_health": 71.25,
+ "total_months": 9,
+ "total_weeks": 36,
+ "_account": {
+  "account_id": 3,
+  "name": "Zenith Data Corp",
+  "arr": 4800000.0,
+  "status": "active",
+  "profile": {
+   "contract_start": "2025-08-01",
+   "contract_end": "2026-08-01",
+   "renewal_date": "2026-08-01",
+   "csm_name": "Jordan Blake",
+   "csm_email": "jordan.blake@phoenix-dc.com",
+   "csm_manager": "Sam Rivera",
+   "executive_sponsor": "Robert Diaz",
+   "tier": "Mid-Market",
+   "primary_champion_name": "Lisa Park",
+   "primary_champion_title": "Director of Infrastructure",
+   "primary_champion_email": "lisa.park@zenithdatacorp.com",
+   "primary_champion_engagement_score": 83,
+   "employee_count": 1919,
+   "tech_stack": "Azure Stack, Terraform, Splunk",
+   "cloud_provider": "On-Prem",
+   "deployment_type": "cloud",
+   "products": [
+    {
+     "arr": 2500000,
+     "name": "High-Performance Storage",
+     "category": "storage",
+     "adoption": 72.0
+    },
+    {
+     "arr": 1500000,
+     "name": "Disaster Recovery",
+     "category": "resilience",
+     "adoption": 72.0
+    },
+    {
+     "arr": 800000,
+     "name": "Monitoring & Observability",
+     "category": "ops",
+     "adoption": 72.0
+    }
+   ],
+   "product_adoption": 72.0
+  },
+  "arc_type": "competitive_displacement",
+  "arc_phase": "baseline",
+  "arc_confidence": 0.75
+ },
+ "_stakeholders": [
+  {
+   "node_id": 1,
+   "customer_id": 1,
+   "account_id": 3,
+   "node_type": "STAKEHOLDER",
+   "node_subtype": "champion",
+   "source": "observed",
+   "tier": 1,
+   "title": "Lisa Park (Director of Infrastructure)",
+   "properties": {
+    "name": "Lisa Park",
+    "role": "champion",
+    "job_title": "Director of Infrastructure",
+    "email": "lisa.park@zenithdatacorp.com",
+    "auto_created": true,
+    "source_field": "primary_champion_name"
+   },
+   "revenue_impact": null,
+   "revenue_impact_type": null,
+   "confidence": 1.0,
+   "source_platform": "account_details_extraction",
+   "source_event_id": null,
+   "occurred_at": "2026-09-02T15:40:16.684350",
+   "expires_at": null
+  },
+  {
+   "node_id": 2,
+   "customer_id": 1,
+   "account_id": 3,
+   "node_type": "STAKEHOLDER",
+   "node_subtype": "executive_sponsor",
+   "source": "observed",
+   "tier": 1,
+   "title": "Robert Diaz (Executive Sponsor)",
+   "properties": {
+    "name": "Robert Diaz",
+    "role": "executive_sponsor",
+    "job_title": "Executive Sponsor",
+    "email": "",
+    "auto_created": true,
+    "source_field": "executive_sponsor"
+   },
+   "revenue_impact": null,
+   "revenue_impact_type": null,
+   "confidence": 1.0,
+   "source_platform": "account_details_extraction",
+   "source_event_id": null,
+   "occurred_at": "2026-09-02T15:40:16.689415",
+   "expires_at": null
+  },
+  {
+   "node_id": 3,
+   "customer_id": 1,
+   "account_id": 3,
+   "node_type": "STAKEHOLDER",
+   "node_subtype": "csm",
+   "source": "observed",
+   "tier": 1,
+   "title": "Jordan Blake (Csm)",
+   "properties": {
+    "name": "Jordan Blake",
+    "role": "csm",
+    "job_title": "Csm",
+    "email": "jordan.blake@phoenix-dc.com",
+    "auto_created": true,
+    "source_field": "csm_name"
+   },
+   "revenue_impact": null,
+   "revenue_impact_type": null,
+   "confidence": 1.0,
+   "source_platform": "account_details_extraction",
+   "source_event_id": null,
+   "occurred_at": "2026-09-02T15:40:16.690880",
+   "expires_at": null
+  },
+  {
+   "node_id": 4,
+   "customer_id": 1,
+   "account_id": 3,
+   "node_type": "STAKEHOLDER",
+   "node_subtype": "cs_manager",
+   "source": "observed",
+   "tier": 1,
+   "title": "Sam Rivera (Cs Manager)",
+   "properties": {
+    "name": "Sam Rivera",
+    "role": "cs_manager",
+    "job_title": "Cs Manager",
+    "email": "",
+    "auto_created": true,
+    "source_field": "csm_manager"
+   },
+   "revenue_impact": null,
+   "revenue_impact_type": null,
+   "confidence": 1.0,
+   "source_platform": "account_details_extraction",
+   "source_event_id": null,
+   "occurred_at": "2026-09-02T15:40:16.693384",
+   "expires_at": null
+  }
+ ],
+ "_health_rows": [
+  {
+   "health_score_id": 19,
+   "account_id": 3,
+   "health_score": 77.47,
+   "kpi_only_score": 77.47,
+   "composite_score": null,
+   "qual_score": 23.5,
+   "divergence": -53.97,
+   "early_warning": "early_warning",
+   "health_status": "healthy",
+   "trend": null,
+   "change_from_last_month": null,
+   "contributing_pillars": {
+    "P1": 78.95,
+    "P2": 86.74,
+    "P3": 75.06,
+    "P4": 75.28,
+    "P5": 72.88
+   },
+   "pillar_weights": null,
+   "measurement_month": "2025-07-01"
+  },
+  {
+   "health_score_id": 20,
+   "account_id": 3,
+   "health_score": 75.05,
+   "kpi_only_score": 75.05,
+   "composite_score": null,
+   "qual_score": 23.5,
+   "divergence": -51.55,
+   "early_warning": "early_warning",
+   "health_status": "healthy",
+   "trend": null,
+   "change_from_last_month": -2.42,
+   "contributing_pillars": {
+    "P2": 78.56,
+    "P3": 75.71,
+    "P5": 72.87,
+    "P1": 74.18,
+    "P4": 73.76
+   },
+   "pillar_weights": null,
+   "measurement_month": "2025-08-01"
+  },
+  {
+   "health_score_id": 21,
+   "account_id": 3,
+   "health_score": 72.06,
+   "kpi_only_score": 72.06,
+   "composite_score": null,
+   "qual_score": 84.5,
+   "divergence": 12.44,
+   "early_warning": "recovery_watch",
+   "health_status": "healthy",
+   "trend": null,
+   "change_from_last_month": -2.99,
+   "contributing_pillars": {
+    "P2": 75.54,
+    "P3": 71.25,
+    "P5": 71.53,
+    "P1": 71.33,
+    "P4": 70.38
+   },
+   "pillar_weights": null,
+   "measurement_month": "2025-09-01"
+  },
+  {
+   "health_score_id": 22,
+   "account_id": 3,
+   "health_score": 68.65,
+   "kpi_only_score": 68.65,
+   "composite_score": null,
+   "qual_score": 42.66,
+   "divergence": -25.99,
+   "early_warning": "early_warning",
+   "health_status": "at_risk",
+   "trend": null,
+   "change_from_last_month": -3.41,
+   "contributing_pillars": {
+    "P2": 74.51,
+    "P3": 64.42,
+    "P5": 69.11,
+    "P1": 67.86,
+    "P4": 67.91
+   },
+   "pillar_weights": null,
+   "measurement_month": "2025-10-01"
+  },
+  {
+   "health_score_id": 23,
+   "account_id": 3,
+   "health_score": 65.82,
+   "kpi_only_score": 65.82,
+   "composite_score": null,
+   "qual_score": 26.51,
+   "divergence": -39.31,
+   "early_warning": "early_warning",
+   "health_status": "at_risk",
+   "trend": null,
+   "change_from_last_month": -2.83,
+   "contributing_pillars": {
+    "P2": 73.47,
+    "P3": 60.77,
+    "P5": 67.12,
+    "P1": 63.62,
+    "P4": 64.06
+   },
+   "pillar_weights": null,
+   "measurement_month": "2025-11-01"
+  },
+  {
+   "health_score_id": 24,
+   "account_id": 3,
+   "health_score": 62.67,
+   "kpi_only_score": 62.67,
+   "composite_score": null,
+   "qual_score": 20.0,
+   "divergence": -42.67,
+   "early_warning": "early_warning",
+   "health_status": "at_risk",
+   "trend": null,
+   "change_from_last_month": -3.15,
+   "contributing_pillars": {
+    "P2": 72.07,
+    "P3": 55.55,
+    "P5": 64.99,
+    "P1": 60.61,
+    "P4": 60.2
+   },
+   "pillar_weights": null,
+   "measurement_month": "2025-12-01"
+  },
+  {
+   "health_score_id": 25,
+   "account_id": 3,
+   "health_score": 59.59,
+   "kpi_only_score": 59.59,
+   "composite_score": null,
+   "qual_score": 5.0,
+   "divergence": -54.59,
+   "early_warning": "early_warning",
+   "health_status": "at_risk",
+   "trend": null,
+   "change_from_last_month": -3.08,
+   "contributing_pillars": {
+    "P2": 70.63,
+    "P3": 50.88,
+    "P5": 63.01,
+    "P1": 57.11,
+    "P4": 56.16
+   },
+   "pillar_weights": null,
+   "measurement_month": "2026-01-01"
+  },
+  {
+   "health_score_id": 26,
+   "account_id": 3,
+   "health_score": 56.73,
+   "kpi_only_score": 56.73,
+   "composite_score": null,
+   "qual_score": 52.26,
+   "divergence": -4.47,
+   "early_warning": "aligned",
+   "health_status": "at_risk",
+   "trend": null,
+   "change_from_last_month": -2.86,
+   "contributing_pillars": {
+    "P2": 69.17,
+    "P3": 47.16,
+    "P5": 60.72,
+    "P1": 54.0,
+    "P4": 52.2
+   },
+   "pillar_weights": null,
+   "measurement_month": "2026-02-01"
+  },
+  {
+   "health_score_id": 27,
+   "account_id": 3,
+   "health_score": 71.25,
+   "kpi_only_score": 71.25,
+   "composite_score": null,
+   "qual_score": 89.43,
+   "divergence": 18.18,
+   "early_warning": "recovery_watch",
+   "health_status": "healthy",
+   "trend": null,
+   "change_from_last_month": 14.52,
+   "contributing_pillars": {
+    "P2": 74.25,
+    "P3": 69.7,
+    "P5": 70.36,
+    "P1": 72.01,
+    "P4": 70.57
+   },
+   "pillar_weights": null,
+   "measurement_month": "2026-03-01"
+  }
+ ],
+ "_wizard_b": {
+  "transitions": {
+   "baseline\u2192deterioration": {
+    "from_phase": "baseline",
+    "to_phase": "deterioration",
+    "count": 8,
+    "probability": 0.533,
+    "avg_months_before_transition": 1.38,
+    "triggers": {
+     "usage_decline": 2,
+     "infra_incident": 1,
+     "escalation": 1,
+     "routine": 1,
+     "outcome": 1,
+     "health_transition": 1,
+     "champion_change": 1
+    }
+   },
+   "deterioration\u2192intervention": {
+    "from_phase": "deterioration",
+    "to_phase": "intervention",
+    "count": 3,
+    "probability": 0.375,
+    "avg_months_before_transition": 2.33,
+    "triggers": {
+     "outcome": 2,
+     "infra_incident": 1
+    }
+   },
+   "intervention\u2192resolution": {
+    "from_phase": "intervention",
+    "to_phase": "resolution",
+    "count": 3,
+    "probability": 1.0,
+    "avg_months_before_transition": 3.33,
+    "triggers": {
+     "recovery": 2,
+     "health_transition": 1
+    }
+   },
+   "deterioration\u2192baseline": {
+    "from_phase": "deterioration",
+    "to_phase": "baseline",
+    "count": 5,
+    "probability": 0.625,
+    "avg_months_before_transition": 3.2,
+    "triggers": {
+     "outcome": 2,
+     "advocacy": 1,
+     "routine": 1,
+     "expansion_intent": 1
+    }
+   }
+  },
+  "pattern_profile": {
+   "n_accounts": 2,
+   "kind": "arc",
+   "avg_starting_health": 72.66,
+   "avg_ending_health": 74.11,
+   "avg_lowest_health": 54.0,
+   "avg_highest_health": 77.22,
+   "avg_health_change": 1.45,
+   "avg_months": 9,
+   "phase_distribution_pct": {
+    "baseline": 38.9,
+    "deterioration": 61.1
+   },
+   "current_phase_mix": {
+    "baseline": 2
+   },
+   "avg_supporting_episodes": 2,
+   "observed_roles": {
+    "advocacy": 1,
+    "commercial_pressure": 2,
+    "recovery": 2,
+    "usage_decline": 2,
+    "engagement_decline": 1,
+    "intervention": 1
+   },
+   "lead_days": {
+    "n": 0,
+    "median": null
+   },
+   "accounts": [
+    "Atlas Cloud Services",
+    "Zenith Data Corp"
+   ]
+  },
+  "interventions": [
+   {
+    "account": "Zenith Data Corp",
+    "arc": "competitive_displacement",
+    "date": "2026-03-08T00:00:00",
+    "title": "New CSM assigned and onboarding completed (Zenith Data Corp)",
+    "health_before_last": 56.73,
+    "health_after_last": 71.25,
+    "lift_pts": 14.52,
+    "outcomes_after": [
+     "protected",
+     "protected"
+    ],
+    "revenue_after_protected": 2160000.0,
+    "actual_ending_health": 71.25,
+    "expected_path_end_health": 80
+   }
+  ],
+  "realized_nrr_portfolio": {
+   "n_accounts": 10,
+   "starting_arr": 52400000.0,
+   "lost": 0.0,
+   "expansion": 2980000.0,
+   "protected_narrative": 10070000.0,
+   "net_arr": 55380000.0,
+   "nrr": 1.0569,
+   "recovered_from_low_share": 0.7
+  },
+  "evidence_label": "synthetic_or_unverified \u2014 not evidence",
+  "h1": {
+   "hypothesis": "H1_retention",
+   "events": 0,
+   "account_months": 90,
+   "data_end": "2026-03-31",
+   "leading": {
+    "n": 0,
+    "median": null,
+    "p25": null,
+    "p75": null,
+    "mean": null,
+    "min": null,
+    "max": null,
+    "recall": null,
+    "false_alarm_months": 17,
+    "censored_warning_months": 10,
+    "false_alarms_per_100_account_months": 18.89
+   },
+   "trailing": {
+    "n": 0,
+    "median": null,
+    "p25": null,
+    "p75": null,
+    "mean": null,
+    "min": null,
+    "max": null,
+    "recall": null,
+    "false_alarm_months": 2,
+    "censored_warning_months": 8,
+    "false_alarms_per_100_account_months": 2.22
+   },
+   "crm": {
+    "n": 0,
+    "median": null,
+    "p25": null,
+    "p75": null,
+    "mean": null,
+    "min": null,
+    "max": null,
+    "recall": null,
+    "false_alarm_months": 0,
+    "censored_warning_months": 0,
+    "false_alarms_per_100_account_months": 0.0
+   },
+   "leading_minus_trailing_median_days": null,
+   "verdict": "insufficient_data",
+   "reason": "0 events < min_events 10"
+  },
+  "rules": [
+   {
+    "hypothesis": "H2_growth",
+    "role": "expansion_intent",
+    "preceded_events": 3,
+    "of_events": 3,
+    "frequency": 1.0,
+    "median_lead_days": 35,
+    "background_rate_per_100_months": 14.44,
+    "rule_semantics": "observed frequency on this tenant \u2014 not calibrated, not a probability"
+   },
+   {
+    "hypothesis": "H2_growth",
+    "role": "advocacy",
+    "preceded_events": 2,
+    "of_events": 3,
+    "frequency": 0.667,
+    "median_lead_days": 31.5,
+    "background_rate_per_100_months": 18.89,
+    "rule_semantics": "observed frequency on this tenant \u2014 not calibrated, not a probability"
+   }
+  ]
+ }
+}
