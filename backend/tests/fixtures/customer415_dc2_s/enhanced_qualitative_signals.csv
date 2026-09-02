@@ -1,0 +1,134 @@
+signal_id,source_account_id,signal_date,signal_type,content,sentiment,sentiment_score,stakeholder_name,stakeholder_title,signal_ref
+narrative_sig_415001_1,3732,2025-08-30,critical_incident,Critical service incident reported (Phoenix Hyperscale),negative,-0.61,Priya Sharma,ML Ops Lead,narrative_sig_415001_1
+narrative_sig_415001_2,3732,2025-09-02,stakeholder_escalation,Stakeholder escalated concerns (Phoenix Hyperscale),negative,-0.62,James Walsh,CTO,narrative_sig_415001_2
+intervention_sig_415001_2,3732,2025-10-15,champion_loss,"VP Infrastructure David Kim resigned. 12-year tenure, primary relationship holder.",negative,-0.9,David Kim,VP Infrastructure,intervention_sig_415001_2
+sig_415001_3,3732,2025-10-15,champion_loss,"VP Infrastructure David Kim resigned. 12-year tenure, primary relationship holder.",negative,-0.9,David Kim,VP Infrastructure,sig_415001_3
+intervention_sig_415001_3,3732,2025-11-01,usage_decline,GPU cluster utilization dropped from 87% to 52% after champion departure.,negative,-0.6,David Kim,VP Infrastructure,intervention_sig_415001_3
+sig_415001_4,3732,2025-11-01,usage_decline,GPU cluster utilization dropped from 87% to 52% after champion departure.,negative,-0.6,David Kim,VP Infrastructure,sig_415001_4
+intervention_sig_415001_4,3732,2025-12-01,escalation,CTO James Walsh escalated concerns about renewal. Emergency QBR requested.,negative,-0.6,David Kim,VP Infrastructure,intervention_sig_415001_4
+sig_415001_5,3732,2025-12-01,escalation,CTO James Walsh escalated concerns about renewal. Emergency QBR requested.,negative,-0.6,David Kim,VP Infrastructure,sig_415001_5
+intervention_sig_415001_5,3732,2026-01-15,csm_intervention,New CSM Sarah Rivera assigned. First QBR held with CTO and new Director.,positive,0.7,David Kim,VP Infrastructure,intervention_sig_415001_5
+sig_415001_6,3732,2026-01-15,csm_intervention,New CSM Sarah Rivera assigned. First QBR held with CTO and new Director.,positive,0.7,David Kim,VP Infrastructure,sig_415001_6
+intervention_sig_415001_6,3732,2026-02-15,kpi_recovery,GPU utilization recovering to 68% after workload migration optimization.,positive,0.7,Priya Sharma,ML Ops Lead,intervention_sig_415001_6
+sig_415001_7,3732,2026-02-15,kpi_recovery,GPU utilization recovering to 68% after workload migration optimization.,positive,0.7,Priya Sharma,ML Ops Lead,sig_415001_7
+intervention_sig_415001_7,3732,2026-03-03,champion_reengagement,New champion Rachel Torres fully onboarded. Monthly exec reviews established.,positive,0.7,David Kim,VP Infrastructure,intervention_sig_415001_7
+sig_415001_8,3732,2026-03-03,champion_reengagement,New champion Rachel Torres fully onboarded. Monthly exec reviews established.,positive,0.7,David Kim,VP Infrastructure,sig_415001_8
+intervention_narrative_sig_415001_1,3732,2026-03-08,kpi_recovery,KPI metrics recovering toward target (Phoenix Hyperscale),positive,0.69,Priya Sharma,ML Ops Lead,intervention_narrative_sig_415001_1
+auto_recovery_415001_9,3732,2026-03-15,health_improvement,Account health trending upward: +12 points over 4 weeks. — Phoenix Hyperscale,positive,0.74,David Kim,VP Infrastructure,auto_recovery_415001_9
+auto_recovery_415001_10,3732,2026-03-20,deployment_improvement,Deployment velocity improved 30% after PB-01 acceleration playbook. — Phoenix Hyperscale,positive,0.6,Priya Sharma,ML Ops Lead,auto_recovery_415001_10
+auto_recovery_415001_11,3732,2026-03-25,champion_reengagement,Champion David Kim re-engaged. Quarterly roadmap session completed. — Phoenix Hyperscale,positive,0.7,David Kim,VP Infrastructure,auto_recovery_415001_11
+intervention_auto_recovery_415001_8,3732,2026-03-26,health_improvement,Account health trending upward: +12 points over 4 weeks. — Phoenix Hyperscale,positive,0.74,David Kim,VP Infrastructure,intervention_auto_recovery_415001_8
+intervention_auto_recovery_415001_9,3732,2026-03-30,deployment_improvement,Deployment velocity improved 30% after PB-01 acceleration playbook. — Phoenix Hyperscale,positive,0.6,Priya Sharma,ML Ops Lead,intervention_auto_recovery_415001_9
+intervention_auto_recovery_415001_10,3732,2026-04-03,champion_reengagement,Champion David Kim re-engaged. Quarterly roadmap session completed. — Phoenix Hyperscale,positive,0.7,David Kim,VP Infrastructure,intervention_auto_recovery_415001_10
+narrative_sig_415002_1,3733,2025-07-31,kpi_decline,KPI metrics declining below threshold (Atlas Cloud Services),negative,-0.61,Tom Nakamura,DevOps Lead,narrative_sig_415002_1
+intervention_sig_415002_2,3733,2025-10-20,budget_pressure,CFO Sarah Liu announced 15% budget reduction across infrastructure.,negative,-0.9,Michael Chen,VP Engineering,intervention_sig_415002_2
+sig_415002_2,3733,2025-10-20,budget_pressure,CFO Sarah Liu announced 15% budget reduction across infrastructure.,negative,-0.9,Michael Chen,VP Engineering,sig_415002_2
+intervention_sig_415002_3,3733,2025-11-10,usage_decline,K8s node count reduced from 120 to 80. Migration project paused.,negative,-0.6,Michael Chen,VP Engineering,intervention_sig_415002_3
+sig_415002_3,3733,2025-11-10,usage_decline,K8s node count reduced from 120 to 80. Migration project paused.,negative,-0.6,Michael Chen,VP Engineering,sig_415002_3
+intervention_sig_415002_4,3733,2026-01-10,executive_engagement,CRO hosted exec dinner with CFO. Discussed optimization vs. reduction.,positive,0.7,Sarah Liu,CFO,intervention_sig_415002_4
+sig_415002_4,3733,2026-01-10,executive_engagement,CRO hosted exec dinner with CFO. Discussed optimization vs. reduction.,positive,0.7,Sarah Liu,CFO,sig_415002_4
+intervention_sig_415002_5,3733,2026-02-20,kpi_recovery,K8s utilization recovering as optimization playbook takes effect.,positive,0.7,Tom Nakamura,DevOps Lead,intervention_sig_415002_5
+sig_415002_5,3733,2026-02-20,kpi_recovery,K8s utilization recovering as optimization playbook takes effect.,positive,0.7,Tom Nakamura,DevOps Lead,sig_415002_5
+intervention_narrative_sig_415002_1,3733,2026-03-08,deployment_improvement,Deployment velocity improving after intervention (Atlas Cloud Services),positive,0.68,Tom Nakamura,DevOps Lead,intervention_narrative_sig_415002_1
+intervention_sig_415002_6,3733,2026-03-10,champion_reengagement,VP Engineering Michael Chen re-engaged. Budget approved for Q2 expansion.,positive,0.7,Michael Chen,VP Engineering,intervention_sig_415002_6
+sig_415002_6,3733,2026-03-10,champion_reengagement,VP Engineering Michael Chen re-engaged. Budget approved for Q2 expansion.,positive,0.7,Michael Chen,VP Engineering,sig_415002_6
+auto_recovery_415002_7,3733,2026-03-20,champion_reengagement,Champion Michael Chen re-engaged. Quarterly roadmap session completed. — Atlas Cloud Services,positive,0.61,Michael Chen,VP Engineering,auto_recovery_415002_7
+auto_recovery_415002_8,3733,2026-03-24,health_improvement,Account health trending upward: +12 points over 4 weeks. — Atlas Cloud Services,positive,0.73,Michael Chen,VP Engineering,auto_recovery_415002_8
+intervention_auto_recovery_415002_7,3733,2026-03-26,champion_reengagement,Champion Michael Chen re-engaged. Quarterly roadmap session completed. — Atlas Cloud Services,positive,0.61,Michael Chen,VP Engineering,intervention_auto_recovery_415002_7
+auto_recovery_415002_9,3733,2026-03-27,deployment_improvement,Deployment velocity improved 30% after PB-01 acceleration playbook. — Atlas Cloud Services,positive,0.66,Tom Nakamura,DevOps Lead,auto_recovery_415002_9
+intervention_auto_recovery_415002_8,3733,2026-03-30,health_improvement,Account health trending upward: +12 points over 4 weeks. — Atlas Cloud Services,positive,0.73,Michael Chen,VP Engineering,intervention_auto_recovery_415002_8
+intervention_auto_recovery_415002_9,3733,2026-04-03,deployment_improvement,Deployment velocity improved 30% after PB-01 acceleration playbook. — Atlas Cloud Services,positive,0.66,Tom Nakamura,DevOps Lead,intervention_auto_recovery_415002_9
+narrative_sig_415003_1,3734,2025-07-31,kpi_decline,KPI metrics declining below threshold (Zenith Data Corp),negative,-0.53,Alex Patel,Director of IT,narrative_sig_415003_1
+narrative_sig_415003_2,3734,2025-09-09,usage_decline,Usage quietly trending down with no explicit escalation (Zenith Data Corp),positive,0.69,Lisa Park,Director of Infrastructure,narrative_sig_415003_2
+narrative_sig_415003_3,3734,2025-10-04,usage_decline,Usage quietly trending down with no explicit escalation (Zenith Data Corp),positive,0.55,Lisa Park,Director of Infrastructure,narrative_sig_415003_3
+intervention_sig_415003_3,3734,2025-10-15,engagement_gap,Champion Lisa Park declined last two QBR invitations.,negative,-0.6,Lisa Park,Director of Infrastructure,intervention_sig_415003_3
+sig_415003_4,3734,2025-10-15,engagement_gap,Champion Lisa Park declined last two QBR invitations.,negative,-0.6,Lisa Park,Director of Infrastructure,sig_415003_4
+intervention_sig_415003_4,3734,2025-11-15,usage_decline,Storage utilization dropped from 78% to 55%. DR tests skipped.,negative,-0.6,Lisa Park,Director of Infrastructure,intervention_sig_415003_4
+sig_415003_5,3734,2025-11-15,usage_decline,Storage utilization dropped from 78% to 55%. DR tests skipped.,negative,-0.6,Lisa Park,Director of Infrastructure,sig_415003_5
+intervention_sig_415003_5,3734,2026-01-05,competitor_mention,Internal source reports Zenith evaluating AWS Direct Connect as alternative.,negative,-0.9,Lisa Park,Director of Infrastructure,intervention_sig_415003_5
+sig_415003_6,3734,2026-01-05,competitor_mention,Internal source reports Zenith evaluating AWS Direct Connect as alternative.,negative,-0.9,Lisa Park,Director of Infrastructure,sig_415003_6
+auto_recovery_415003_7,3734,2026-02-07,churn_averted,Renewal secured after proactive outreach reconnected the account team. — Zenith Data Corp,positive,0.93,Lisa Park,Director of Infrastructure,auto_recovery_415003_7
+auto_recovery_415003_8,3734,2026-03-05,kpi_stabilized,Usage metrics holding steady for three consecutive weeks. — Zenith Data Corp,positive,0.6,Lisa Park,Director of Infrastructure,auto_recovery_415003_8
+intervention_narrative_sig_415003_1,3734,2026-03-08,csm_intervention,New CSM assigned and onboarding completed (Zenith Data Corp),positive,0.69,Jordan Blake,Customer Success Manager,intervention_narrative_sig_415003_1
+intervention_narrative_sig_415003_2,3734,2026-03-15,kpi_recovery,KPI metrics recovering toward target (Zenith Data Corp),positive,0.77,Alex Patel,Director of IT,intervention_narrative_sig_415003_2
+intervention_auto_recovery_415003_6,3734,2026-03-28,churn_averted,Renewal secured after proactive outreach reconnected the account team. — Zenith Data Corp,positive,0.93,Lisa Park,Director of Infrastructure,intervention_auto_recovery_415003_6
+intervention_auto_recovery_415003_7,3734,2026-04-02,kpi_stabilized,Usage metrics holding steady for three consecutive weeks. — Zenith Data Corp,positive,0.6,Lisa Park,Director of Infrastructure,intervention_auto_recovery_415003_7
+narrative_sig_415004_1,3735,2025-07-31,critical_incident,Critical service incident reported (Meridian Compute),negative,-0.57,Anna Martinez,Network Architect,narrative_sig_415004_1
+narrative_sig_415004_2,3735,2025-08-07,support_escalation,Support ticket escalated to management (Meridian Compute),negative,-0.63,Anna Martinez,Network Architect,narrative_sig_415004_2
+intervention_sig_415004_2,3735,2025-09-15,critical_incident,Sev-1: Network fabric failure took down 60% of edge nodes for 4 hours.,negative,-0.9,Anna Martinez,Network Architect,intervention_sig_415004_2
+sig_415004_3,3735,2025-09-15,critical_incident,Sev-1: Network fabric failure took down 60% of edge nodes for 4 hours.,negative,-0.9,Anna Martinez,Network Architect,sig_415004_3
+intervention_sig_415004_3,3735,2025-10-01,escalation,CTO Kevin O'Brien escalated to our CEO. Demanded immediate reliability SLA review.,negative,-0.9,Kevin O'Brien,CTO,intervention_sig_415004_3
+sig_415004_4,3735,2025-10-01,escalation,CTO Kevin O'Brien escalated to our CEO. Demanded immediate reliability SLA review.,negative,-0.9,Kevin O'Brien,CTO,sig_415004_4
+intervention_sig_415004_4,3735,2025-12-15,csm_intervention,Dedicated support pod deployed. Weekly reliability reviews with CTO.,positive,0.7,Morgan Lee,Customer Success Manager,intervention_sig_415004_4
+sig_415004_5,3735,2025-12-15,csm_intervention,Dedicated support pod deployed. Weekly reliability reviews with CTO.,positive,0.7,Morgan Lee,Customer Success Manager,sig_415004_5
+intervention_sig_415004_5,3735,2026-01-20,kpi_recovery,Edge node uptime recovered to 99.5% after network fabric remediation.,positive,0.7,Anna Martinez,Network Architect,intervention_sig_415004_5
+sig_415004_6,3735,2026-01-20,kpi_recovery,Edge node uptime recovered to 99.5% after network fabric remediation.,positive,0.7,Anna Martinez,Network Architect,sig_415004_6
+intervention_sig_415004_6,3735,2026-02-15,health_improvement,CTO Kevin O'Brien expressed renewed confidence. Weekly reviews continuing.,positive,0.7,Kevin O'Brien,CTO,intervention_sig_415004_6
+sig_415004_7,3735,2026-02-15,health_improvement,CTO Kevin O'Brien expressed renewed confidence. Weekly reviews continuing.,positive,0.7,Kevin O'Brien,CTO,sig_415004_7
+auto_recovery_415004_8,3735,2026-03-06,health_improvement,Account health trending upward: +12 points over 4 weeks. — Meridian Compute,positive,0.68,Kevin O'Brien,CTO,auto_recovery_415004_8
+intervention_narrative_sig_415004_1,3735,2026-03-08,kpi_recovery,KPI metrics recovering toward target (Meridian Compute),positive,0.69,Anna Martinez,Network Architect,intervention_narrative_sig_415004_1
+auto_recovery_415004_9,3735,2026-03-18,deployment_improvement,Deployment velocity improved 30% after PB-01 acceleration playbook. — Meridian Compute,positive,0.72,Anna Martinez,Network Architect,auto_recovery_415004_9
+intervention_auto_recovery_415004_7,3735,2026-03-28,health_improvement,Account health trending upward: +12 points over 4 weeks. — Meridian Compute,positive,0.68,Kevin O'Brien,CTO,intervention_auto_recovery_415004_7
+intervention_auto_recovery_415004_8,3735,2026-04-02,deployment_improvement,Deployment velocity improved 30% after PB-01 acceleration playbook. — Meridian Compute,positive,0.72,Anna Martinez,Network Architect,intervention_auto_recovery_415004_8
+narrative_sig_415005_1,3736,2025-10-29,routine_review,Routine quarterly review completed (Apex GPU Labs),positive,0.68,Jennifer Wu,VP AI/ML,narrative_sig_415005_1
+intervention_sig_415005_2,3736,2026-01-20,executive_engagement,CEO Daniel Park requested expansion proposal for AI Training Pipeline.,positive,0.7,Daniel Park,CEO,intervention_sig_415005_2
+sig_415005_2,3736,2026-01-20,executive_engagement,CEO Daniel Park requested expansion proposal for AI Training Pipeline.,positive,0.7,Daniel Park,CEO,sig_415005_2
+intervention_sig_415005_3,3736,2026-02-10,feature_adoption,GPU utilization hit 95%. Champion Jennifer Wu advocating for capacity expansion.,positive,0.7,Jennifer Wu,VP AI/ML,intervention_sig_415005_3
+sig_415005_3,3736,2026-02-10,feature_adoption,GPU utilization hit 95%. Champion Jennifer Wu advocating for capacity expansion.,positive,0.7,Jennifer Wu,VP AI/ML,sig_415005_3
+intervention_narrative_sig_415005_1,3736,2026-03-08,advocacy,Account champion actively advocating for platform (Apex GPU Labs),positive,0.55,Jennifer Wu,VP AI/ML,intervention_narrative_sig_415005_1
+auto_recovery_415005_4,3736,2026-03-10,advocacy,Customer agreed to co-present at annual user conference. — Apex GPU Labs,positive,0.69,Jennifer Wu,VP AI/ML,auto_recovery_415005_4
+intervention_auto_recovery_415005_4,3736,2026-03-30,advocacy,Customer agreed to co-present at annual user conference. — Apex GPU Labs,positive,0.69,Jennifer Wu,VP AI/ML,intervention_auto_recovery_415005_4
+narrative_sig_415006_1,3737,2025-10-29,routine_review,Routine quarterly review completed (Nova Infrastructure),positive,0.71,Sarah Rivera,Customer Success Manager,narrative_sig_415006_1
+auto_recovery_415006_2,3737,2026-01-03,expansion_signal,Account expanding GPU cluster capacity by 40%. New PO in procurement. — Nova Infrastructure,positive,0.97,Chris Lee,Director of Infrastructure,auto_recovery_415006_2
+auto_recovery_415006_3,3737,2026-02-15,advocacy,Customer agreed to co-present at annual user conference. — Nova Infrastructure,positive,0.72,Chris Lee,Director of Infrastructure,auto_recovery_415006_3
+intervention_narrative_sig_415006_1,3737,2026-03-08,advocacy,Account champion actively advocating for platform (Nova Infrastructure),positive,0.73,Chris Lee,Director of Infrastructure,intervention_narrative_sig_415006_1
+intervention_auto_recovery_415006_2,3737,2026-04-01,expansion_signal,Account expanding GPU cluster capacity by 40%. New PO in procurement. — Nova Infrastructure,positive,0.97,Chris Lee,Director of Infrastructure,intervention_auto_recovery_415006_2
+intervention_auto_recovery_415006_3,3737,2026-04-04,advocacy,Customer agreed to co-present at annual user conference. — Nova Infrastructure,positive,0.72,Chris Lee,Director of Infrastructure,intervention_auto_recovery_415006_3
+narrative_sig_415007_1,3738,2025-09-29,expansion_signal,Account showing expansion readiness (Summit Platforms),positive,0.72,Tyler Ross,Head of DevOps,narrative_sig_415007_1
+intervention_sig_415007_2,3738,2025-10-10,stakeholder_change,Team reorg: 3 DevOps engineers moved to new platform team. Temporary knowledge gap.,neutral,0.1,Tyler Ross,Head of DevOps,intervention_sig_415007_2
+sig_415007_2,3738,2025-10-10,stakeholder_change,Team reorg: 3 DevOps engineers moved to new platform team. Temporary knowledge gap.,neutral,0.1,Tyler Ross,Head of DevOps,sig_415007_2
+intervention_sig_415007_3,3738,2026-01-05,kpi_recovery,New team up to speed. Deployment velocity back to baseline.,positive,0.7,Casey Nguyen,Director of IT,intervention_sig_415007_3
+sig_415007_3,3738,2026-01-05,kpi_recovery,New team up to speed. Deployment velocity back to baseline.,positive,0.7,Casey Nguyen,Director of IT,sig_415007_3
+auto_recovery_415007_4,3738,2026-02-07,expansion_signal,Account expanding GPU cluster capacity by 40%. New PO in procurement. — Summit Platforms,positive,0.88,Tyler Ross,Head of DevOps,auto_recovery_415007_4
+auto_recovery_415007_5,3738,2026-03-05,advocacy,Customer agreed to co-present at annual user conference. — Summit Platforms,positive,0.74,Tyler Ross,Head of DevOps,auto_recovery_415007_5
+intervention_narrative_sig_415007_1,3738,2026-03-08,advocacy,Account champion actively advocating for platform (Summit Platforms),positive,0.67,Tyler Ross,Head of DevOps,intervention_narrative_sig_415007_1
+intervention_auto_recovery_415007_4,3738,2026-03-28,expansion_signal,Account expanding GPU cluster capacity by 40%. New PO in procurement. — Summit Platforms,positive,0.88,Tyler Ross,Head of DevOps,intervention_auto_recovery_415007_4
+intervention_auto_recovery_415007_5,3738,2026-04-02,advocacy,Customer agreed to co-present at annual user conference. — Summit Platforms,positive,0.74,Tyler Ross,Head of DevOps,intervention_auto_recovery_415007_5
+narrative_sig_415008_1,3739,2025-08-30,champion_advocacy,Champion actively advocating for platform (Pinnacle Networks),positive,0.82,Elena Volkov,Chief AI Officer,narrative_sig_415008_1
+narrative_sig_415008_2,3739,2025-09-29,usage_spike,Significant usage increase detected (Pinnacle Networks),positive,0.77,Sophie Martin,VP Platform Engineering,narrative_sig_415008_2
+intervention_sig_415008_2,3739,2026-01-25,executive_engagement,CEO Marcus Johnson joined expansion review. Approved DR + Edge addition.,positive,0.7,Marcus Johnson,CEO,intervention_sig_415008_2
+sig_415008_3,3739,2026-01-25,executive_engagement,CEO Marcus Johnson joined expansion review. Approved DR + Edge addition.,positive,0.7,Marcus Johnson,CEO,sig_415008_3
+intervention_sig_415008_3,3739,2026-02-15,feature_adoption,AI Training Pipeline throughput up 40%. Champion Elena Volkov presenting at industry conference.,positive,0.7,Elena Volkov,Chief AI Officer,intervention_sig_415008_3
+sig_415008_4,3739,2026-02-15,feature_adoption,AI Training Pipeline throughput up 40%. Champion Elena Volkov presenting at industry conference.,positive,0.7,Elena Volkov,Chief AI Officer,sig_415008_4
+intervention_narrative_sig_415008_1,3739,2026-03-08,advocacy,Account champion actively advocating for platform (Pinnacle Networks),positive,0.68,Elena Volkov,Chief AI Officer,intervention_narrative_sig_415008_1
+auto_recovery_415008_5,3739,2026-03-12,advocacy,Customer agreed to co-present at annual user conference. — Pinnacle Networks,positive,0.67,Elena Volkov,Chief AI Officer,auto_recovery_415008_5
+intervention_auto_recovery_415008_4,3739,2026-03-30,advocacy,Customer agreed to co-present at annual user conference. — Pinnacle Networks,positive,0.67,Elena Volkov,Chief AI Officer,intervention_auto_recovery_415008_4
+narrative_sig_415009_1,3740,2025-07-31,kpi_decline,KPI metrics declining below threshold (Crest Computing),negative,-0.59,Jamie Chen,Director of IT,narrative_sig_415009_1
+intervention_sig_415009_3,3740,2025-08-15,champion_loss,IT Manager Brian Foster resigned. No executive sponsor identified.,negative,-0.9,Brian Foster,IT Manager,intervention_sig_415009_3
+sig_415009_4,3740,2025-08-15,champion_loss,IT Manager Brian Foster resigned. No executive sponsor identified.,negative,-0.9,Brian Foster,IT Manager,sig_415009_4
+narrative_sig_415009_2,3740,2025-09-09,usage_decline,Usage quietly trending down with no explicit escalation (Crest Computing),positive,0.63,Brian Foster,IT Manager,narrative_sig_415009_2
+intervention_sig_415009_4,3740,2025-09-20,engagement_gap,Zero engagement for 60+ days. QBR declined. Support tickets unanswered.,negative,-0.9,Brian Foster,IT Manager,intervention_sig_415009_4
+sig_415009_5,3740,2025-09-20,engagement_gap,Zero engagement for 60+ days. QBR declined. Support tickets unanswered.,negative,-0.9,Brian Foster,IT Manager,sig_415009_5
+narrative_sig_415009_3,3740,2025-10-04,usage_decline,Usage quietly trending down with no explicit escalation (Crest Computing),positive,0.6,Brian Foster,IT Manager,narrative_sig_415009_3
+intervention_sig_415009_5,3740,2025-11-10,competitor_mention,Successor Karen White mentioned evaluating AWS Direct Connect in ticket #4521.,negative,-0.9,Brian Foster,IT Manager,intervention_sig_415009_5
+sig_415009_6,3740,2025-11-10,competitor_mention,Successor Karen White mentioned evaluating AWS Direct Connect in ticket #4521.,negative,-0.9,Brian Foster,IT Manager,sig_415009_6
+intervention_sig_415009_6,3740,2026-01-05,contract_dispute,Crest Computing sent formal notice of non-renewal. Cited reliability concerns.,negative,-0.9,Casey Nguyen,Chief Revenue Officer,intervention_sig_415009_6
+sig_415009_7,3740,2026-01-05,contract_dispute,Crest Computing sent formal notice of non-renewal. Cited reliability concerns.,negative,-0.9,Casey Nguyen,Chief Revenue Officer,sig_415009_7
+auto_recovery_415009_8,3740,2026-01-31,csm_intervention,New CSM Sarah Rivera assigned. Proactive check-in scheduled after quiet engagement drop noticed. — Crest Computing,positive,0.75,Morgan Lee,Customer Success Manager,auto_recovery_415009_8
+auto_recovery_415009_9,3740,2026-02-20,kpi_stabilized,Usage metrics holding steady for three consecutive weeks. — Crest Computing,positive,0.75,Brian Foster,IT Manager,auto_recovery_415009_9
+intervention_narrative_sig_415009_1,3740,2026-03-08,csm_intervention,New CSM assigned and onboarding completed (Crest Computing),positive,0.71,Morgan Lee,Customer Success Manager,intervention_narrative_sig_415009_1
+auto_recovery_415009_10,3740,2026-03-11,churn_averted,Renewal secured after proactive outreach reconnected the account team. — Crest Computing,positive,0.89,Brian Foster,IT Manager,auto_recovery_415009_10
+intervention_narrative_sig_415009_2,3740,2026-03-15,kpi_recovery,KPI metrics recovering toward target (Crest Computing),positive,0.72,Jamie Chen,Director of IT,intervention_narrative_sig_415009_2
+intervention_auto_recovery_415009_7,3740,2026-03-26,csm_intervention,New CSM Sarah Rivera assigned. Proactive check-in scheduled after quiet engagement drop noticed. — Crest Computing,positive,0.75,Morgan Lee,Customer Success Manager,intervention_auto_recovery_415009_7
+intervention_auto_recovery_415009_8,3740,2026-03-30,kpi_stabilized,Usage metrics holding steady for three consecutive weeks. — Crest Computing,positive,0.75,Brian Foster,IT Manager,intervention_auto_recovery_415009_8
+intervention_auto_recovery_415009_9,3740,2026-04-03,churn_averted,Renewal secured after proactive outreach reconnected the account team. — Crest Computing,positive,0.89,Brian Foster,IT Manager,intervention_auto_recovery_415009_9
+intervention_sig_415010_2,3741,2025-10-01,onboarding_milestone,Initial GPU cluster deployment complete. 40% capacity provisioned.,positive,0.7,Alex Rivera,Head of Cloud,intervention_sig_415010_2
+sig_415010_2,3741,2025-10-01,onboarding_milestone,Initial GPU cluster deployment complete. 40% capacity provisioned.,positive,0.7,Alex Rivera,Head of Cloud,sig_415010_2
+narrative_sig_415010_1,3741,2025-10-29,routine_review,Routine quarterly review completed (Valley Dataworks),positive,0.72,Taylor Kim,Customer Success Manager,narrative_sig_415010_1
+intervention_sig_415010_3,3741,2025-12-01,feature_adoption,K8s deployment ahead of schedule. Champion Alex Rivera highly engaged.,positive,0.7,Alex Rivera,Head of Cloud,intervention_sig_415010_3
+sig_415010_3,3741,2025-12-01,feature_adoption,K8s deployment ahead of schedule. Champion Alex Rivera highly engaged.,positive,0.7,Alex Rivera,Head of Cloud,sig_415010_3
+intervention_sig_415010_4,3741,2026-02-01,executive_engagement,CTO Jordan Blake approved phase 2 expansion request.,positive,0.7,Jordan Blake,CTO,intervention_sig_415010_4
+sig_415010_4,3741,2026-02-01,executive_engagement,CTO Jordan Blake approved phase 2 expansion request.,positive,0.7,Jordan Blake,CTO,sig_415010_4
+auto_recovery_415010_5,3741,2026-03-05,advocacy,Customer agreed to co-present at annual user conference. — Valley Dataworks,positive,0.68,Alex Rivera,Head of Cloud,auto_recovery_415010_5
+intervention_narrative_sig_415010_1,3741,2026-03-08,advocacy,Account champion actively advocating for platform (Valley Dataworks),positive,0.82,Alex Rivera,Head of Cloud,intervention_narrative_sig_415010_1
+intervention_auto_recovery_415010_5,3741,2026-03-30,advocacy,Customer agreed to co-present at annual user conference. — Valley Dataworks,positive,0.68,Alex Rivera,Head of Cloud,intervention_auto_recovery_415010_5

@@ -64,7 +64,7 @@
     "expansion_intent": ["expansion_signal", "expansion_discussion", "usage_spike", "feature_adoption", "feature_adoption_increase", "rapid_adoption"],
     "expansion_realized": ["expansion_completed"],
     "advocacy": ["advocacy", "champion_advocacy", "nps_increase", "positive_engagement", "champion_reengagement", "executive_engagement"],
-    "recovery": ["health_improvement", "kpi_recovery", "deployment_improvement", "churn_averted", "recovery_milestone", "fast_onboarding", "onboarding_milestone"],
+    "recovery": ["health_improvement", "kpi_recovery", "kpi_stabilized", "deployment_improvement", "churn_averted", "recovery_milestone", "fast_onboarding", "onboarding_milestone"],
     "intervention": ["csm_intervention", "csm_action", "playbook_executed", "sla_started", "health_score_alert"],
     "routine": ["routine_review", "seasonal_pattern", "support_ticket"]
   }

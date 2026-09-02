@@ -24,9 +24,18 @@ import utils.health_thresholds as ht
 from journeys.journey_builder import Episode
 
 # Roles a rule may cite. A rule's `needs` are role sets ANDed together (any
-# episode in each set within the window); `health` is a predicate on the
+# episode in each set anywhere in the journey); health predicates run on the
 # feature vector. `excludes` are roles whose presence blocks the rule.
-RULE_WINDOW_DAYS = 120
+#
+# Rules read the WHOLE journey, not a trailing window. An arc is a story —
+# crisis_recovery needs the crisis (months ago) and the recovery (now); an
+# account that lost its champion in July and rebuilt by March is still on
+# the exec_sponsor_change arc, in its resolution phase. A first version used
+# a 120-day window and left 4 of 10 accounts on live tenant 415
+# unclassified because only their recovery-phase signals were still in
+# view. What IS window-bound is `steady`: healthy, flat, and no negative
+# role in the last STEADY_QUIET_DAYS.
+STEADY_QUIET_DAYS = 90
 
 
 def _f(name: str) -> Callable[[dict], bool]:
@@ -41,6 +50,9 @@ def _f(name: str) -> Callable[[dict], bool]:
         'renewal_near': lambda f: f['days_to_renewal'] is not None and f['days_to_renewal'] < 90,
         'adoption_declining': lambda f: f['adoption_delta_3mo'] is not None and f['adoption_delta_3mo'] < -5,
         'flat': lambda f: abs(f['health_slope_1mo']) <= 2,
+        # the journey has (or had) a deterioration/intervention phase — the
+        # health-side evidence that a negative arc actually played out
+        'had_negative_phase': lambda f: bool(f.get('had_negative_phase')),
     }[name]
 
 
@@ -48,7 +60,7 @@ RULES: List[dict] = [
     {
         'arc': 'exec_sponsor_change', 'confidence': 0.85,
         'needs': [{'champion_change'}],
-        'health_any': ['below_healthy', 'declining'],
+        'health_any': ['below_healthy', 'declining', 'had_negative_phase'],
         'needs_or_roles': [{'engagement_decline'}],   # health_any OR one of these
         'excludes': set(),
     },
@@ -61,19 +73,20 @@ RULES: List[dict] = [
     {
         'arc': 'stalled_deployment', 'confidence': 0.75,
         'needs': [{'infra_incident', 'capacity_pressure', 'delivery_stall'}],
-        'health_any': ['adoption_declining', 'below_healthy'],
+        'health_any': ['adoption_declining', 'below_healthy', 'had_negative_phase'],
         'excludes': {'champion_change'},
     },
     {
         'arc': 'competitive_displacement', 'confidence': 0.75,
         'needs': [{'commercial_pressure'}],
-        'health_any': ['declining_3mo', 'renewal_near', 'below_healthy'],
+        'health_any': ['declining_3mo', 'renewal_near', 'below_healthy', 'had_negative_phase'],
         'excludes': set(),
     },
     {
         'arc': 'silent_churn', 'confidence': 0.70,
         'needs': [{'engagement_decline', 'usage_decline'}],
-        'health_all': ['declining', 'below_healthy'],
+        'health_any': ['declining', 'had_negative_phase'],
+        'health_all': ['below_healthy_or_had_negative_phase'],
         'excludes': {'infra_incident', 'escalation', 'champion_change', 'commercial_pressure'},
     },
     {
@@ -107,6 +120,8 @@ _NEGATIVE_FOR_STEADY = {
 def _health_pred(name: str, f: dict) -> bool:
     if name == 'below_at_risk_or_dipped':
         return _f('below_at_risk')(f) or bool(f['dipped_below_at_risk'])
+    if name == 'below_healthy_or_had_negative_phase':
+        return _f('below_healthy')(f) or bool(f.get('had_negative_phase'))
     return _f(name)(f)
 
 
@@ -138,11 +153,14 @@ def _evaluate(rule: dict, f: dict, by_role: Dict[str, List[Episode]]) -> Tuple[b
 
 
 def classify(features: dict, episodes: List[Episode], taxonomy, as_of: datetime) -> dict:
-    window_start = as_of - timedelta(days=RULE_WINDOW_DAYS)
     by_role: Dict[str, List[Episode]] = {}
+    recent_negative: List[str] = []
+    quiet_start = as_of - timedelta(days=STEADY_QUIET_DAYS)
     for e in episodes:
-        if e.kind == 'signal' and e.role and window_start < e.date <= as_of:
+        if e.kind == 'signal' and e.role and e.date <= as_of:
             by_role.setdefault(e.role, []).append(e)
+            if e.role in _NEGATIVE_FOR_STEADY and e.date > quiet_start:
+                recent_negative.append(e.role)
     observed_roles = sorted(by_role)
 
     matched = None
@@ -174,13 +192,13 @@ def classify(features: dict, episodes: List[Episode], taxonomy, as_of: datetime)
             'contradicting_evidence': contradicting,
             'alternatives': alternatives,
             'observed_roles': observed_roles,
-            'window_days': RULE_WINDOW_DAYS,
+            'evidence_scope': 'whole_journey',
         }
 
     healthy = features['health_now'] is not None and features['health_now'] >= ht.healthy_min()
-    quiet = not any(r in _NEGATIVE_FOR_STEADY for r in observed_roles)
+    quiet = not recent_negative and not features.get('had_negative_phase')
     if healthy and _f('flat')(features) and quiet:
-        state, reason = 'steady', 'healthy, flat, no negative-role signals in window'
+        state, reason = 'steady', f'healthy, flat, no negative-role signals in the last {STEADY_QUIET_DAYS} days, no negative phase'
     elif features['health_now'] is None:
         state, reason = 'unclassified', 'no health scores'
     else:
@@ -199,5 +217,5 @@ def classify(features: dict, episodes: List[Episode], taxonomy, as_of: datetime)
         'alternatives': alternatives,
         'observed_roles': observed_roles,
         'reason': reason,
-        'window_days': RULE_WINDOW_DAYS,
+        'evidence_scope': 'whole_journey',
     }

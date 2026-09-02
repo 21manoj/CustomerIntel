@@ -1,0 +1,11 @@
+account_name,arc_type,arc_phase,arc_confidence,account_status
+Apex GPU Labs,land_and_expand,baseline,0.75,active
+Atlas Cloud Services,expansion_champion,resolution,0.75,at_risk
+Crest Computing,exec_sponsor_change,intervention,0.85,at_risk
+Meridian Compute,competitive_displacement,resolution,0.55,at_risk
+Nova Infrastructure,land_and_expand,baseline,0.75,active
+Phoenix Hyperscale,seasonal_surge,resolution,0.6,at_risk
+Pinnacle Networks,land_and_expand,baseline,0.75,active
+Summit Platforms,expansion_champion,resolution,0.75,active
+Valley Dataworks,land_and_expand,baseline,0.75,active
+Zenith Data Corp,competitive_displacement,deterioration,0.55,at_risk

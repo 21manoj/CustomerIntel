@@ -381,6 +381,13 @@ def _process_data_impl(customer_id: int, mode: str = 'auto') -> dict:
             vertical = get_vertical_for_customer(customer_id)
         except ValueError as e:
             raise ToolError(str(e))
+        # utils.vertical_health memoises customer_id → vertical for the scorer.
+        # A run must start from the DB's answer: the vertical can be changed
+        # between runs, and any process that reuses ids (test DBs recreated
+        # per module) would otherwise score with a stale catalog — caught on
+        # the customer-415 parity run scoring dc2_s data as datacenter_v1.
+        from utils.vertical_health import clear_vertical_cache
+        clear_vertical_cache(customer_id)
 
         steps, errors, timings = [], [], {}
 

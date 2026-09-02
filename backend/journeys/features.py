@@ -107,6 +107,8 @@ def compute(account, vertical: str, taxonomy, points: List[tuple], episodes: Lis
         'min_health': min(scores) if scores else None,
         'dipped_below_at_risk': any(s < ht.at_risk_min() for s in scores),
         'current_phase': current['name'] if current else None,
+        'phases_seen': [p['name'] for p in phases],
+        'had_negative_phase': any(p['name'] in ('deterioration', 'intervention') for p in phases),
         'time_in_phase_days': time_in_phase_days,
         'days_to_renewal': renewal,
         'days_to_renewal_band': days_to_renewal_band(renewal),

@@ -1,0 +1,34 @@
+source_account_id,outcome_date,outcome_type,title,revenue_value,evidence,linked_signal_id
+3732,2025-10-29,partial_recovery,Partial Recovery — Phoenix Hyperscale,-850000.00,Services stabilizing following initial response.,narrative_sig_415001_1
+3732,2025-11-12,revenue_protected,Revenue Protected — Phoenix Hyperscale,425000.00,Intervention protected ARR through engagement and service improvements.,narrative_sig_415001_1
+3732,2026-03-26,renewal_secured,Renewal Secured — Phoenix Hyperscale,425000.00,Renewal confirmed. Account committed for next term.,narrative_sig_415001_1
+3732,2026-03-27,churn_averted,Churn Risk Averted — Phoenix Hyperscale,3400000.00,Retention plan executed. Account committed to renewal.,narrative_sig_415001_1
+3732,2026-03-28,capacity_constraint,Capacity Issues — Phoenix Hyperscale,-1275000.00,Infrastructure capacity constraints impacting service quality.,narrative_sig_415001_1
+3733,2025-10-29,renewal_uncertainty,Renewal at Risk — Atlas Cloud Services,-1240000.00,Renewal timeline uncertain due to unresolved issues.,narrative_sig_415002_1
+3733,2025-11-05,partner_friction,Integration Friction — Atlas Cloud Services,-496000.00,P4 partner integration issues causing workflow disruption.,narrative_sig_415002_1
+3733,2026-03-23,renewal_secured,Renewal Secured — Atlas Cloud Services,310000.00,Renewal confirmed. Account committed for next term.,narrative_sig_415002_1
+3734,2025-11-28,renewal_uncertainty,Renewal at Risk — Zenith Data Corp,-960000.00,Renewal timeline uncertain due to unresolved issues.,narrative_sig_415003_1
+3734,2025-12-05,engagement_decline,Engagement Declining — Zenith Data Corp,-480000.00,Stakeholder engagement dropped significantly.,narrative_sig_415003_1
+3734,2026-03-23,revenue_protected,Revenue Protected — Zenith Data Corp,240000.00,Intervention protected ARR through engagement and service improvements.,narrative_sig_415003_1
+3734,2026-03-28,churn_averted,Churn Risk Averted — Zenith Data Corp,1920000.00,Retention plan executed. Account committed to renewal.,narrative_sig_415003_1
+3735,2025-10-29,revenue_at_risk,Revenue at Risk — Meridian Compute,-1750000.00,Account showing signs of churn. ARR at risk.,narrative_sig_415004_1
+3735,2025-11-05,capacity_constraint,Capacity Issues — Meridian Compute,-525000.00,Infrastructure capacity constraints impacting service quality.,narrative_sig_415004_1
+3735,2026-03-23,revenue_protected,Revenue Protected — Meridian Compute,175000.00,Intervention protected ARR through engagement and service improvements.,narrative_sig_415004_1
+3735,2026-03-28,churn_averted,Churn Risk Averted — Meridian Compute,1400000.00,Retention plan executed. Account committed to renewal.,narrative_sig_415004_1
+3735,2026-03-31,renewal_secured,Renewal Secured — Meridian Compute,175000.00,Renewal confirmed. Account committed for next term.,narrative_sig_415004_1
+3736,2025-12-12,renewal_secured,Renewal Secured — Apex GPU Labs,355000.00,Renewal confirmed. Account committed for next term.,narrative_sig_415005_1
+3736,2026-01-07,expansion_approved,Expansion Approved — Apex GPU Labs,1420000.00,Account approved additional capacity and new product modules.,narrative_sig_415005_1
+3737,2025-12-12,renewal_secured,Renewal Secured — Nova Infrastructure,275000.00,Renewal confirmed. Account committed for next term.,narrative_sig_415006_1
+3737,2026-03-27,expansion_approved,Expansion Approved — Nova Infrastructure,1100000.00,Account approved additional capacity and new product modules.,narrative_sig_415006_1
+3738,2025-11-28,expansion_opportunity,Expansion Potential — Summit Platforms,420000.00,Account showing strong expansion signals.,narrative_sig_415007_1
+3738,2025-12-05,revenue_growth,Revenue Growth — Summit Platforms,280000.00,Upsell opportunity converted. New workload onboarded.,narrative_sig_415007_1
+3738,2026-03-06,expansion_approved,Expansion Approved — Summit Platforms,560000.00,Account approved additional capacity and new product modules.,narrative_sig_415007_1
+3739,2025-10-29,expansion_closed,Expansion Closed — Pinnacle Networks,1800000.00,Contract expansion executed. New capacity provisioned.,narrative_sig_415008_1
+3739,2025-11-05,revenue_growth,Revenue Growth — Pinnacle Networks,900000.00,Upsell opportunity converted. New workload onboarded.,narrative_sig_415008_1
+3739,2026-01-14,expansion_approved,Expansion Approved — Pinnacle Networks,1800000.00,Account approved additional capacity and new product modules.,narrative_sig_415008_1
+3740,2025-11-28,renewal_uncertainty,Renewal at Risk — Crest Computing,-360000.00,Renewal timeline uncertain due to unresolved issues.,narrative_sig_415009_1
+3740,2025-12-05,engagement_decline,Engagement Declining — Crest Computing,-180000.00,Stakeholder engagement dropped significantly.,narrative_sig_415009_1
+3740,2026-03-24,churn_averted,Churn Risk Averted — Crest Computing,720000.00,Retention plan executed. Account committed to renewal.,narrative_sig_415009_1
+3740,2026-03-26,revenue_protected,Revenue Protected — Crest Computing,90000.00,Intervention protected ARR through engagement and service improvements.,narrative_sig_415009_1
+3741,2025-11-27,expansion_approved,Expansion Approved — Valley Dataworks,640000.00,Account approved additional capacity and new product modules.,narrative_sig_415010_1
+3741,2025-12-12,renewal_secured,Renewal Secured — Valley Dataworks,160000.00,Renewal confirmed. Account committed for next term.,narrative_sig_415010_1
