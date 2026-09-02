@@ -57,7 +57,7 @@ from mcp_server.common import load_system_prompt as _load_system_prompt
 # Server instance
 # ---------------------------------------------------------------------------
 mcp = FastMCP(
-    "CS Pulse",
+    "CustomerIntelV1",
     instructions=_load_system_prompt(),
 )
 

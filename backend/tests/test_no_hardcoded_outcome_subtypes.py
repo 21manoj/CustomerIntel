@@ -91,7 +91,17 @@ def _scan_file(path: Path) -> list[tuple[int, str]]:
     return violations
 
 
-@pytest.mark.parametrize("py_file", sorted(BACKEND_ROOT.rglob("*.py")))
+def _repo_python_files():
+    """Repo sources only. Without this filter the glob descended into .venv
+    and site-packages — 4,300 'tests' scanning third-party code, which
+    inflated the suite count and hid the real one (~350)."""
+    return sorted(
+        p for p in BACKEND_ROOT.rglob("*.py")
+        if not any(part.startswith('.') or part in ('site-packages', 'node_modules', '__pycache__') for part in p.relative_to(BACKEND_ROOT).parts)
+    )
+
+
+@pytest.mark.parametrize("py_file", _repo_python_files(), ids=lambda p: str(p.relative_to(BACKEND_ROOT)))
 def test_no_hardcoded_revenue_bucket_set(py_file):
     """Each Python file under backend/ must not redefine revenue-bucket subtypes."""
     violations = _scan_file(py_file)
