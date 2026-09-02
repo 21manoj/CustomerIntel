@@ -1,0 +1,189 @@
+<meta charset="utf-8">
+<title>Journey Canvas Proposal</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{color-scheme:light;--ground:#f5f6f3;--surface:#fcfdfb;--surface-2:#eef1ed;--ink:#101816;--ink-2:#4d5955;--ink-3:#7f8b87;--hair:#dfe3df;--hair-2:#cfd5d1;--accent:#1f5f5b;--neg:#d03b3b;--pos:#0ca30c;--wash-neg:rgba(208,59,59,.07);--wash-acc:rgba(31,95,91,.07)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){color-scheme:dark;--ground:#0e1312;--surface:#141a19;--surface-2:#1b2321;--ink:#eef1ee;--ink-2:#b7c2be;--ink-3:#8a9793;--hair:#26302e;--hair-2:#33403d;--accent:#7fc2bb;--wash-neg:rgba(208,59,59,.14);--wash-acc:rgba(127,194,187,.1)}}
+:root[data-theme="dark"]{color-scheme:dark;--ground:#0e1312;--surface:#141a19;--surface-2:#1b2321;--ink:#eef1ee;--ink-2:#b7c2be;--ink-3:#8a9793;--hair:#26302e;--hair-2:#33403d;--accent:#7fc2bb;--wash-neg:rgba(208,59,59,.14);--wash-acc:rgba(127,194,187,.1)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--ground);color:var(--ink);font:16px/1.6 "IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif}
+.page{max-width:880px;margin:0 auto;padding:40px 24px 80px}
+h1,h2,h3{font-family:"IBM Plex Serif",Georgia,serif;font-weight:500;text-wrap:balance;margin:0}
+h1{font-size:34px;line-height:1.15}
+h2{font-size:23px;margin:44px 0 12px;padding-top:20px;border-top:1px solid var(--hair-2)}
+h3{font-size:17px;margin:24px 0 8px;font-family:"IBM Plex Sans",system-ui,sans-serif;font-weight:600}
+p{max-width:68ch;margin:0 0 12px}
+li{max-width:68ch;margin-bottom:6px}
+.eyebrow{font:500 11px/1 "IBM Plex Mono",monospace;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+.meta{color:var(--ink-2);font-size:14px;margin-top:10px;max-width:70ch}
+.mono{font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace;font-size:.92em}
+table{width:100%;border-collapse:collapse;font-size:14px;margin:12px 0 18px}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--hair);vertical-align:top}
+th{font:500 11px/1.3 "IBM Plex Mono",monospace;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-3)}
+.wrap{overflow-x:auto}
+.callout{border-left:3px solid var(--accent);background:var(--wash-acc);padding:12px 16px;margin:16px 0;max-width:72ch}
+.callout.warn{border-left-color:var(--neg);background:var(--wash-neg)}
+.rec{font-weight:600}
+.pill{display:inline-block;padding:1px 8px;border-radius:999px;font:500 11px/1.5 "IBM Plex Mono",monospace;border:1px solid var(--hair-2);background:var(--surface);color:var(--ink-2);white-space:nowrap}
+.toc{display:grid;grid-template-columns:1fr 1fr;gap:4px 24px;font-size:14px;margin:20px 0 0;padding:14px 16px;background:var(--surface);border:1px solid var(--hair)}
+.toc a{color:var(--accent);text-decoration:none}
+.toc a:hover,.toc a:focus{text-decoration:underline}
+a{color:var(--accent)}
+.status{font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--ink-3)}
+@media (max-width:640px){.toc{grid-template-columns:1fr}}
+</style>
+
+<div class="page">
+  <div class="eyebrow">CustomerIntel · design proposal · for team debate</div>
+  <h1 style="margin-top:8px">Journey Canvas — accountability and the investment lens</h1>
+  <p class="meta">Draft, 2026-09-02. Nothing in sections 3–5 is built. The as-is in section 2 is the live mock rendered from Zenith Data Corp's real journey. Companion documents in the repo: <span class="mono">journey-canvas.md</span> (three-band design), <span class="mono">wizard-a-assessment.md</span>, <span class="mono">demo-narratives.md</span>.</p>
+  <nav class="toc" aria-label="Contents">
+    <a href="#s1">1 · What this document is for</a><a href="#s2">2 · As-is</a><a href="#s3">3 · Proposal A — accountability</a><a href="#s4">4 · Proposal B — the investment lens</a><a href="#s5">5 · What each proposal needs</a><a href="#s6">6 · Decisions to debate</a><a href="#s7">7 · Suggested sequence</a><a href="#s8">8 · Appendix — Zenith numbers</a>
+  </nav>
+
+  <h2 id="s1">1 · What this document is for</h2>
+  <p>The Journey Canvas mock now tells a credible past, present and next-six-months story for one account. Two questions came out of reviewing it that the canvas cannot answer yet:</p>
+  <ol>
+    <li><b>Who is accountable?</b> People appear by name but are tied to nothing — no signal, no action, no outcome.</li>
+    <li><b>Where do I invest?</b> A VP of CS or a CFO looking at this account, or at the whole portfolio, cannot see <i>which pillar or product</i> to put money against, or <i>where effort is being wasted</i> on accounts that don't need it.</li>
+  </ol>
+  <p>This document states the as-is honestly, proposes a model for each question, and lists the decisions the team has to make before anything is built. It is written to be argued with.</p>
+
+  <h2 id="s2">2 · As-is</h2>
+  <h3>2.1 What the canvas is</h3>
+  <p>One time axis, three bands, one JSON contract (journey v3 from the new build).</p>
+  <ul>
+    <li><b>Now</b> — a state header: KPI health (the only number that feeds anything financial), the behavioral layer and its divergence, the arc hypothesis with the episodes that cite it, the renewal countdown with the 90-day risk window, realized NRR beside narrative exposure (two numbers, never one), and the roster.</li>
+    <li><b>The past</b> — phases as chapters with the episode that triggered each; two health lines with the gap shaded; signals placed by role and colored by polarity with shape as a second channel; dated stakeholder changes; interventions with before/after; outcomes solid when ARR actually moved, hollow when narrative; the arc template's expected path as a dotted overlay; a story paragraph in which every sentence cites an episode.</li>
+    <li><b>The next 3–6 months</b> — a phase-outlook strip from the tenant's own transition matrix; the behavioral layer's hold-then-silence date; tripwires; recommended actions with the observed lift of past interventions; a likelihood fan that widens toward the renewal and labels itself an uncalibrated prior; a forecast ledger stating, for every forward mark, its basis and what would change it.</li>
+    <li><b>The now line is a scrubber</b> — drag it back and every band recomputes from what was known then.</li>
+  </ul>
+  <h3>2.2 What it is built from</h3>
+  <div class="wrap"><table>
+    <thead><tr><th>Layer</th><th>Source in the new build</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr><td>Episodes, phases, leading/trailing series, arc + evidence, expected path, intervention hooks, feature vector</td><td><span class="mono">journeys/</span> (Wizard A v2), <span class="mono">JourneyData.journey_json</span> v3</td><td class="status">shipped · parity-checked on live tenants 359 and 415</td></tr>
+      <tr><td>Transition matrix, realized NRR, derived early-warning rules, intervention stats</td><td><span class="mono">wizards/wizard_b_hindsight.py</span></td><td class="status">shipped</td></tr>
+      <tr><td>Lead-time backtest, evidence label</td><td><span class="mono">evals/lead_time_backtest.py</span></td><td class="status">shipped</td></tr>
+      <tr><td>Forecast block (outlook, silence date, likelihood, tripwires, recommendations)</td><td>computed <b>in the mock's JavaScript</b> from the above</td><td class="status">design only — not a platform output</td></tr>
+      <tr><td>Story paragraph</td><td>generated in the mock, citation-enforced</td><td class="status">design only</td></tr>
+      <tr><td>Rendering</td><td>HTML + inline SVG; PNG/PDF via headless Chrome from the same file</td><td class="status">mock · Python renderer retired</td></tr>
+    </tbody></table></div>
+  <h3>2.3 The worked example — Zenith Data Corp (customer 415, real journey)</h3>
+  <ul>
+    <li>22 dated episodes; phases baseline (Jul–Aug 25) → deterioration (Sep 25–Feb 26, triggered by "usage quietly trending down") → baseline (Mar 26, triggered by the churn-averted outcome).</li>
+    <li>Behavioral layer first warned <b>July 2025</b>; KPI health never crossed at-risk (lowest 56.7). The lead-time bracket is open; the Aug 1, 2026 renewal is the financial test.</li>
+    <li>One intervention (new CSM, Mar 8): 56.7 → 71.3, followed by $2.16M of <i>narrative</i> protection. Realized NRR 100% — nothing lost, nothing booked.</li>
+    <li>Arc <span class="mono">competitive_displacement</span> cited by two commercial-pressure episodes; alternative <span class="mono">silent_churn</span>.</li>
+    <li>Two data-quality flags the canvas surfaces rather than hides: Sep/Oct signals carry positive sentiment against a negative role (the source of a false September "recovery watch"); three source rows are duplicates.</li>
+    <li>The tenant has <b>zero loss events</b> in 90 account-months, so the likelihood fan is a prior (5–53%, median 29%) and says so.</li>
+  </ul>
+  <h3>2.4 What it deliberately does not do yet</h3>
+  <ul>
+    <li>People are a roster. Signals carry a <span class="mono">stakeholder_name</span>, but the journey keeps it as text; decisions and interventions have no owner; outcomes have no accountable party.</li>
+    <li>Health is shown as a rollup. <span class="mono">contributing_pillars</span> exist per month but are not surfaced, so nothing says <i>which pillar</i> is dragging.</li>
+    <li>Nothing is attributed to a product. KPIs and signals carry no product tag.</li>
+    <li>Effort (touches, hours, playbook cost) is not measured, so "over-invested" cannot be computed.</li>
+    <li>Per-pillar dollar impact is not shown: it needs a calibrated health→retention relationship, and this tenant has no loss events to calibrate on.</li>
+  </ul>
+
+  <h2 id="s3">3 · Proposal A — accountability</h2>
+  <h3>3.1 The principle</h3>
+  <div class="callout">An outcome that no one answers for is a number, not a result. The platform should be able to say, for any outcome, <i>which signals preceded it, which actions were taken, who owned them, and who was the sponsor of record</i> — from evidence, not from org charts.</div>
+  <h3>3.2 Three relations, kept apart</h3>
+  <div class="wrap"><table>
+    <thead><tr><th>Relation</th><th>Direction</th><th>Meaning</th><th>Zenith example</th><th>Source</th></tr></thead>
+    <tbody>
+      <tr><td><b>about</b></td><td>signal → person</td><td>the customer-side person a signal concerns</td><td>"Lisa Park declined the last two QBRs" is <i>about</i> Lisa</td><td><span class="mono">stakeholder_name</span> on the signal — already in the data</td></tr>
+      <tr><td><b>owns</b></td><td>action → person</td><td>the our-side person who took the action</td><td>the Mar 8 CSM assignment; a playbook execution</td><td>an <span class="mono">owner</span> on every decision / intervention — <b>missing today</b></td></tr>
+      <tr><td><b>accountable for</b></td><td>outcome → person(s)</td><td>who answers for the outcome</td><td>"Churn risk averted" ← Jordan Blake (owned the actions in the prior 90 days) + Robert Diaz (sponsor of record)</td><td><b>derived</b> from the chain outcome ← actions ← signals; always labelled <i>inferred</i></td></tr>
+    </tbody></table></div>
+  <p>They come from different sources and carry different weight; collapsing them into one "involves" edge (the old repo's approach) is how accountability became decorative.</p>
+  <h3>3.3 What changes on the canvas</h3>
+  <ul>
+    <li>The people lane becomes an <b>accountability lane</b>. A customer-side row carries the signals <i>about</i> that person; an our-side row carries the actions they <i>own</i>. Outcomes get an <i>accountable</i> chip that opens the chain.</li>
+    <li><b>Silent sponsor is a flag.</b> Robert Diaz has zero episodes across nine months of an at-risk account. Today that is an empty bar; it should be a named leading indicator (<span class="mono">sponsor_silent</span>), because absence of engagement from the person who signs is exactly what the two-layer model exists to catch.</li>
+    <li><b>No owner is a governance flag</b>, not a quiet default — the same rule as "no arc without evidence."</li>
+    <li><b>Composition upward:</b> a CSM scorecard becomes <i>actions owned → outcomes that followed</i>, with observed lift, on evidence. That is what RBAC's "my view" should land on for a CSM; the VP view aggregates it; the exec view sees coverage (accounts with a silent sponsor, actions without owners).</li>
+  </ul>
+  <h3>3.4 Data implications</h3>
+  <ul>
+    <li>Episodes gain <span class="mono">actor</span> (customer-side) and <span class="mono">owner</span> (our-side).</li>
+    <li>The journey builder writes typed INVOLVES edges (<span class="mono">about</span> / <span class="mono">owns</span> / <span class="mono">accountable_for</span>); inherited accountability carries <span class="mono">derivation: inferred_from_window</span> and a confidence-semantics label.</li>
+    <li>CSV contract: <span class="mono">owner</span> on decisions; playbook executions carry their executor; stakeholders gain <span class="mono">since</span>/<span class="mono">until</span> dates so tenure is real, not the load timestamp.</li>
+    <li>Honesty rules: an inferred accountability is displayed as such; a person with no dated episode is shown as <i>present, no evidence</i>, never as engaged.</li>
+  </ul>
+
+  <h2 id="s4">4 · Proposal B — the investment lens</h2>
+  <h3>4.1 The principle</h3>
+  <div class="callout">The canvas says <i>how</i> the account is doing. Executives need <i>what to do and what it costs</i>: which pillar, which product, which budget (engineering, CS capacity, commercial), and where effort is being spent without need. Every recommendation must carry the same honesty as the forecast: basis, confidence semantics, tripwire.</div>
+  <h3>4.2 Where to add — pillar drag and product attribution</h3>
+  <p><b>Pillar drag.</b> Health is a weighted rollup and <span class="mono">contributing_pillars</span> are stored per month. Each pillar's <i>shortfall from healthy × its weight</i> is its share of the gap. On Zenith the canvas can already compute "P3 is responsible for 60% of the distance to 70" — it just doesn't show it. A small stacked bar in the state header, and a trend of it across the timeline, make the pillar the first thing a VP sees after the number.</p>
+  <p><b>The qualitative layer points at pillars too.</b> Signal roles map to pillars through the catalogs' <span class="mono">pillar_roles</span>: usage decline → adoption, infra incident → reliability, commercial pressure → revenue/expansion. When the KPI layer and the behavioral layer point at the same pillar, that is the strongest "invest here" the platform can produce; when they disagree, that disagreement is itself the finding.</p>
+  <p><b>Product attribution — the missing piece.</b> Zenith's "storage utilization dropped from 78% to 55%; DR tests skipped" is plainly about Disaster Recovery and High-Performance Storage — $4.0M of the $4.8M ARR — but nothing tags it. The tag turns "P1 is dragging" into "product A is causing it; take it to engineering." Three possible sources, in order of trust: a product tag on KPIs in the catalog; an explicit product column on signals; inference from signal text (fast, must be labelled <i>inferred</i>).</p>
+  <p><b>The lever follows from the pillar's role.</b> This is the CFO's actual question — <i>which budget</i>:</p>
+  <div class="wrap"><table>
+    <thead><tr><th>Pillar role (from the catalog)</th><th>Deficit means</th><th>Lever</th><th>Budget</th></tr></thead>
+    <tbody>
+      <tr><td>adoption, reliability, capacity</td><td>the product is not delivering</td><td>fix / enable</td><td>engineering, support, enablement</td></tr>
+      <tr><td>engagement, champion coverage</td><td>the relationship is thinning</td><td>rebuild</td><td>CS capacity</td></tr>
+      <tr><td>revenue, expansion, commercial pressure</td><td>the deal is under pressure</td><td>reprice / repackage</td><td>commercial</td></tr>
+    </tbody></table></div>
+  <p><b>Portfolio: the investment map.</b> Pillar × product (or vertical) with ARR-weighted deficit in the cells. "$18M of at-risk ARR shares a reliability deficit on product X" is one engineering decision; "$6M shares a champion-coverage gap" is one hiring decision. Concentration is the finding; that is what an exec can act on.</p>
+  <h3>4.3 Where to pull back — effort vs need</h3>
+  <p>Two axes per account: <b>need</b> — what the platform already knows (leading state, phase, renewal proximity, ARR at stake) — and <b>effort</b> — what it does not yet measure (touches, CSM hours, playbook cost).</p>
+  <p>Plotted as a quadrant: under-served-and-at-risk (invest), over-served-and-steady (reshuffle), and the two honest corners. The platform's own evidence keeps this from being a slogan: on Zenith the one intervention was followed by +14.5 points; on a steady account with heavy touch and no measured lift, the effort is <i>unproven</i> — which is the argument for reducing it, stated as a hypothesis with a tripwire ("move to monthly cadence; re-engage if leading &lt; 60"). Rolled up: hours freed from over-served accounts against hours the under-served need, with the arc-transition priors giving the expected value of the move.</p>
+  <h3>4.4 Dollars or priority</h3>
+  <div class="callout warn">Power-of-1 is the right frame — "one point of P3 on this account is worth $X" — but a per-pillar dollar figure needs a calibrated health→retention relationship, and Zenith's tenant has zero loss events. The honest output until calibration exists is <b>exposure-weighted priority</b> (ARR × deficit × weight): the same ranking, no invented ROI. Dollars appear per tenant once its backtest has events — the same rule the forecast fan already follows.</div>
+  <h3>4.5 What changes on the canvas</h3>
+  <ul>
+    <li><b>Band 2:</b> a pillar-drag bar (each pillar's share of the gap, product tags where known) beside the health number.</li>
+    <li><b>Band 3:</b> an <i>invest here</i> card — pillar → product → lever → owner → expected effect (observed where the tenant has it) → tripwire.</li>
+    <li><b>Portfolio (new surface):</b> the investment map; the effort-vs-need quadrant; a reallocation table.</li>
+  </ul>
+
+  <h2 id="s5">5 · What each proposal needs</h2>
+  <div class="wrap"><table>
+    <thead><tr><th>Need</th><th>Proposal</th><th>Who supplies it</th><th>Cost</th></tr></thead>
+    <tbody>
+      <tr><td><span class="mono">owner</span> on decisions / interventions; executor on playbook runs</td><td>A</td><td>our side (UI, playbook engine)</td><td>small</td></tr>
+      <tr><td>stakeholder <span class="mono">since</span> / <span class="mono">until</span></td><td>A</td><td>customer CSV or CRM connector</td><td>small</td></tr>
+      <tr><td>typed INVOLVES edges from the journey builder</td><td>A</td><td>platform</td><td>small</td></tr>
+      <tr><td>pillar drag from <span class="mono">contributing_pillars</span></td><td>B</td><td>platform</td><td>small — data exists</td></tr>
+      <tr><td>product tags on KPIs (catalog)</td><td>B</td><td>platform, per vertical</td><td>medium</td></tr>
+      <tr><td>product column on signals</td><td>B</td><td>customer CSV / connectors</td><td>medium — customer effort</td></tr>
+      <tr><td>effort logging (touches, hours, or playbook cost)</td><td>B</td><td>our side; CRM activity or playbook engine</td><td><b>largest — it does not exist</b></td></tr>
+      <tr><td>health→retention calibration for $ per pillar</td><td>B</td><td>time + loss events per tenant</td><td>cannot be bought; accrues</td></tr>
+    </tbody></table></div>
+
+  <h2 id="s6">6 · Decisions to debate</h2>
+  <div class="wrap"><table>
+    <thead><tr><th>#</th><th>Question</th><th>Options</th><th>Recommendation</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>Who is accountable for an outcome?</td><td>(a) the CSM only · (b) the account team: CSM + sponsor of record · (c) whoever owned actions in the window, whoever they are</td><td><span class="rec">(b), displayed with (c)'s chain.</span> Scorecards then measure the team, and a silent sponsor is visibly part of the result.</td></tr>
+      <tr><td>2</td><td>Where does product attribution come from?</td><td>(a) product tags on KPIs in the catalog · (b) a product column on signals · (c) text inference</td><td><span class="rec">(a) + (b) as truth; (c) only as a flagged suggestion.</span> Never let an inference reach a budget decision unlabelled.</td></tr>
+      <tr><td>3</td><td>What is the unit of effort?</td><td>(a) touches · (b) CSM hours · (c) playbook cost</td><td><span class="rec">Log (a) now — every action already has a date — and price it with (c) where a playbook ran.</span> Hours are the most honest and the least likely to be recorded.</td></tr>
+      <tr><td>4</td><td>Dollars or priority per pillar?</td><td>(a) $ ROI now, from the arc prior · (b) exposure-weighted priority now, $ once the tenant is calibrated</td><td><span class="rec">(b).</span> The same credibility rule as the forecast fan; a ranking with no invented ROI is more persuasive to a CFO than a dollar figure that cannot be defended.</td></tr>
+    </tbody></table></div>
+  <p>Two secondary questions worth settling in the same conversation: whether a <i>silent sponsor</i> should count against the account's leading score or only be flagged (recommendation: flag first, score only after the backtest shows it predicts anything); and whether the over-served quadrant should ever auto-recommend reducing touch, or only surface it (recommendation: surface, with the tripwire; a human decides).</p>
+
+  <h2 id="s7">7 · Suggested sequence</h2>
+  <ol>
+    <li>Accountability edges and owner fields — small, unlocks the lane, the scorecard and the silent-sponsor flag.</li>
+    <li>Pillar drag in Band 2 — data exists; immediately answers "which pillar."</li>
+    <li>Product tags on KPIs for the datacenter and SaaS catalogs; product column added to the signals contract.</li>
+    <li>The portfolio surface: investment map first (it needs only 1–3), effort quadrant once effort is logged.</li>
+    <li>Dollars per pillar, per tenant, when its backtest has events.</li>
+  </ol>
+
+  <h2 id="s8">8 · Appendix — Zenith numbers the proposals would use</h2>
+  <ul>
+    <li>ARR $4.8M: High-Performance Storage $2.5M, Disaster Recovery $1.5M, Monitoring &amp; Observability $0.8M; adoption 72.</li>
+    <li>Latest KPI health 71.3; behavioral 89.4 (+18.2, recovery watch); lowest KPI 56.7 (Feb 26).</li>
+    <li>Signals by role (whole journey): usage decline 4 (+2 duplicate rows), engagement decline 1 (+1 duplicate), commercial pressure 1 (+1 duplicate), recovery 6, CSM intervention 1.</li>
+    <li>Intervention: new CSM Mar 8 — 56.7 → 71.3 (+14.5); outcomes within 90 days: revenue protected $240K, churn averted $1.92M (both narrative).</li>
+    <li>Tenant transition prior from baseline: → deterioration 53% (8 of 15 segments), ~1.4 months, most often triggered by usage decline.</li>
+    <li>Likelihood fan to Aug 1: 5–53%, median 29%; expected loss at the median ≈ $1.39M — prior only, 0 loss events on the tenant.</li>
+    <li>People: Lisa Park (champion, Director of Infrastructure, engagement 83) — declined last two QBRs Oct 15; Robert Diaz (exec sponsor) — no dated episode; Jordan Blake (CSM since Mar 8); Sam Rivera (CS manager).</li>
+  </ul>
+</div>
