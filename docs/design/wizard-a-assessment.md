@@ -153,6 +153,27 @@ Wizard A v2 must write the `leading_vs_trailing` series and `first_leading_dip_a
 4. **Gate the claim on data origin.** The load-driver *generates* signals from story phases, so a backtest on a synthetic tenant is circular. `Customer.data_origin` (WS-2 2a) already tags synthetic tenants; lead-time statistics on those are labelled "demonstrated on synthetic data," never "measured."
 5. **Every warning carries its evidence.** Episode ids, rule/model version, the lead-time distribution it rests on, and `confidence_semantics` (calibrated hit-rate vs rule-match constant). Cold-start tenants (< N labeled outcomes) get warnings labelled *rule-based, uncalibrated* — same honesty Wizard D's `cold_start` already practises.
 
+## 6a. First result — Wizard A v2 on live tenant 415 (2026-09-02)
+
+Customer 415 "Phoenix Data Centers" (dc2_s, 10 accounts, 9 months) reconstructed from the live database; old pipeline output kept alongside (`tests/fixtures/customer415_dc2_s/`).
+
+| Account | Old arc | v2 | Evidence roles | Lead (days) |
+|---|---|---|---|---|
+| Apex GPU Labs | land_and_expand | expansion_champion | advocacy, expansion_intent | — |
+| Atlas Cloud Services | expansion_champion | competitive_displacement | commercial_pressure, usage_decline, recovery | — |
+| Crest Computing | exec_sponsor_change | exec_sponsor_change | champion_change, commercial_pressure, engagement_decline… | 123 |
+| Meridian Compute | *fallback* @0.55 | crisis_recovery | escalation, infra_incident, intervention, recovery | 62 |
+| Nova Infrastructure | land_and_expand | land_and_expand | advocacy, expansion_intent | — |
+| Phoenix Hyperscale | seasonal_surge | exec_sponsor_change | champion_change, escalation, infra_incident… | 92 |
+| Pinnacle Networks | land_and_expand | expansion_champion | advocacy, expansion_intent | — |
+| Summit Platforms | expansion_champion | exec_sponsor_change | champion_change, expansion_intent, recovery | — |
+| Valley Dataworks | land_and_expand | land_and_expand | advocacy, expansion_intent, recovery | — |
+| Zenith Data Corp | *fallback* @0.55 | competitive_displacement | commercial_pressure, engagement_decline, usage_decline | — |
+
+10/10 evidence-cited; 4/10 agree with the old label. "Lead" = days between the leading layer's first warning and trailing health first crossing at-risk — **on synthetic data, so illustrative of the mechanism only** (§7.2). Two things the old output revealed about itself: 41% of this tenant's signals had never become graph evidence (title-based dedup), and its March scores were computed from half a month's KPI rows and never rescored (immutability applied to an open month). The first is fixed in the ingest; the second is an open design item — immutability should apply to closed months.
+
+Classifier change from this run: rules read the whole journey (with the phase history as the health-side evidence), not a trailing window — a 120-day window had left 4 accounts unclassified with only their recovery-phase signals in view.
+
 ## 7. Proof protocol — how the hypothesis gets tested on real data
 
 **Starting condition.** No tenant on the platform holds real customer history; every one is load-driver output, and the load-driver *derives* signals from story phases. A lead time measured there is the generator's own parameter read back. So the proof needs (a) a pre-registered protocol and (b) real history. Order matters: protocol first, so the data can't shape the definition.
