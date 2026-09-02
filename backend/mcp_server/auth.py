@@ -68,8 +68,11 @@ if not MCP_AUTH_REQUIRED:
 # ---------------------------------------------------------------------------
 # Onboarding tools — frictionless auth (no API key required)
 # ---------------------------------------------------------------------------
-# Canonical set: onboarding_tool_registry.py (15 frictionless tools).
-from onboarding_tool_registry import ONBOARDING_TOOLS
+# Canonical set: mcp_server/onboarding_tool_registry.py (frictionless tools).
+try:
+    from mcp_server.onboarding_tool_registry import ONBOARDING_TOOLS
+except ImportError:  # module run with mcp_server/ itself on sys.path
+    from onboarding_tool_registry import ONBOARDING_TOOLS
 
 # Write-scope tools — require 'write' scope on the API key
 WRITE_TOOLS = {

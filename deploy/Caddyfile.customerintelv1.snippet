@@ -1,0 +1,8 @@
+# Appended to ~/caddy/Caddyfile by deploy_ec2.sh (once). Sibling of the
+# old stack's site; its own certificate via sslip.io.
+customerintelv1.3-218-251-181.sslip.io {
+	reverse_proxy customerintelv1-app:8101 {
+		# MCP streamable-HTTP / SSE: no buffering, long-lived streams
+		flush_interval -1
+	}
+}

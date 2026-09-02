@@ -78,6 +78,41 @@ class User(db.Model):
     )
 
 
+class CustomerApiKey(db.Model):
+    """Customer-scoped MCP API keys (csp_{scope}_{random}); SHA-256 hash only.
+    Ported 2026-09-02 for the HTTP transport (the Tier 2A known gap)."""
+    __tablename__ = 'customer_api_keys'
+    id = db.Column(db.Integer, primary_key=True)
+    customer_id = db.Column(db.Integer, db.ForeignKey('customers.customer_id'), nullable=False)
+    created_by = db.Column(db.Integer, nullable=True)
+    key_prefix = db.Column(db.String(20), nullable=False, index=True)
+    key_hash = db.Column(db.String(64), nullable=False)
+    name = db.Column(db.String(255), nullable=False)
+    scopes = db.Column(db.JSON, default=lambda: ['read'])
+    is_active = db.Column(db.Boolean, default=True)
+    expires_at = db.Column(db.DateTime, nullable=True)
+    last_used_at = db.Column(db.DateTime, nullable=True)
+    last_used_ip = db.Column(db.String(45), nullable=True)
+    created_at = db.Column(db.DateTime, server_default=db.func.now())
+    allowed_account_ids = db.Column(db.JSON, nullable=True)   # NULL = all accounts
+    partner_tier = db.Column(db.String(50), nullable=True)
+
+    def has_account_access(self, account_id: int) -> bool:
+        if self.allowed_account_ids is None:
+            return True
+        return account_id in self.allowed_account_ids
+
+    def to_dict(self):
+        return {
+            'id': self.id, 'customer_id': self.customer_id, 'key_prefix': self.key_prefix,
+            'name': self.name, 'scopes': self.scopes, 'is_active': self.is_active,
+            'expires_at': self.expires_at.isoformat() if self.expires_at else None,
+            'last_used_at': self.last_used_at.isoformat() if self.last_used_at else None,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'allowed_account_ids': self.allowed_account_ids, 'partner_tier': self.partner_tier,
+        }
+
+
 class CustomerConfig(db.Model):
     __tablename__ = 'customer_configs'
     config_id = db.Column(db.Integer, primary_key=True)

@@ -1,0 +1,78 @@
+# CustomerIntelV1 — the new build as its own stack on the shared EC2 box.
+#
+#   cd ~/CustomerIntel/deploy
+#   cp .env.customerintelv1.example .env   (fill in secrets)
+#   docker compose -p customerintelv1 -f docker-compose.customerintelv1.yml up -d --build
+#
+# Joins Caddy's network (cspulse_cspulse-net, external) so the existing
+# Caddy can reverse_proxy to customerintelv1-app:8101 under its own
+# hostname; nothing here touches the old stack's containers or ports.
+# Host ports are bound to 127.0.0.1 only — 443 stays Caddy's.
+
+name: customerintelv1
+
+services:
+  customerintelv1-postgres:
+    image: postgres:16
+    container_name: customerintelv1-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: customerintel
+      POSTGRES_USER: customerintel
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set in .env}
+    volumes:
+      - customerintelv1-pgdata:/var/lib/postgresql/data
+      - ./postgres-init:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "127.0.0.1:5434:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U customerintel -d customerintel"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+    networks:
+      - default
+
+  customerintelv1-app:
+    build:
+      context: ../backend
+      args:
+        GIT_SHA: ${GIT_SHA:-unknown}
+        BUILD_TIME: ${BUILD_TIME:-unknown}
+    image: customerintelv1-app
+    container_name: customerintelv1-app
+    restart: unless-stopped
+    depends_on:
+      customerintelv1-postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://customerintel:${POSTGRES_PASSWORD}@customerintelv1-postgres:5432/customerintel
+      TEST_DATABASE_URL: postgresql://customerintel:${POSTGRES_PASSWORD}@customerintelv1-postgres:5432/customerintel_test
+      MCP_TRANSPORT: http
+      MCP_AUTH_REQUIRED: ${MCP_AUTH_REQUIRED:-true}
+      MCP_SERVER_API_KEY: ${MCP_SERVER_API_KEY:?set in .env}
+      PORT: "8101"
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    ports:
+      - "127.0.0.1:8101:8101"
+    deploy:
+      resources:
+        limits:
+          memory: 1536m
+    networks:
+      - default
+      - cspulse-net
+
+volumes:
+  customerintelv1-pgdata:
+
+networks:
+  default:
+    name: customerintelv1-net
+  cspulse-net:
+    external: true
+    name: cspulse_cspulse-net
