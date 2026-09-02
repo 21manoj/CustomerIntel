@@ -1,0 +1,494 @@
+<meta charset="utf-8">
+<title>Zenith Journey Canvas</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  color-scheme:light;
+  --ground:#f5f6f3; --surface:#fcfdfb; --surface-2:#eef1ed;
+  --ink:#101816; --ink-2:#4d5955; --ink-3:#7f8b87; --hair:#dfe3df; --hair-2:#cfd5d1;
+  --accent:#1f5f5b; --accent-ink:#ffffff;
+  --trailing:#2a78d6; --leading:#eda100;
+  --neg:#d03b3b; --pos:#0ca30c; --neutral-mark:#7f8b87;
+  --wash-neg:rgba(208,59,59,.07); --wash-pos:rgba(12,163,12,.07); --wash-trailing:rgba(42,120,214,.08); --wash-leading:rgba(237,161,0,.10);
+  --wash-now:rgba(31,95,91,.06); --wash-window:rgba(208,59,59,.05);
+  --shadow:0 1px 0 rgba(16,24,22,.06);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --ground:#0e1312; --surface:#141a19; --surface-2:#1b2321;
+    --ink:#eef1ee; --ink-2:#b7c2be; --ink-3:#8a9793; --hair:#26302e; --hair-2:#33403d;
+    --accent:#7fc2bb; --accent-ink:#0e1312;
+    --trailing:#3987e5; --leading:#c98500;
+    --wash-neg:rgba(208,59,59,.14); --wash-pos:rgba(12,163,12,.12); --wash-trailing:rgba(57,135,229,.12); --wash-leading:rgba(201,133,0,.14);
+    --wash-now:rgba(127,194,187,.08); --wash-window:rgba(208,59,59,.08);
+    --shadow:none;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --ground:#0e1312; --surface:#141a19; --surface-2:#1b2321;
+  --ink:#eef1ee; --ink-2:#b7c2be; --ink-3:#8a9793; --hair:#26302e; --hair-2:#33403d;
+  --accent:#7fc2bb; --accent-ink:#0e1312;
+  --trailing:#3987e5; --leading:#c98500;
+  --wash-neg:rgba(208,59,59,.14); --wash-pos:rgba(12,163,12,.12); --wash-trailing:rgba(57,135,229,.12); --wash-leading:rgba(201,133,0,.14);
+  --wash-now:rgba(127,194,187,.08); --wash-window:rgba(208,59,59,.08);
+  --shadow:none;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--ground);color:var(--ink);font:15px/1.5 "IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif}
+.page{max-width:1320px;margin:0 auto;padding:28px 24px 64px}
+h1,h2,h3{font-family:"IBM Plex Serif",Georgia,serif;font-weight:500;text-wrap:balance;margin:0}
+h1{font-size:28px;line-height:1.2}
+h2{font-size:18px;margin-bottom:8px}
+.mono{font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace}
+.eyebrow{font:500 11px/1 "IBM Plex Mono",monospace;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+.muted{color:var(--ink-3)} .dim{color:var(--ink-2)}
+.masthead{display:flex;justify-content:space-between;align-items:flex-end;gap:24px;padding-bottom:16px;border-bottom:1px solid var(--hair-2)}
+.masthead .sub{color:var(--ink-2);margin-top:4px}
+.badge{display:inline-flex;align-items:center;gap:6px;padding:3px 8px;border:1px solid var(--hair-2);border-radius:3px;font:500 11px/1.2 "IBM Plex Mono",monospace;letter-spacing:.04em;color:var(--ink-2);background:var(--surface)}
+.badge.warn{border-color:var(--neg);color:var(--ink)}
+.badge .dot{width:8px;height:8px;border-radius:50%;display:inline-block}
+/* Band 2 — now */
+.now{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:1px;background:var(--hair);border:1px solid var(--hair);margin-top:20px}
+.tile{background:var(--surface);padding:14px 16px;min-height:112px;display:flex;flex-direction:column;gap:6px}
+.tile .label{font-size:12px;color:var(--ink-3)}
+.tile .value{font-size:30px;font-weight:600;line-height:1.05;letter-spacing:-.01em}
+.tile .value small{font-size:14px;font-weight:500;color:var(--ink-2);margin-left:4px}
+.tile .foot{font-size:12px;color:var(--ink-2);margin-top:auto}
+.tile.hero .value{font-size:40px}
+.pill{display:inline-block;padding:2px 8px;border-radius:999px;font:500 11px/1.4 "IBM Plex Mono",monospace;letter-spacing:.03em}
+.pill.warn{background:var(--wash-neg);color:var(--ink);border:1px solid var(--neg)}
+.pill.ok{background:var(--wash-pos);color:var(--ink);border:1px solid var(--pos)}
+.pill.info{background:var(--wash-trailing);color:var(--ink);border:1px solid var(--trailing)}
+.meter{height:6px;background:var(--surface-2);border-radius:3px;overflow:hidden}
+.meter i{display:block;height:100%;background:var(--accent)}
+/* canvas */
+.canvas{margin-top:22px;background:var(--surface);border:1px solid var(--hair);box-shadow:var(--shadow)}
+.canvas-head{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:12px 16px;border-bottom:1px solid var(--hair);flex-wrap:wrap}
+.legend{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--ink-2)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.key{width:18px;height:0;border-top:2px solid var(--trailing);display:inline-block}
+.key.step{border-top-style:solid}
+.key.lead{border-top-color:var(--leading)}
+.key.exp{border-top:2px dotted var(--ink-3)}
+.sw{width:10px;height:10px;display:inline-block}
+.scrub{display:flex;align-items:center;gap:10px;font-size:12px;color:var(--ink-2)}
+.scrub input{width:220px;accent-color:var(--accent)}
+.scrub b{font-family:"IBM Plex Mono",monospace;font-weight:500;color:var(--ink)}
+.plot{overflow-x:auto}
+svg{display:block;width:100%;height:auto;font-family:"IBM Plex Sans",system-ui,sans-serif}
+.axis text,.lane-label,.tick{font-family:"IBM Plex Mono",monospace;font-size:11px;fill:var(--ink-3)}
+.lane-label{font-size:11px;letter-spacing:.06em;text-transform:uppercase;fill:var(--ink-3)}
+.hair{stroke:var(--hair);stroke-width:1}
+.hair2{stroke:var(--hair-2);stroke-width:1}
+.thresh{stroke:var(--hair-2);stroke-width:1}
+.phase{fill:var(--surface-2)} .phase.deterioration{fill:var(--wash-neg)} .phase.intervention{fill:var(--wash-trailing)} .phase.resolution{fill:var(--wash-pos)}
+.phase-label{font-family:"IBM Plex Serif",serif;font-size:12px;fill:var(--ink-2)}
+.trailing-line{fill:none;stroke:var(--trailing);stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
+.leading-line{fill:none;stroke:var(--leading);stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
+.leading-proj{fill:none;stroke:var(--leading);stroke-width:2;stroke-dasharray:2 5;stroke-linecap:round}
+.expected{fill:none;stroke:var(--ink-3);stroke-width:1.5;stroke-dasharray:1 4;stroke-linecap:round}
+.gap-neg{fill:var(--wash-leading)} .gap-pos{fill:var(--wash-pos)}
+.mark{stroke:var(--surface);stroke-width:2;cursor:pointer}
+.mark.neg{fill:var(--neg)} .mark.pos{fill:var(--pos)} .mark.neu{fill:var(--neutral-mark)}
+.mark.hollow{fill:var(--surface);stroke-width:2}
+.mark.hollow.neg{stroke:var(--neg)} .mark.hollow.pos{stroke:var(--pos)}
+.mark.decision{fill:var(--accent);stroke:var(--surface)}
+.hit{fill:transparent;cursor:pointer}
+.hit:focus{outline:none} .hit:focus + .mark, .mark:hover{stroke:var(--ink);stroke-width:2}
+.presence{stroke:var(--hair-2);stroke-width:6;stroke-linecap:round}
+.presence.active{stroke:var(--accent);opacity:.55}
+.link{fill:none;stroke:var(--ink-3);stroke-width:1;opacity:.55}
+.flag{font-family:"IBM Plex Mono",monospace;font-size:11px;fill:var(--ink-2)}
+.flag-line{stroke:var(--ink-2);stroke-width:1}
+.now-line{stroke:var(--accent);stroke-width:1.5}
+.now-label{font-family:"IBM Plex Mono",monospace;font-size:11px;fill:var(--accent);letter-spacing:.06em}
+.future{fill:var(--wash-now)}
+.window{fill:var(--wash-window)}
+.count{font-family:"IBM Plex Mono",monospace;font-size:10px;fill:var(--ink);font-weight:500;pointer-events:none}
+.dlabel{font-family:"IBM Plex Mono",monospace;font-size:11px;fill:var(--ink-2)}
+.tip{position:fixed;z-index:10;max-width:320px;background:var(--ink);color:var(--ground);padding:8px 10px;font-size:12px;line-height:1.4;border-radius:3px;pointer-events:none;opacity:0;transition:opacity .12s}
+.tip b{display:block;font-weight:600;margin-bottom:2px}
+.tip .m{font-family:"IBM Plex Mono",monospace;opacity:.8}
+/* below the plot */
+.grid2{display:grid;grid-template-columns:1.25fr 1fr;gap:20px;margin-top:20px}
+.card{background:var(--surface);border:1px solid var(--hair);padding:18px 20px}
+.card h2{display:flex;align-items:baseline;gap:10px}
+.story p{max-width:68ch;margin:0 0 10px;color:var(--ink);font-size:15px}
+.story .ch{font-family:"IBM Plex Serif",serif;font-size:13px;color:var(--ink-2);margin:12px 0 4px}
+.cite{font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--accent);vertical-align:super;margin-left:2px}
+.next{display:grid;grid-template-columns:1fr;gap:12px}
+.fcard{border:1px solid var(--hair);padding:12px 14px;background:var(--ground)}
+.fcard h3{font-size:14px;font-family:"IBM Plex Sans",system-ui,sans-serif;font-weight:600;margin-bottom:4px}
+.fcard .basis{font-size:12px;color:var(--ink-3);margin-top:6px}
+.fcard ul{margin:6px 0 0;padding-left:18px;font-size:13px}
+.range{display:flex;align-items:center;gap:8px;margin-top:6px}
+.range .bar{flex:1;height:10px;background:var(--surface-2);border-radius:2px;position:relative}
+.range .bar i{position:absolute;top:0;bottom:0;background:var(--wash-neg);border-left:1px solid var(--neg);border-right:1px solid var(--neg)}
+.range .bar b{position:absolute;top:-3px;width:2px;height:16px;background:var(--ink)}
+.honesty{margin-top:20px;display:flex;flex-wrap:wrap;gap:8px 18px;padding:12px 16px;border:1px solid var(--hair);background:var(--surface);font-size:12px;color:var(--ink-2)}
+table{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:8px}
+th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--hair);vertical-align:top}
+th{font-weight:500;color:var(--ink-3);font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.05em;text-transform:uppercase}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums;font-family:"IBM Plex Mono",monospace}
+.notes{margin-top:24px;color:var(--ink-2);font-size:13px;max-width:78ch}
+.notes h2{margin-bottom:6px}
+@media (max-width:900px){.now{grid-template-columns:repeat(3,1fr)} .grid2{grid-template-columns:1fr}}
+@media (prefers-reduced-motion:reduce){.tip{transition:none}}
+</style>
+
+<div class="page">
+  <header class="masthead">
+    <div>
+      <div class="eyebrow">Journey canvas · account view</div>
+      <h1 id="title">Zenith Data Corp</h1>
+      <div class="sub" id="subtitle"></div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">
+      <span class="badge" id="origin-badge"></span>
+      <span class="badge" id="asof-badge"></span>
+    </div>
+  </header>
+
+  <section class="now" id="now" aria-label="Current state"></section>
+
+  <section class="canvas" aria-label="Journey timeline">
+    <div class="canvas-head">
+      <div class="legend" id="legend"></div>
+      <div class="scrub">
+        <label for="scrub">Now:</label>
+        <input id="scrub" type="range" min="0" max="100" value="100" aria-label="Move the now line back in time">
+        <b id="scrub-date"></b>
+      </div>
+    </div>
+    <div class="plot"><svg id="svg" viewBox="0 0 1280 660" role="img" aria-labelledby="svg-title"><title id="svg-title">Zenith Data Corp journey — past, now, next six months</title></svg></div>
+  </section>
+
+  <div class="grid2">
+    <section class="card story" aria-label="The story">
+      <h2>The story <span class="eyebrow">every sentence cites an episode</span></h2>
+      <div id="story"></div>
+    </section>
+    <section class="card" aria-label="Next 3 to 6 months">
+      <h2>The next 3–6 months <span class="eyebrow">for the renewal decision</span></h2>
+      <div class="next" id="next"></div>
+    </section>
+  </div>
+
+  <div class="honesty" id="honesty"></div>
+
+  <section class="card" style="margin-top:20px" aria-label="Episode index">
+    <h2>Episode index <span class="eyebrow">table view of every mark</span></h2>
+    <div style="overflow-x:auto"><table id="index"></table></div>
+  </section>
+
+  <section class="notes">
+    <h2>Design notes</h2>
+    <p>Rendered from the new build's journey v3 for this account — nothing here is hand-typed. Three bands share one time axis: the state header (now), the story (past) and the forecast (next), with the now line as a scrubber so the forecast can be audited against what was known earlier. Realized ARR movement is drawn solid; narrative outcomes hollow. Signals are placed by role and colored by polarity with a shape as the second channel; where the source sentiment contradicts the role, the mark is flagged rather than trusted. Forward statements carry their basis and, on this tenant, say plainly that no loss event exists to calibrate against.</p>
+  </section>
+</div>
+<div class="tip" id="tip" role="status" aria-live="polite"></div>
+
+<script>
+const D = {"account": {"account_id": 3, "name": "Zenith Data Corp", "arr": 4800000.0, "status": "active", "profile": {"contract_start": "2025-08-01", "contract_end": "2026-08-01", "renewal_date": "2026-08-01", "csm_name": "Jordan Blake", "csm_email": "jordan.blake@phoenix-dc.com", "csm_manager": "Sam Rivera", "executive_sponsor": "Robert Diaz", "tier": "Mid-Market", "primary_champion_name": "Lisa Park", "primary_champion_title": "Director of Infrastructure", "primary_champion_email": "lisa.park@zenithdatacorp.com", "primary_champion_engagement_score": 83, "employee_count": 1919, "tech_stack": "Azure Stack, Terraform, Splunk", "cloud_provider": "On-Prem", "deployment_type": "cloud", "products": [{"arr": 2500000, "name": "High-Performance Storage", "category": "storage", "adoption": 72.0}, {"arr": 1500000, "name": "Disaster Recovery", "category": "resilience", "adoption": 72.0}, {"arr": 800000, "name": "Monitoring & Observability", "category": "ops", "adoption": 72.0}], "product_adoption": 72.0}, "arc_type": "competitive_displacement", "arc_phase": "baseline", "arc_confidence": 0.75}, "as_of": "2026-03-31T23:59:59", "arc": {"state": "classified", "arc_type": "competitive_displacement", "confidence": 0.75, "confidence_semantics": "rule_match_constant", "matched_rule": "competitive_displacement", "supporting_episode_ids": ["sig:83", "sig:84"], "contradicting_evidence": ["positive role present: recovery"], "alternatives": [{"arc_type": "silent_churn", "present": ["sig:76", "sig:77", "sig:78", "sig:79", "sig:80", "sig:81", "sig:82"], "missing": ["excluded_role_present:commercial_pressure"]}], "observed_roles": ["commercial_pressure", "engagement_decline", "intervention", "recovery", "usage_decline"], "evidence_scope": "whole_journey"}, "state": "classified", "current_phase": "baseline", "phases": [{"name": "baseline", "entered_at": "2025-07-01", "exited_at": "2025-09-01", "months": 2, "health_start": 77.47, "health_end": 75.05, "trigger_episode_id": "sig:76"}, {"name": "deterioration", "entered_at": "2025-09-01", "exited_at": "2026-03-01", "months": 6, "health_start": 72.06, "health_end": 56.73, "trigger_episode_id": "sig:77"}, {"name": "baseline", "entered_at": "2026-03-01", "exited_at": null, "months": 1, "health_start": 71.25, "health_end": 71.25, "trigger_episode_id": "out:181"}], "episodes": [{"episode_id": "sig:76", "date": "2025-07-31T00:00:00", "kind": "signal", "subtype": "kpi_decline", "role": "usage_decline", "polarity": -1, "source": "observed", "title": "KPI metrics declining below threshold (Zenith Data Corp)", "evidence_node_ids": [76], "sentiment": -0.53, "revenue": null, "revenue_bucket": null, "meta": {"source_platform": "csv_import", "stakeholder": "Alex Patel"}}, {"episode_id": "sig:77", "date": "2025-09-09T00:00:00", "kind": "signal", "subtype": "usage_decline", "role": "usage_decline", "polarity": -1, "source": "observed", "title": "Usage quietly trending down with no explicit escalation (Zenith Data Corp)", "evidence_node_ids": [77], "sentiment": 0.69, "revenue": null, "revenue_bucket": null, "meta": {"source_platform": "csv_import", "stakeholder": "Lisa Park"}}, {"episode_id": "hs:22", "date": "2025-10-01T00:00:00", "kind": "health_transition", "subtype": "healthy->at_risk", "role": null, "polarity": -1, "source": "system", "title": "Health healthy \u2192 at_risk (68.7)", "evidence_node_ids": [], "sentiment": null, "revenue": null, "revenue_bucket": null, "meta": {"health_score": 68.65, "from": "healthy", "to": "at_risk"}}, {"episode_id": "sig:78", "date": "2025-10-04T00:00:00", "kind": "signal", "subtype": "usage_decline", "role": "usage_decline", "polarity": -1, "source": "observed", "title": "Usage quietly trending down with no explicit escalation (Zenith Data Corp)", "evidence_node_ids": [78], "sentiment": 0.55, "revenue": null, "revenue_bucket": null, "meta": {"source_platform": "csv_import", "stakeholder": "Lisa Park"}}, {"episode_id": "sig:79", "date": "2025-10-15T00:00:00", "kind": "signal", "subtype": "engagement_gap", "role": "engagement_decline", "polarity": -1, "source": "observed", "title": "Champion Lisa Park declined last two QBR invitations.", "evidence_node_ids": [79], "sentiment": -0.6, "revenue": null, "revenue_bucket": null, "meta": {"source_platform": "csv_import", "stakeholder": "Lisa Park"}}, {"episode_id": "sig:80", "date": "2025-10-15T00:00:00", "kind": "signal", "subtype": "engagement_gap", "role": "engagement_decline", "polarity": -1, "source": "observed", "title": "Champion Lisa Park declined last two QBR invitations.", "evidence_node_ids": [80], "sentiment": -0.6, "revenue": null, "revenue_bucket": null, "meta": {"source_platform": "csv_import", "stakeholder": "Lisa Park"}}, {"episode_id": "sig:81", "date": "2025-11-15T00:00:00", "kind": "signal", "subtype": "usage_decline", "role": "usage_decline", "polarity": -1, "source": "observed", "title": "Storage utilization dropped from 78% to 55%. DR tests skipped.", "evidence_node_ids": [81], "sentiment": -0.6, "revenue": null, "revenue_bucket": null, "meta": {"source_platform": "csv_import", "stakeholder": "Lisa Park"}}, {"episode_id": "sig:82", "date": "2025-11-15T00:00:00", "kind": "signal", "subtype": "usage_decline", "role": "usage_decline", "polarity": -1, "source": "observed", "title": "Storage utilization dropped from 78% to 55%. DR tests skipped.", "evidence_node_ids": [82], "sentiment": -0.6, "revenue": null, "revenue_bucket": null, "meta": {"source_platform": "csv_import", "stakeholder": "Lisa Park"}}, {"episode_id": "out:178", "date": "2025-11-28T00:00:00", "kind": "outcome", "subtype": "renewal_uncertainty", "role": null, "polarity": -1, "source": "observed", "title": "Renewal at Risk \u2014 Zenith Data Corp", "evidence_node_ids": [178], "sentiment": null, "revenue": -960000.0, "revenue_bucket": "at_risk", "meta": {"evidence_clamped": false}}, {"episode_id": "out:179", "date": "2025-12-05T00:00:00", "kind": "outcome", "subtype": "engagement_decline", "role": null, "polarity": -1, "source": "observed", "title": "Engagement Declining \u2014 Zenith Data Corp", "evidence_node_ids": [179], "sentiment": null, "revenue": -480000.0, "revenue_bucket": "at_risk", "meta": {"evidence_clamped": false}}, {"episode_id": "sig:83", "date": "2026-01-05T00:00:00", "kind": "signal", "subtype": "competitor_mention", "role": "commercial_pressure", "polarity": -1, "source": "observed", "title": "Internal source reports Zenith evaluating AWS Direct Connect as alternative.", "evidence_node_ids": [83], "sentiment": -0.9, "revenue": null, "revenue_bucket": null, "meta": {"source_platform": "csv_import", "stakeholder": "Lisa Park"}}, {"episode_id": "sig:84", "date": "2026-01-05T00:00:00", "kind": "signal", "subtype": "competitor_mention", "role": "commercial_pressure", "polarity": -1, "source": "observed", "title": "Internal source reports Zenith evaluating AWS Direct Connect as alternative.", "evidence_node_ids": [84], "sentiment": -0.9, "revenue": null, "revenue_bucket": null, "meta": {"source_platform": "csv_import", "stakeholder": "Lisa Park"}}, {"episode_id": "sig:85", "date": "2026-02-07T00:00:00", "kind": "signal", "subtype": "churn_averted", "role": "recovery", "polarity": 1, "source": "observed", "title": "Renewal secured after proactive outreach reconnected the account team. \u2014 Zenith Data Corp", "evidence_node_ids": [85], "sentiment": 0.93, "revenue": null, "revenue_bucket": null, "meta": {"source_platform": "csv_import", "stakeholder": "Lisa Park"}}, {"episode_id": "hs:27", "date": "2026-03-01T00:00:00", "kind": "health_transition", "subtype": "at_risk->healthy", "role": null, "polarity": 1, "source": "system", "title": "Health at_risk \u2192 healthy (71.2)", "evidence_node_ids": [], "sentiment": null, "revenue": null, "revenue_bucket": null, "meta": {"health_score": 71.25, "from": "at_risk", "to": "healthy"}}, {"episode_id": "sig:86", "date": "2026-03-05T00:00:00", "kind": "signal", "subtype": "kpi_stabilized", "role": "recovery", "polarity": 1, "source": "observed", "title": "Usage metrics holding steady for three consecutive weeks. \u2014 Zenith Data Corp", "evidence_node_ids": [86], "sentiment": 0.6, "revenue": null, "revenue_bucket": null, "meta": {"source_platform": "csv_import", "stakeholder": "Lisa Park"}}, {"episode_id": "sig:87", "date": "2026-03-08T00:00:00", "kind": "signal", "subtype": "csm_intervention", "role": "intervention", "polarity": 0, "source": "observed", "title": "New CSM assigned and onboarding completed (Zenith Data Corp)", "evidence_node_ids": [87], "sentiment": 0.69, "revenue": null, "revenue_bucket": null, "meta": {"source_platform": "csv_import", "stakeholder": "Jordan Blake"}}, {"episode_id": "sig:88", "date": "2026-03-15T00:00:00", "kind": "signal", "subtype": "kpi_recovery", "role": "recovery", "polarity": 1, "source": "observed", "title": "KPI metrics recovering toward target (Zenith Data Corp)", "evidence_node_ids": [88], "sentiment": 0.77, "revenue": null, "revenue_bucket": null, "meta": {"source_platform": "csv_import", "stakeholder": "Alex Patel"}}, {"episode_id": "out:180", "date": "2026-03-23T00:00:00", "kind": "outcome", "subtype": "revenue_protected", "role": null, "polarity": 1, "source": "observed", "title": "Revenue Protected \u2014 Zenith Data Corp", "evidence_node_ids": [180], "sentiment": null, "revenue": 240000.0, "revenue_bucket": "protected", "meta": {"evidence_clamped": false}}, {"episode_id": "sig:89", "date": "2026-03-28T00:00:00", "kind": "signal", "subtype": "churn_averted", "role": "recovery", "polarity": 1, "source": "observed", "title": "Renewal secured after proactive outreach reconnected the account team. \u2014 Zenith Data Corp", "evidence_node_ids": [89], "sentiment": 0.93, "revenue": null, "revenue_bucket": null, "meta": {"source_platform": "csv_import", "stakeholder": "Lisa Park"}}, {"episode_id": "out:181", "date": "2026-03-28T00:00:00", "kind": "outcome", "subtype": "churn_averted", "role": null, "polarity": 1, "source": "observed", "title": "Churn Risk Averted \u2014 Zenith Data Corp", "evidence_node_ids": [181], "sentiment": null, "revenue": 1920000.0, "revenue_bucket": "protected", "meta": {"evidence_clamped": false}}, {"episode_id": "sig:90", "date": "2026-04-02T00:00:00", "kind": "signal", "subtype": "kpi_stabilized", "role": "recovery", "polarity": 1, "source": "observed", "title": "Usage metrics holding steady for three consecutive weeks. \u2014 Zenith Data Corp", "evidence_node_ids": [90], "sentiment": 0.6, "revenue": null, "revenue_bucket": null, "meta": {"source_platform": "csv_import", "stakeholder": "Lisa Park"}}, {"episode_id": "renewal", "date": "2026-08-01T00:00:00", "kind": "renewal", "subtype": "renewal_date", "role": null, "polarity": 0, "source": "observed", "title": "Renewal date", "evidence_node_ids": [], "sentiment": null, "revenue": null, "revenue_bucket": null, "meta": {"renewal_date": "2026-08-01"}}], "series": [{"month": "2025-07-01", "kpi_only": 77.47, "qual": 23.5, "divergence": -53.97, "early_warning": "early_warning", "signal_count": 1, "contributing_episode_ids": ["sig:76"], "roles": {"usage_decline": 1}}, {"month": "2025-08-01", "kpi_only": 75.05, "qual": 23.5, "divergence": -51.55, "early_warning": "early_warning", "signal_count": 1, "contributing_episode_ids": ["sig:76"], "roles": {"usage_decline": 1}}, {"month": "2025-09-01", "kpi_only": 72.06, "qual": 84.5, "divergence": 12.44, "early_warning": "recovery_watch", "signal_count": 1, "contributing_episode_ids": ["sig:77"], "roles": {"usage_decline": 1}}, {"month": "2025-10-01", "kpi_only": 68.65, "qual": 42.66, "divergence": -25.99, "early_warning": "early_warning", "signal_count": 4, "contributing_episode_ids": ["sig:77", "sig:78", "sig:79", "sig:80"], "roles": {"usage_decline": 2, "engagement_decline": 2}}, {"month": "2025-11-01", "kpi_only": 65.82, "qual": 26.51, "divergence": -39.31, "early_warning": "early_warning", "signal_count": 5, "contributing_episode_ids": ["sig:78", "sig:79", "sig:80", "sig:81", "sig:82"], "roles": {"usage_decline": 3, "engagement_decline": 2}}, {"month": "2025-12-01", "kpi_only": 62.67, "qual": 20.0, "divergence": -42.67, "early_warning": "early_warning", "signal_count": 2, "contributing_episode_ids": ["sig:81", "sig:82"], "roles": {"usage_decline": 2}}, {"month": "2026-01-01", "kpi_only": 59.59, "qual": 5.0, "divergence": -54.59, "early_warning": "early_warning", "signal_count": 2, "contributing_episode_ids": ["sig:83", "sig:84"], "roles": {"commercial_pressure": 2}}, {"month": "2026-02-01", "kpi_only": 56.73, "qual": 52.26, "divergence": -4.47, "early_warning": "aligned", "signal_count": 3, "contributing_episode_ids": ["sig:83", "sig:84", "sig:85"], "roles": {"commercial_pressure": 2, "recovery": 1}}, {"month": "2026-03-01", "kpi_only": 71.25, "qual": 89.43, "divergence": 18.18, "early_warning": "recovery_watch", "signal_count": 5, "contributing_episode_ids": ["sig:85", "sig:86", "sig:87", "sig:88", "sig:89"], "roles": {"recovery": 4, "intervention": 1}}], "lvt": {"first_leading_warning_at": "2025-07-01", "first_trailing_warning_at": null, "lead_days": null, "window_days": 60, "divergence_warning_pts": 10, "note": "qual is computed from signals only and is never blended into kpi_only (absolute-separation invariant)."}, "hooks": [{"episode_id": "sig:87", "date": "2026-03-08T00:00:00", "title": "New CSM assigned and onboarding completed (Zenith Data Corp)", "health_before": {"n": 3, "mean": 59.66, "last": 56.73}, "health_after": {"n": 1, "mean": 71.25, "last": 71.25}, "outcomes_after": [{"episode_id": "out:180", "bucket": "protected", "revenue": 240000.0}, {"episode_id": "out:181", "bucket": "protected", "revenue": 1920000.0}]}], "expected_path": {"arc_type": "competitive_displacement", "arc_name": "Competitive Displacement", "source": "story_arc_template", "note": "Typical path for this arc from the reference narrative \u2014 a prior, not this account's data.", "total_weeks": 36, "phases": [{"phase_id": 1, "name": "Stable Relationship", "starts_week": 0, "duration_weeks": 8, "health_start": 76, "health_end": 74, "description": "Account is healthy and productive. GPU clusters running at capacity, partner engagement strong, renewal not yet on the horizon. Subtle early signals begin appearing: CTO attends a competitor-sponsored industry event, routine QBR is rescheduled."}, {"phase_id": 2, "name": "Competitive Approach", "starts_week": 8, "duration_weeks": 6, "health_start": 74, "health_end": 69, "description": "Competitor AE makes formal contact with CTO offering 30% lower TCO. Competitor sends technical team for informal benchmarking conversation. Engagement metrics begin declining as CTO diverts attention. Budget discussions go silent."}, {"phase_id": 3, "name": "Evaluation Period", "starts_week": 14, "duration_weeks": 8, "health_start": 69, "health_end": 62, "description": "CTO initiates formal vendor evaluation. Competitor runs benchmark POC on a subset of workloads. Internal engagement drops as stakeholders hedge. GPU utilization data becomes a competitive battleground. Health score dips into at-risk territory."}, {"phase_id": 4, "name": "Defense & Counter", "starts_week": 22, "duration_weeks": 8, "health_start": 62, "health_end": 73, "description": "CS deploys multi-pronged competitive defense. VP Sales initiates executive alignment with CTO. Value-realization report delivered to CFO showing true TCO advantage and switching costs. Engineering team provides benchmark counter-data proving superior distributed training performance. Health begins recovery."}, {"phase_id": 5, "name": "Retention & Strengthening", "starts_week": 30, "duration_weeks": 6, "health_start": 73, "health_end": 80, "description": "Account commits to multi-year renewal with expanded scope. Competitor retreats. Champion engagement rebounds to all-time high. Budget signals return with expansion discussion. Health score exceeds pre-threat baseline."}], "typical_decisions": [{"phase_id": 1, "week": 14, "title": "Escalate competitive threat to VP Sales with full signal dossier", "decision_maker_role": "champion"}, {"phase_id": 3, "week": 24, "title": "Deploy value-realization report for CFO with TCO defense", "decision_maker_role": "exec_sponsor"}, {"phase_id": 3, "week": 29, "title": "Negotiate multi-year retention agreement with investment incentives", "decision_maker_role": "exec_sponsor"}], "revenue_narrative": {"arr_start": 3800000, "arr_end": 4200000, "arr_at_risk_peak": 3800000, "roi_of_intervention": 720, "cost_of_inaction": 4370000, "time_horizon_weeks": 36, "intervention_cost": 528000, "net_revenue_saved": 3272000}}, "features": {"as_of": "2026-03-31T23:59:59", "health_now": 71.25, "health_band": "healthy", "health_slope_1mo": 14.52, "health_slope_3mo": 2.86, "volatility_3mo": 8.25, "months_scored": 9, "min_health": 56.73, "dipped_below_at_risk": false, "current_phase": "baseline", "phases_seen": ["baseline", "deterioration", "baseline"], "had_negative_phase": true, "time_in_phase_days": 30, "days_to_renewal": 122, "days_to_renewal_band": "91-180", "signal_role_counts_90d": {"commercial_pressure": 2, "recovery": 4, "intervention": 1}, "signal_role_counts_total": {"usage_decline": 5, "engagement_decline": 2, "commercial_pressure": 2, "recovery": 5, "intervention": 1}, "unmapped_signals_90d": 0, "last_role_at": {"usage_decline": "2025-11-15", "engagement_decline": "2025-10-15", "commercial_pressure": "2026-01-05", "recovery": "2026-03-28", "intervention": "2026-03-08"}, "stakeholder_roles_present": ["champion", "cs_manager", "csm", "executive_sponsor"], "adoption_pillar": "P1", "adoption_delta_3mo": 11.4, "qual_now": 89.43, "divergence_now": 18.18, "early_warning_now": "recovery_watch", "first_leading_warning_at": "2025-07-01", "first_trailing_warning_at": null, "lead_days": null, "latest_outcome_bucket": "protected", "trajectory": "declining", "trajectory_confidence": 0.95}, "summary": {"starting_health": 77.47, "ending_health": 71.25, "lowest_health": 56.73, "highest_health": 77.47, "months_scored": 9, "episodes_by_kind": {"signal": 15, "health_transition": 2, "outcome": 4, "renewal": 1}, "trajectory": "declining", "trajectory_confidence": 0.95}, "stakeholders": [{"node_id": 1, "customer_id": 1, "account_id": 3, "node_type": "STAKEHOLDER", "node_subtype": "champion", "source": "observed", "tier": 1, "title": "Lisa Park (Director of Infrastructure)", "properties": {"name": "Lisa Park", "role": "champion", "job_title": "Director of Infrastructure", "email": "lisa.park@zenithdatacorp.com", "auto_created": true, "source_field": "primary_champion_name"}, "revenue_impact": null, "revenue_impact_type": null, "confidence": 1.0, "source_platform": "account_details_extraction", "source_event_id": null, "occurred_at": "2026-09-02T15:40:16.684350", "expires_at": null}, {"node_id": 2, "customer_id": 1, "account_id": 3, "node_type": "STAKEHOLDER", "node_subtype": "executive_sponsor", "source": "observed", "tier": 1, "title": "Robert Diaz (Executive Sponsor)", "properties": {"name": "Robert Diaz", "role": "executive_sponsor", "job_title": "Executive Sponsor", "email": "", "auto_created": true, "source_field": "executive_sponsor"}, "revenue_impact": null, "revenue_impact_type": null, "confidence": 1.0, "source_platform": "account_details_extraction", "source_event_id": null, "occurred_at": "2026-09-02T15:40:16.689415", "expires_at": null}, {"node_id": 3, "customer_id": 1, "account_id": 3, "node_type": "STAKEHOLDER", "node_subtype": "csm", "source": "observed", "tier": 1, "title": "Jordan Blake (Csm)", "properties": {"name": "Jordan Blake", "role": "csm", "job_title": "Csm", "email": "jordan.blake@phoenix-dc.com", "auto_created": true, "source_field": "csm_name"}, "revenue_impact": null, "revenue_impact_type": null, "confidence": 1.0, "source_platform": "account_details_extraction", "source_event_id": null, "occurred_at": "2026-09-02T15:40:16.690880", "expires_at": null}, {"node_id": 4, "customer_id": 1, "account_id": 3, "node_type": "STAKEHOLDER", "node_subtype": "cs_manager", "source": "observed", "tier": 1, "title": "Sam Rivera (Cs Manager)", "properties": {"name": "Sam Rivera", "role": "cs_manager", "job_title": "Cs Manager", "email": "", "auto_created": true, "source_field": "csm_manager"}, "revenue_impact": null, "revenue_impact_type": null, "confidence": 1.0, "source_platform": "account_details_extraction", "source_event_id": null, "occurred_at": "2026-09-02T15:40:16.693384", "expires_at": null}], "wizard_b": {"transitions": {"baseline\u2192deterioration": {"from_phase": "baseline", "to_phase": "deterioration", "count": 8, "probability": 0.533, "avg_months_before_transition": 1.38, "triggers": {"usage_decline": 2, "infra_incident": 1, "escalation": 1, "routine": 1, "outcome": 1, "health_transition": 1, "champion_change": 1}}, "deterioration\u2192intervention": {"from_phase": "deterioration", "to_phase": "intervention", "count": 3, "probability": 0.375, "avg_months_before_transition": 2.33, "triggers": {"outcome": 2, "infra_incident": 1}}, "intervention\u2192resolution": {"from_phase": "intervention", "to_phase": "resolution", "count": 3, "probability": 1.0, "avg_months_before_transition": 3.33, "triggers": {"recovery": 2, "health_transition": 1}}, "deterioration\u2192baseline": {"from_phase": "deterioration", "to_phase": "baseline", "count": 5, "probability": 0.625, "avg_months_before_transition": 3.2, "triggers": {"outcome": 2, "advocacy": 1, "routine": 1, "expansion_intent": 1}}}, "pattern_profile": {"n_accounts": 2, "kind": "arc", "avg_starting_health": 72.66, "avg_ending_health": 74.11, "avg_lowest_health": 54.0, "avg_highest_health": 77.22, "avg_health_change": 1.45, "avg_months": 9, "phase_distribution_pct": {"baseline": 38.9, "deterioration": 61.1}, "current_phase_mix": {"baseline": 2}, "avg_supporting_episodes": 2, "observed_roles": {"advocacy": 1, "commercial_pressure": 2, "recovery": 2, "usage_decline": 2, "engagement_decline": 1, "intervention": 1}, "lead_days": {"n": 0, "median": null}, "accounts": ["Atlas Cloud Services", "Zenith Data Corp"]}, "interventions": [{"account": "Zenith Data Corp", "arc": "competitive_displacement", "date": "2026-03-08T00:00:00", "title": "New CSM assigned and onboarding completed (Zenith Data Corp)", "health_before_last": 56.73, "health_after_last": 71.25, "lift_pts": 14.52, "outcomes_after": ["protected", "protected"], "revenue_after_protected": 2160000.0, "actual_ending_health": 71.25, "expected_path_end_health": 80}], "realized_nrr_portfolio": {"n_accounts": 10, "starting_arr": 52400000.0, "lost": 0.0, "expansion": 2980000.0, "protected_narrative": 10070000.0, "net_arr": 55380000.0, "nrr": 1.0569, "recovered_from_low_share": 0.7}, "evidence_label": "synthetic_or_unverified \u2014 not evidence", "h1": {"hypothesis": "H1_retention", "events": 0, "account_months": 90, "data_end": "2026-03-31", "leading": {"n": 0, "median": null, "p25": null, "p75": null, "mean": null, "min": null, "max": null, "recall": null, "false_alarm_months": 17, "censored_warning_months": 10, "false_alarms_per_100_account_months": 18.89}, "trailing": {"n": 0, "median": null, "p25": null, "p75": null, "mean": null, "min": null, "max": null, "recall": null, "false_alarm_months": 2, "censored_warning_months": 8, "false_alarms_per_100_account_months": 2.22}, "crm": {"n": 0, "median": null, "p25": null, "p75": null, "mean": null, "min": null, "max": null, "recall": null, "false_alarm_months": 0, "censored_warning_months": 0, "false_alarms_per_100_account_months": 0.0}, "leading_minus_trailing_median_days": null, "verdict": "insufficient_data", "reason": "0 events < min_events 10"}, "rules": [{"hypothesis": "H2_growth", "role": "expansion_intent", "preceded_events": 3, "of_events": 3, "frequency": 1.0, "median_lead_days": 35, "background_rate_per_100_months": 14.44, "rule_semantics": "observed frequency on this tenant \u2014 not calibrated, not a probability"}, {"hypothesis": "H2_growth", "role": "advocacy", "preceded_events": 2, "of_events": 3, "frequency": 0.667, "median_lead_days": 31.5, "background_rate_per_100_months": 18.89, "rule_semantics": "observed frequency on this tenant \u2014 not calibrated, not a probability"}]}, "links": [{"outcome_title": "Renewal at Risk \u2014 Zenith Data Corp", "outcome_date": "2025-11-28", "signal_date": "2025-07-31", "signal_content": "KPI metrics declining below threshold (Zenith Data Corp)"}, {"outcome_title": "Engagement Declining \u2014 Zenith Data Corp", "outcome_date": "2025-12-05", "signal_date": "2025-07-31", "signal_content": "KPI metrics declining below threshold (Zenith Data Corp)"}, {"outcome_title": "Revenue Protected \u2014 Zenith Data Corp", "outcome_date": "2026-03-23", "signal_date": "2025-07-31", "signal_content": "KPI metrics declining below threshold (Zenith Data Corp)"}, {"outcome_title": "Churn Risk Averted \u2014 Zenith Data Corp", "outcome_date": "2026-03-28", "signal_date": "2025-07-31", "signal_content": "KPI metrics declining below threshold (Zenith Data Corp)"}]};
+const NS = 'http://www.w3.org/2000/svg';
+const fmtUSD = v => '$' + (Math.abs(v) >= 1e6 ? (v/1e6).toFixed(v%1e6?2:1).replace(/\.0$/,'') + 'M' : (v/1e3).toFixed(0) + 'K');
+const fmtSignedUSD = v => (v < 0 ? '−' : '+') + fmtUSD(Math.abs(v));
+const dt = s => new Date(s.length === 10 ? s + 'T00:00:00' : s);
+const iso = d => d.toISOString().slice(0,10);
+const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const fmtD = d => `${MON[d.getMonth()]} ${d.getDate()}, ${String(d.getFullYear()).slice(2)}`;
+const fmtM = d => `${MON[d.getMonth()]} ${String(d.getFullYear()).slice(2)}`;
+const addDays = (d,n) => new Date(d.getTime() + n*864e5);
+const monthEnd = s => { const d = dt(s); return new Date(d.getFullYear(), d.getMonth()+1, 0); };
+
+// ---- derived, whole-journey facts ---------------------------------------
+const AS_OF = dt(D.as_of.slice(0,10));
+const renewal = dt(D.account.profile.renewal_date);
+const ROLE_LABEL = {usage_decline:'Usage decline', engagement_decline:'Engagement decline', commercial_pressure:'Commercial pressure', escalation:'Escalation', infra_incident:'Infra incident', champion_change:'Champion change', recovery:'Recovery', advocacy:'Advocacy', expansion_intent:'Expansion intent', intervention:'CSM intervention', routine:'Routine', crm_flag:'CSM risk flag'};
+const ROLE_POL = {usage_decline:-1, engagement_decline:-1, commercial_pressure:-1, escalation:-1, infra_incident:-1, champion_change:-1, capacity_pressure:-1, delivery_stall:-1, recovery:1, advocacy:1, expansion_intent:1, expansion_realized:1};
+
+// dedupe identical same-day signals (same title + date) → ×n; flag polarity conflicts
+const sigs = [];
+for (const e of D.episodes.filter(e => e.kind === 'signal')) {
+  const key = e.date.slice(0,10) + '|' + e.title;
+  const hit = sigs.find(s => s.key === key);
+  if (hit) { hit.n++; hit.ids.push(e.episode_id); continue; }
+  const rolePol = ROLE_POL[e.role] ?? 0;
+  const conflict = e.sentiment != null && rolePol !== 0 && Math.sign(e.sentiment) === -rolePol;
+  sigs.push({key, n:1, ids:[e.episode_id], e, pol: rolePol !== 0 ? rolePol : Math.sign(e.sentiment||0), conflict});
+}
+const outcomes = D.episodes.filter(e => e.kind === 'outcome');
+const decisions = D.episodes.filter(e => e.kind === 'decision' || (e.kind === 'signal' && e.role === 'intervention'));
+const transitions = D.episodes.filter(e => e.kind === 'health_transition');
+const seq = {}; D.episodes.forEach((e,i) => seq[e.episode_id] = i+1);
+const byId = Object.fromEntries(D.episodes.map(e => [e.episode_id, e]));
+const roles = [...new Set(sigs.map(s => s.e.role || 'unmapped'))].sort((a,b) => (ROLE_POL[a]||0) - (ROLE_POL[b]||0) || a.localeCompare(b));
+
+// ---- header (Band 2) --------------------------------------------------------
+function header(now) {
+  const s = [...D.series].filter(x => monthEnd(x.month) <= addDays(now, 1)).pop() || D.series[0];
+  const daysToRenewal = Math.round((renewal - now)/864e5);
+  const arc = D.arc;
+  const lost = outcomes.filter(o => o.revenue_bucket === 'lost' && dt(o.date) <= now).reduce((a,o)=>a+Math.abs(o.revenue||0),0);
+  const exp = outcomes.filter(o => o.revenue_bucket === 'expansion' && dt(o.date) <= now).reduce((a,o)=>a+Math.abs(o.revenue||0),0);
+  const atRisk = outcomes.filter(o => o.revenue_bucket === 'at_risk' && dt(o.date) <= now).reduce((a,o)=>a+Math.abs(o.revenue||0),0);
+  const prot = outcomes.filter(o => o.revenue_bucket === 'protected' && dt(o.date) <= now).reduce((a,o)=>a+Math.abs(o.revenue||0),0);
+  const arr = D.account.arr;
+  const nrr = (arr - lost + exp)/arr;
+  const div = s.divergence;
+  const divLabel = s.early_warning === 'early_warning' ? 'behavior ahead of the numbers' : s.early_warning === 'recovery_watch' ? 'behavior recovering ahead of the numbers' : s.early_warning === 'aligned' ? 'aligned with the numbers' : 'no signals in window';
+  const phaseNow = (D.phases.filter(p => dt(p.entered_at) <= now).pop() || {}).name || '—';
+  const openWarn = D.series.filter(x => x.early_warning === 'early_warning' && monthEnd(x.month) <= now).length;
+  const people = D.stakeholders.map(x => x.node_subtype);
+  const kpiCls = s.kpi_only >= 70 ? 'ok' : s.kpi_only >= 50 ? 'warn' : 'warn';
+  document.getElementById('now').innerHTML = `
+    <div class="tile hero"><div class="label">Health — KPI layer <span class="muted">(the only number that feeds anything financial)</span></div>
+      <div class="value">${s.kpi_only.toFixed(1)}</div>
+      <div class="foot"><span class="pill ${s.kpi_only>=70?'ok':'warn'}">${s.kpi_only>=70?'healthy':s.kpi_only>=50?'at risk':'critical'}</span> <span class="mono">${fmtM(dt(s.month))}</span></div></div>
+    <div class="tile"><div class="label">Leading — behavioral layer</div>
+      <div class="value">${s.qual == null ? '—' : s.qual.toFixed(1)}<small>${div == null ? '' : (div>0?'+':'') + div.toFixed(1)}</small></div>
+      <div class="foot"><span class="pill ${s.early_warning==='early_warning'?'warn':s.early_warning==='recovery_watch'?'ok':'info'}">${s.early_warning || 'silent'}</span> ${divLabel}</div></div>
+    <div class="tile"><div class="label">Arc hypothesis</div>
+      <div class="value" style="font-size:20px;font-family:'IBM Plex Serif',serif;font-weight:500">${arc.arc_type ? arc.arc_type.replace(/_/g,' ') : arc.state}</div>
+      <div class="foot">phase <b>${phaseNow}</b> · ${arc.supporting_episode_ids.length} episodes cite this · rule-match confidence ${arc.confidence ?? '—'}<br><span class="muted">almost: ${arc.alternatives.map(a=>a.arc_type.replace(/_/g,' ')).join(', ') || 'none'}</span></div></div>
+    <div class="tile"><div class="label">Renewal</div>
+      <div class="value">${daysToRenewal}<small>days</small></div>
+      <div class="meter" title="days to renewal"><i style="width:${Math.max(4,Math.min(100, 100 - daysToRenewal/365*100))}%"></i></div>
+      <div class="foot">${fmtD(renewal)} · ARR ${fmtUSD(arr)} · ${D.account.profile.tier}<br><span class="muted">${daysToRenewal<=90?'inside the 90-day risk window':'risk window opens '+fmtD(addDays(renewal,-90))}</span></div></div>
+    <div class="tile"><div class="label">Realized NRR</div>
+      <div class="value">${(nrr*100).toFixed(0)}<small>%</small></div>
+      <div class="foot">lost ${fmtUSD(lost)} · booked ${fmtUSD(exp)}<br><span class="muted">narrative: ${fmtUSD(atRisk)} flagged at risk · ${fmtUSD(prot)} protected — not ARR movement</span></div></div>
+    <div class="tile"><div class="label">People &amp; open warnings</div>
+      <div class="foot" style="margin-top:0;font-size:13px">${['champion','executive_sponsor','csm'].map(r => `<span class="pill ${people.includes(r)?'ok':'warn'}">${r.replace('_',' ')} ${people.includes(r)?'✓':'—'}</span>`).join(' ')}</div>
+      <div class="foot">${openWarn} early-warning month${openWarn===1?'':'s'} so far · no loss event yet — the renewal is the test</div></div>`;
+}
+
+// ---- canvas -------------------------------------------------------------------
+const W = 1280, H = 660, L = 132, R = 24;
+const X0 = new Date(2025,5,15), X1 = new Date(2026,8,30);
+const x = d => L + (d - X0)/(X1 - X0) * (W - L - R);
+const HY0 = 56, HY1 = 236;                 // health region (score 100 → HY0, 20 → HY1)
+const y = v => HY0 + (100 - v)/80 * (HY1 - HY0);
+const SIG_Y0 = 290, SIG_ROW = 22;          // signal rows by role
+const PEOPLE_Y0 = SIG_Y0 + roles.length*SIG_ROW + 34;
+const ACT_Y = PEOPLE_Y0 + 4*20 + 40;       // actions & outcomes
+const AX_Y = ACT_Y + 52;
+
+function el(tag, attrs, parent) { const n = document.createElementNS(NS, tag); for (const k in attrs) n.setAttribute(k, attrs[k]); if (parent) parent.appendChild(n); return n; }
+function text(parent, x_, y_, s, cls, attrs={}) { const t = el('text', {x:x_, y:y_, class:cls, ...attrs}, parent); t.textContent = s; return t; }
+const tip = document.getElementById('tip');
+function bindTip(node, html) {
+  const show = ev => { tip.innerHTML = html; tip.style.opacity = 1; const px = (ev.clientX ?? 0) + 14, py = (ev.clientY ?? 0) + 14; tip.style.left = Math.min(px, window.innerWidth - 340) + 'px'; tip.style.top = py + 'px'; };
+  node.addEventListener('mousemove', show); node.addEventListener('focus', ev => { const r = node.getBoundingClientRect(); show({clientX:r.left, clientY:r.top}); });
+  node.addEventListener('mouseleave', () => tip.style.opacity = 0); node.addEventListener('blur', () => tip.style.opacity = 0);
+}
+
+function draw(now) {
+  const svg = document.getElementById('svg'); svg.innerHTML = '';
+  const g = el('g', {}, svg);
+  // month grid + axis
+  for (let d = new Date(2025,6,1); d <= X1; d = new Date(d.getFullYear(), d.getMonth()+1, 1)) {
+    el('line', {x1:x(d), x2:x(d), y1:HY0-8, y2:AX_Y, class:'hair'}, g);
+    text(g, x(d)+4, AX_Y+16, fmtM(d), 'tick');
+  }
+  // future wash + now line
+  el('rect', {x:x(now), y:HY0-8, width:x(X1)-x(now), height:AX_Y-HY0+8, class:'future'}, g);
+  // renewal window
+  el('rect', {x:x(addDays(renewal,-90)), y:HY0-8, width:x(renewal)-x(addDays(renewal,-90)), height:AX_Y-HY0+8, class:'window'}, g);
+  el('line', {x1:x(renewal), x2:x(renewal), y1:HY0-8, y2:AX_Y, class:'hair2'}, g);
+  text(g, x(renewal)+4, HY0-14, 'renewal ' + fmtD(renewal), 'flag');
+  text(g, x(addDays(renewal,-90))+4, HY0-14, '90-day risk window →', 'flag');
+
+  // phases (backdrop across health region)
+  const phases = D.phases.filter(p => dt(p.entered_at) <= now);
+  phases.forEach((p, i) => {
+    const start = dt(p.entered_at); const end = p.exited_at && dt(p.exited_at) <= now ? dt(p.exited_at) : (i === phases.length-1 ? now : dt(p.exited_at));
+    el('rect', {x:x(start), y:HY0-8, width:Math.max(0,x(end)-x(start)), height:HY1-HY0+8, class:'phase ' + p.name}, g);
+    text(g, x(start)+6, HY0+6, p.name + (p.trigger_episode_id && byId[p.trigger_episode_id] ? '  ← ' + seq[p.trigger_episode_id] : ''), 'phase-label');
+  });
+  // thresholds
+  [[70,'healthy'],[50,'at risk']].forEach(([v,l]) => { el('line', {x1:L, x2:x(X1), y1:y(v), y2:y(v), class:'thresh'}, g); text(g, L-8, y(v)+4, `${v} ${l}`, 'tick', {'text-anchor':'end'}); });
+  text(g, 16, HY0+6, 'HEALTH', 'lane-label');
+  text(g, 16, HY0+22, 'KPI (trailing)', 'dlabel'); el('line',{x1:16,x2:34,y1:HY0+34,y2:HY0+34,class:'trailing-line'},g);
+  text(g, 16, HY0+52, 'behavioral (leading)', 'dlabel'); el('line',{x1:16,x2:34,y1:HY0+64,y2:HY0+64,class:'leading-line'},g);
+  text(g, 16, HY0+82, 'expected path', 'dlabel'); el('line',{x1:16,x2:34,y1:HY0+94,y2:HY0+94,class:'expected'},g);
+
+  // series up to now
+  const ser = D.series.filter(s => monthEnd(s.month) <= addDays(now,1));
+  // gap wash
+  ser.forEach((s, i) => { if (s.qual == null || s.early_warning === 'aligned') return;
+    const x0 = x(dt(s.month)), x1 = x(monthEnd(s.month));
+    const top = y(Math.max(s.qual, s.kpi_only)), bot = y(Math.min(s.qual, s.kpi_only));
+    el('rect', {x:x0, y:top, width:x1-x0, height:bot-top, class: s.divergence < 0 ? 'gap-neg' : 'gap-pos'}, g); });
+  // expected path overlay aligned at deterioration entry
+  const det = D.phases.find(p => p.name === 'deterioration');
+  if (det && D.expected_path && dt(det.entered_at) <= now) {
+    let d0 = dt(det.entered_at); const pts = [];
+    D.expected_path.phases.forEach((p, i) => { if (i === 0) pts.push([d0, p.health_start]); d0 = addDays(d0, p.duration_weeks*7); pts.push([d0, p.health_end]); });
+    el('path', {d: pts.map((p,i)=>(i?'L':'M')+x(p[0])+','+y(p[1])).join(' '), class:'expected'}, g);
+    const last = pts[pts.length-1]; text(g, x(last[0])+4, y(last[1])+4, 'expected ' + last[1], 'dlabel');
+  }
+  // trailing step line
+  let dTrail = ''; ser.forEach((s,i) => { const x0 = x(dt(s.month)), x1 = x(monthEnd(s.month)); dTrail += (i?'L':'M') + x0 + ',' + y(s.kpi_only) + ' L' + x1 + ',' + y(s.kpi_only) + ' '; });
+  el('path', {d:dTrail, class:'trailing-line'}, g);
+  // leading curve (mid-month points)
+  const lead = ser.filter(s => s.qual != null).map(s => [new Date(dt(s.month).getFullYear(), dt(s.month).getMonth(), 15), s.qual]);
+  el('path', {d: lead.map((p,i)=>(i?'L':'M')+x(p[0])+','+y(p[1])).join(' '), class:'leading-line'}, g);
+  lead.forEach(p => { const c = el('circle', {cx:x(p[0]), cy:y(p[1]), r:4, class:'mark', style:'fill:var(--leading)'}, g); });
+  // leading projection after now: holds while signals are in the 60-day window, then silent
+  const lastSig = sigs.filter(s => dt(s.e.date) <= now).map(s => dt(s.e.date)).sort((a,b)=>b-a)[0];
+  if (lastSig && lead.length) { const silent = addDays(lastSig, 60); const lp = lead[lead.length-1];
+    el('path', {d:`M${x(lp[0])},${y(lp[1])} L${x(silent)},${y(lp[1])}`, class:'leading-proj'}, g);
+    text(g, x(silent)+4, y(lp[1])+4, 'silent after ' + fmtD(silent) + ' unless new signals', 'dlabel'); }
+  // end labels
+  if (ser.length) { const s = ser[ser.length-1]; text(g, x(monthEnd(s.month))+6, y(s.kpi_only)+4, 'KPI ' + s.kpi_only.toFixed(1), 'dlabel'); }
+  // flags: first leading / trailing warning
+  // lead-time flags live in the strip between the health region and the signal lanes
+  const fl = D.lvt.first_leading_warning_at, ft = D.lvt.first_trailing_warning_at;
+  if (fl && monthEnd(fl) <= now) { const xx = x(monthEnd(fl)); el('line', {x1:xx, x2:xx, y1:HY0-2, y2:HY1+20, class:'flag-line'}, g); text(g, xx+5, HY1+16, '⚑ behavioral layer first warned ' + fmtM(dt(fl)), 'flag'); }
+  if (ft && monthEnd(ft) <= now) { const xx = x(monthEnd(ft)); el('line', {x1:xx, x2:xx, y1:HY0-2, y2:HY1+34, class:'flag-line'}, g); text(g, xx+5, HY1+30, '⚑ KPI crossed at-risk ' + fmtM(dt(ft)) + ' — ' + D.lvt.lead_days + ' days after the behavioral layer', 'flag'); }
+  else if (fl && monthEnd(fl) <= now) { text(g, x(monthEnd(fl))+5, HY1+30, 'KPI never crossed at-risk (lowest ' + Math.min(...ser.map(s=>s.kpi_only)).toFixed(1) + ') — lead time still open', 'flag'); }
+
+  // signals by role
+  text(g, 16, SIG_Y0-10, 'SIGNALS BY ROLE', 'lane-label');
+  roles.forEach((r, i) => { const yy = SIG_Y0 + i*SIG_ROW + 8; text(g, 16, yy+4, ROLE_LABEL[r] || r, 'dlabel'); el('line', {x1:L, x2:x(X1), y1:yy, y2:yy, class:'hair'}, g); });
+  sigs.filter(s => dt(s.e.date) <= now).forEach(s => {
+    const r = s.e.role || 'unmapped', yy = SIG_Y0 + roles.indexOf(r)*SIG_ROW + 8, xx = x(dt(s.e.date));
+    const cls = s.pol < 0 ? 'neg' : s.pol > 0 ? 'pos' : 'neu';
+    const hit = el('rect', {x:xx-12, y:yy-12, width:24, height:24, class:'hit', tabindex:0, role:'img', 'aria-label': s.e.title}, g);
+    let m;
+    if (s.pol < 0) m = el('path', {d:`M${xx-6},${yy-5} L${xx+6},${yy-5} L${xx},${yy+6} Z`, class:'mark '+cls}, g);
+    else if (s.pol > 0) m = el('path', {d:`M${xx-6},${yy+5} L${xx+6},${yy+5} L${xx},${yy-6} Z`, class:'mark '+cls}, g);
+    else m = el('circle', {cx:xx, cy:yy, r:5, class:'mark '+cls}, g);
+    if (s.n > 1) text(g, xx+8, yy+4, '×'+s.n, 'count');
+    if (s.conflict) { el('circle', {cx:xx+7, cy:yy-7, r:4, class:'mark', style:'fill:var(--surface);stroke:var(--neg)'}, g); text(g, xx+4.6, yy-4, '!', 'count'); }
+    bindTip(hit, `<b>${seq[s.e.episode_id]}. ${s.e.title}</b><span class="m">${fmtD(dt(s.e.date))} · ${ROLE_LABEL[r]||r} · sentiment ${s.e.sentiment ?? '—'}${s.n>1?' · ×'+s.n+' identical rows':''}${s.conflict?' · <b>polarity conflict: role negative, sentiment positive — mark follows the role</b>':''}</span>`);
+    bindTip(m, hit.getAttribute('aria-label'));
+  });
+
+  // people
+  text(g, 16, PEOPLE_Y0-10, 'PEOPLE', 'lane-label');
+  const people = D.stakeholders.map(s => ({role:s.node_subtype, name:(s.properties||{}).name || s.title.split(' (')[0]}));
+  people.forEach((p, i) => { const yy = PEOPLE_Y0 + i*20 + 6; text(g, 16, yy+4, `${p.name} · ${p.role.replace('_',' ')}`, 'dlabel');
+    const start = p.role === 'csm' ? dt('2026-03-08') : X0; // CSM change is a dated episode
+    if (p.role === 'csm') { el('line', {x1:x(X0)+8, x2:x(start)-6, y1:yy, y2:yy, class:'presence'}, g); text(g, x(X0)+12, yy-6, 'previous CSM', 'count'); }
+    el('line', {x1:x(start)+6, x2:x(now), y1:yy, y2:yy, class:'presence active'}, g);
+    if (p.role === 'champion') { const dd = dt('2025-10-15'); if (dd <= now) { el('path', {d:`M${x(dd)-6},${yy-5} L${x(dd)+6},${yy-5} L${x(dd)},${yy+6} Z`, class:'mark neg'}, g); text(g, x(dd)+9, yy+4, 'declined last two QBRs', 'dlabel'); } }
+    if (p.role === 'csm' && start <= now) { el('path', {d:`M${x(start)-5},${yy} L${x(start)},${yy-6} L${x(start)+5},${yy} L${x(start)},${yy+6} Z`, class:'mark decision'}, g); text(g, x(start)+9, yy+4, 'new CSM assigned', 'dlabel'); } });
+
+  // actions & outcomes
+  text(g, 16, ACT_Y-10, 'ACTIONS & OUTCOMES', 'lane-label');
+  el('line', {x1:L, x2:x(X1), y1:ACT_Y+8, y2:ACT_Y+8, class:'hair'}, g);
+  D.hooks.filter(h => dt(h.date) <= now).forEach(h => { const xx = x(dt(h.date)); const x0 = x(addDays(dt(h.date),-90)), x1 = x(Math.min(addDays(dt(h.date),90), now));
+    el('rect', {x:x0, y:ACT_Y-4, width:x1-x0, height:24, class:'phase intervention'}, g);
+    const m = el('path', {d:`M${xx-6},${ACT_Y+8} L${xx},${ACT_Y+1} L${xx+6},${ACT_Y+8} L${xx},${ACT_Y+15} Z`, class:'mark decision', tabindex:0}, g);
+    text(g, xx, ACT_Y-8, `intervention ${h.health_before.last} → ${h.health_after.last} (+${(h.health_after.last-h.health_before.last).toFixed(1)})`, 'dlabel', {'text-anchor':'end'});
+    bindTip(m, `<b>${seq[h.episode_id]}. ${h.title}</b><span class="m">${fmtD(dt(h.date))} · health before ${h.health_before.last} → after ${h.health_after.last} · outcomes within 90 d: ${h.outcomes_after.map(o=>o.bucket+' '+fmtSignedUSD(o.revenue||0)).join(', ')||'none'}<br>a before/after comparison on this account — not a causal estimate</span>`); });
+  outcomes.filter(o => dt(o.date) <= now).forEach((o, i) => { const xx = x(dt(o.date)); const realized = ['lost','expansion'].includes(o.revenue_bucket); const neg = ['lost','at_risk'].includes(o.revenue_bucket);
+    const yy = ACT_Y + 8 + (i % 2 ? 20 : 0);
+    const m = neg ? el('path', {d:`M${xx-7},${yy-6} L${xx+7},${yy-6} L${xx},${yy+7} Z`, class:'mark ' + (realized?'':'hollow ') + 'neg', tabindex:0}, g)
+                  : el('path', {d:`M${xx-7},${yy+6} L${xx+7},${yy+6} L${xx},${yy-7} Z`, class:'mark ' + (realized?'':'hollow ') + 'pos', tabindex:0}, g);
+    text(g, xx+10, yy+4, `${fmtSignedUSD(o.revenue)} ${o.revenue_bucket.replace('_',' ')}${realized?'':' (narrative)'}`, 'dlabel');
+    bindTip(m, `<b>${seq[o.episode_id]}. ${o.title}</b><span class="m">${fmtD(dt(o.date))} · bucket ${o.revenue_bucket} · ${realized?'realized ARR movement':'narrative annotation — not counted in NRR'}${o.meta&&o.meta.evidence_clamped?' · confidence clamped: no evidence attached':''}</span>`);
+    // evidence link from the signal it was linked to
+    const link = D.links.find(l => l.outcome_title === o.title);
+    if (link) { const sx = x(dt(link.signal_date)); const srole = (sigs.find(s => s.e.date.slice(0,10) === link.signal_date) || {}).e; const sy = srole ? SIG_Y0 + roles.indexOf(srole.role||'unmapped')*SIG_ROW + 8 : SIG_Y0;
+      el('path', {d:`M${sx},${sy+8} C${sx},${(sy+yy)/2} ${xx},${(sy+yy)/2} ${xx},${yy-8}`, class:'link'}, g); } });
+
+  // now line + label
+  el('line', {x1:x(now), x2:x(now), y1:HY0-22, y2:AX_Y, class:'now-line'}, g);
+  text(g, x(now)+6, HY0-26, 'NOW · ' + fmtD(now) + (now < AS_OF ? ' (time-travel)' : '') + '   ·   next 6 months →', 'now-label');
+}
+
+// ---- story ---------------------------------------------------------------------
+function story(now) {
+  const eps = D.episodes.filter(e => dt(e.date) <= now && e.kind !== 'renewal');
+  const cite = e => `<span class="cite">[${seq[e.episode_id]}]</span>`;
+  const chapters = D.phases.filter(p => dt(p.entered_at) <= now);
+  let html = '';
+  chapters.forEach((p, i) => {
+    const start = dt(p.entered_at), end = p.exited_at && dt(p.exited_at) <= now ? dt(p.exited_at) : now;
+    const inPhase = eps.filter(e => dt(e.date) >= start && dt(e.date) < end);
+    const s = D.series.filter(x => dt(x.month) >= start && dt(x.month) < end);
+    html += `<div class="ch">${fmtM(start)}${end < now ? '–' + fmtM(new Date(end.getTime()-864e5)) : ' → now'} · ${p.name}</div>`;
+    const sig = inPhase.filter(e => e.kind==='signal'), out = inPhase.filter(e => e.kind==='outcome'), ht = inPhase.filter(e => e.kind==='health_transition');
+    const parts = [];
+    if (p.trigger_episode_id && byId[p.trigger_episode_id] && i > 0) parts.push(`The phase opened with ${byId[p.trigger_episode_id].title.replace(/ \(Zenith Data Corp\)/,'').replace(/ — Zenith Data Corp/,'')}${cite(byId[p.trigger_episode_id])}.`);
+    const neg = sig.filter(e => (ROLE_POL[e.role]||0) < 0), pos = sig.filter(e => (ROLE_POL[e.role]||0) > 0);
+    if (neg.length) parts.push(`${neg.length === 1 ? 'A negative signal' : neg.length + ' negative signals'} — ${[...new Set(neg.map(e=>ROLE_LABEL[e.role]||e.role))].join(', ').toLowerCase()} — ${neg.map(cite).join('')}${s.length ? ` while KPI health moved ${s[0].kpi_only.toFixed(1)} → ${s[s.length-1].kpi_only.toFixed(1)}` : ''}.`);
+    const ew = s.filter(x => x.early_warning === 'early_warning');
+    if (ew.length) parts.push(`The behavioral layer was in early warning ${ew.length} of ${s.length} month${s.length===1?'':'s'} (widest gap ${Math.min(...ew.map(x=>x.divergence)).toFixed(0)} points).`);
+    if (out.length) parts.push(out.map(o => `${o.title.replace(/ — Zenith Data Corp/,'')} ${fmtSignedUSD(o.revenue)}${['lost','expansion'].includes(o.revenue_bucket)?'':' (narrative, not ARR)'}${cite(o)}`).join('; ') + '.');
+    if (pos.length) parts.push(`${pos.length === 1 ? 'A positive signal' : pos.length + ' positive signals'} — ${[...new Set(pos.map(e=>ROLE_LABEL[e.role]||e.role))].join(', ').toLowerCase()} ${pos.map(cite).join('')}.`);
+    ht.forEach(h => parts.push(`${h.title}${cite(h)}.`));
+    html += `<p>${parts.join(' ')}</p>`;
+  });
+  const conflicts = sigs.filter(s => s.conflict && dt(s.e.date) <= now);
+  if (conflicts.length) html += `<p class="dim" style="font-size:13px">Data note: ${conflicts.length} signal${conflicts.length>1?'s':''} carried a positive sentiment against a negative role ${conflicts.map(c=>cite(c.e)).join('')}; the canvas follows the role and flags the row. That conflict is what produced September's false “recovery watch”.</p>`;
+  document.getElementById('story').innerHTML = html || '<p class="muted">Nothing known yet at this date.</p>';
+}
+
+// ---- next 3–6 months ----------------------------------------------------------------
+function next(now) {
+  const wb = D.wizard_b; const t = wb.transitions;
+  const phaseNow = (D.phases.filter(p => dt(p.entered_at) <= now).pop() || {}).name || 'baseline';
+  const outs = Object.entries(t).filter(([k]) => k.startsWith(phaseNow + '→')).map(([k,v]) => ({to:k.split('→')[1], ...v}));
+  const lastSig = sigs.filter(s => dt(s.e.date) <= now).map(s => dt(s.e.date)).sort((a,b)=>b-a)[0];
+  const silent = lastSig ? addDays(lastSig, 60) : null;
+  const h1 = wb.h1; const daysToRenewal = Math.round((renewal - now)/864e5);
+  const iv = wb.interventions[0];
+  document.getElementById('next').innerHTML = `
+    <div class="fcard"><h3>Leading trajectory — mechanical</h3>
+      <div>The behavioral composite holds at its last value while its signals are inside the 60-day window${silent ? `, then goes <b>silent on ${fmtD(silent)}</b>` : ''}. No curve is invented past that point.</div>
+      <div class="basis">basis: recency window (60 d, λ 0.023/d) on this account's own signals</div></div>
+    <div class="fcard"><h3>Expected next phase — prior</h3>
+      <div>From <b>${phaseNow}</b>, this tenant's history says: ${outs.length ? outs.map(o => `→ <b>${o.to}</b> ${Math.round(o.probability*100)}% (${o.count} of ${Math.round(o.count/o.probability)} segments, after ~${o.avg_months_before_transition} mo; usually triggered by ${Object.keys(o.triggers)[0]||'—'})`).join('; ') : 'no transitions observed from this phase'}.
+      ${D.expected_path ? `The ${D.arc.arc_type.replace(/_/g,' ')} template's typical path ends at health ${D.expected_path.phases[D.expected_path.phases.length-1].health_end}; this account is at ${D.features.health_now}.` : ''}</div>
+      <div class="basis">basis: Wizard B transition matrix on ${wb.h1.account_months} account-months of this tenant + the arc template — a prior, not a prediction for this account</div></div>
+    <div class="fcard"><h3>Likelihood of a loss event by the renewal (${daysToRenewal} d)</h3>
+      <div class="range"><span class="mono muted">0%</span><div class="bar"><i style="left:5%;right:45%"></i><b style="left:30%"></b></div><span class="mono muted">100%</span></div>
+      <div style="font-size:13px;margin-top:6px"><b>Not calibrated on this tenant.</b> Its history holds <b>${h1.events} loss events</b> across ${h1.account_months} account-months, so no base rate exists; the band above is the arc prior only and is deliberately wide. The CFO line inherits it: expected loss ${fmtUSD(D.account.arr*0.05)}–${fmtUSD(D.account.arr*0.55)} on ${fmtUSD(D.account.arr)} ARR.</div>
+      <div class="basis">sources in trust order: tenant Hindsight base rate (none) → calibrated predictor (Wizard D, not yet ported) → arc prior (shown) · evidence: ${wb.evidence_label}</div></div>
+    <div class="fcard"><h3>Tripwires — what would change this</h3>
+      <ul>
+        <li>Behavioral composite drops below 50 (now ${D.features.qual_now ?? '—'})</li>
+        <li>A <b>commercial pressure</b> or <b>champion change</b> signal (the two roles that opened deterioration on this tenant)</li>
+        <li>No signal for 30 days after ${silent ? fmtD(addDays(silent,-30)) : '—'} — the layer goes blind, not green</li>
+        <li>Renewal risk window opens <b>${fmtD(addDays(renewal,-90))}</b>; KPI health below 70 inside it</li>
+      </ul>
+      <div class="basis">each tripwire maps to a role or threshold the platform already computes — nothing here needs a model</div></div>
+    <div class="fcard"><h3>Recommended action — with the observed effect</h3>
+      <div>${D.expected_path ? `Template's next decision for this phase: <b>${(D.expected_path.typical_decisions[1]||D.expected_path.typical_decisions[0]).title}</b>. ` : ''}${iv ? `The one intervention on this account — ${iv.title.replace(/ \(Zenith Data Corp\)/,'')} on ${fmtD(dt(iv.date))} — was followed by <b>+${iv.lift_pts.toFixed(1)} health points</b> and ${fmtUSD(iv.revenue_after_protected)} of narrative protection within 90 days.` : ''}</div>
+      <div class="basis">observed on this account; a before/after comparison, not attribution</div></div>`;
+}
+
+// ---- honesty strip, index, legend ---------------------------------------------------------
+function honesty() {
+  const conflicts = sigs.filter(s => s.conflict).length, dups = sigs.filter(s => s.n > 1).length;
+  const mapped = sigs.filter(s => s.e.role).length;
+  document.getElementById('honesty').innerHTML = [
+    `<span><b>Evidence:</b> ${D.wizard_b.evidence_label}</span>`,
+    `<span><b>Signals mapped to a role:</b> ${mapped} of ${sigs.length}</span>`,
+    `<span><b>Polarity conflicts flagged:</b> ${conflicts}</span>`,
+    `<span><b>Duplicate source rows collapsed:</b> ${dups}</span>`,
+    `<span><b>Arc:</b> rule-match constant, not a probability · cited by ${D.arc.supporting_episode_ids.length} episodes · contradicting: ${D.arc.contradicting_evidence.join('; ')||'none'}</span>`,
+    `<span><b>Outcomes:</b> ${outcomes.filter(o=>['lost','expansion'].includes(o.revenue_bucket)).length} realized · ${outcomes.length - outcomes.filter(o=>['lost','expansion'].includes(o.revenue_bucket)).length} narrative</span>`,
+    `<span><b>Generated:</b> journey v3 as of ${fmtD(AS_OF)}</span>`].join('');
+  const rows = D.episodes.map(e => `<tr><td class="n">${seq[e.episode_id]}</td><td class="mono">${e.date.slice(0,10)}</td><td>${e.kind.replace('_',' ')}</td><td>${e.role ? (ROLE_LABEL[e.role]||e.role) : (e.subtype||'')}</td><td>${e.title}</td><td class="n">${e.sentiment ?? ''}</td><td class="n">${e.revenue != null ? fmtSignedUSD(e.revenue) : ''}</td><td>${e.revenue_bucket||''}</td></tr>`).join('');
+  document.getElementById('index').innerHTML = `<thead><tr><th class="n">#</th><th>date</th><th>kind</th><th>role / subtype</th><th>title</th><th class="n">sentiment</th><th class="n">amount</th><th>bucket</th></tr></thead><tbody>${rows}</tbody>`;
+  document.getElementById('legend').innerHTML = `<span><i class="key"></i>KPI health (trailing)</span><span><i class="key lead"></i>behavioral (leading)</span><span><i class="key exp"></i>expected path</span><span><i class="sw" style="background:var(--neg);clip-path:polygon(0 0,100% 0,50% 100%)"></i>negative signal</span><span><i class="sw" style="background:var(--pos);clip-path:polygon(0 100%,100% 100%,50% 0)"></i>positive signal</span><span><i class="sw" style="border:2px solid var(--neg);width:8px;height:8px"></i>narrative outcome</span><span><i class="sw" style="background:var(--accent);transform:rotate(45deg);width:8px;height:8px"></i>decision / intervention</span><span><i class="sw" style="background:var(--wash-neg);border:1px solid var(--hair-2)"></i>deterioration phase</span>`;
+  document.getElementById('subtitle').textContent = `${D.account.profile.tier} · ${D.account.profile.products.map(p=>p.name).join(', ')} · champion ${D.account.profile.primary_champion_name} · CSM ${D.account.profile.csm_name}`;
+  document.getElementById('origin-badge').innerHTML = `<i class="dot" style="background:var(--neg)"></i> synthetic tenant — mechanism, not evidence`;
+  document.getElementById('asof-badge').textContent = `journey as of ${fmtD(AS_OF)}`;
+}
+
+// ---- scrubber ----------------------------------------------------------------------------------
+const scrub = document.getElementById('scrub');
+const T0 = new Date(2025,7,31);
+function nowFromScrub() { const f = +scrub.value/100; return f >= 1 ? AS_OF : new Date(T0.getTime() + f*(AS_OF - T0)); }
+function render() { const now = nowFromScrub(); document.getElementById('scrub-date').textContent = fmtD(now); header(now); draw(now); story(now); next(now); }
+scrub.addEventListener('input', render);
+honesty(); render();
+</script>
