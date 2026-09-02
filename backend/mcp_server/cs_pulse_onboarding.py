@@ -371,6 +371,7 @@ def _process_data_impl(customer_id: int, mode: str = 'auto') -> dict:
             calculate_health_scores,
             backfill_product_adoption,
             run_wizard_a_step,
+            run_wizard_b_step,
             link_stakeholders_to_decisions,
         )
 
@@ -455,8 +456,14 @@ def _process_data_impl(customer_id: int, mode: str = 'auto') -> dict:
             steps.append(step)
         timings['stakeholder_linking'] = round(time.time() - _t, 2)
 
-        # Stages 3a–8 (LLM tier-1, Wizard B, signal analyst, urgent scanner,
-        # ROI, approval seed, Qdrant, onboarding agent) — later phases.
+        # Stage 3b: Wizard B — Hindsight over the journeys (≥5), persisted as a WizardRun
+        wb_step, wb_duration = run_wizard_b_step(customer_id)
+        if wb_step:
+            steps.append(wb_step)
+        timings['wizard_b'] = wb_duration
+
+        # Stages 3a, 4–8 (LLM tier-1, signal analyst, urgent scanner, ROI,
+        # approval seed, Qdrant, onboarding agent) — later phases.
 
         status = 'success' if steps and not errors else 'partial' if steps else 'failed'
         duration = round(time.time() - _t0, 1)
@@ -516,6 +523,88 @@ def process_data(customer_id: int, mode: str = 'auto') -> dict:
     if mode not in ('auto', 'full_recalc'):
         mode = 'auto'
     return _process_data_impl(customer_id, mode=mode)
+
+
+# ===================================================================
+# Tool: trigger_wizard
+# ===================================================================
+
+_WIZARDS = {
+    'a': 'Journeys (Wizard A v2 — evidence-cited arcs, leading layer)',
+    'b': 'Hindsight (Wizard B — patterns, transitions, realized NRR, backtest)',
+}
+
+
+@mcp.tool
+def trigger_wizard(customer_id: int, wizard: str) -> dict:
+    """Run a wizard for a customer on demand (process_data runs both automatically).
+
+    - 'a': rebuild every account's journey — arc hypothesis with cited
+      evidence, phases, leading-vs-trailing series, expected-path overlay.
+    - 'b': Hindsight over the journeys — arc pattern profiles, phase
+      transition matrix with triggers, realized NRR per arc, intervention
+      before/after, the lead-time backtest, and data-derived early-warning
+      rules. Needs ≥5 journeys. Results are stored as a WizardRun.
+
+    Wizards 'c' (weight calibration) and 'd' (NRR predictor) are not in
+    this build yet.
+
+    Args:
+        customer_id: The customer ID
+        wizard: 'a' or 'b'
+    """
+    _require_auth_if_key_present('trigger_wizard', customer_id)
+    _check_mcp_enabled()
+    app = _get_flask_app()
+
+    with app.app_context():
+        from models import Customer, WizardRun
+        from extensions import db
+        import uuid as _uuid
+        from datetime import datetime as _dt
+
+        if not db.session.get(Customer, int(customer_id)):
+            raise ToolError(f"Customer {customer_id} not found.")
+        wizard = (wizard or '').lower().strip()
+        if wizard not in _WIZARDS:
+            raise ToolError(f"Invalid wizard '{wizard}'. Available in this build: {sorted(_WIZARDS)}.")
+
+        run_id = f"wizard_{wizard}_{_dt.utcnow().strftime('%Y%m%d_%H%M%S')}_{_uuid.uuid4().hex[:8]}"
+        try:
+            if wizard == 'a':
+                from journeys.wizard_a import run_wizard_a
+                result = run_wizard_a(customer_id)
+                summary = {k: v for k, v in result.items() if k != 'arcs'} | {'accounts': len(result.get('arcs', {}))}
+            else:
+                from wizards.wizard_b_hindsight import run_wizard_b
+                result = run_wizard_b(customer_id, persist=False)
+                summary = result if result.get('status') != 'completed' else {
+                    'status': 'completed', 'journeys': result['journeys'], 'coverage': result['coverage'],
+                    'evidence_label': result['evidence_label'],
+                    'patterns': list(result['pattern_profiles']),
+                    'portfolio_nrr': result['realized_nrr']['portfolio']['nrr'],
+                    'h1': {k: v for k, v in result['backtest']['results']['H1_retention'].items() if k != 'per_event'},
+                    'rules': len(result['early_warning_rules']),
+                }
+            status = 'completed' if result.get('status') in ('completed', 'skipped') else 'failed'
+            run = WizardRun(run_id=run_id, customer_id=customer_id, wizard=wizard, status=status,
+                            config={'triggered_via': 'mcp_trigger_wizard'}, results=result,
+                            completed_at=_dt.utcnow(), created_by='trigger_wizard')
+            db.session.add(run)
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            db.session.add(WizardRun(run_id=run_id, customer_id=customer_id, wizard=wizard, status='failed',
+                                     config={'triggered_via': 'mcp_trigger_wizard'}, error_message=str(e),
+                                     completed_at=_dt.utcnow(), created_by='trigger_wizard'))
+            db.session.commit()
+            raise ToolError(f"Wizard {wizard.upper()} failed: {e}")
+
+        return {
+            'scope': 'customer', 'customer_id': customer_id, 'wizard': wizard,
+            'wizard_name': _WIZARDS[wizard], 'run_id': run_id, 'status': status,
+            'result_summary': summary,
+        }
 
 
 def _check_kpi_dependencies(enabled_kpis=None, enabled_pillars=None):

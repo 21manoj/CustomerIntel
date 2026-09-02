@@ -507,6 +507,24 @@ class JourneyData(db.Model):
     )
 
 
+class WizardRun(db.Model):
+    """Audit row per wizard execution — the home for Wizard B's results
+    (Tier 2B, 2026-09-02). Trimmed from the old repo's model: no Celery
+    job_id / progress / current_phase (no task queue in this build)."""
+    __tablename__ = 'wizard_runs'
+    id = db.Column(db.Integer, primary_key=True)
+    run_id = db.Column(db.String(50), unique=True, nullable=False, index=True)
+    customer_id = db.Column(db.Integer, db.ForeignKey('customers.customer_id'), index=True)
+    wizard = db.Column(db.String(10), nullable=False, index=True)       # 'a' | 'b'
+    status = db.Column(db.String(20), nullable=False, default='queued', index=True)
+    config = db.Column(db.JSON, nullable=False, default=dict)
+    results = db.Column(db.JSON)
+    error_message = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, index=True)
+    completed_at = db.Column(db.DateTime)
+    created_by = db.Column(db.String(100))
+
+
 class HealthScore(db.Model):
     """L3: Overall health score (weighted average of pillar scores)."""
     __tablename__ = 'health_scores'

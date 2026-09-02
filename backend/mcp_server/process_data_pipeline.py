@@ -329,6 +329,29 @@ def run_wizard_a_step(customer_id: int, changed_account_ids: Set[int], mode: str
         return None, round(time.time() - t0, 2), None
 
 
+# ═══════════════════════════════════════════════════════════════
+# Stage 3b: Wizard B — Hindsight (auto after Wizard A, ≥5 journeys)
+# ═══════════════════════════════════════════════════════════════
+
+def run_wizard_b_step(customer_id: int):
+    """Returns (step, duration_s). Non-fatal; skipped below MIN_JOURNEYS."""
+    t0 = time.time()
+    try:
+        from wizards.wizard_b_hindsight import run_wizard_b
+        res = run_wizard_b(customer_id)
+        dur = round(time.time() - t0, 2)
+        if res.get('status') != 'completed':
+            return None, dur
+        h1 = res['backtest']['results']['H1_retention']
+        return (f"wizard_b_{res['journeys']}_journeys_{len(res['pattern_profiles'])}_patterns_"
+                f"{h1['events']}_h1_events_{len(res['early_warning_rules'])}_rules"), dur
+    except Exception as e:
+        logger.warning('Wizard B step failed (non-fatal): %s', e, exc_info=True)
+        from extensions import db
+        db.session.rollback()
+        return None, round(time.time() - t0, 2)
+
+
 # Stakeholder role (substring-matched against STAKEHOLDER.node_subtype) →
 # DECISION.node_subtype substrings that stakeholder is INVOLVED in.
 STAKEHOLDER_DECISION_MAP = {
