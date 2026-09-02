@@ -170,7 +170,8 @@ def run_backtest(customer_id: int, *, horizon_days: int = 180, min_events: int =
     import utils.health_thresholds as ht
 
     thresholds = thresholds or PREREGISTERED
-    customer = Customer.query.get(customer_id) if hasattr(Customer, 'query') else None
+    from extensions import db
+    customer = db.session.get(Customer, customer_id)
     journeys = [r.journey_json for r in JourneyData.query.filter_by(customer_id=customer_id).all()]
     if not journeys:
         raise ValueError(f'No journeys for customer {customer_id} — run process_data / Wizard A first.')
