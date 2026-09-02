@@ -100,9 +100,21 @@ Constructed tenants have to look like real portfolios, or the buyer's first ques
 | "Here are the four signals that produced this warning." | A warning with no cited episodes. |
 | "3 of 14 accounts are unclassified; here's why." | 100% coverage. |
 
-## 6. What has to exist for these to run
+## 6. What has to exist for these to run — status 2026-09-02
 
-1. Wizard A v2 (journey v3, evidence-cited classifier with datacenter signal roles, expected-path overlays) — Tier 2A-5.
-2. `evals/lead_time_backtest.py` — the Hindsight table (§7.5 of the assessment); run live during the demo.
-3. Load-driver manifests written *to the protocol*: per-account `behavioral_onset_day`, `trailing_cross_day`, `crm_flag_day`, `decision_day`, noise parameters, plus the background accounts; `data_origin` stamped. Three manifests: `demo_silent_displacement_dc.json`, `demo_expansion_intent_dc.json`, `demo_champion_departure_saas.json`.
-4. The two-layer columns on `HealthScore` (`qual_score`, `divergence`, `early_warning`) written by the journey builder — today they have no writer.
+1. ✅ Wizard A v2 (`journeys/`) — Tier 2A-5.
+2. ✅ `evals/lead_time_backtest.py` — H1/H2, trailing + CRM comparators, right-censoring, refutation check, evidence label.
+3. ✅ `demo/generate.py` + `demo/manifests/{demo_silent_displacement_dc,demo_expansion_intent_dc,demo_champion_departure_saas}.json` — built inside this repo, not by extending the old load-driver (it derives signals from story phases, never emits loss events, doesn't stamp `data_origin`, targets the old REST path, and lives in the retiring repo). `python -m demo.generate --manifest … --register`.
+4. ✅ `HealthScore.qual_score / divergence / early_warning` written by the journey builder.
+
+### What the harness reads back today (synthetic — not evidence)
+
+| Scenario | Leading | Trailing KPI | CSM's own flag | Behavioral layer bought |
+|---|---|---|---|---|
+| A — Silent displacement (Meridian AI, −$1.4M) | 78 d | 50 d | 14 d | +28 d over trailing, **+64 d over the CSM** |
+| B — Expansion intent (Stellar Inference, +$900K) | 68 d | — | — (AE opportunity at 20 d) | |
+| C — Champion departure + intervention (Northwind, −8%) | 83 d | — (never crossed: the intervention worked) | 40 d | **+43 d over the CSM** |
+
+Each tenant also carries a live twin (an open story the harness reports as *open*, not a false alarm), a false-alarm account, and an `unclassified` account. Numbers are month-end-dated (the conservative availability rule), which is why a T−104 onset reads as 78 days.
+
+Not yet built: the demo *surfaces* (the Hindsight table, the evidence drill-down, the expected-path overlay, the honesty banner) — those are UI, and the new build has no UI or deployed server yet.
