@@ -43,8 +43,22 @@ _ALLOWED_TOP_KEYS = {
     'polarity_ambiguous_signal_subtypes',
     'revenue_buckets',
     'auto_recovery_outcome_subtypes',
+    'signal_roles',
 }
 _BUCKET_KEYS = {'at_risk', 'lost', 'expansion', 'pipeline', 'protected'}
+
+# Signal-role polarity (Tier 2A-5, journeys): which roles count as negative /
+# positive behavioral evidence. Roles absent here are neutral (intervention,
+# routine, announcement). 'announcement' is deliberately neutral AND excluded
+# from the leading composite — see taxonomy_base.json's _description.
+NEGATIVE_SIGNAL_ROLES = frozenset({
+    'champion_change', 'engagement_decline', 'usage_decline', 'escalation',
+    'infra_incident', 'capacity_pressure', 'delivery_stall', 'commercial_pressure',
+})
+POSITIVE_SIGNAL_ROLES = frozenset({
+    'expansion_intent', 'expansion_realized', 'advocacy', 'recovery',
+})
+LEADING_EXCLUDED_ROLES = frozenset({'announcement'})
 
 # Module-level cache keyed by (vertical or None)
 _taxonomy_cache: Dict[Optional[str], 'Taxonomy'] = {}
@@ -59,6 +73,31 @@ class Taxonomy:
     polarity_ambiguous_signal_subtypes: FrozenSet[str]
     revenue_bucket_map: Dict[str, FrozenSet[str]] = field(default_factory=dict)
     auto_recovery_outcome_subtypes: FrozenSet[str] = field(default_factory=frozenset)
+    signal_roles: Dict[str, FrozenSet[str]] = field(default_factory=dict)
+    signal_role_map: Dict[str, str] = field(default_factory=dict)  # subtype -> role
+
+    def signal_role(self, subtype: Optional[str]) -> Optional[str]:
+        """Role for a signal subtype, or None if the vocabulary doesn't know it."""
+        if not subtype:
+            return None
+        return self.signal_role_map.get(subtype.strip().lower())
+
+    def role_polarity(self, role: Optional[str]) -> int:
+        """+1 positive, -1 negative, 0 neutral/unknown."""
+        if role in NEGATIVE_SIGNAL_ROLES:
+            return -1
+        if role in POSITIVE_SIGNAL_ROLES:
+            return 1
+        return 0
+
+    def revenue_bucket(self, subtype: Optional[str]) -> Optional[str]:
+        if not subtype:
+            return None
+        s = subtype.strip().lower()
+        for bucket, subs in self.revenue_bucket_map.items():
+            if s in subs:
+                return bucket
+        return None
 
 
 class TaxonomyValidationError(ValueError):
@@ -125,6 +164,36 @@ def _validate_structural(data: dict, filename: str, is_overlay: bool) -> None:
                     f'{filename}: revenue_buckets.{bk} has duplicates'
                 )
 
+    if 'signal_roles' in data:
+        roles = data['signal_roles']
+        if not isinstance(roles, dict):
+            raise TaxonomyValidationError(f'{filename}: "signal_roles" must be an object')
+        seen: Dict[str, str] = {}
+        for role, subs in roles.items():
+            if role.startswith('_'):
+                continue
+            if not all(c == '_' or ('a' <= c <= 'z') for c in role):
+                raise TaxonomyValidationError(f'{filename}: signal role {role!r} must match ^[a-z_]+$')
+            if not isinstance(subs, list):
+                raise TaxonomyValidationError(f'{filename}: signal_roles.{role} must be a list')
+            for s in subs:
+                if (not isinstance(s, str) or not s
+                        or not all(c == '_' or ('a' <= c <= 'z') for c in s)):
+                    raise TaxonomyValidationError(
+                        f'{filename}: signal_roles.{role} contains invalid subtype: {s!r}')
+                if s in seen:
+                    raise TaxonomyValidationError(
+                        f'{filename}: subtype {s!r} is in both signal roles '
+                        f'{seen[s]!r} and {role!r} — a subtype has exactly one role')
+                seen[s] = role
+
+
+def _signal_role_pairs(data: dict) -> Dict[str, str]:
+    return {
+        s: role for role, subs in (data.get('signal_roles') or {}).items()
+        if not role.startswith('_') for s in subs
+    }
+
 
 def _validate_overlay_vs_base(overlay: dict, base: dict, filename: str) -> None:
     """Overlay cannot contradict base — e.g. mark a subtype ambiguous that base
@@ -158,6 +227,15 @@ def _validate_overlay_vs_base(overlay: dict, base: dict, filename: str) -> None:
                 f'in base — overlay cannot mark it polarity-ambiguous'
             )
 
+    # 3. Overlay signal roles must not move a base subtype to a different role
+    base_roles = _signal_role_pairs(base)
+    for s, role in _signal_role_pairs(overlay).items():
+        if s in base_roles and base_roles[s] != role:
+            raise TaxonomyValidationError(
+                f'{filename}: signal subtype {s!r} has base role {base_roles[s]!r} '
+                f'— overlay cannot move it to {role!r}'
+            )
+
 
 def _merge(base: dict, overlay: Optional[dict]) -> Taxonomy:
     """Return Taxonomy formed by base + overlay. Overlay is additive."""
@@ -171,12 +249,20 @@ def _merge(base: dict, overlay: Optional[dict]) -> Taxonomy:
         bk: set(subs) for bk, subs in base.get('revenue_buckets', {}).items()
     }
 
+    roles: Dict[str, set] = {
+        role: set(subs) for role, subs in (base.get('signal_roles') or {}).items()
+        if not role.startswith('_')
+    }
+
     if overlay:
         ambig_outcome.update(_get_list(overlay, 'polarity_ambiguous_outcome_subtypes'))
         ambig_signal.update(_get_list(overlay, 'polarity_ambiguous_signal_subtypes'))
         auto_recovery.update(_get_list(overlay, 'auto_recovery_outcome_subtypes'))
         for bk, subs in overlay.get('revenue_buckets', {}).items():
             buckets.setdefault(bk, set()).update(subs)
+        for role, subs in (overlay.get('signal_roles') or {}).items():
+            if not role.startswith('_'):
+                roles.setdefault(role, set()).update(subs)
 
     return Taxonomy(
         version=base['version'],
@@ -185,6 +271,8 @@ def _merge(base: dict, overlay: Optional[dict]) -> Taxonomy:
         polarity_ambiguous_signal_subtypes=frozenset(ambig_signal),
         revenue_bucket_map={bk: frozenset(subs) for bk, subs in buckets.items()},
         auto_recovery_outcome_subtypes=frozenset(auto_recovery),
+        signal_roles={role: frozenset(subs) for role, subs in roles.items()},
+        signal_role_map={s: role for role, subs in roles.items() for s in subs},
     )
 
 

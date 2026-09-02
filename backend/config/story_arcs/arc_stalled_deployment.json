@@ -1,0 +1,1309 @@
+{
+  "arc_id": "arc_stalled_deployment",
+  "arc_name": "Stalled Deployment",
+  "version": "1.0",
+  "description": "A $3.5M ARR new data center deployment stalls at 40% completion, burning $145K/month in idle hardware capacity costs. The platform detects deployment velocity collapse, triggers executive escalation, and CSM deploys an acceleration playbook that completes deployment 12 weeks early -- saving $870K in wasted capacity and eliminating $3.5M churn risk.",
+  "intelligence_dimensions": [
+    "adoption_velocity",
+    "value_realization",
+    "operational_risk",
+    "relationship_resilience"
+  ],
+  "target_audience": "CFO",
+  "revenue_narrative": {
+    "arr_start": 3500000,
+    "arr_end": 3500000,
+    "arr_at_risk_peak": 3500000,
+    "roi_of_intervention": 596,
+    "cost_of_inaction": 870000,
+    "time_horizon_weeks": 34,
+    "intervention_cost": 125000,
+    "net_revenue_saved": 745000
+  },
+  "cast": [
+    {
+      "role": "technical_lead",
+      "title": "Project Manager (Customer)",
+      "influence_score": 0.7,
+      "sentiment_arc": [
+        0.7,
+        0.1,
+        -0.2,
+        0.3,
+        0.7
+      ],
+      "engagement_frequency": "weekly",
+      "appears_in_phase": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ]
+    },
+    {
+      "role": "exec_sponsor",
+      "title": "VP Engineering",
+      "influence_score": 0.92,
+      "sentiment_arc": [
+        0.5,
+        -0.1,
+        -0.4,
+        0.2,
+        0.7
+      ],
+      "engagement_frequency": "biweekly",
+      "appears_in_phase": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ]
+    },
+    {
+      "role": "decision_maker",
+      "title": "Infrastructure Director",
+      "influence_score": 0.88,
+      "sentiment_arc": [
+        0.6,
+        -0.3,
+        -0.5,
+        0.1,
+        0.6
+      ],
+      "engagement_frequency": "biweekly",
+      "appears_in_phase": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ]
+    },
+    {
+      "role": "champion",
+      "title": "Customer Success Manager (Internal)",
+      "influence_score": 0.85,
+      "sentiment_arc": [
+        0.7,
+        0.2,
+        0.1,
+        0.6,
+        0.9
+      ],
+      "engagement_frequency": "weekly",
+      "appears_in_phase": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ]
+    },
+    {
+      "role": "technical_lead",
+      "title": "Field Engineering Lead (Internal)",
+      "influence_score": 0.8,
+      "sentiment_arc": [
+        0.6,
+        0.0,
+        0.1,
+        0.5,
+        0.8
+      ],
+      "engagement_frequency": "weekly",
+      "appears_in_phase": [
+        1,
+        3,
+        4,
+        5
+      ]
+    }
+  ],
+  "phases": [
+    {
+      "phase_id": 1,
+      "name": "Deployment Kickoff",
+      "duration_weeks": 4,
+      "health_range": {
+        "start": 55,
+        "end": 52
+      },
+      "description": "New $3.5M ARR deployment begins with initial hardware delivery and rack installation. Health starts at 55 (expected for a new, partially-deployed account). First 40% of racks installed on schedule. Project Manager is engaged but stretched thin across multiple initiatives. Early signs of resource constraints appear as customer's internal team is understaffed for the deployment scale.",
+      "revenue_impact_type": "none",
+      "plot_points": [
+        {
+          "week_offset": 1,
+          "event_type": "milestone",
+          "description": "Hardware delivery received: 120 GPU servers across 10 racks. Project kickoff call with Infrastructure Director confirms 12-week deployment target. Deployment Cycle Time baseline set at 30 days.",
+          "sentiment_shift": 0.1,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P1-KPI4",
+              "direction": "plateau",
+              "magnitude": "minor"
+            },
+            {
+              "kpi_code": "P1-KPI5",
+              "direction": "plateau",
+              "magnitude": "minor"
+            }
+          ],
+          "revenue_impact": 0,
+          "generates_node_type": "SIGNAL"
+        },
+        {
+          "week_offset": 2,
+          "event_type": "milestone",
+          "description": "First 4 racks installed and commissioned in 5 days. Installation Completion Rate at 100% for initial batch. Hardware Commissioning Time within target at 5 days. Deployment Team Velocity at 6 servers/day.",
+          "sentiment_shift": 0.05,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P1-KPI2",
+              "direction": "improve",
+              "magnitude": "minor"
+            },
+            {
+              "kpi_code": "P1-KPI5",
+              "direction": "improve",
+              "magnitude": "minor"
+            },
+            {
+              "kpi_code": "P1-KPI7",
+              "direction": "plateau",
+              "magnitude": "minor"
+            }
+          ],
+          "revenue_impact": 0,
+          "generates_node_type": "SIGNAL"
+        },
+        {
+          "week_offset": 3,
+          "event_type": "signal",
+          "description": "Customer Project Manager mentions in weekly sync that two of three assigned deployment engineers have been pulled to another project. Remaining team is single-threaded. CSM notes resource risk in call summary.",
+          "sentiment_shift": -0.1,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P1-KPI7",
+              "direction": "degrade",
+              "magnitude": "minor"
+            },
+            {
+              "kpi_code": "P1-KPI4",
+              "direction": "degrade",
+              "magnitude": "minor"
+            }
+          ],
+          "revenue_impact": 0,
+          "generates_node_type": "SIGNAL",
+          "csm_action": {
+            "action_type": "flag_risk",
+            "description": "CSM flags resource constraint in weekly report, recommends follow-up with Infrastructure Director on staffing",
+            "cost_estimate": 500,
+            "response_time_hours": 24
+          }
+        }
+      ]
+    },
+    {
+      "phase_id": 2,
+      "name": "Stall & Drift",
+      "duration_weeks": 8,
+      "health_range": {
+        "start": 52,
+        "end": 38
+      },
+      "description": "Deployment velocity collapses. Customer's engineering team fully diverted to a production incident on their existing infrastructure. Remaining racks sit uninstalled in the loading dock. Installation Completion Rate plateaus at 40%. Time-to-First-Workload stuck at 35+ days with no workloads running. Hardware Commissioning Time balloons. $145K/month in idle hardware capacity costs begins accumulating. Configuration errors from rushed partial work cause rework. Health drops from 52 to 38 as deployment KPIs crater.",
+      "revenue_impact_type": "at_risk",
+      "plot_points": [
+        {
+          "week_offset": 1,
+          "event_type": "signal",
+          "description": "Deployment Team Velocity drops from 6 servers/day to 1.5 as customer reassigns engineers. Only 2 additional servers installed this week vs. 12 planned. Project Manager stops attending daily standups.",
+          "sentiment_shift": -0.15,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P1-KPI7",
+              "direction": "degrade",
+              "magnitude": "major"
+            },
+            {
+              "kpi_code": "P1-KPI2",
+              "direction": "plateau",
+              "magnitude": "moderate"
+            },
+            {
+              "kpi_code": "P1-KPI4",
+              "direction": "degrade",
+              "magnitude": "moderate"
+            }
+          ],
+          "revenue_impact": -145000,
+          "generates_node_type": "SIGNAL"
+        },
+        {
+          "week_offset": 3,
+          "event_type": "incident",
+          "description": "Installation Completion Rate officially stalls at 40%. No new racks installed in 2 weeks. 6 racks of GPU hardware sitting idle on loading dock. Estimated idle capacity cost: $145K/month. Infrastructure Director unreachable -- consumed by production crisis.",
+          "sentiment_shift": -0.2,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P1-KPI2",
+              "direction": "plateau",
+              "magnitude": "major"
+            },
+            {
+              "kpi_code": "P1-KPI1",
+              "direction": "degrade",
+              "magnitude": "major"
+            },
+            {
+              "kpi_code": "P3-KPI1",
+              "direction": "plateau",
+              "magnitude": "moderate"
+            },
+            {
+              "kpi_code": "P1-KPI5",
+              "direction": "degrade",
+              "magnitude": "major"
+            }
+          ],
+          "revenue_impact": -145000,
+          "generates_node_type": "SIGNAL"
+        },
+        {
+          "week_offset": 5,
+          "event_type": "signal",
+          "description": "Time-to-First-Workload now at 35 days and counting with zero workloads running. Deployment Cycle Time has exceeded 45 days. GPU Utilization at near-zero -- only test traffic on the 4 installed racks. Configuration errors discovered on 3 of the 4 deployed racks from rushed initial installation.",
+          "sentiment_shift": -0.15,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P1-KPI1",
+              "direction": "degrade",
+              "magnitude": "critical"
+            },
+            {
+              "kpi_code": "P1-KPI4",
+              "direction": "degrade",
+              "magnitude": "critical"
+            },
+            {
+              "kpi_code": "P3-KPI1",
+              "direction": "plateau",
+              "magnitude": "major"
+            },
+            {
+              "kpi_code": "P1-KPI3",
+              "direction": "degrade",
+              "magnitude": "major"
+            }
+          ],
+          "revenue_impact": -145000,
+          "generates_node_type": "SIGNAL"
+        },
+        {
+          "week_offset": 7,
+          "event_type": "signal",
+          "description": "3 months of $145K/month idle costs now accumulated ($435K). System Uptime on installed racks is nominal but meaningless -- no production workloads running. Documentation Completeness stalled at 35%. Project Manager sends email: 'team is underwater, deployment timeline needs to be reassessed.'",
+          "sentiment_shift": -0.2,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P1-KPI8",
+              "direction": "degrade",
+              "magnitude": "moderate"
+            },
+            {
+              "kpi_code": "P2-KPI4",
+              "direction": "plateau",
+              "magnitude": "minor"
+            },
+            {
+              "kpi_code": "P1-KPI7",
+              "direction": "degrade",
+              "magnitude": "major"
+            },
+            {
+              "kpi_code": "P1-KPI2",
+              "direction": "plateau",
+              "magnitude": "major"
+            }
+          ],
+          "revenue_impact": -145000,
+          "generates_node_type": "SIGNAL"
+        }
+      ]
+    },
+    {
+      "phase_id": 3,
+      "name": "Detection & Escalation",
+      "duration_weeks": 4,
+      "health_range": {
+        "start": 38,
+        "end": 40
+      },
+      "description": "Platform's deployment velocity monitoring detects the stall pattern: Installation Completion Rate flat at 40% for 4+ weeks, Time-to-First-Workload exceeding 35 days, Deployment Team Velocity in critical zone. System fires 'Deployment Stall' alert correlating resource constraints with idle hardware costs. CSM escalates to VP Engineering with full cost-of-delay analysis. VP Engineering authorizes escalation path.",
+      "revenue_impact_type": "at_risk",
+      "plot_points": [
+        {
+          "week_offset": 1,
+          "event_type": "signal",
+          "description": "Platform fires 'Deployment Velocity Collapse' alert: P1 pillar health at 32, Installation Completion Rate stalled 4+ weeks, projected idle cost burn rate $145K/month. Alert includes cost-of-delay projection: $870K if 6-month delay.",
+          "sentiment_shift": 0.0,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P1-KPI2",
+              "direction": "plateau",
+              "magnitude": "critical"
+            },
+            {
+              "kpi_code": "P1-KPI7",
+              "direction": "plateau",
+              "magnitude": "critical"
+            }
+          ],
+          "revenue_impact": -3500000,
+          "generates_node_type": "SIGNAL"
+        },
+        {
+          "week_offset": 2,
+          "event_type": "escalation",
+          "description": "CSM escalates to VP Engineering with deployment stall analysis: $580K in idle costs already accumulated, $145K/month burn rate continuing, 60% of hardware uninstalled, zero production workloads. Recommends executive intervention to unblock customer resource constraints.",
+          "sentiment_shift": 0.1,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P1-KPI4",
+              "direction": "plateau",
+              "magnitude": "minor"
+            }
+          ],
+          "revenue_impact": 0,
+          "generates_node_type": "DECISION",
+          "csm_action": {
+            "action_type": "internal_escalation",
+            "description": "Prepare executive briefing with deployment stall cost analysis, idle hardware ROI impact, and proposed acceleration plan",
+            "cost_estimate": 5000,
+            "response_time_hours": 24
+          }
+        },
+        {
+          "week_offset": 3,
+          "event_type": "meeting",
+          "description": "VP Engineering calls Infrastructure Director directly. Frames deployment stall as CFO-level issue: $145K/month burn rate on idle hardware, $3.5M ARR at risk if deployment fails. Infrastructure Director acknowledges resource gap but cites competing priorities.",
+          "sentiment_shift": -0.1,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P1-KPI2",
+              "direction": "plateau",
+              "magnitude": "minor"
+            },
+            {
+              "kpi_code": "P1-KPI1",
+              "direction": "plateau",
+              "magnitude": "minor"
+            }
+          ],
+          "revenue_impact": 0,
+          "generates_node_type": "DECISION"
+        }
+      ]
+    },
+    {
+      "phase_id": 4,
+      "name": "Acceleration Sprint",
+      "duration_weeks": 10,
+      "health_range": {
+        "start": 40,
+        "end": 72
+      },
+      "description": "On-site acceleration team deployed. Field Engineering Lead brings 4-person crew for parallel deployment. Modified deployment schedule approved: parallel rack installation replacing sequential approach. Configuration errors fixed with automated validation scripts. Deployment velocity recovers to 8+ servers/day. Installation Completion Rate climbs from 40% through 70%, 90%, to 100%. First production workloads go live. Time-to-value reduced by 12 weeks vs. inaction scenario. Health score climbs from 40 to 72 as P1 KPIs recover.",
+      "revenue_impact_type": "protected",
+      "plot_points": [
+        {
+          "week_offset": 1,
+          "event_type": "decision",
+          "description": "On-site acceleration team deployed: Field Engineering Lead plus 3 deployment engineers arrive at customer site. Parallel deployment strategy initiated -- 3 racks simultaneously instead of sequential. Infrastructure Director assigns 2 customer engineers back to the project.",
+          "sentiment_shift": 0.2,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P1-KPI7",
+              "direction": "improve",
+              "magnitude": "major"
+            },
+            {
+              "kpi_code": "P1-KPI4",
+              "direction": "improve",
+              "magnitude": "moderate"
+            }
+          ],
+          "revenue_impact": 0,
+          "generates_node_type": "DECISION",
+          "csm_action": {
+            "action_type": "deployment_acceleration",
+            "description": "Deploy 4-person field engineering team on-site for 6 weeks; establish parallel deployment methodology; provide automated config validation tools",
+            "cost_estimate": 85000,
+            "response_time_hours": 72
+          }
+        },
+        {
+          "week_offset": 3,
+          "event_type": "milestone",
+          "description": "Installation Completion Rate crosses 60%. 3 additional racks installed and commissioned. Deployment Team Velocity at 8 servers/day with parallel crews. Configuration Accuracy at 97% using automated validation scripts. Hardware Commissioning Time reduced to 4 days per rack.",
+          "sentiment_shift": 0.15,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P1-KPI2",
+              "direction": "improve",
+              "magnitude": "moderate"
+            },
+            {
+              "kpi_code": "P1-KPI3",
+              "direction": "improve",
+              "magnitude": "moderate"
+            },
+            {
+              "kpi_code": "P1-KPI5",
+              "direction": "improve",
+              "magnitude": "moderate"
+            },
+            {
+              "kpi_code": "P1-KPI7",
+              "direction": "improve",
+              "magnitude": "moderate"
+            }
+          ],
+          "revenue_impact": 145000,
+          "generates_node_type": "OUTCOME"
+        },
+        {
+          "week_offset": 5,
+          "event_type": "decision",
+          "description": "Modified deployment schedule formally approved by Infrastructure Director. Remaining 4 racks to be installed in parallel pairs over next 4 weeks. Customer commits 2 dedicated engineers for remainder of deployment. Deployment docs being updated in real-time.",
+          "sentiment_shift": 0.15,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P1-KPI4",
+              "direction": "improve",
+              "magnitude": "moderate"
+            },
+            {
+              "kpi_code": "P1-KPI8",
+              "direction": "improve",
+              "magnitude": "moderate"
+            },
+            {
+              "kpi_code": "P1-KPI2",
+              "direction": "improve",
+              "magnitude": "moderate"
+            }
+          ],
+          "revenue_impact": 0,
+          "generates_node_type": "DECISION",
+          "csm_action": {
+            "action_type": "schedule_optimization",
+            "description": "Co-develop modified parallel deployment schedule with customer PM; establish daily deployment tracker with automated progress reporting",
+            "cost_estimate": 8000,
+            "response_time_hours": 48
+          }
+        },
+        {
+          "week_offset": 7,
+          "event_type": "milestone",
+          "description": "Installation Completion Rate reaches 90%. 9 of 10 racks operational. First production AI workload goes live on initial 4 racks. GPU Utilization jumps from near-zero to 35% as inference pipeline is deployed. Time-to-First-Workload achieved. Configuration Accuracy at 98%.",
+          "sentiment_shift": 0.25,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P1-KPI1",
+              "direction": "improve",
+              "magnitude": "major"
+            },
+            {
+              "kpi_code": "P1-KPI2",
+              "direction": "improve",
+              "magnitude": "major"
+            },
+            {
+              "kpi_code": "P3-KPI1",
+              "direction": "improve",
+              "magnitude": "major"
+            },
+            {
+              "kpi_code": "P1-KPI3",
+              "direction": "improve",
+              "magnitude": "minor"
+            }
+          ],
+          "revenue_impact": 435000,
+          "generates_node_type": "OUTCOME"
+        },
+        {
+          "week_offset": 9,
+          "event_type": "milestone",
+          "description": "All 10 racks installed and commissioned. Installation Completion Rate at 100%. Final rack commissioned in 3 days (best time). Network Readiness Score at 96%. Full hardware fleet operational. Deployment Cycle Time finalized: completed in 22 weeks total vs. projected 34 weeks without intervention.",
+          "sentiment_shift": 0.2,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P1-KPI2",
+              "direction": "improve",
+              "magnitude": "major"
+            },
+            {
+              "kpi_code": "P1-KPI5",
+              "direction": "improve",
+              "magnitude": "major"
+            },
+            {
+              "kpi_code": "P1-KPI6",
+              "direction": "improve",
+              "magnitude": "moderate"
+            },
+            {
+              "kpi_code": "P1-KPI4",
+              "direction": "improve",
+              "magnitude": "major"
+            }
+          ],
+          "revenue_impact": 290000,
+          "generates_node_type": "OUTCOME"
+        }
+      ]
+    },
+    {
+      "phase_id": 5,
+      "name": "Full Operations",
+      "duration_weeks": 8,
+      "health_range": {
+        "start": 72,
+        "end": 78
+      },
+      "description": "All hardware deployed and running production workloads. GPU Utilization climbs to 62% as training and inference pipelines ramp. System Uptime stable at 99.6%. Deployment documentation completed and validated. Time-to-value reduced by 12 weeks vs. inaction scenario, saving $870K in idle capacity costs (12 weeks x $145K/month x 12/4). Retention risk fully eliminated. Infrastructure Director begins discussing Phase 2 expansion. Health stabilizes at 78.",
+      "revenue_impact_type": "protected",
+      "plot_points": [
+        {
+          "week_offset": 2,
+          "event_type": "milestone",
+          "description": "GPU Utilization reaches 52% as ML training pipelines go live across all 10 racks. System Uptime at 99.6% for the full fleet. Deployment documentation at 95% complete. Project Manager reinstated to weekly syncs with positive sentiment.",
+          "sentiment_shift": 0.15,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P3-KPI1",
+              "direction": "improve",
+              "magnitude": "moderate"
+            },
+            {
+              "kpi_code": "P2-KPI4",
+              "direction": "improve",
+              "magnitude": "minor"
+            },
+            {
+              "kpi_code": "P1-KPI8",
+              "direction": "improve",
+              "magnitude": "moderate"
+            }
+          ],
+          "revenue_impact": 0,
+          "generates_node_type": "OUTCOME"
+        },
+        {
+          "week_offset": 5,
+          "event_type": "milestone",
+          "description": "GPU Utilization at 62%. First full training run completes successfully. Configuration Accuracy validated at 99% across all racks. Idle hardware cost burn fully eliminated. Deployment project officially closed with 'successful' status.",
+          "sentiment_shift": 0.15,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P3-KPI1",
+              "direction": "improve",
+              "magnitude": "moderate"
+            },
+            {
+              "kpi_code": "P1-KPI3",
+              "direction": "improve",
+              "magnitude": "minor"
+            },
+            {
+              "kpi_code": "P2-KPI4",
+              "direction": "improve",
+              "magnitude": "minor"
+            }
+          ],
+          "revenue_impact": 0,
+          "generates_node_type": "OUTCOME"
+        },
+        {
+          "week_offset": 7,
+          "event_type": "meeting",
+          "description": "Post-deployment QBR with Infrastructure Director. CSM presents ROI analysis: $125K CS investment avoided $870K in idle costs, deployment completed 12 weeks early, time-to-value reduced by 40%. Infrastructure Director opens Phase 2 expansion discussion for 5 additional racks in Q3.",
+          "sentiment_shift": 0.2,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P5-KPI7",
+              "direction": "improve",
+              "magnitude": "moderate"
+            },
+            {
+              "kpi_code": "P5-KPI5",
+              "direction": "improve",
+              "magnitude": "moderate"
+            },
+            {
+              "kpi_code": "P4-KPI3",
+              "direction": "improve",
+              "magnitude": "major"
+            }
+          ],
+          "revenue_impact": 0,
+          "generates_node_type": "OUTCOME"
+        }
+      ]
+    }
+  ],
+  "causal_chains": [
+    {
+      "chain_id": "cc_resource_stall",
+      "name": "Resource Constraints to Deployment Bottleneck",
+      "revenue_impact": -870000,
+      "links": [
+        {
+          "from_event": "phase1:w3 - Customer engineers pulled to other project",
+          "to_event": "phase2:w1 - Deployment Team Velocity collapses to 1.5",
+          "edge_type": "CAUSED_BY",
+          "lag_weeks": 2,
+          "confidence": 0.92
+        },
+        {
+          "from_event": "phase2:w1 - Deployment Team Velocity collapses",
+          "to_event": "phase2:w3 - Installation Completion Rate stalls at 40%",
+          "edge_type": "LED_TO",
+          "lag_weeks": 2,
+          "confidence": 0.95
+        },
+        {
+          "from_event": "phase2:w3 - Installation Completion Rate stalls at 40%",
+          "to_event": "phase2:w5 - Time-to-First-Workload exceeds 35 days",
+          "edge_type": "LED_TO",
+          "lag_weeks": 2,
+          "confidence": 0.9
+        },
+        {
+          "from_event": "phase2:w5 - Time-to-First-Workload exceeds 35 days",
+          "to_event": "phase2:w7 - $435K idle costs accumulated",
+          "edge_type": "LED_TO",
+          "lag_weeks": 2,
+          "confidence": 0.95
+        }
+      ]
+    },
+    {
+      "chain_id": "cc_idle_cost_burn",
+      "name": "Idle Hardware to Capacity Cost Accumulation",
+      "revenue_impact": -870000,
+      "links": [
+        {
+          "from_event": "phase2:w3 - 6 racks idle on loading dock",
+          "to_event": "phase2:w5 - GPU Utilization near-zero on deployed racks",
+          "edge_type": "CORRELATES_WITH",
+          "lag_weeks": 2,
+          "confidence": 0.88
+        },
+        {
+          "from_event": "phase2:w5 - GPU Utilization near-zero",
+          "to_event": "phase3:w1 - Platform fires Deployment Velocity Collapse alert",
+          "edge_type": "INDICATES",
+          "lag_weeks": 8,
+          "confidence": 0.92
+        },
+        {
+          "from_event": "phase3:w1 - Deployment Velocity Collapse alert",
+          "to_event": "phase3:w2 - CSM escalates with cost-of-delay analysis",
+          "edge_type": "LED_TO",
+          "lag_weeks": 1,
+          "confidence": 0.95
+        }
+      ]
+    },
+    {
+      "chain_id": "cc_escalation_to_acceleration",
+      "name": "Executive Escalation to Deployment Acceleration",
+      "revenue_impact": 870000,
+      "links": [
+        {
+          "from_event": "phase3:w2 - CSM escalates to VP Engineering",
+          "to_event": "phase3:w3 - VP Engineering calls Infrastructure Director",
+          "edge_type": "LED_TO",
+          "lag_weeks": 1,
+          "confidence": 0.9
+        },
+        {
+          "from_event": "phase3:w3 - VP Engineering calls Infrastructure Director",
+          "to_event": "phase4:w1 - On-site acceleration team deployed",
+          "edge_type": "LED_TO",
+          "lag_weeks": 2,
+          "confidence": 0.88
+        },
+        {
+          "from_event": "phase4:w1 - On-site acceleration team deployed",
+          "to_event": "phase4:w3 - Installation Completion Rate crosses 60%",
+          "edge_type": "LED_TO",
+          "lag_weeks": 2,
+          "confidence": 0.92
+        },
+        {
+          "from_event": "phase4:w3 - Installation Completion Rate crosses 60%",
+          "to_event": "phase4:w7 - First production workload goes live",
+          "edge_type": "LED_TO",
+          "lag_weeks": 4,
+          "confidence": 0.85
+        },
+        {
+          "from_event": "phase4:w7 - First production workload goes live",
+          "to_event": "phase4:w9 - All 10 racks installed and commissioned",
+          "edge_type": "LED_TO",
+          "lag_weeks": 2,
+          "confidence": 0.9
+        },
+        {
+          "from_event": "phase4:w9 - All racks installed",
+          "to_event": "phase5:w5 - Full GPU utilization at 62%",
+          "edge_type": "LED_TO",
+          "lag_weeks": 6,
+          "confidence": 0.82
+        }
+      ]
+    },
+    {
+      "chain_id": "cc_config_rework",
+      "name": "Rushed Configuration to Rework Cycle",
+      "revenue_impact": -50000,
+      "links": [
+        {
+          "from_event": "phase1:w3 - Customer engineers pulled",
+          "to_event": "phase2:w5 - Configuration errors on 3 of 4 racks",
+          "edge_type": "CAUSED_BY",
+          "lag_weeks": 6,
+          "confidence": 0.78
+        },
+        {
+          "from_event": "phase2:w5 - Configuration errors cause rework",
+          "to_event": "phase4:w1 - Automated config validation scripts deployed",
+          "edge_type": "LED_TO",
+          "lag_weeks": 8,
+          "confidence": 0.85
+        },
+        {
+          "from_event": "phase4:w1 - Automated config validation",
+          "to_event": "phase4:w3 - Configuration Accuracy recovers to 97%",
+          "edge_type": "LED_TO",
+          "lag_weeks": 2,
+          "confidence": 0.9
+        }
+      ]
+    }
+  ],
+  "kpi_trajectories": {
+    "P1": {
+      "overall_trend": "recovering",
+      "kpi_overrides": [
+        {
+          "kpi_code": "P1-KPI1",
+          "trend": "volatile",
+          "inflection_week": 21,
+          "note": "Time-to-First-Workload stuck at 35+ days through stall period, finally achieved at week 21 when first production workload goes live on initial racks"
+        },
+        {
+          "kpi_code": "P1-KPI2",
+          "trend": "recovering",
+          "inflection_week": 15,
+          "note": "Installation Completion Rate plateaus at 40% from week 7 through week 14, then climbs steadily: 60% (w17), 90% (w21), 100% (w23)"
+        },
+        {
+          "kpi_code": "P1-KPI3",
+          "trend": "volatile",
+          "inflection_week": 9,
+          "note": "Configuration Accuracy drops to 75% during stall as rushed work causes errors, recovers to 97% with automated validation at week 15, reaches 99% by week 29"
+        },
+        {
+          "kpi_code": "P1-KPI4",
+          "trend": "recovering",
+          "inflection_week": 15,
+          "note": "Deployment Cycle Time exceeds 45 days during stall (critical zone), improves after acceleration team arrives, finalized at 22 weeks total"
+        },
+        {
+          "kpi_code": "P1-KPI5",
+          "trend": "recovering",
+          "inflection_week": 15,
+          "note": "Hardware Commissioning Time balloons to 18+ days during stall, drops to 4 days per rack once acceleration team is on-site"
+        },
+        {
+          "kpi_code": "P1-KPI7",
+          "trend": "recovering",
+          "inflection_week": 15,
+          "note": "Deployment Team Velocity crashes from 6 to 1.5 servers/day during stall, recovers to 8+ with parallel deployment methodology"
+        },
+        {
+          "kpi_code": "P1-KPI8",
+          "trend": "recovering",
+          "inflection_week": 19,
+          "note": "Documentation Completeness stalls at 35% during stall period, recovers to 95% during Full Operations phase"
+        }
+      ]
+    },
+    "P2": {
+      "overall_trend": "stable",
+      "kpi_overrides": [
+        {
+          "kpi_code": "P2-KPI4",
+          "trend": "stable",
+          "inflection_week": 0,
+          "note": "System Uptime remains stable on deployed hardware throughout -- uptime is not the problem, utilization is. Idle hardware has high uptime but generates no value."
+        }
+      ]
+    },
+    "P3": {
+      "overall_trend": "recovering",
+      "kpi_overrides": [
+        {
+          "kpi_code": "P3-KPI1",
+          "trend": "recovering",
+          "inflection_week": 21,
+          "note": "GPU Utilization near-zero through entire stall (weeks 5-14) as no production workloads are running. Jumps to 35% at week 21 when first workload goes live, climbs to 52% (w28) and 62% (w31)"
+        }
+      ]
+    },
+    "P4": {
+      "overall_trend": "declining",
+      "kpi_overrides": [
+        {
+          "kpi_code": "P4-KPI3",
+          "trend": "recovering",
+          "inflection_week": 33,
+          "note": "QBR engagement drops during stall as customer leadership is distracted, recovers strongly in post-deployment QBR at week 33"
+        }
+      ]
+    },
+    "P5": {
+      "overall_trend": "volatile",
+      "kpi_overrides": [
+        {
+          "kpi_code": "P5-KPI7",
+          "trend": "recovering",
+          "inflection_week": 33,
+          "note": "Expansion Probability drops to near-zero during stall (why expand when initial deployment is failing?), recovers to 48% after successful completion and QBR"
+        },
+        {
+          "kpi_code": "P5-KPI5",
+          "trend": "recovering",
+          "inflection_week": 33,
+          "note": "Budget signals frozen during stall period, thaw after deployment success as Infrastructure Director opens Phase 2 discussion"
+        },
+        {
+          "kpi_code": "P5-KPI1",
+          "trend": "recovering",
+          "inflection_week": 21,
+          "note": "Capacity Utilization extremely low during stall (40% of hardware not even installed), climbs steadily as deployment completes and workloads ramp"
+        }
+      ]
+    }
+  },
+  "decisions": [
+    {
+      "decision_id": "d1_escalate_to_vp",
+      "phase_id": 2,
+      "week": 14,
+      "title": "Escalate Deployment Stall to VP Engineering",
+      "decision_maker_role": "champion",
+      "options": [
+        {
+          "option": "Continue waiting for customer to resolve resource constraints internally",
+          "projected_impact": -870000,
+          "risk_level": "high"
+        },
+        {
+          "option": "Escalate to VP Engineering with cost-of-delay analysis and proposed acceleration plan",
+          "projected_impact": 870000,
+          "risk_level": "low"
+        },
+        {
+          "option": "CSM offers remote deployment guidance without executive escalation",
+          "projected_impact": -290000,
+          "risk_level": "medium"
+        }
+      ],
+      "chosen_option": 1,
+      "evidence_refs": [
+        "P1-KPI2 Installation Completion Rate stalled at 40% for 4+ weeks",
+        "P1-KPI7 Deployment Team Velocity at 1.5 (critical threshold 3.0)",
+        "P1-KPI1 Time-to-First-Workload at 35+ days (target 14 days)",
+        "$580K in idle hardware costs already accumulated",
+        "P1-KPI3 Configuration Accuracy dropped to 75% from rushed work"
+      ],
+      "revenue_impact": 870000,
+      "outcome_description": "Early escalation with quantified cost-of-delay ($145K/month) reframed the deployment stall from a 'project management issue' to a 'CFO-level financial waste problem'. VP Engineering authorized acceleration resources within 1 week."
+    },
+    {
+      "decision_id": "d2_deploy_acceleration_team",
+      "phase_id": 3,
+      "week": 18,
+      "title": "Deploy On-Site Acceleration Team",
+      "decision_maker_role": "exec_sponsor",
+      "options": [
+        {
+          "option": "Deploy 4-person field engineering team on-site for parallel deployment ($85K)",
+          "projected_impact": 870000,
+          "risk_level": "low"
+        },
+        {
+          "option": "Provide remote deployment support only ($15K)",
+          "projected_impact": 290000,
+          "risk_level": "medium"
+        },
+        {
+          "option": "Pause deployment and negotiate timeline extension with customer",
+          "projected_impact": -580000,
+          "risk_level": "high"
+        }
+      ],
+      "chosen_option": 0,
+      "evidence_refs": [
+        "P1-KPI2 Installation Completion Rate at 40% (target 90%)",
+        "$145K/month idle hardware burn rate continuing",
+        "Infrastructure Director acknowledges resource gap",
+        "Parallel deployment methodology can 3x daily throughput",
+        "P1-KPI3 configuration errors require on-site validation"
+      ],
+      "revenue_impact": 870000,
+      "outcome_description": "On-site team tripled deployment velocity from 1.5 to 8+ servers/day using parallel rack installation. $85K investment saved an estimated $435K in additional idle costs and reduced time-to-value by 12 weeks."
+    },
+    {
+      "decision_id": "d3_approve_modified_schedule",
+      "phase_id": 3,
+      "week": 22,
+      "title": "Approve Modified Parallel Deployment Schedule",
+      "decision_maker_role": "decision_maker",
+      "options": [
+        {
+          "option": "Approve parallel deployment schedule with dedicated customer engineers and accelerated timeline",
+          "projected_impact": 435000,
+          "risk_level": "low"
+        },
+        {
+          "option": "Maintain sequential deployment approach with additional vendor support",
+          "projected_impact": 145000,
+          "risk_level": "medium"
+        },
+        {
+          "option": "Scale back deployment to 7 racks and defer remaining 3 to next quarter",
+          "projected_impact": -290000,
+          "risk_level": "medium"
+        }
+      ],
+      "chosen_option": 0,
+      "evidence_refs": [
+        "P1-KPI2 Installation Completion Rate already recovering (60% at week 17)",
+        "P1-KPI7 Deployment Team Velocity at 8 servers/day with parallel method",
+        "P1-KPI5 Hardware Commissioning Time reduced to 4 days per rack",
+        "On-site team has proven parallel deployment methodology works"
+      ],
+      "revenue_impact": 435000,
+      "outcome_description": "Infrastructure Director's formal approval of parallel deployment committed 2 dedicated customer engineers and unblocked the final 40% of installation. This decision eliminated the remaining deployment timeline risk and enabled 100% completion by week 23."
+    }
+  ],
+  "outcomes": [
+    {
+      "outcome_id": "o1_idle_costs_avoided",
+      "title": "Idle Hardware Capacity Costs Avoided",
+      "outcome_type": "cost_reduction",
+      "revenue_value": 870000,
+      "realized_week": 26,
+      "evidence": "Deployment completed 12 weeks ahead of inaction scenario. At $145K/month idle cost burn rate, 12 weeks saved = $870K in avoided waste (12 weeks x $145K/month x 12/4 weeks-to-months). CFO-relevant metric: hardware ROI accelerated by 40%.",
+      "confidence": 0.92
+    },
+    {
+      "outcome_id": "o2_deployment_completed",
+      "title": "Full Deployment Completed",
+      "outcome_type": "retention",
+      "revenue_value": 3500000,
+      "realized_week": 23,
+      "evidence": "All 10 racks (120 GPU servers) installed, configured, and running production workloads. Installation Completion Rate at 100%. Configuration Accuracy at 99%. $3.5M ARR secured through successful deployment.",
+      "confidence": 0.95
+    },
+    {
+      "outcome_id": "o3_time_to_value_reduced",
+      "title": "Time-to-Value Reduced by 40%",
+      "outcome_type": "cost_reduction",
+      "revenue_value": 435000,
+      "realized_week": 26,
+      "evidence": "Deployment completed in 22 weeks vs. projected 34+ weeks without intervention. 40% reduction in time-to-value. GPU Utilization ramped to 62% within 8 weeks of completion. First production workload achieved at week 21.",
+      "confidence": 0.88
+    },
+    {
+      "outcome_id": "o4_retention_risk_eliminated",
+      "title": "Retention Risk Eliminated",
+      "outcome_type": "churn_averted",
+      "revenue_value": 3500000,
+      "realized_week": 26,
+      "evidence": "Full $3.5M ARR was at risk if deployment failed. Stalled deployments have 68% probability of customer abandonment within 6 months. Successful completion eliminated churn risk and Infrastructure Director opened Phase 2 expansion discussion.",
+      "confidence": 0.85
+    },
+    {
+      "outcome_id": "o5_intervention_roi",
+      "title": "Net ROI of CS Intervention",
+      "outcome_type": "cost_reduction",
+      "revenue_value": 745000,
+      "realized_week": 34,
+      "evidence": "$870K in idle costs avoided minus $125K intervention cost (on-site team $85K + schedule optimization $8K + escalation coordination $5K + CSM time $27K) = $745K net value. 596% ROI on CS investment. CFO story: every $1 spent on acceleration saved $6.96.",
+      "confidence": 0.9
+    }
+  ],
+  "edges_template": [
+    {
+      "from_ref": "signal:phase1:w3",
+      "to_ref": "signal:phase2:w1",
+      "edge_type": "CAUSED_BY",
+      "weight": 0.92,
+      "properties": {
+        "label": "Customer resource pullout caused velocity collapse",
+        "lag_weeks": 2
+      }
+    },
+    {
+      "from_ref": "signal:phase2:w1",
+      "to_ref": "signal:phase2:w3",
+      "edge_type": "LED_TO",
+      "weight": 0.95,
+      "properties": {
+        "label": "Velocity collapse led to installation stall at 40%"
+      }
+    },
+    {
+      "from_ref": "signal:phase2:w3",
+      "to_ref": "signal:phase2:w5",
+      "edge_type": "LED_TO",
+      "weight": 0.9,
+      "properties": {
+        "label": "Installation stall caused Time-to-First-Workload failure",
+        "lag_weeks": 2
+      }
+    },
+    {
+      "from_ref": "signal:phase2:w5",
+      "to_ref": "signal:phase2:w7",
+      "edge_type": "LED_TO",
+      "weight": 0.95,
+      "properties": {
+        "label": "Continued stall accumulated $435K idle costs"
+      }
+    },
+    {
+      "from_ref": "signal:phase2:w7",
+      "to_ref": "signal:phase3:w1",
+      "edge_type": "INDICATES",
+      "weight": 0.92,
+      "properties": {
+        "label": "Accumulated costs and stall pattern trigger platform alert"
+      }
+    },
+    {
+      "from_ref": "signal:phase3:w1",
+      "to_ref": "decision:phase3:w2",
+      "edge_type": "LED_TO",
+      "weight": 0.95,
+      "properties": {
+        "label": "Platform alert triggers CSM executive escalation"
+      }
+    },
+    {
+      "from_ref": "decision:phase3:w2",
+      "to_ref": "decision:phase3:w3",
+      "edge_type": "LED_TO",
+      "weight": 0.9,
+      "properties": {
+        "label": "CSM escalation leads to VP-to-Director executive call"
+      }
+    },
+    {
+      "from_ref": "decision:phase3:w3",
+      "to_ref": "decision:phase4:w1",
+      "edge_type": "LED_TO",
+      "weight": 0.88,
+      "properties": {
+        "label": "Executive alignment unlocks on-site acceleration team",
+        "lag_weeks": 2
+      }
+    },
+    {
+      "from_ref": "decision:phase4:w1",
+      "to_ref": "outcome:phase4:w3",
+      "edge_type": "LED_TO",
+      "weight": 0.92,
+      "properties": {
+        "label": "Acceleration team drives Installation Completion to 60%",
+        "lag_weeks": 2
+      }
+    },
+    {
+      "from_ref": "outcome:phase4:w3",
+      "to_ref": "decision:phase4:w5",
+      "edge_type": "LED_TO",
+      "weight": 0.85,
+      "properties": {
+        "label": "Progress momentum enables formal schedule approval"
+      }
+    },
+    {
+      "from_ref": "decision:phase4:w5",
+      "to_ref": "outcome:phase4:w7",
+      "edge_type": "LED_TO",
+      "weight": 0.88,
+      "properties": {
+        "label": "Approved parallel schedule enables 90% completion and first workload"
+      }
+    },
+    {
+      "from_ref": "outcome:phase4:w7",
+      "to_ref": "outcome:phase4:w9",
+      "edge_type": "LED_TO",
+      "weight": 0.9,
+      "properties": {
+        "label": "First workload success drives final rack installation to 100%"
+      }
+    },
+    {
+      "from_ref": "outcome:phase4:w9",
+      "to_ref": "outcome:phase5:w2",
+      "edge_type": "LED_TO",
+      "weight": 0.85,
+      "properties": {
+        "label": "Full deployment enables production workload ramp"
+      }
+    },
+    {
+      "from_ref": "outcome:phase5:w2",
+      "to_ref": "outcome:phase5:w5",
+      "edge_type": "LED_TO",
+      "weight": 0.82,
+      "properties": {
+        "label": "Workload ramp drives GPU utilization to operational levels"
+      }
+    },
+    {
+      "from_ref": "outcome:phase5:w5",
+      "to_ref": "outcome:phase5:w7",
+      "edge_type": "LED_TO",
+      "weight": 0.78,
+      "properties": {
+        "label": "Operational success enables expansion discussion at QBR"
+      }
+    },
+    {
+      "from_ref": "stakeholder:technical_lead",
+      "to_ref": "signal:phase1:w3",
+      "edge_type": "INVOLVES",
+      "weight": 0.7,
+      "properties": {
+        "label": "Overwhelmed Project Manager signals resource constraint"
+      }
+    },
+    {
+      "from_ref": "stakeholder:champion",
+      "to_ref": "decision:phase3:w2",
+      "edge_type": "INVOLVES",
+      "weight": 0.9,
+      "properties": {
+        "label": "CSM drives executive escalation with cost-of-delay analysis"
+      }
+    },
+    {
+      "from_ref": "stakeholder:exec_sponsor",
+      "to_ref": "decision:phase3:w3",
+      "edge_type": "INVOLVES",
+      "weight": 0.92,
+      "properties": {
+        "label": "VP Engineering makes executive-to-executive call to unblock"
+      }
+    },
+    {
+      "from_ref": "stakeholder:decision_maker",
+      "to_ref": "decision:phase4:w5",
+      "edge_type": "INVOLVES",
+      "weight": 0.88,
+      "properties": {
+        "label": "Infrastructure Director approves modified deployment schedule"
+      }
+    },
+    {
+      "from_ref": "signal:phase2:w5",
+      "to_ref": "signal:phase2:w3",
+      "edge_type": "CAUSED_BY",
+      "weight": 0.78,
+      "properties": {
+        "label": "Configuration errors caused by rushed installation during resource shortage"
+      }
+    }
+  ],
+  "industry_benchmarks": [
+    {
+      "kpi_code": "P1-KPI1",
+      "benchmark_source": "IDC Data Center Deployment Benchmarks 2025",
+      "industry_p25": 28,
+      "industry_p50": 18,
+      "industry_p75": 10,
+      "account_percentile": 8
+    },
+    {
+      "kpi_code": "P1-KPI2",
+      "benchmark_source": "Data Center Installation Industry Report 2025",
+      "industry_p25": 72,
+      "industry_p50": 85,
+      "industry_p75": 95,
+      "account_percentile": 10
+    },
+    {
+      "kpi_code": "P1-KPI4",
+      "benchmark_source": "Gartner Data Center Deployment Cycle Analysis",
+      "industry_p25": 55,
+      "industry_p50": 38,
+      "industry_p75": 25,
+      "account_percentile": 5
+    },
+    {
+      "kpi_code": "P1-KPI5",
+      "benchmark_source": "Data Center Hardware Commissioning Standards 2025",
+      "industry_p25": 14,
+      "industry_p50": 9,
+      "industry_p75": 5,
+      "account_percentile": 8
+    },
+    {
+      "kpi_code": "P1-KPI7",
+      "benchmark_source": "Field Engineering Productivity Benchmarks 2025",
+      "industry_p25": 2.5,
+      "industry_p50": 4.5,
+      "industry_p75": 7,
+      "account_percentile": 12
+    },
+    {
+      "kpi_code": "P1-KPI3",
+      "benchmark_source": "Data Center Configuration Quality Report 2025",
+      "industry_p25": 82,
+      "industry_p50": 91,
+      "industry_p75": 97,
+      "account_percentile": 15
+    },
+    {
+      "kpi_code": "P3-KPI1",
+      "benchmark_source": "MLPerf Infrastructure Benchmarks 2025",
+      "industry_p25": 48,
+      "industry_p50": 62,
+      "industry_p75": 78,
+      "account_percentile": 5
+    },
+    {
+      "kpi_code": "P2-KPI4",
+      "benchmark_source": "Uptime Institute Availability Benchmark 2025",
+      "industry_p25": 98.5,
+      "industry_p50": 99.2,
+      "industry_p75": 99.8,
+      "account_percentile": 72
+    }
+  ]
+}

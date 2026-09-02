@@ -1,0 +1,1292 @@
+{
+  "arc_id": "arc_seasonal_surge",
+  "arc_name": "Seasonal Surge",
+  "version": "1.0",
+  "description": "A $2.8M ARR retail/e-commerce data center customer with predictable Q4 compute demand surges. The platform detects the seasonal pattern from historical data, enables proactive capacity planning by Q3, and times expansion perfectly -- capturing $1.6M in expansion revenue and avoiding $800K in emergency spot capacity costs and SLA penalties.",
+  "intelligence_dimensions": [
+    "expansion_readiness",
+    "operational_risk",
+    "value_realization",
+    "adoption_velocity"
+  ],
+  "target_audience": "CFO",
+  "revenue_narrative": {
+    "arr_start": 2800000,
+    "arr_end": 4400000,
+    "arr_at_risk_peak": 800000,
+    "roi_of_intervention": 2421,
+    "cost_of_inaction": 800000,
+    "time_horizon_weeks": 44,
+    "intervention_cost": 95000,
+    "net_revenue_saved": 2305000
+  },
+  "cast": [
+    {
+      "role": "champion",
+      "title": "VP Data Science",
+      "influence_score": 0.88,
+      "sentiment_arc": [
+        0.6,
+        0.7,
+        0.5,
+        0.75,
+        0.95
+      ],
+      "engagement_frequency": "weekly",
+      "appears_in_phase": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ]
+    },
+    {
+      "role": "decision_maker",
+      "title": "CFO",
+      "influence_score": 0.95,
+      "sentiment_arc": [
+        0.5,
+        0.55,
+        0.35,
+        0.65,
+        0.9
+      ],
+      "engagement_frequency": "monthly",
+      "appears_in_phase": [
+        1,
+        3,
+        4,
+        5
+      ]
+    },
+    {
+      "role": "technical_lead",
+      "title": "Infrastructure Director",
+      "influence_score": 0.82,
+      "sentiment_arc": [
+        0.55,
+        0.65,
+        0.45,
+        0.7,
+        0.85
+      ],
+      "engagement_frequency": "biweekly",
+      "appears_in_phase": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ]
+    },
+    {
+      "role": "technical_lead",
+      "title": "CSM (Ours)",
+      "influence_score": 0.72,
+      "sentiment_arc": [
+        0.7,
+        0.75,
+        0.55,
+        0.8,
+        0.95
+      ],
+      "engagement_frequency": "weekly",
+      "appears_in_phase": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ]
+    }
+  ],
+  "phases": [
+    {
+      "phase_id": 1,
+      "name": "Post-Holiday Baseline",
+      "duration_weeks": 8,
+      "health_range": {
+        "start": 74,
+        "end": 73
+      },
+      "description": "Q1 post-holiday cool-down period. Compute demand returns to baseline after last year's Q4 surge. Capacity utilization drops from holiday peak back to normal levels. Health is stable in the low-to-mid 70s. The account runs standard inference and training workloads for recommendation engines and demand forecasting. This calm period establishes the baseline that makes the seasonal pattern detectable.",
+      "revenue_impact_type": "none",
+      "plot_points": [
+        {
+          "week_offset": 1,
+          "event_type": "milestone",
+          "description": "Post-holiday QBR with VP Data Science and Infrastructure Director. Review of Q4 surge performance: capacity hit 94% utilization, 3 training jobs failed during peak, inference latency spiked 40%. Agreement that Q4 was barely manageable.",
+          "sentiment_shift": 0.05,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P5-KPI1",
+              "direction": "degrade",
+              "magnitude": "moderate"
+            },
+            {
+              "kpi_code": "P5-KPI4",
+              "direction": "degrade",
+              "magnitude": "moderate"
+            }
+          ],
+          "revenue_impact": 0,
+          "generates_node_type": "SIGNAL",
+          "csm_action": {
+            "action_type": "executive_alignment",
+            "description": "CSM documents Q4 surge pain points and requests historical utilization data for pattern analysis",
+            "cost_estimate": 1500,
+            "response_time_hours": 24
+          }
+        },
+        {
+          "week_offset": 4,
+          "event_type": "signal",
+          "description": "Capacity utilization normalizes to 62% as holiday traffic subsides. Compute Hour Consumption Trend drops 25% MoM. GPU utilization settles at 58%. Baseline workloads are recommendation model retraining (weekly) and demand forecasting inference (continuous).",
+          "sentiment_shift": 0,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P5-KPI1",
+              "direction": "degrade",
+              "magnitude": "minor"
+            },
+            {
+              "kpi_code": "P5-KPI4",
+              "direction": "degrade",
+              "magnitude": "minor"
+            },
+            {
+              "kpi_code": "P3-KPI1",
+              "direction": "degrade",
+              "magnitude": "minor"
+            }
+          ],
+          "revenue_impact": 0,
+          "generates_node_type": "SIGNAL"
+        },
+        {
+          "week_offset": 7,
+          "event_type": "signal",
+          "description": "CSM runs historical pattern analysis across 3 years of utilization data. Clear seasonal pattern emerges: capacity ramps 35-40% every Q4, with peak sustained for 10 weeks. Current infrastructure cannot support another year of growth on top of the seasonal spike.",
+          "sentiment_shift": 0.1,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P5-KPI2",
+              "direction": "plateau",
+              "magnitude": "minor"
+            },
+            {
+              "kpi_code": "P5-KPI7",
+              "direction": "improve",
+              "magnitude": "minor"
+            }
+          ],
+          "revenue_impact": 0,
+          "generates_node_type": "SIGNAL",
+          "csm_action": {
+            "action_type": "proactive_analysis",
+            "description": "CSM produces 3-year seasonal pattern report showing Q4 capacity risk, shares with VP Data Science",
+            "cost_estimate": 3000,
+            "response_time_hours": 40
+          }
+        }
+      ]
+    },
+    {
+      "phase_id": 2,
+      "name": "Pattern Detection",
+      "duration_weeks": 8,
+      "health_range": {
+        "start": 73,
+        "end": 76
+      },
+      "description": "The platform's signal analyst detects the seasonal utilization pattern and surfaces it as an expansion signal. VP Data Science validates the pattern against their own demand forecasts. The seasonal model predicts a 45% compute demand increase for Q4, exceeding current capacity by 30%. Health ticks up slightly as the account sees proactive engagement from the CS team.",
+      "revenue_impact_type": "none",
+      "plot_points": [
+        {
+          "week_offset": 2,
+          "event_type": "signal",
+          "description": "Platform signal analyst flags seasonal capacity risk: 3-year trend shows 38% average Q4 compute surge with 6% YoY growth. At current trajectory, Q4 will require 130% of installed capacity. Expansion Probability jumps from 35% to 52%.",
+          "sentiment_shift": 0.1,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P5-KPI7",
+              "direction": "improve",
+              "magnitude": "moderate"
+            },
+            {
+              "kpi_code": "P5-KPI2",
+              "direction": "improve",
+              "magnitude": "minor"
+            },
+            {
+              "kpi_code": "P5-KPI3",
+              "direction": "improve",
+              "magnitude": "minor"
+            }
+          ],
+          "revenue_impact": 0,
+          "generates_node_type": "SIGNAL"
+        },
+        {
+          "week_offset": 4,
+          "event_type": "meeting",
+          "description": "CSM presents seasonal capacity forecast to VP Data Science and Infrastructure Director. VP Data Science confirms: their internal demand model for new recommendation engine v3 and real-time personalization will add 15% on top of the seasonal spike. Combined demand: 145% of current capacity.",
+          "sentiment_shift": 0.15,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P5-KPI4",
+              "direction": "improve",
+              "magnitude": "minor"
+            },
+            {
+              "kpi_code": "P5-KPI8",
+              "direction": "improve",
+              "magnitude": "moderate"
+            }
+          ],
+          "revenue_impact": 0,
+          "generates_node_type": "STAKEHOLDER",
+          "csm_action": {
+            "action_type": "strategic_planning",
+            "description": "CSM schedules capacity planning workshop with customer technical team and internal solutions architect",
+            "cost_estimate": 2500,
+            "response_time_hours": 48
+          }
+        },
+        {
+          "week_offset": 7,
+          "event_type": "milestone",
+          "description": "Joint capacity planning workshop completed. Infrastructure Director validates hardware requirements: 2 additional GPU racks (64 GPUs), upgraded cooling for sustained load, and network fabric expansion. Total expansion cost estimated at $1.6M. VP Data Science agrees to champion the budget request.",
+          "sentiment_shift": 0.1,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P5-KPI7",
+              "direction": "improve",
+              "magnitude": "moderate"
+            },
+            {
+              "kpi_code": "P5-KPI1",
+              "direction": "plateau",
+              "magnitude": "minor"
+            },
+            {
+              "kpi_code": "P3-KPI1",
+              "direction": "plateau",
+              "magnitude": "minor"
+            }
+          ],
+          "revenue_impact": 0,
+          "generates_node_type": "DECISION",
+          "csm_action": {
+            "action_type": "solution_design",
+            "description": "CSM co-develops capacity expansion proposal with Infrastructure Director, including phased deployment timeline",
+            "cost_estimate": 5000,
+            "response_time_hours": 80
+          }
+        }
+      ]
+    },
+    {
+      "phase_id": 3,
+      "name": "Capacity Planning",
+      "duration_weeks": 8,
+      "health_range": {
+        "start": 72,
+        "end": 65
+      },
+      "description": "Budget approval process creates anxiety. CFO questions the $1.6M expansion investment -- wants ROI proof before committing. VP Data Science builds the business case but faces internal pushback from finance team. Health dips into at-risk zone (65) as the planning gap creates uncertainty: the seasonal surge is 18 weeks away and hardware procurement lead time is 12 weeks. Without a decision by week 22, the window closes.",
+      "revenue_impact_type": "at_risk",
+      "plot_points": [
+        {
+          "week_offset": 2,
+          "event_type": "meeting",
+          "description": "VP Data Science presents expansion proposal to CFO. CFO pushback: wants to see ROI analysis comparing proactive expansion vs. on-demand spot capacity. Requests cost-of-inaction analysis. Budget Availability Signals drop to 45 as CFO signals caution.",
+          "sentiment_shift": -0.15,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P5-KPI5",
+              "direction": "degrade",
+              "magnitude": "moderate"
+            },
+            {
+              "kpi_code": "P5-KPI7",
+              "direction": "degrade",
+              "magnitude": "minor"
+            }
+          ],
+          "revenue_impact": -800000,
+          "generates_node_type": "DECISION"
+        },
+        {
+          "week_offset": 4,
+          "event_type": "signal",
+          "description": "CSM produces comprehensive ROI deck: proactive expansion at $1.6M vs. emergency spot capacity at $2.4M (50% premium) plus $800K SLA penalty risk from degraded performance during surge. Net savings of proactive approach: $1.6M over 2 years. Infrastructure Director flags 12-week procurement lead time -- decision needed by week 22.",
+          "sentiment_shift": 0.1,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P5-KPI5",
+              "direction": "improve",
+              "magnitude": "minor"
+            },
+            {
+              "kpi_code": "P5-KPI2",
+              "direction": "plateau",
+              "magnitude": "minor"
+            }
+          ],
+          "revenue_impact": 0,
+          "generates_node_type": "SIGNAL",
+          "csm_action": {
+            "action_type": "roi_analysis",
+            "description": "CSM builds CFO-ready ROI model comparing proactive expansion vs. reactive spot capacity, quantifying SLA penalty exposure",
+            "cost_estimate": 8000,
+            "response_time_hours": 60
+          }
+        },
+        {
+          "week_offset": 6,
+          "event_type": "signal",
+          "description": "Early seasonal signals appear: Compute Hour Consumption begins trending upward 8% MoM as pre-holiday product development ramps. GPU utilization creeps from 58% to 63%. Training job queue times increasing. The surge is starting earlier than last year.",
+          "sentiment_shift": -0.1,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P5-KPI4",
+              "direction": "spike",
+              "magnitude": "moderate"
+            },
+            {
+              "kpi_code": "P3-KPI1",
+              "direction": "improve",
+              "magnitude": "minor"
+            },
+            {
+              "kpi_code": "P3-KPI4",
+              "direction": "degrade",
+              "magnitude": "minor"
+            },
+            {
+              "kpi_code": "P3-KPI2",
+              "direction": "degrade",
+              "magnitude": "minor"
+            }
+          ],
+          "revenue_impact": 0,
+          "generates_node_type": "SIGNAL"
+        },
+        {
+          "week_offset": 8,
+          "event_type": "escalation",
+          "description": "CSM escalates procurement timeline risk to VP Data Science: 4 weeks remain before the decision window closes. Health score dips to 65 as capacity planning uncertainty weighs on the account. VP Data Science arranges urgent CFO follow-up.",
+          "sentiment_shift": -0.05,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P5-KPI7",
+              "direction": "degrade",
+              "magnitude": "moderate"
+            },
+            {
+              "kpi_code": "P5-KPI1",
+              "direction": "improve",
+              "magnitude": "minor"
+            },
+            {
+              "kpi_code": "P2-KPI4",
+              "direction": "plateau",
+              "magnitude": "minor"
+            }
+          ],
+          "revenue_impact": 0,
+          "generates_node_type": "SIGNAL",
+          "csm_action": {
+            "action_type": "timeline_escalation",
+            "description": "CSM escalates procurement deadline risk, arranges CFO meeting with updated seasonal demand data showing earlier-than-expected ramp",
+            "cost_estimate": 2000,
+            "response_time_hours": 24
+          }
+        }
+      ]
+    },
+    {
+      "phase_id": 4,
+      "name": "Pre-Surge Expansion",
+      "duration_weeks": 10,
+      "health_range": {
+        "start": 66,
+        "end": 78
+      },
+      "description": "CFO approves the $1.6M expansion budget after seeing the ROI analysis and early seasonal signals. Hardware procurement begins immediately. Infrastructure Director oversees phased deployment: first rack online by week 28, second rack by week 32. Health recovers from the planning-gap dip as expansion hardware comes online and the account sees tangible investment. Capacity utilization trajectory turns strongly positive.",
+      "revenue_impact_type": "expansion",
+      "plot_points": [
+        {
+          "week_offset": 1,
+          "event_type": "decision",
+          "description": "CFO approves $1.6M expansion budget. Key factors: CSM's ROI analysis showing $800K in avoided emergency costs, VP Data Science championing the investment, and early seasonal demand signals confirming the forecast. Purchase orders issued for 2 GPU racks, cooling upgrades, and network fabric expansion.",
+          "sentiment_shift": 0.25,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P5-KPI5",
+              "direction": "improve",
+              "magnitude": "major"
+            },
+            {
+              "kpi_code": "P5-KPI7",
+              "direction": "improve",
+              "magnitude": "major"
+            },
+            {
+              "kpi_code": "P5-KPI8",
+              "direction": "improve",
+              "magnitude": "moderate"
+            }
+          ],
+          "revenue_impact": 1600000,
+          "generates_node_type": "DECISION"
+        },
+        {
+          "week_offset": 4,
+          "event_type": "milestone",
+          "description": "First GPU rack (32 GPUs) delivered and installation begins. Infrastructure Director oversees deployment with minimal disruption to production workloads. Cooling system upgrades completed in parallel. Capacity utilization drops to 52% as new capacity comes online before demand ramps.",
+          "sentiment_shift": 0.15,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P5-KPI1",
+              "direction": "degrade",
+              "magnitude": "minor"
+            },
+            {
+              "kpi_code": "P2-KPI5",
+              "direction": "improve",
+              "magnitude": "minor"
+            },
+            {
+              "kpi_code": "P2-KPI4",
+              "direction": "plateau",
+              "magnitude": "minor"
+            }
+          ],
+          "revenue_impact": 0,
+          "generates_node_type": "OUTCOME"
+        },
+        {
+          "week_offset": 7,
+          "event_type": "milestone",
+          "description": "First rack fully operational and validated. VP Data Science migrates recommendation engine v3 training to new GPUs. GPU utilization on new rack reaches 45% within first week. Training Job Completion Rate holds strong at 94%. Health score recovers to 75.",
+          "sentiment_shift": 0.1,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P3-KPI1",
+              "direction": "improve",
+              "magnitude": "moderate"
+            },
+            {
+              "kpi_code": "P3-KPI2",
+              "direction": "improve",
+              "magnitude": "minor"
+            },
+            {
+              "kpi_code": "P5-KPI6",
+              "direction": "improve",
+              "magnitude": "moderate"
+            }
+          ],
+          "revenue_impact": 0,
+          "generates_node_type": "OUTCOME",
+          "csm_action": {
+            "action_type": "deployment_validation",
+            "description": "CSM coordinates workload migration plan with VP Data Science, validates new capacity against surge demand model",
+            "cost_estimate": 3000,
+            "response_time_hours": 48
+          }
+        },
+        {
+          "week_offset": 10,
+          "event_type": "milestone",
+          "description": "Second GPU rack (32 GPUs) installed and operational. Full expansion capacity online with 2 weeks to spare before surge period. Combined fleet: 192 GPUs with N+1 cooling. Load testing confirms system can sustain 95% utilization without thermal or performance degradation. Health score reaches 78.",
+          "sentiment_shift": 0.15,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P5-KPI1",
+              "direction": "improve",
+              "magnitude": "moderate"
+            },
+            {
+              "kpi_code": "P5-KPI2",
+              "direction": "improve",
+              "magnitude": "major"
+            },
+            {
+              "kpi_code": "P2-KPI5",
+              "direction": "improve",
+              "magnitude": "moderate"
+            },
+            {
+              "kpi_code": "P2-KPI4",
+              "direction": "improve",
+              "magnitude": "minor"
+            }
+          ],
+          "revenue_impact": 0,
+          "generates_node_type": "OUTCOME"
+        }
+      ]
+    },
+    {
+      "phase_id": 5,
+      "name": "Surge Period",
+      "duration_weeks": 10,
+      "health_range": {
+        "start": 78,
+        "end": 82
+      },
+      "description": "Q4 holiday surge arrives exactly as predicted. Compute demand ramps 42% over baseline across 10 weeks. The expanded infrastructure absorbs the entire surge with zero downtime, zero SLA breaches, and no emergency spot capacity needed. GPU utilization peaks at 88% on expanded fleet (vs. the 130%+ that would have overwhelmed the old infrastructure). Health score climbs to 82 as the investment proves its value. CFO sees predictive ROI validated in real time.",
+      "revenue_impact_type": "protected",
+      "plot_points": [
+        {
+          "week_offset": 2,
+          "event_type": "signal",
+          "description": "Q4 surge begins. Compute Hour Consumption jumps 18% in first 2 weeks. Real-time personalization workloads for Black Friday preparation drive GPU utilization to 72% across expanded fleet. On old infrastructure this would have been 108% -- impossible without failures. System Uptime holds at 99.95%.",
+          "sentiment_shift": 0.1,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P5-KPI4",
+              "direction": "spike",
+              "magnitude": "major"
+            },
+            {
+              "kpi_code": "P5-KPI1",
+              "direction": "improve",
+              "magnitude": "moderate"
+            },
+            {
+              "kpi_code": "P3-KPI1",
+              "direction": "improve",
+              "magnitude": "moderate"
+            },
+            {
+              "kpi_code": "P2-KPI4",
+              "direction": "plateau",
+              "magnitude": "minor"
+            }
+          ],
+          "revenue_impact": 0,
+          "generates_node_type": "SIGNAL"
+        },
+        {
+          "week_offset": 4,
+          "event_type": "milestone",
+          "description": "Black Friday / Cyber Monday peak. GPU utilization hits 88% on expanded fleet -- the highest sustained load in account history. All 47 concurrent training jobs complete successfully. Inference latency P95 holds at 38ms despite 3x normal traffic. Zero SLA breaches. VP Data Science calls it the smoothest holiday season in 4 years.",
+          "sentiment_shift": 0.2,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P3-KPI1",
+              "direction": "spike",
+              "magnitude": "major"
+            },
+            {
+              "kpi_code": "P3-KPI2",
+              "direction": "improve",
+              "magnitude": "moderate"
+            },
+            {
+              "kpi_code": "P3-KPI3",
+              "direction": "plateau",
+              "magnitude": "minor"
+            },
+            {
+              "kpi_code": "P5-KPI4",
+              "direction": "spike",
+              "magnitude": "major"
+            },
+            {
+              "kpi_code": "P2-KPI4",
+              "direction": "improve",
+              "magnitude": "minor"
+            }
+          ],
+          "revenue_impact": 0,
+          "generates_node_type": "OUTCOME",
+          "csm_action": {
+            "action_type": "real_time_monitoring",
+            "description": "CSM provides daily surge performance reports to VP Data Science and CFO, highlighting ROI of proactive expansion",
+            "cost_estimate": 4000,
+            "response_time_hours": 8
+          }
+        },
+        {
+          "week_offset": 7,
+          "event_type": "meeting",
+          "description": "Mid-surge executive review with CFO. CSM presents real-time ROI dashboard: $800K in emergency spot capacity costs avoided, zero SLA penalties (vs. $200K estimated penalty exposure), and 100% training job completion during peak. CFO acknowledges the proactive investment thesis is validated.",
+          "sentiment_shift": 0.15,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P4-KPI1",
+              "direction": "improve",
+              "magnitude": "moderate"
+            },
+            {
+              "kpi_code": "P4-KPI3",
+              "direction": "improve",
+              "magnitude": "moderate"
+            },
+            {
+              "kpi_code": "P5-KPI5",
+              "direction": "improve",
+              "magnitude": "moderate"
+            }
+          ],
+          "revenue_impact": 800000,
+          "generates_node_type": "SIGNAL",
+          "csm_action": {
+            "action_type": "roi_validation",
+            "description": "CSM delivers mid-surge ROI report to CFO showing cost avoidance and performance preservation metrics",
+            "cost_estimate": 3000,
+            "response_time_hours": 24
+          }
+        },
+        {
+          "week_offset": 10,
+          "event_type": "milestone",
+          "description": "Surge period concludes. Final scorecard: 10 weeks of sustained high demand, zero downtime, zero SLA breaches, 100% training job completion, $800K emergency costs avoided. Health score at 82, highest in account history. CFO initiates conversation about extending the predictive capacity planning model to other seasonal patterns. Expansion Probability for next cycle at 68%.",
+          "sentiment_shift": 0.15,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P5-KPI7",
+              "direction": "improve",
+              "magnitude": "major"
+            },
+            {
+              "kpi_code": "P5-KPI8",
+              "direction": "improve",
+              "magnitude": "moderate"
+            },
+            {
+              "kpi_code": "P4-KPI6",
+              "direction": "improve",
+              "magnitude": "moderate"
+            },
+            {
+              "kpi_code": "P5-KPI1",
+              "direction": "degrade",
+              "magnitude": "minor"
+            }
+          ],
+          "revenue_impact": 0,
+          "generates_node_type": "OUTCOME"
+        }
+      ]
+    }
+  ],
+  "causal_chains": [
+    {
+      "chain_id": "cc_seasonal_pattern_detection",
+      "name": "Historical Pattern to Capacity Forecast",
+      "revenue_impact": 1600000,
+      "links": [
+        {
+          "from_event": "CSM runs historical pattern analysis across 3 years of utilization data",
+          "to_event": "Platform signal analyst flags seasonal capacity risk",
+          "edge_type": "LED_TO",
+          "lag_weeks": 3,
+          "confidence": 0.88
+        },
+        {
+          "from_event": "Platform signal analyst flags seasonal capacity risk",
+          "to_event": "CSM presents seasonal capacity forecast to VP Data Science",
+          "edge_type": "LED_TO",
+          "lag_weeks": 2,
+          "confidence": 0.92
+        },
+        {
+          "from_event": "CSM presents seasonal capacity forecast to VP Data Science",
+          "to_event": "Joint capacity planning workshop completed",
+          "edge_type": "LED_TO",
+          "lag_weeks": 3,
+          "confidence": 0.85
+        }
+      ]
+    },
+    {
+      "chain_id": "cc_budget_approval_path",
+      "name": "Budget Approval Through CFO",
+      "revenue_impact": 1600000,
+      "links": [
+        {
+          "from_event": "VP Data Science presents expansion proposal to CFO",
+          "to_event": "CSM produces comprehensive ROI deck",
+          "edge_type": "LED_TO",
+          "lag_weeks": 2,
+          "confidence": 0.82
+        },
+        {
+          "from_event": "CSM produces comprehensive ROI deck",
+          "to_event": "Early seasonal signals appear confirming forecast",
+          "edge_type": "CORRELATES_WITH",
+          "lag_weeks": 2,
+          "confidence": 0.78
+        },
+        {
+          "from_event": "Early seasonal signals appear confirming forecast",
+          "to_event": "CSM escalates procurement timeline risk",
+          "edge_type": "LED_TO",
+          "lag_weeks": 2,
+          "confidence": 0.9
+        },
+        {
+          "from_event": "CSM escalates procurement timeline risk",
+          "to_event": "CFO approves $1.6M expansion budget",
+          "edge_type": "LED_TO",
+          "lag_weeks": 1,
+          "confidence": 0.85
+        }
+      ]
+    },
+    {
+      "chain_id": "cc_expansion_to_surge",
+      "name": "Hardware Procurement to Surge Readiness",
+      "revenue_impact": 800000,
+      "links": [
+        {
+          "from_event": "CFO approves $1.6M expansion budget",
+          "to_event": "First GPU rack delivered and installation begins",
+          "edge_type": "LED_TO",
+          "lag_weeks": 3,
+          "confidence": 0.92
+        },
+        {
+          "from_event": "First GPU rack delivered and installation begins",
+          "to_event": "First rack fully operational and validated",
+          "edge_type": "LED_TO",
+          "lag_weeks": 3,
+          "confidence": 0.95
+        },
+        {
+          "from_event": "First rack fully operational and validated",
+          "to_event": "Second GPU rack installed and operational",
+          "edge_type": "LED_TO",
+          "lag_weeks": 3,
+          "confidence": 0.9
+        },
+        {
+          "from_event": "Second GPU rack installed and operational",
+          "to_event": "Q4 surge begins with expanded capacity",
+          "edge_type": "LED_TO",
+          "lag_weeks": 2,
+          "confidence": 0.95
+        }
+      ]
+    },
+    {
+      "chain_id": "cc_surge_to_roi",
+      "name": "Surge Performance to Validated ROI",
+      "revenue_impact": 2400000,
+      "links": [
+        {
+          "from_event": "Q4 surge begins with expanded capacity",
+          "to_event": "Black Friday peak sustained at 88% utilization with zero SLA breaches",
+          "edge_type": "LED_TO",
+          "lag_weeks": 2,
+          "confidence": 0.92
+        },
+        {
+          "from_event": "Black Friday peak sustained at 88% utilization with zero SLA breaches",
+          "to_event": "CSM presents real-time ROI dashboard to CFO",
+          "edge_type": "LED_TO",
+          "lag_weeks": 3,
+          "confidence": 0.88
+        },
+        {
+          "from_event": "CSM presents real-time ROI dashboard to CFO",
+          "to_event": "CFO validates predictive capacity planning model",
+          "edge_type": "LED_TO",
+          "lag_weeks": 3,
+          "confidence": 0.85
+        }
+      ]
+    }
+  ],
+  "kpi_trajectories": {
+    "P1": {
+      "overall_trend": "stable",
+      "kpi_overrides": [
+        {
+          "kpi_code": "P1-KPI3",
+          "trend": "volatile",
+          "inflection_week": 28,
+          "note": "Configuration Accuracy dips slightly during new rack deployment, recovers once validated"
+        },
+        {
+          "kpi_code": "P1-KPI1",
+          "trend": "improving",
+          "inflection_week": 25,
+          "note": "Deployment Success Rate improves as expansion deployment is executed flawlessly"
+        }
+      ]
+    },
+    "P2": {
+      "overall_trend": "stable",
+      "kpi_overrides": [
+        {
+          "kpi_code": "P2-KPI4",
+          "trend": "improving",
+          "inflection_week": 34,
+          "note": "System Uptime holds at 99.95% through surge period, proving expanded infrastructure resilience under sustained load"
+        },
+        {
+          "kpi_code": "P2-KPI5",
+          "trend": "improving",
+          "inflection_week": 28,
+          "note": "Thermal Management improves with upgraded N+1 cooling for expansion racks, sustains through surge"
+        },
+        {
+          "kpi_code": "P2-KPI6",
+          "trend": "volatile",
+          "inflection_week": 34,
+          "note": "PUE increases slightly during surge due to sustained high load, but stays within healthy range thanks to cooling upgrades"
+        }
+      ]
+    },
+    "P3": {
+      "overall_trend": "volatile",
+      "kpi_overrides": [
+        {
+          "kpi_code": "P3-KPI1",
+          "trend": "volatile",
+          "inflection_week": 34,
+          "note": "GPU Utilization follows seasonal pattern: 58% baseline \u2192 63% early ramp \u2192 52% after expansion capacity added \u2192 72% surge start \u2192 88% peak \u2192 gradual decline"
+        },
+        {
+          "kpi_code": "P3-KPI2",
+          "trend": "stable",
+          "inflection_week": 22,
+          "note": "Training Job Completion Rate dips slightly during early capacity stress (week 22-24) but holds strong through surge on expanded infrastructure"
+        },
+        {
+          "kpi_code": "P3-KPI4",
+          "trend": "volatile",
+          "inflection_week": 22,
+          "note": "Model Training Time increases during capacity planning gap as queue times grow, normalizes after expansion deployment"
+        }
+      ]
+    },
+    "P4": {
+      "overall_trend": "improving",
+      "kpi_overrides": [
+        {
+          "kpi_code": "P4-KPI1",
+          "trend": "improving",
+          "inflection_week": 41,
+          "note": "Partner Engagement deepens through proactive capacity planning and surge success -- CFO becomes strong advocate"
+        },
+        {
+          "kpi_code": "P4-KPI3",
+          "trend": "improving",
+          "inflection_week": 41,
+          "note": "Meeting cadence increases during planning and surge phases, driving deeper strategic alignment"
+        },
+        {
+          "kpi_code": "P4-KPI6",
+          "trend": "improving",
+          "inflection_week": 44,
+          "note": "Partner NPS rises from 52 to 74 as proactive surge management validates the CS relationship"
+        }
+      ]
+    },
+    "P5": {
+      "overall_trend": "improving",
+      "kpi_overrides": [
+        {
+          "kpi_code": "P5-KPI1",
+          "trend": "volatile",
+          "inflection_week": 34,
+          "note": "Capacity Utilization follows clear seasonal pattern: 62% baseline \u2192 drops to 52% when new capacity added (w28) \u2192 ramps to 88% at peak (w38) \u2192 settles back to 65% post-surge"
+        },
+        {
+          "kpi_code": "P5-KPI4",
+          "trend": "volatile",
+          "inflection_week": 34,
+          "note": "Compute Hour Consumption Trend spikes dramatically during Q4 surge (+42% MoM at peak), drops post-holiday"
+        },
+        {
+          "kpi_code": "P5-KPI2",
+          "trend": "volatile",
+          "inflection_week": 32,
+          "note": "Capacity Utilization Trajectory swings: negative when new capacity added, sharply positive during surge ramp, negative again post-surge"
+        },
+        {
+          "kpi_code": "P5-KPI7",
+          "trend": "improving",
+          "inflection_week": 10,
+          "note": "Expansion Probability rises from 35% (baseline) to 52% (pattern detected) to 68% (surge validated) as predictive model confirms seasonal opportunity"
+        },
+        {
+          "kpi_code": "P5-KPI5",
+          "trend": "volatile",
+          "inflection_week": 18,
+          "note": "Budget Availability Signals dip to 45 during CFO deliberation, spike to 82 after approval, stay elevated through validated surge"
+        }
+      ]
+    }
+  },
+  "decisions": [
+    {
+      "decision_id": "d_approve_capacity_analysis",
+      "phase_id": 1,
+      "week": 16,
+      "title": "Approve Capacity Planning Analysis",
+      "decision_maker_role": "champion",
+      "options": [
+        {
+          "option": "Commission full seasonal demand analysis and capacity planning workshop ($10.5K CSM + solutions architect time)",
+          "projected_impact": 1600000,
+          "risk_level": "low"
+        },
+        {
+          "option": "Defer analysis to Q3 and rely on reactive scaling if needed",
+          "projected_impact": 0,
+          "risk_level": "high"
+        },
+        {
+          "option": "Run lightweight analysis with existing data only, skip joint workshop",
+          "projected_impact": 400000,
+          "risk_level": "medium"
+        }
+      ],
+      "chosen_option": 0,
+      "evidence_refs": [
+        "3-year seasonal pattern showing 38% Q4 compute surge",
+        "P5-KPI7 Expansion Probability at 52%",
+        "VP Data Science confirms additional 15% demand from new workloads",
+        "P5-KPI1 Capacity Utilization will exceed 100% without expansion"
+      ],
+      "revenue_impact": 1600000,
+      "outcome_description": "Full capacity analysis identified exact hardware requirements and procurement timeline, enabling the CFO budget request. Without this analysis, the expansion would have been reactive and 50% more expensive."
+    },
+    {
+      "decision_id": "d_authorize_expansion_budget",
+      "phase_id": 3,
+      "week": 25,
+      "title": "Authorize Pre-Surge Expansion Budget",
+      "decision_maker_role": "decision_maker",
+      "options": [
+        {
+          "option": "Approve $1.6M proactive expansion: 2 GPU racks + cooling + network fabric, deployed before Q4 surge",
+          "projected_impact": 2400000,
+          "risk_level": "low"
+        },
+        {
+          "option": "Approve partial expansion ($900K): 1 GPU rack now, second rack if needed during surge (spot pricing)",
+          "projected_impact": 1200000,
+          "risk_level": "medium"
+        },
+        {
+          "option": "Reject expansion, rely on emergency spot capacity during surge if needed ($2.4M estimated cost)",
+          "projected_impact": -800000,
+          "risk_level": "high"
+        }
+      ],
+      "chosen_option": 0,
+      "evidence_refs": [
+        "ROI analysis showing $800K savings vs. emergency spot capacity",
+        "P5-KPI4 Compute Hour Consumption already trending up 8% MoM",
+        "12-week hardware procurement lead time with 14-week window remaining",
+        "Early seasonal signals confirming demand forecast accuracy",
+        "VP Data Science championing the investment internally"
+      ],
+      "revenue_impact": 1600000,
+      "outcome_description": "CFO approved the full proactive expansion after CSM ROI analysis proved the cost advantage over reactive procurement. The 2-week margin before surge start validated the urgency of the decision timeline."
+    },
+    {
+      "decision_id": "d_activate_surge_capacity",
+      "phase_id": 4,
+      "week": 36,
+      "title": "Activate Full Surge Capacity Mode",
+      "decision_maker_role": "technical_lead",
+      "options": [
+        {
+          "option": "Activate all expanded capacity with automated workload distribution and real-time monitoring dashboard",
+          "projected_impact": 800000,
+          "risk_level": "low"
+        },
+        {
+          "option": "Gradual activation: bring new capacity online in stages as demand increases",
+          "projected_impact": 600000,
+          "risk_level": "medium"
+        },
+        {
+          "option": "Hold new capacity in reserve, activate only if utilization exceeds 85%",
+          "projected_impact": 200000,
+          "risk_level": "medium"
+        }
+      ],
+      "chosen_option": 0,
+      "evidence_refs": [
+        "Load testing confirmed expanded fleet sustains 95% utilization",
+        "P5-KPI4 Compute Hour Consumption spiking 18% in first 2 weeks",
+        "P3-KPI1 GPU Utilization already at 72% on expanded fleet",
+        "Black Friday demand forecast shows 88% peak utilization"
+      ],
+      "revenue_impact": 800000,
+      "outcome_description": "Full activation with automated distribution ensured zero manual intervention during peak demand. The real-time monitoring dashboard provided CFO visibility into ROI realization in real time, reinforcing confidence in the predictive planning model."
+    }
+  ],
+  "outcomes": [
+    {
+      "outcome_id": "o_expansion_captured",
+      "title": "$1.6M Expansion Revenue Captured",
+      "outcome_type": "expansion",
+      "revenue_value": 1600000,
+      "realized_week": 25,
+      "evidence": "CFO approved $1.6M expansion for 2 GPU racks, cooling upgrades, and network fabric based on seasonal demand forecast and ROI analysis. Proactive timing enabled standard procurement pricing vs. 50% emergency premium.",
+      "confidence": 0.95
+    },
+    {
+      "outcome_id": "o_emergency_costs_avoided",
+      "title": "$800K Emergency Spot Capacity Costs Avoided",
+      "outcome_type": "cost_reduction",
+      "revenue_value": 800000,
+      "realized_week": 44,
+      "evidence": "Without proactive expansion, the Q4 surge would have required $2.4M in emergency spot capacity at 50% premium pricing, plus estimated $200K in SLA penalties from degraded performance. Proactive expansion at $1.6M saved $800K in direct cost avoidance plus eliminated SLA penalty exposure.",
+      "confidence": 0.9
+    },
+    {
+      "outcome_id": "o_zero_sla_breaches",
+      "title": "Zero SLA Breaches During 10-Week Surge",
+      "outcome_type": "retention",
+      "revenue_value": 2800000,
+      "realized_week": 44,
+      "evidence": "Full $2.8M ARR protected through Q4 surge with 99.95% uptime, 100% training job completion, and P95 inference latency held at 38ms throughout peak period. Previous year had 3 SLA breaches and $180K in penalty exposure.",
+      "confidence": 0.92
+    },
+    {
+      "outcome_id": "o_predictive_roi_validated",
+      "title": "Predictive Capacity Planning ROI Validated at 2,421%",
+      "outcome_type": "expansion",
+      "revenue_value": 2400000,
+      "realized_week": 44,
+      "evidence": "CFO validated the predictive capacity planning model: $95K CS investment (analysis, ROI modeling, monitoring) enabled $1.6M expansion capture and $800K cost avoidance. Total value created: $2.4M on $95K investment = 2,421% ROI. CFO initiated conversation about extending this model to other seasonal patterns.",
+      "confidence": 0.88
+    }
+  ],
+  "edges_template": [
+    {
+      "from_ref": "signal:phase1:w7",
+      "to_ref": "signal:phase2:w2",
+      "edge_type": "LED_TO",
+      "weight": 0.88,
+      "properties": {
+        "description": "CSM historical pattern analysis directly informed platform signal analyst seasonal risk detection"
+      }
+    },
+    {
+      "from_ref": "signal:phase2:w2",
+      "to_ref": "stakeholder:champion",
+      "edge_type": "INVOLVES",
+      "weight": 0.9,
+      "properties": {
+        "description": "VP Data Science engaged to validate seasonal pattern against internal demand forecasts"
+      }
+    },
+    {
+      "from_ref": "signal:phase2:w4",
+      "to_ref": "decision:phase2:w7",
+      "edge_type": "LED_TO",
+      "weight": 0.85,
+      "properties": {
+        "description": "Capacity forecast meeting drove joint planning workshop and hardware requirements definition"
+      }
+    },
+    {
+      "from_ref": "decision:phase2:w7",
+      "to_ref": "signal:phase3:w2",
+      "edge_type": "LED_TO",
+      "weight": 0.82,
+      "properties": {
+        "description": "Capacity planning workshop output became the expansion proposal presented to CFO"
+      }
+    },
+    {
+      "from_ref": "signal:phase3:w2",
+      "to_ref": "stakeholder:decision_maker",
+      "edge_type": "INVOLVES",
+      "weight": 0.95,
+      "properties": {
+        "description": "CFO is the key decision maker for $1.6M expansion budget approval"
+      }
+    },
+    {
+      "from_ref": "signal:phase3:w4",
+      "to_ref": "signal:phase3:w6",
+      "edge_type": "CORRELATES_WITH",
+      "weight": 0.78,
+      "properties": {
+        "description": "ROI deck production coincides with early seasonal signals validating the forecast"
+      }
+    },
+    {
+      "from_ref": "signal:phase3:w6",
+      "to_ref": "signal:phase3:w8",
+      "edge_type": "LED_TO",
+      "weight": 0.88,
+      "properties": {
+        "description": "Early seasonal signals confirming forecast triggered procurement timeline escalation"
+      }
+    },
+    {
+      "from_ref": "signal:phase3:w8",
+      "to_ref": "decision:phase4:w1",
+      "edge_type": "LED_TO",
+      "weight": 0.92,
+      "properties": {
+        "description": "Procurement deadline escalation drove CFO to approve expansion budget"
+      }
+    },
+    {
+      "from_ref": "decision:phase4:w1",
+      "to_ref": "signal:phase4:w4",
+      "edge_type": "LED_TO",
+      "weight": 0.95,
+      "properties": {
+        "description": "Budget approval triggered hardware procurement and first rack delivery"
+      }
+    },
+    {
+      "from_ref": "signal:phase4:w4",
+      "to_ref": "signal:phase4:w7",
+      "edge_type": "LED_TO",
+      "weight": 0.92,
+      "properties": {
+        "description": "First rack delivery led to operational validation and workload migration"
+      }
+    },
+    {
+      "from_ref": "signal:phase4:w7",
+      "to_ref": "signal:phase4:w10",
+      "edge_type": "LED_TO",
+      "weight": 0.9,
+      "properties": {
+        "description": "First rack validation enabled second rack deployment completing full expansion"
+      }
+    },
+    {
+      "from_ref": "signal:phase4:w10",
+      "to_ref": "signal:phase5:w2",
+      "edge_type": "LED_TO",
+      "weight": 0.95,
+      "properties": {
+        "description": "Full expansion capacity readiness enabled smooth Q4 surge absorption"
+      }
+    },
+    {
+      "from_ref": "signal:phase5:w2",
+      "to_ref": "signal:phase5:w4",
+      "edge_type": "LED_TO",
+      "weight": 0.92,
+      "properties": {
+        "description": "Initial surge ramp confirmed forecast accuracy, building confidence for Black Friday peak"
+      }
+    },
+    {
+      "from_ref": "signal:phase5:w4",
+      "to_ref": "signal:phase5:w7",
+      "edge_type": "LED_TO",
+      "weight": 0.88,
+      "properties": {
+        "description": "Zero-downtime Black Friday peak drove mid-surge ROI validation meeting with CFO"
+      }
+    },
+    {
+      "from_ref": "signal:phase5:w7",
+      "to_ref": "signal:phase5:w10",
+      "edge_type": "LED_TO",
+      "weight": 0.85,
+      "properties": {
+        "description": "CFO ROI validation mid-surge confirmed predictive model value through end of surge period"
+      }
+    },
+    {
+      "from_ref": "stakeholder:champion",
+      "to_ref": "decision:phase4:w1",
+      "edge_type": "INVOLVES",
+      "weight": 0.88,
+      "properties": {
+        "description": "VP Data Science championed the expansion budget internally, influencing CFO approval"
+      }
+    },
+    {
+      "from_ref": "stakeholder:technical_lead",
+      "to_ref": "signal:phase4:w10",
+      "edge_type": "INVOLVES",
+      "weight": 0.85,
+      "properties": {
+        "description": "Infrastructure Director oversaw phased hardware deployment and load testing validation"
+      }
+    }
+  ],
+  "industry_benchmarks": [
+    {
+      "kpi_code": "P5-KPI1",
+      "benchmark_source": "Uptime Institute 2025 Data Center Capacity Report",
+      "industry_p25": 52,
+      "industry_p50": 65,
+      "industry_p75": 78,
+      "account_percentile": 85
+    },
+    {
+      "kpi_code": "P5-KPI4",
+      "benchmark_source": "IDC Data Center Compute Consumption Trends 2025",
+      "industry_p25": -5,
+      "industry_p50": 8,
+      "industry_p75": 22,
+      "account_percentile": 92
+    },
+    {
+      "kpi_code": "P3-KPI1",
+      "benchmark_source": "MLPerf Infrastructure Benchmarks 2025",
+      "industry_p25": 55,
+      "industry_p50": 68,
+      "industry_p75": 82,
+      "account_percentile": 88
+    },
+    {
+      "kpi_code": "P3-KPI2",
+      "benchmark_source": "AI Infrastructure Operational Benchmarks 2025",
+      "industry_p25": 78,
+      "industry_p50": 88,
+      "industry_p75": 95,
+      "account_percentile": 82
+    },
+    {
+      "kpi_code": "P2-KPI4",
+      "benchmark_source": "Uptime Institute 2025 Global Data Center Survey",
+      "industry_p25": 99.0,
+      "industry_p50": 99.5,
+      "industry_p75": 99.95,
+      "account_percentile": 78
+    },
+    {
+      "kpi_code": "P5-KPI2",
+      "benchmark_source": "Gartner Data Center Growth Benchmark 2025",
+      "industry_p25": -2,
+      "industry_p50": 5,
+      "industry_p75": 15,
+      "account_percentile": 90
+    },
+    {
+      "kpi_code": "P5-KPI7",
+      "benchmark_source": "CS Pulse Internal ML Model Benchmarks",
+      "industry_p25": 25,
+      "industry_p50": 45,
+      "industry_p75": 65,
+      "account_percentile": 72
+    },
+    {
+      "kpi_code": "P3-KPI3",
+      "benchmark_source": "MLPerf Inference Latency Benchmarks 2025",
+      "industry_p25": 85,
+      "industry_p50": 52,
+      "industry_p75": 38,
+      "account_percentile": 75
+    }
+  ]
+}

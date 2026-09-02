@@ -1,0 +1,1224 @@
+{
+  "arc_id": "arc_exec_sponsor_change",
+  "arc_name": "Executive Sponsor Change",
+  "version": "1.0",
+  "description": "A $4.1M ARR data center hardware account faces an executive sponsor crisis when the long-standing CTO champion departs and the incoming CTO favors cloud-first over on-prem. The platform detects stakeholder sentiment reset, engagement vacuum, and competing priorities, enabling the CS team to execute a re-engagement playbook that retains $4.1M and positions a $2M hybrid expansion.",
+  "intelligence_dimensions": [
+    "relationship_resilience",
+    "engagement_depth",
+    "sentiment_momentum",
+    "expansion_readiness"
+  ],
+  "target_audience": "CEO",
+  "revenue_narrative": {
+    "arr_start": 4100000,
+    "arr_end": 4100000,
+    "arr_at_risk_peak": 4100000,
+    "roi_of_intervention": 920,
+    "cost_of_inaction": 4715000,
+    "time_horizon_weeks": 30,
+    "intervention_cost": 395000,
+    "net_revenue_saved": 3705000
+  },
+  "cast": [
+    {
+      "role": "champion",
+      "title": "Former CTO",
+      "influence_score": 0.95,
+      "sentiment_arc": [
+        0.85,
+        -0.1,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "engagement_frequency": "weekly",
+      "appears_in_phase": [
+        1,
+        2
+      ]
+    },
+    {
+      "role": "decision_maker",
+      "title": "New CTO",
+      "influence_score": 0.95,
+      "sentiment_arc": [
+        0.0,
+        -0.4,
+        -0.2,
+        0.3,
+        0.75
+      ],
+      "engagement_frequency": "monthly",
+      "appears_in_phase": [
+        2,
+        3,
+        4,
+        5
+      ]
+    },
+    {
+      "role": "technical_lead",
+      "title": "VP Engineering",
+      "influence_score": 0.8,
+      "sentiment_arc": [
+        0.7,
+        0.4,
+        0.5,
+        0.6,
+        0.75
+      ],
+      "engagement_frequency": "weekly",
+      "appears_in_phase": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ]
+    },
+    {
+      "role": "exec_sponsor",
+      "title": "CFO",
+      "influence_score": 0.85,
+      "sentiment_arc": [
+        0.5,
+        0.1,
+        -0.1,
+        0.2,
+        0.6
+      ],
+      "engagement_frequency": "quarterly",
+      "appears_in_phase": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ]
+    },
+    {
+      "role": "technical_lead",
+      "title": "CSM (Ours)",
+      "influence_score": 0.7,
+      "sentiment_arc": [
+        0.8,
+        0.3,
+        0.5,
+        0.7,
+        0.85
+      ],
+      "engagement_frequency": "weekly",
+      "appears_in_phase": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ]
+    },
+    {
+      "role": "exec_sponsor",
+      "title": "CRO (Our Exec Sponsor)",
+      "influence_score": 0.9,
+      "sentiment_arc": [
+        0.6,
+        0.2,
+        0.4,
+        0.7,
+        0.85
+      ],
+      "engagement_frequency": "biweekly",
+      "appears_in_phase": [
+        2,
+        3,
+        4,
+        5
+      ]
+    }
+  ],
+  "phases": [
+    {
+      "phase_id": 1,
+      "name": "Pre-Change Stability",
+      "duration_weeks": 6,
+      "health_range": {
+        "start": 81,
+        "end": 79
+      },
+      "description": "Account is healthy at 81 with a strong CTO champion who drove the original on-prem GPU infrastructure investment. All engagement metrics are green. Champion attends QBRs, responds same-day, advocates internally for expansion. No visible signs of impending disruption -- but behind the scenes, the CTO has accepted an offer elsewhere.",
+      "revenue_impact_type": "none",
+      "plot_points": [
+        {
+          "week_offset": 2,
+          "event_type": "meeting",
+          "description": "CTO attends full QBR; approves Q3 expansion roadmap for 64 additional GPU nodes",
+          "sentiment_shift": 0.05,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P4-KPI3",
+              "direction": "improve",
+              "magnitude": "minor"
+            },
+            {
+              "kpi_code": "P5-KPI7",
+              "direction": "improve",
+              "magnitude": "minor"
+            }
+          ],
+          "revenue_impact": 0,
+          "generates_node_type": "SIGNAL"
+        },
+        {
+          "week_offset": 4,
+          "event_type": "signal",
+          "description": "CTO response time increases from 4h to 24h; delegates two scheduled syncs to VP Engineering",
+          "sentiment_shift": -0.1,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P5-KPI8",
+              "direction": "degrade",
+              "magnitude": "minor"
+            },
+            {
+              "kpi_code": "P4-KPI1",
+              "direction": "degrade",
+              "magnitude": "minor"
+            }
+          ],
+          "revenue_impact": 0,
+          "generates_node_type": "SIGNAL"
+        },
+        {
+          "week_offset": 6,
+          "event_type": "signal",
+          "description": "Internal rumor surfaces: CTO may be leaving. CSM picks up signal from VP Engineering's offhand comment about 'leadership changes'",
+          "sentiment_shift": -0.15,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P5-KPI8",
+              "direction": "degrade",
+              "magnitude": "moderate"
+            },
+            {
+              "kpi_code": "P5-KPI5",
+              "direction": "degrade",
+              "magnitude": "minor"
+            }
+          ],
+          "revenue_impact": 0,
+          "generates_node_type": "SIGNAL"
+        }
+      ]
+    },
+    {
+      "phase_id": 2,
+      "name": "Leadership Transition",
+      "duration_weeks": 6,
+      "health_range": {
+        "start": 79,
+        "end": 58
+      },
+      "description": "Former CTO departs. Announcement triggers immediate engagement vacuum: no executive sponsor for vendor relationships, pending expansion frozen, QBR cancelled. New CTO arrives with cloud-first philosophy and questions ROI of on-prem GPU infrastructure. Champion engagement drops to zero. Budget signals freeze as new leadership reviews all vendor commitments. Health score drops sharply into at-risk territory.",
+      "revenue_impact_type": "at_risk",
+      "plot_points": [
+        {
+          "week_offset": 1,
+          "event_type": "stakeholder_change",
+          "description": "Former CTO departure announced; effective immediately. All pending approvals frozen including 64-node GPU expansion",
+          "sentiment_shift": -0.35,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P5-KPI8",
+              "direction": "degrade",
+              "magnitude": "critical"
+            },
+            {
+              "kpi_code": "P5-KPI7",
+              "direction": "degrade",
+              "magnitude": "critical"
+            },
+            {
+              "kpi_code": "P5-KPI5",
+              "direction": "degrade",
+              "magnitude": "major"
+            }
+          ],
+          "revenue_impact": -4100000,
+          "generates_node_type": "STAKEHOLDER"
+        },
+        {
+          "week_offset": 2,
+          "event_type": "incident",
+          "description": "Scheduled QBR cancelled by customer EA: 'New leadership needs time to assess vendor relationships'",
+          "sentiment_shift": -0.15,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P4-KPI3",
+              "direction": "degrade",
+              "magnitude": "major"
+            },
+            {
+              "kpi_code": "P4-KPI1",
+              "direction": "degrade",
+              "magnitude": "major"
+            }
+          ],
+          "revenue_impact": 0,
+          "generates_node_type": "SIGNAL"
+        },
+        {
+          "week_offset": 3,
+          "event_type": "stakeholder_change",
+          "description": "New CTO starts. Background: 15 years at hyperscale cloud providers. First all-hands mentions 'cloud-first modernization strategy'",
+          "sentiment_shift": -0.2,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P5-KPI7",
+              "direction": "degrade",
+              "magnitude": "major"
+            },
+            {
+              "kpi_code": "P5-KPI5",
+              "direction": "degrade",
+              "magnitude": "moderate"
+            }
+          ],
+          "revenue_impact": -4100000,
+          "generates_node_type": "STAKEHOLDER"
+        },
+        {
+          "week_offset": 5,
+          "event_type": "signal",
+          "description": "New CTO requests full infrastructure cost audit; asks 'Why aren't we using cloud GPUs?' in leadership meeting. VP Engineering relays concern to CSM",
+          "sentiment_shift": -0.15,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P3-KPI1",
+              "direction": "plateau",
+              "magnitude": "minor"
+            },
+            {
+              "kpi_code": "P5-KPI5",
+              "direction": "degrade",
+              "magnitude": "major"
+            },
+            {
+              "kpi_code": "P5-KPI7",
+              "direction": "degrade",
+              "magnitude": "moderate"
+            }
+          ],
+          "revenue_impact": -4100000,
+          "generates_node_type": "SIGNAL"
+        }
+      ]
+    },
+    {
+      "phase_id": 3,
+      "name": "Engagement Reset",
+      "duration_weeks": 6,
+      "health_range": {
+        "start": 58,
+        "end": 62
+      },
+      "description": "CS team initiates re-engagement protocol. CSM escalates to CRO for executive-level outreach. CRO requests introduction meeting with new CTO through board connection. VP Engineering serves as internal bridge, providing intelligence on new CTO's priorities. First face-to-face with new CTO is cautious but productive. Health stabilizes in low at-risk territory.",
+      "revenue_impact_type": "at_risk",
+      "plot_points": [
+        {
+          "week_offset": 1,
+          "event_type": "escalation",
+          "description": "CSM escalates to CRO with full stakeholder analysis: champion lost, new decision maker skeptical, $4.1M at risk. Platform fires 'Executive Sponsor Change' risk alert",
+          "sentiment_shift": 0.05,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P4-KPI1",
+              "direction": "plateau",
+              "magnitude": "minor"
+            }
+          ],
+          "revenue_impact": -4100000,
+          "generates_node_type": "DECISION",
+          "csm_action": {
+            "action_type": "internal_escalation",
+            "description": "Prepare executive briefing with stakeholder map, revenue-at-risk analysis, and new CTO profile assessment",
+            "cost_estimate": 12000,
+            "response_time_hours": 24
+          }
+        },
+        {
+          "week_offset": 2,
+          "event_type": "signal",
+          "description": "Platform's causal graph identifies convergence of 5 risk signals: champion departure + engagement vacuum + QBR missed + budget freeze + competing cloud-first priority",
+          "sentiment_shift": 0.0,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P5-KPI7",
+              "direction": "degrade",
+              "magnitude": "moderate"
+            }
+          ],
+          "revenue_impact": -4100000,
+          "generates_node_type": "SIGNAL"
+        },
+        {
+          "week_offset": 4,
+          "event_type": "decision",
+          "description": "CRO secures executive introduction meeting with new CTO through mutual board connection; 45-minute slot confirmed",
+          "sentiment_shift": 0.15,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P4-KPI1",
+              "direction": "improve",
+              "magnitude": "minor"
+            },
+            {
+              "kpi_code": "P5-KPI8",
+              "direction": "improve",
+              "magnitude": "minor"
+            }
+          ],
+          "revenue_impact": 0,
+          "generates_node_type": "DECISION",
+          "csm_action": {
+            "action_type": "exec_engagement",
+            "description": "CRO-to-CTO introduction meeting; bring hybrid architecture positioning deck and TCO comparison data",
+            "cost_estimate": 25000,
+            "response_time_hours": 72
+          }
+        },
+        {
+          "week_offset": 6,
+          "event_type": "meeting",
+          "description": "First CRO-New CTO meeting: cautious but productive. New CTO expresses interest in 'proving hybrid value' before committing to cloud migration. Agrees to a 6-week hybrid architecture assessment",
+          "sentiment_shift": 0.2,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P5-KPI8",
+              "direction": "improve",
+              "magnitude": "moderate"
+            },
+            {
+              "kpi_code": "P4-KPI1",
+              "direction": "improve",
+              "magnitude": "moderate"
+            },
+            {
+              "kpi_code": "P5-KPI5",
+              "direction": "improve",
+              "magnitude": "minor"
+            }
+          ],
+          "revenue_impact": 0,
+          "generates_node_type": "OUTCOME"
+        }
+      ]
+    },
+    {
+      "phase_id": 4,
+      "name": "Value Re-Demonstration",
+      "duration_weeks": 6,
+      "health_range": {
+        "start": 62,
+        "end": 74
+      },
+      "description": "Hybrid architecture assessment executed. Technical team demonstrates that on-prem GPU cluster delivers 40% lower latency for inference workloads and 35% lower TCO at current scale vs. cloud alternatives. New CTO impressed by data but wants to see a hybrid roadmap that incorporates cloud burst capability. VP Engineering champions the hybrid approach internally. Health recovers above 70 threshold.",
+      "revenue_impact_type": "protected",
+      "plot_points": [
+        {
+          "week_offset": 1,
+          "event_type": "decision",
+          "description": "Deploy hybrid architecture assessment team: 2 solution architects on-site for 3 weeks to benchmark on-prem vs. cloud GPU performance",
+          "sentiment_shift": 0.1,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P3-KPI1",
+              "direction": "improve",
+              "magnitude": "minor"
+            },
+            {
+              "kpi_code": "P4-KPI1",
+              "direction": "improve",
+              "magnitude": "moderate"
+            }
+          ],
+          "revenue_impact": 0,
+          "generates_node_type": "DECISION",
+          "csm_action": {
+            "action_type": "technical_assessment",
+            "description": "Deploy solution architect team for hybrid architecture assessment; run head-to-head cloud vs. on-prem benchmarks on customer's actual workloads",
+            "cost_estimate": 145000,
+            "response_time_hours": 48
+          }
+        },
+        {
+          "week_offset": 3,
+          "event_type": "milestone",
+          "description": "Assessment results delivered: on-prem GPU shows 40% lower inference latency, 35% lower TCO at current scale. Cloud burst capability mapped for peak workloads. New CTO says 'This changes my calculus'",
+          "sentiment_shift": 0.25,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P3-KPI1",
+              "direction": "improve",
+              "magnitude": "major"
+            },
+            {
+              "kpi_code": "P5-KPI5",
+              "direction": "improve",
+              "magnitude": "major"
+            },
+            {
+              "kpi_code": "P5-KPI7",
+              "direction": "improve",
+              "magnitude": "major"
+            }
+          ],
+          "revenue_impact": 2050000,
+          "generates_node_type": "OUTCOME"
+        },
+        {
+          "week_offset": 4,
+          "event_type": "meeting",
+          "description": "VP Engineering presents hybrid roadmap to new CTO and CFO; positions on-prem as 'performance foundation' with cloud burst for peak training jobs",
+          "sentiment_shift": 0.15,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P5-KPI8",
+              "direction": "improve",
+              "magnitude": "major"
+            },
+            {
+              "kpi_code": "P4-KPI3",
+              "direction": "improve",
+              "magnitude": "moderate"
+            },
+            {
+              "kpi_code": "P4-KPI1",
+              "direction": "improve",
+              "magnitude": "moderate"
+            }
+          ],
+          "revenue_impact": 0,
+          "generates_node_type": "OUTCOME"
+        },
+        {
+          "week_offset": 6,
+          "event_type": "milestone",
+          "description": "CFO approves unfreezing infrastructure budget based on TCO data; new CTO lifts vendor review hold on GPU hardware contracts",
+          "sentiment_shift": 0.2,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P5-KPI5",
+              "direction": "improve",
+              "magnitude": "major"
+            },
+            {
+              "kpi_code": "P5-KPI7",
+              "direction": "improve",
+              "magnitude": "moderate"
+            }
+          ],
+          "revenue_impact": 4100000,
+          "generates_node_type": "OUTCOME"
+        }
+      ]
+    },
+    {
+      "phase_id": 5,
+      "name": "New Champion Cultivation",
+      "duration_weeks": 6,
+      "health_range": {
+        "start": 74,
+        "end": 83
+      },
+      "description": "New CTO transitions from skeptic to advocate. Signs strategic partnership agreement for hybrid infrastructure. Expansion discussion reopened: $2M hybrid expansion pipeline covering on-prem GPU cluster + cloud burst orchestration layer. Full QBR cadence restored. Health score exceeds pre-crisis level as relationship resilience is proven. The system demonstrated it detected the sponsor change risk within days and enabled a $4.1M save.",
+      "revenue_impact_type": "expansion",
+      "plot_points": [
+        {
+          "week_offset": 2,
+          "event_type": "milestone",
+          "description": "New CTO signs 2-year strategic partnership agreement; commits to hybrid-first infrastructure strategy. Quotes: 'The data convinced me -- hybrid is the right architecture for our workload profile'",
+          "sentiment_shift": 0.3,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P5-KPI8",
+              "direction": "improve",
+              "magnitude": "major"
+            },
+            {
+              "kpi_code": "P5-KPI7",
+              "direction": "improve",
+              "magnitude": "major"
+            },
+            {
+              "kpi_code": "P5-KPI5",
+              "direction": "improve",
+              "magnitude": "moderate"
+            }
+          ],
+          "revenue_impact": 4100000,
+          "generates_node_type": "OUTCOME"
+        },
+        {
+          "week_offset": 4,
+          "event_type": "meeting",
+          "description": "Full executive QBR restored: new CTO, CFO, VP Engineering attend. Joint roadmap presented covering 48-node GPU expansion + cloud burst orchestration. $2M hybrid expansion formally enters pipeline",
+          "sentiment_shift": 0.15,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P4-KPI3",
+              "direction": "improve",
+              "magnitude": "major"
+            },
+            {
+              "kpi_code": "P4-KPI1",
+              "direction": "improve",
+              "magnitude": "major"
+            },
+            {
+              "kpi_code": "P5-KPI7",
+              "direction": "improve",
+              "magnitude": "moderate"
+            }
+          ],
+          "revenue_impact": 2000000,
+          "generates_node_type": "OUTCOME"
+        },
+        {
+          "week_offset": 6,
+          "event_type": "milestone",
+          "description": "New CTO presents at industry conference citing hybrid GPU infrastructure as competitive advantage; becomes vocal external advocate. Health score reaches 83 -- exceeding pre-crisis baseline",
+          "sentiment_shift": 0.15,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P5-KPI8",
+              "direction": "improve",
+              "magnitude": "moderate"
+            },
+            {
+              "kpi_code": "P3-KPI1",
+              "direction": "improve",
+              "magnitude": "minor"
+            },
+            {
+              "kpi_code": "P4-KPI1",
+              "direction": "improve",
+              "magnitude": "minor"
+            }
+          ],
+          "revenue_impact": 0,
+          "generates_node_type": "OUTCOME"
+        }
+      ]
+    }
+  ],
+  "causal_chains": [
+    {
+      "chain_id": "cc_sponsor_departure",
+      "name": "CTO Departure to Engagement Vacuum",
+      "revenue_impact": -4100000,
+      "links": [
+        {
+          "from_event": "phase1:w4 - CTO response time degrades",
+          "to_event": "phase1:w6 - Leadership change rumor surfaces",
+          "edge_type": "INDICATES",
+          "lag_weeks": 2,
+          "confidence": 0.65
+        },
+        {
+          "from_event": "phase1:w6 - Leadership change rumor surfaces",
+          "to_event": "phase2:w1 - CTO departure announced",
+          "edge_type": "LED_TO",
+          "lag_weeks": 1,
+          "confidence": 0.95
+        },
+        {
+          "from_event": "phase2:w1 - CTO departure announced",
+          "to_event": "phase2:w2 - QBR cancelled",
+          "edge_type": "CAUSED_BY",
+          "lag_weeks": 1,
+          "confidence": 0.92
+        },
+        {
+          "from_event": "phase2:w1 - CTO departure announced",
+          "to_event": "phase2:w3 - New CTO arrives with cloud-first agenda",
+          "edge_type": "LED_TO",
+          "lag_weeks": 2,
+          "confidence": 0.98
+        }
+      ]
+    },
+    {
+      "chain_id": "cc_cloud_threat",
+      "name": "Cloud-First Agenda to Budget Freeze",
+      "revenue_impact": -4100000,
+      "links": [
+        {
+          "from_event": "phase2:w3 - New CTO arrives with cloud-first agenda",
+          "to_event": "phase2:w5 - Infrastructure cost audit demanded",
+          "edge_type": "CAUSED_BY",
+          "lag_weeks": 2,
+          "confidence": 0.9
+        },
+        {
+          "from_event": "phase2:w5 - Infrastructure cost audit demanded",
+          "to_event": "phase3:w2 - Platform fires compound risk alert",
+          "edge_type": "INDICATES",
+          "lag_weeks": 3,
+          "confidence": 0.88
+        },
+        {
+          "from_event": "phase2:w5 - Infrastructure cost audit demanded",
+          "to_event": "phase3:w4 - CRO secures introduction meeting",
+          "edge_type": "LED_TO",
+          "lag_weeks": 5,
+          "confidence": 0.85
+        }
+      ]
+    },
+    {
+      "chain_id": "cc_reengagement",
+      "name": "Executive Outreach to Hybrid Value Demonstration",
+      "revenue_impact": 4100000,
+      "links": [
+        {
+          "from_event": "phase3:w1 - CSM escalates to CRO",
+          "to_event": "phase3:w4 - CRO secures introduction meeting",
+          "edge_type": "LED_TO",
+          "lag_weeks": 3,
+          "confidence": 0.9
+        },
+        {
+          "from_event": "phase3:w4 - CRO secures introduction meeting",
+          "to_event": "phase3:w6 - First CRO-CTO meeting productive",
+          "edge_type": "LED_TO",
+          "lag_weeks": 2,
+          "confidence": 0.85
+        },
+        {
+          "from_event": "phase3:w6 - First CRO-CTO meeting productive",
+          "to_event": "phase4:w1 - Hybrid assessment team deployed",
+          "edge_type": "LED_TO",
+          "lag_weeks": 1,
+          "confidence": 0.92
+        },
+        {
+          "from_event": "phase4:w1 - Hybrid assessment team deployed",
+          "to_event": "phase4:w3 - Assessment results delivered",
+          "edge_type": "LED_TO",
+          "lag_weeks": 2,
+          "confidence": 0.95
+        }
+      ]
+    },
+    {
+      "chain_id": "cc_champion_conversion",
+      "name": "Value Demonstration to New Champion",
+      "revenue_impact": 6100000,
+      "links": [
+        {
+          "from_event": "phase4:w3 - Assessment results delivered",
+          "to_event": "phase4:w4 - VP Engineering presents hybrid roadmap",
+          "edge_type": "LED_TO",
+          "lag_weeks": 1,
+          "confidence": 0.88
+        },
+        {
+          "from_event": "phase4:w4 - VP Engineering presents hybrid roadmap",
+          "to_event": "phase4:w6 - CFO approves budget unfreeze",
+          "edge_type": "LED_TO",
+          "lag_weeks": 2,
+          "confidence": 0.82
+        },
+        {
+          "from_event": "phase4:w6 - CFO approves budget unfreeze",
+          "to_event": "phase5:w2 - New CTO signs strategic partnership",
+          "edge_type": "LED_TO",
+          "lag_weeks": 2,
+          "confidence": 0.9
+        },
+        {
+          "from_event": "phase5:w2 - New CTO signs strategic partnership",
+          "to_event": "phase5:w4 - Full QBR restored with expansion pipeline",
+          "edge_type": "LED_TO",
+          "lag_weeks": 2,
+          "confidence": 0.92
+        },
+        {
+          "from_event": "phase5:w4 - Full QBR restored with expansion pipeline",
+          "to_event": "phase5:w6 - New CTO becomes external advocate",
+          "edge_type": "LED_TO",
+          "lag_weeks": 2,
+          "confidence": 0.75
+        }
+      ]
+    }
+  ],
+  "kpi_trajectories": {
+    "P1": {
+      "overall_trend": "stable",
+      "kpi_overrides": [
+        {
+          "kpi_code": "P1-KPI1",
+          "trend": "stable",
+          "inflection_week": 0,
+          "note": "Deployment velocity unaffected by leadership change -- existing infrastructure runs as-is; new deployments frozen during budget hold"
+        }
+      ]
+    },
+    "P2": {
+      "overall_trend": "stable",
+      "kpi_overrides": [
+        {
+          "kpi_code": "P2-KPI4",
+          "trend": "stable",
+          "inflection_week": 0,
+          "note": "Operational stability remains strong throughout -- hardware keeps running regardless of executive changes. This masks the relationship risk in traditional dashboards"
+        }
+      ]
+    },
+    "P3": {
+      "overall_trend": "volatile",
+      "kpi_overrides": [
+        {
+          "kpi_code": "P3-KPI1",
+          "trend": "volatile",
+          "inflection_week": 7,
+          "note": "GPU utilization continues at 72% but new CTO questions ROI; usage dips slightly to 68% as team hedges on expanding workloads, then recovers to 76% after hybrid assessment proves value"
+        }
+      ]
+    },
+    "P4": {
+      "overall_trend": "declining",
+      "kpi_overrides": [
+        {
+          "kpi_code": "P4-KPI1",
+          "trend": "volatile",
+          "inflection_week": 7,
+          "note": "Partner engagement resets to zero on CTO departure; slowly rebuilds through VP Engineering bridge and CRO executive outreach; fully restored by Phase 5"
+        },
+        {
+          "kpi_code": "P4-KPI3",
+          "trend": "volatile",
+          "inflection_week": 8,
+          "note": "QBR cancelled during transition; no exec-level review for 14 weeks; emergency QBR-lite in Phase 4; full QBR restored in Phase 5"
+        }
+      ]
+    },
+    "P5": {
+      "overall_trend": "volatile",
+      "kpi_overrides": [
+        {
+          "kpi_code": "P5-KPI8",
+          "trend": "volatile",
+          "inflection_week": 7,
+          "note": "Champion engagement drops to zero on CTO departure -- THE primary risk signal. Slowly rebuilds with new CTO: 0 at w7, 15 at w14, 45 at w20, 72 at w26, 81 at w30"
+        },
+        {
+          "kpi_code": "P5-KPI5",
+          "trend": "volatile",
+          "inflection_week": 7,
+          "note": "Budget signals freeze immediately on CTO departure; remain frozen for 14 weeks during vendor review; unfreeze in Phase 4 after CFO sees TCO data"
+        },
+        {
+          "kpi_code": "P5-KPI7",
+          "trend": "volatile",
+          "inflection_week": 7,
+          "note": "Expansion probability collapses from 58% to 8% on CTO departure + cloud-first agenda; recovers to 22% after first CRO-CTO meeting; reaches 65% after strategic partnership signed"
+        }
+      ]
+    }
+  },
+  "decisions": [
+    {
+      "decision_id": "d1_exec_introduction",
+      "phase_id": 1,
+      "week": 10,
+      "title": "Request Executive Introduction Meeting",
+      "decision_maker_role": "CRO (Our Exec Sponsor)",
+      "options": [
+        {
+          "option": "Wait for new CTO to settle in and reach out organically -- standard 90-day courtesy",
+          "projected_impact": -4100000,
+          "risk_level": "high"
+        },
+        {
+          "option": "CRO leverages board connection to secure warm introduction meeting within 2 weeks",
+          "projected_impact": 0,
+          "risk_level": "low"
+        },
+        {
+          "option": "CSM sends cold outreach email to new CTO requesting introductory call",
+          "projected_impact": -2050000,
+          "risk_level": "medium"
+        }
+      ],
+      "chosen_option": 1,
+      "evidence_refs": [
+        "P5-KPI8 dropped from 82 to 0 (champion engagement -- executive sponsor departed)",
+        "P4-KPI3 QBR cancelled (0 of 4 annual target)",
+        "P5-KPI5 budget signals frozen (new CTO initiated vendor review)",
+        "P5-KPI7 expansion probability collapsed from 58% to 8%",
+        "New CTO background: 15 years at hyperscale cloud providers"
+      ],
+      "revenue_impact": 4100000,
+      "outcome_description": "CRO's warm introduction bypassed the typical 90-day waiting period. Meeting secured within 2 weeks vs. estimated 12+ weeks for organic outreach. Platform's stakeholder intelligence profile on new CTO enabled targeted hybrid positioning."
+    },
+    {
+      "decision_id": "d2_hybrid_assessment",
+      "phase_id": 2,
+      "week": 16,
+      "title": "Propose Hybrid Architecture Assessment",
+      "decision_maker_role": "CRO (Our Exec Sponsor)",
+      "options": [
+        {
+          "option": "Defend on-prem only -- argue against cloud entirely (alienates cloud-first CTO)",
+          "projected_impact": -4100000,
+          "risk_level": "high"
+        },
+        {
+          "option": "Propose 6-week hybrid assessment: benchmark on-prem vs. cloud on customer's actual workloads, present TCO and latency data",
+          "projected_impact": 4100000,
+          "risk_level": "low"
+        },
+        {
+          "option": "Offer steep discount to retain current footprint without addressing cloud concerns",
+          "projected_impact": -820000,
+          "risk_level": "medium"
+        }
+      ],
+      "chosen_option": 1,
+      "evidence_refs": [
+        "New CTO stated interest in 'proving hybrid value' during introduction meeting",
+        "P3-KPI1 GPU utilization at 68% -- workloads still running but team hesitant to expand",
+        "Internal benchmarks show 40% latency advantage for inference workloads on-prem",
+        "CFO waiting for TCO analysis before unfreezing infrastructure budget"
+      ],
+      "revenue_impact": 4100000,
+      "outcome_description": "Hybrid positioning met the new CTO where he was -- acknowledging cloud benefits while proving on-prem value for specific workloads. Assessment data (40% lower latency, 35% lower TCO) convinced both CTO and CFO. Positioned us as strategic partner rather than legacy vendor."
+    },
+    {
+      "decision_id": "d3_strategic_partnership",
+      "phase_id": 4,
+      "week": 26,
+      "title": "New CTO Signs Strategic Partnership",
+      "decision_maker_role": "New CTO",
+      "options": [
+        {
+          "option": "Proceed with cloud migration -- phase out on-prem GPU infrastructure over 12 months",
+          "projected_impact": -4100000,
+          "risk_level": "high"
+        },
+        {
+          "option": "Sign 2-year strategic partnership for hybrid infrastructure: retain on-prem GPU + add cloud burst + $2M expansion pipeline",
+          "projected_impact": 6100000,
+          "risk_level": "low"
+        },
+        {
+          "option": "Maintain status quo with 1-year renewal -- defer hybrid decision",
+          "projected_impact": -2000000,
+          "risk_level": "medium"
+        }
+      ],
+      "chosen_option": 1,
+      "evidence_refs": [
+        "Hybrid assessment proved 40% latency advantage and 35% TCO advantage at scale",
+        "VP Engineering advocating internally for hybrid approach",
+        "CFO approved budget unfreeze based on TCO data",
+        "P5-KPI7 recovering from 8% to 52% (expansion probability)",
+        "P5-KPI8 rebuilt from 0 to 72 (new CTO champion engagement)"
+      ],
+      "revenue_impact": 6100000,
+      "outcome_description": "New CTO signed 2-year strategic partnership, committing to hybrid-first infrastructure. $4.1M ARR retained plus $2M hybrid expansion pipeline. Relationship proved resilient -- CTO converted from skeptic to advocate in 18 weeks."
+    }
+  ],
+  "outcomes": [
+    {
+      "outcome_id": "o1_arr_retained",
+      "title": "Full ARR Retained Through Sponsor Change",
+      "outcome_type": "retention",
+      "revenue_value": 4100000,
+      "realized_week": 26,
+      "evidence": "2-year strategic partnership signed at $4.1M ARR; new CTO committed to hybrid infrastructure strategy after assessment data proved on-prem value",
+      "confidence": 0.95
+    },
+    {
+      "outcome_id": "o2_churn_averted",
+      "title": "Replacement Cost Avoided",
+      "outcome_type": "churn_averted",
+      "revenue_value": 615000,
+      "realized_week": 26,
+      "evidence": "Avoided estimated $615K customer replacement cost (CAC at $410K + onboarding at $125K + revenue gap during 4-month ramp at $80K)",
+      "confidence": 0.85
+    },
+    {
+      "outcome_id": "o3_hybrid_expansion",
+      "title": "Hybrid Expansion Pipeline Created",
+      "outcome_type": "expansion",
+      "revenue_value": 2000000,
+      "realized_week": 28,
+      "evidence": "$2M hybrid expansion pipeline: 48-node on-prem GPU cluster expansion ($1.4M) + cloud burst orchestration layer ($600K); entered formal pipeline at QBR in week 28",
+      "confidence": 0.6
+    },
+    {
+      "outcome_id": "o4_relationship_resilience",
+      "title": "Relationship Resilience Proven",
+      "outcome_type": "retention",
+      "revenue_value": 0,
+      "realized_week": 30,
+      "evidence": "Health score recovered from 58 (at-risk) to 83 (healthy), exceeding pre-crisis baseline of 81. New CTO engagement score reached 81, surpassing former CTO's 78. Relationship survived complete executive turnover.",
+      "confidence": 0.9
+    },
+    {
+      "outcome_id": "o5_intervention_roi",
+      "title": "Net ROI of CS Intervention",
+      "outcome_type": "cost_reduction",
+      "revenue_value": 3705000,
+      "realized_week": 30,
+      "evidence": "$4.1M ARR saved minus $395K intervention cost = $3.705M net value. 920% ROI on CS investment. Intervention cost breakdown: escalation prep $12K, executive engagement $25K, hybrid assessment $145K, travel/on-site $65K, retention package negotiation $148K.",
+      "confidence": 0.9
+    }
+  ],
+  "edges_template": [
+    {
+      "from_ref": "signal:phase1:w4",
+      "to_ref": "signal:phase1:w6",
+      "edge_type": "INDICATES",
+      "weight": 0.65,
+      "properties": {
+        "label": "CTO disengagement precedes departure rumor",
+        "lag_weeks": 2
+      }
+    },
+    {
+      "from_ref": "signal:phase1:w6",
+      "to_ref": "stakeholder:phase2:w1",
+      "edge_type": "LED_TO",
+      "weight": 0.95,
+      "properties": {
+        "label": "Departure rumor confirmed by announcement"
+      }
+    },
+    {
+      "from_ref": "stakeholder:phase2:w1",
+      "to_ref": "signal:phase2:w2",
+      "edge_type": "CAUSED_BY",
+      "weight": 0.92,
+      "properties": {
+        "label": "CTO departure triggers QBR cancellation",
+        "lag_weeks": 1
+      }
+    },
+    {
+      "from_ref": "stakeholder:phase2:w1",
+      "to_ref": "stakeholder:phase2:w3",
+      "edge_type": "LED_TO",
+      "weight": 0.98,
+      "properties": {
+        "label": "Departure leads to new CTO appointment",
+        "lag_weeks": 2
+      }
+    },
+    {
+      "from_ref": "stakeholder:phase2:w3",
+      "to_ref": "signal:phase2:w5",
+      "edge_type": "CAUSED_BY",
+      "weight": 0.9,
+      "properties": {
+        "label": "Cloud-first CTO demands infrastructure cost audit",
+        "lag_weeks": 2
+      }
+    },
+    {
+      "from_ref": "stakeholder:champion",
+      "to_ref": "stakeholder:phase2:w1",
+      "edge_type": "INVOLVES",
+      "weight": 0.95,
+      "properties": {
+        "label": "Former CTO champion departs"
+      }
+    },
+    {
+      "from_ref": "signal:phase2:w5",
+      "to_ref": "decision:phase3:w1",
+      "edge_type": "LED_TO",
+      "weight": 0.88,
+      "properties": {
+        "label": "Cost audit threat triggers CSM escalation"
+      }
+    },
+    {
+      "from_ref": "decision:phase3:w1",
+      "to_ref": "decision:phase3:w4",
+      "edge_type": "LED_TO",
+      "weight": 0.9,
+      "properties": {
+        "label": "CSM escalation leads to CRO executive outreach",
+        "lag_weeks": 3
+      }
+    },
+    {
+      "from_ref": "decision:phase3:w4",
+      "to_ref": "outcome:phase3:w6",
+      "edge_type": "LED_TO",
+      "weight": 0.85,
+      "properties": {
+        "label": "Executive introduction leads to productive first meeting",
+        "lag_weeks": 2
+      }
+    },
+    {
+      "from_ref": "outcome:phase3:w6",
+      "to_ref": "decision:phase4:w1",
+      "edge_type": "LED_TO",
+      "weight": 0.92,
+      "properties": {
+        "label": "CTO's interest triggers hybrid assessment deployment"
+      }
+    },
+    {
+      "from_ref": "decision:phase4:w1",
+      "to_ref": "outcome:phase4:w3",
+      "edge_type": "LED_TO",
+      "weight": 0.95,
+      "properties": {
+        "label": "Assessment team delivers benchmark results",
+        "lag_weeks": 2
+      }
+    },
+    {
+      "from_ref": "outcome:phase4:w3",
+      "to_ref": "outcome:phase4:w4",
+      "edge_type": "LED_TO",
+      "weight": 0.88,
+      "properties": {
+        "label": "Benchmark data enables VP Engineering to champion hybrid roadmap"
+      }
+    },
+    {
+      "from_ref": "outcome:phase4:w4",
+      "to_ref": "outcome:phase4:w6",
+      "edge_type": "LED_TO",
+      "weight": 0.82,
+      "properties": {
+        "label": "Hybrid roadmap convinces CFO to unfreeze budget",
+        "lag_weeks": 2
+      }
+    },
+    {
+      "from_ref": "outcome:phase4:w6",
+      "to_ref": "outcome:phase5:w2",
+      "edge_type": "LED_TO",
+      "weight": 0.9,
+      "properties": {
+        "label": "Budget unfreeze enables strategic partnership signing",
+        "lag_weeks": 2
+      }
+    },
+    {
+      "from_ref": "outcome:phase5:w2",
+      "to_ref": "outcome:phase5:w4",
+      "edge_type": "LED_TO",
+      "weight": 0.92,
+      "properties": {
+        "label": "Partnership restores full QBR cadence and expansion pipeline",
+        "lag_weeks": 2
+      }
+    },
+    {
+      "from_ref": "outcome:phase5:w4",
+      "to_ref": "outcome:phase5:w6",
+      "edge_type": "LED_TO",
+      "weight": 0.75,
+      "properties": {
+        "label": "Restored relationship leads to public advocacy"
+      }
+    },
+    {
+      "from_ref": "stakeholder:decision_maker",
+      "to_ref": "outcome:phase5:w2",
+      "edge_type": "INVOLVES",
+      "weight": 0.95,
+      "properties": {
+        "label": "New CTO signs strategic partnership"
+      }
+    },
+    {
+      "from_ref": "stakeholder:exec_sponsor",
+      "to_ref": "decision:phase3:w4",
+      "edge_type": "INVOLVES",
+      "weight": 0.9,
+      "properties": {
+        "label": "CRO drives executive introduction"
+      }
+    },
+    {
+      "from_ref": "signal:phase3:w2",
+      "to_ref": "decision:phase3:w1",
+      "edge_type": "CORRELATES_WITH",
+      "weight": 0.88,
+      "properties": {
+        "label": "Platform compound risk alert validates escalation decision"
+      }
+    },
+    {
+      "from_ref": "stakeholder:technical_lead",
+      "to_ref": "outcome:phase4:w4",
+      "edge_type": "INVOLVES",
+      "weight": 0.8,
+      "properties": {
+        "label": "VP Engineering bridges old and new leadership as internal advocate"
+      }
+    }
+  ],
+  "industry_benchmarks": [
+    {
+      "kpi_code": "P5-KPI8",
+      "benchmark_source": "CSM Practice Champion Engagement Study 2025",
+      "industry_p25": 35,
+      "industry_p50": 58,
+      "industry_p75": 80,
+      "account_percentile": 78
+    },
+    {
+      "kpi_code": "P4-KPI1",
+      "benchmark_source": "Channel Futures Partner Benchmark 2025",
+      "industry_p25": 45,
+      "industry_p50": 63,
+      "industry_p75": 79,
+      "account_percentile": 74
+    },
+    {
+      "kpi_code": "P3-KPI1",
+      "benchmark_source": "Uptime Institute 2025 Data Center Survey",
+      "industry_p25": 48,
+      "industry_p50": 62,
+      "industry_p75": 78,
+      "account_percentile": 72
+    },
+    {
+      "kpi_code": "P4-KPI3",
+      "benchmark_source": "TSIA Customer Engagement Benchmark 2025",
+      "industry_p25": 2,
+      "industry_p50": 3,
+      "industry_p75": 4,
+      "account_percentile": 50
+    },
+    {
+      "kpi_code": "P5-KPI5",
+      "benchmark_source": "Gainsight Budget Signal Benchmark Report 2025",
+      "industry_p25": 22,
+      "industry_p50": 45,
+      "industry_p75": 68,
+      "account_percentile": 62
+    },
+    {
+      "kpi_code": "P5-KPI7",
+      "benchmark_source": "Gainsight Expansion Benchmark Report 2025",
+      "industry_p25": 18,
+      "industry_p50": 38,
+      "industry_p75": 62,
+      "account_percentile": 55
+    }
+  ]
+}

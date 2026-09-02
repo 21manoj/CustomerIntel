@@ -1,0 +1,1694 @@
+{
+  "arc_id": "arc_land_and_expand",
+  "arc_name": "Land & Expand",
+  "version": "1.0",
+  "description": "A new customer lands at $1.2M ARR with a small initial deployment (1 rack). The platform tracks adoption velocity, identifies expansion triggers, and helps CSM time expansion conversations. Three expansion waves drive ARR to $4.8M by end of year (4x land) -- showing CRO how the platform identifies and accelerates expansion pipeline.",
+  "intelligence_dimensions": [
+    "adoption_velocity",
+    "expansion_readiness",
+    "value_realization",
+    "engagement_depth"
+  ],
+  "target_audience": "CRO",
+  "revenue_narrative": {
+    "arr_start": 1200000,
+    "arr_end": 4800000,
+    "arr_at_risk_peak": 600000,
+    "roi_of_intervention": 2400,
+    "cost_of_inaction": 3600000,
+    "time_horizon_weeks": 48,
+    "intervention_cost": 150000,
+    "net_revenue_saved": 3600000
+  },
+  "cast": [
+    {
+      "role": "champion",
+      "title": "VP AI/ML",
+      "influence_score": 0.9,
+      "sentiment_arc": [
+        0.5,
+        0.7,
+        0.85,
+        0.75,
+        0.95
+      ],
+      "engagement_frequency": "weekly",
+      "appears_in_phase": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ]
+    },
+    {
+      "role": "decision_maker",
+      "title": "Infrastructure Director",
+      "influence_score": 0.8,
+      "sentiment_arc": [
+        0.4,
+        0.55,
+        0.75,
+        0.7,
+        0.9
+      ],
+      "engagement_frequency": "biweekly",
+      "appears_in_phase": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ]
+    },
+    {
+      "role": "exec_sponsor",
+      "title": "CFO",
+      "influence_score": 0.95,
+      "sentiment_arc": [
+        0.3,
+        0.4,
+        0.6,
+        0.65,
+        0.85
+      ],
+      "engagement_frequency": "quarterly",
+      "appears_in_phase": [
+        0,
+        2,
+        4
+      ]
+    },
+    {
+      "role": "technical_lead",
+      "title": "CSM (Ours)",
+      "influence_score": 0.7,
+      "sentiment_arc": [
+        0.6,
+        0.75,
+        0.85,
+        0.8,
+        0.95
+      ],
+      "engagement_frequency": "weekly",
+      "appears_in_phase": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ]
+    },
+    {
+      "role": "technical_lead",
+      "title": "Solutions Architect (Ours)",
+      "influence_score": 0.65,
+      "sentiment_arc": [
+        0.7,
+        0.8,
+        0.85,
+        0.75,
+        0.9
+      ],
+      "engagement_frequency": "biweekly",
+      "appears_in_phase": [
+        0,
+        1,
+        2,
+        3
+      ]
+    }
+  ],
+  "phases": [
+    {
+      "phase_id": 0,
+      "name": "Initial Deployment",
+      "duration_weeks": 8,
+      "health_range": {
+        "start": 65,
+        "end": 72
+      },
+      "description": "New customer lands with a single rack (32 GPUs) at $1.2M ARR. Hardware arrives and is commissioned. Solutions Architect runs first workload onboarding. CSM establishes cadence and baseline KPIs. Health starts at-risk (new, unproven) and climbs toward healthy as deployment completes successfully.",
+      "revenue_impact_type": "none",
+      "plot_points": [
+        {
+          "week_offset": 1,
+          "event_type": "milestone",
+          "description": "Hardware delivery and rack installation begins. Single rack with 32 GPUs, networking gear, and cooling infrastructure arrives at customer data center. Field engineer on-site for commissioning.",
+          "sentiment_shift": 0.1,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P1-KPI5",
+              "direction": "improve",
+              "magnitude": "moderate"
+            },
+            {
+              "kpi_code": "P1-KPI2",
+              "direction": "improve",
+              "magnitude": "minor"
+            }
+          ],
+          "revenue_impact": 0,
+          "generates_node_type": "SIGNAL",
+          "csm_action": {
+            "action_type": "deployment_oversight",
+            "description": "Coordinate field engineer on-site. Validate rack placement, power, and cooling prerequisites.",
+            "cost_estimate": 8000,
+            "response_time_hours": 8
+          }
+        },
+        {
+          "week_offset": 3,
+          "event_type": "milestone",
+          "description": "Rack commissioned and network configured. Configuration accuracy at 96%. Solutions Architect begins workload onboarding with VP AI/ML's team -- first training job submitted.",
+          "sentiment_shift": 0.15,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P1-KPI3",
+              "direction": "improve",
+              "magnitude": "moderate"
+            },
+            {
+              "kpi_code": "P1-KPI6",
+              "direction": "improve",
+              "magnitude": "moderate"
+            },
+            {
+              "kpi_code": "P1-KPI4",
+              "direction": "improve",
+              "magnitude": "minor"
+            }
+          ],
+          "revenue_impact": 0,
+          "generates_node_type": "SIGNAL",
+          "csm_action": {
+            "action_type": "technical_enablement",
+            "description": "Solutions Architect leads workload onboarding workshop. Configure GPU scheduling and monitoring dashboards.",
+            "cost_estimate": 12000,
+            "response_time_hours": 24
+          }
+        },
+        {
+          "week_offset": 5,
+          "event_type": "milestone",
+          "description": "First AI training workload completes successfully in 18 hours (benchmark target: 24h). Time-to-First-Workload achieved in 12 days (target: 14). VP AI/ML impressed -- shares results with Infrastructure Director.",
+          "sentiment_shift": 0.2,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P1-KPI1",
+              "direction": "improve",
+              "magnitude": "major"
+            },
+            {
+              "kpi_code": "P3-KPI4",
+              "direction": "improve",
+              "magnitude": "moderate"
+            },
+            {
+              "kpi_code": "P3-KPI2",
+              "direction": "improve",
+              "magnitude": "minor"
+            },
+            {
+              "kpi_code": "P3-KPI1",
+              "direction": "improve",
+              "magnitude": "minor"
+            }
+          ],
+          "revenue_impact": 0,
+          "generates_node_type": "OUTCOME",
+          "csm_action": {
+            "action_type": "success_documentation",
+            "description": "Capture first-workload success metrics. Create internal case study for champion to share. $12K CAC payback begins.",
+            "cost_estimate": 3000,
+            "response_time_hours": 48
+          }
+        },
+        {
+          "week_offset": 7,
+          "event_type": "meeting",
+          "description": "30-day success review with VP AI/ML and Infrastructure Director. GPU utilization at 35% with 1 workload type. CSM presents adoption roadmap showing path to full utilization. VP AI/ML agrees to onboard second ML team.",
+          "sentiment_shift": 0.1,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P5-KPI8",
+              "direction": "improve",
+              "magnitude": "moderate"
+            },
+            {
+              "kpi_code": "P4-KPI1",
+              "direction": "improve",
+              "magnitude": "minor"
+            },
+            {
+              "kpi_code": "P5-KPI7",
+              "direction": "improve",
+              "magnitude": "minor"
+            }
+          ],
+          "revenue_impact": 0,
+          "generates_node_type": "STAKEHOLDER",
+          "csm_action": {
+            "action_type": "executive_alignment",
+            "description": "Present 30-day adoption scorecard. Map workload expansion roadmap. Identify second ML team for onboarding.",
+            "cost_estimate": 2000,
+            "response_time_hours": 24
+          }
+        }
+      ]
+    },
+    {
+      "phase_id": 1,
+      "name": "Workload Ramp",
+      "duration_weeks": 10,
+      "health_range": {
+        "start": 72,
+        "end": 78
+      },
+      "description": "VP AI/ML onboards two additional ML teams. GPU utilization climbs rapidly from 35% to 72%. Workload diversity grows from 1 to 3 types (training, fine-tuning, batch inference). Platform proves its value as adoption velocity exceeds projections. CSM begins planting expansion seeds.",
+      "revenue_impact_type": "none",
+      "plot_points": [
+        {
+          "week_offset": 2,
+          "event_type": "milestone",
+          "description": "Second ML team onboarded. GPU utilization jumps to 48%. Workload Diversity Score increases to 2 (training + fine-tuning). Training job completion rate holds at 92%.",
+          "sentiment_shift": 0.1,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P3-KPI1",
+              "direction": "improve",
+              "magnitude": "moderate"
+            },
+            {
+              "kpi_code": "P3-KPI7",
+              "direction": "improve",
+              "magnitude": "moderate"
+            },
+            {
+              "kpi_code": "P5-KPI3",
+              "direction": "improve",
+              "magnitude": "moderate"
+            }
+          ],
+          "revenue_impact": 0,
+          "generates_node_type": "SIGNAL",
+          "csm_action": {
+            "action_type": "adoption_tracking",
+            "description": "Track workload ramp metrics. Share adoption velocity report with VP AI/ML showing above-benchmark performance.",
+            "cost_estimate": 1500,
+            "response_time_hours": 24
+          }
+        },
+        {
+          "week_offset": 5,
+          "event_type": "signal",
+          "description": "GPU utilization crosses 60%. Third ML team begins batch inference workloads. Workload Diversity Score hits 3. Compute hour consumption trending +18% MoM. CSM flags early expansion signal in CRM.",
+          "sentiment_shift": 0.1,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P3-KPI1",
+              "direction": "improve",
+              "magnitude": "moderate"
+            },
+            {
+              "kpi_code": "P3-KPI7",
+              "direction": "improve",
+              "magnitude": "minor"
+            },
+            {
+              "kpi_code": "P5-KPI4",
+              "direction": "improve",
+              "magnitude": "moderate"
+            },
+            {
+              "kpi_code": "P5-KPI1",
+              "direction": "improve",
+              "magnitude": "moderate"
+            },
+            {
+              "kpi_code": "P5-KPI2",
+              "direction": "improve",
+              "magnitude": "moderate"
+            }
+          ],
+          "revenue_impact": 0,
+          "generates_node_type": "SIGNAL",
+          "csm_action": {
+            "action_type": "expansion_signal_capture",
+            "description": "Flag expansion signal: utilization at 60% with steep trajectory. Prepare capacity forecast showing 80% threshold in 4 weeks.",
+            "cost_estimate": 2000,
+            "response_time_hours": 24
+          }
+        },
+        {
+          "week_offset": 8,
+          "event_type": "signal",
+          "description": "GPU utilization hits 72%. Capacity utilization at 75%. Workload Growth Velocity at +22% MoM. Expansion Probability (90d) climbs to 45%. CSM schedules capacity planning conversation with VP AI/ML.",
+          "sentiment_shift": 0.05,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P3-KPI1",
+              "direction": "improve",
+              "magnitude": "moderate"
+            },
+            {
+              "kpi_code": "P5-KPI1",
+              "direction": "improve",
+              "magnitude": "moderate"
+            },
+            {
+              "kpi_code": "P5-KPI2",
+              "direction": "improve",
+              "magnitude": "major"
+            },
+            {
+              "kpi_code": "P5-KPI3",
+              "direction": "improve",
+              "magnitude": "major"
+            },
+            {
+              "kpi_code": "P5-KPI7",
+              "direction": "improve",
+              "magnitude": "moderate"
+            }
+          ],
+          "revenue_impact": 0,
+          "generates_node_type": "SIGNAL",
+          "csm_action": {
+            "action_type": "capacity_planning",
+            "description": "Present capacity trajectory to VP AI/ML: current runway depletes in 6 weeks at current growth. Recommend proactive expansion discussion.",
+            "cost_estimate": 5000,
+            "response_time_hours": 48
+          }
+        },
+        {
+          "week_offset": 10,
+          "event_type": "meeting",
+          "description": "Capacity planning meeting with VP AI/ML and Infrastructure Director. GPU utilization at 78%, capacity at 80%. CSM presents ROI of first 10 weeks: $12K CAC fully recovered, workload adoption 40% above plan. VP AI/ML proposes POC for expanded workloads on additional capacity.",
+          "sentiment_shift": 0.15,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P5-KPI1",
+              "direction": "spike",
+              "magnitude": "moderate"
+            },
+            {
+              "kpi_code": "P5-KPI5",
+              "direction": "improve",
+              "magnitude": "moderate"
+            },
+            {
+              "kpi_code": "P5-KPI7",
+              "direction": "improve",
+              "magnitude": "major"
+            },
+            {
+              "kpi_code": "P5-KPI8",
+              "direction": "improve",
+              "magnitude": "moderate"
+            }
+          ],
+          "revenue_impact": 0,
+          "generates_node_type": "DECISION",
+          "csm_action": {
+            "action_type": "champion_enablement",
+            "description": "Build expansion business case for VP AI/ML. TCO comparison showing on-prem vs. cloud cost advantage at scale. Prepare CFO-ready ROI deck.",
+            "cost_estimate": 8000,
+            "response_time_hours": 72
+          }
+        }
+      ]
+    },
+    {
+      "phase_id": 2,
+      "name": "First Expansion",
+      "duration_weeks": 8,
+      "health_range": {
+        "start": 78,
+        "end": 84
+      },
+      "description": "First expansion wave: 1 rack to 2 racks (+$600K ARR, total $1.8M). VP AI/ML's POC results plus capacity data convince Infrastructure Director. CFO approves based on proven ROI. New capacity deployed in 3 weeks. GPU utilization normalizes to 55% with doubled capacity, then climbs again as new workloads onboard.",
+      "revenue_impact_type": "expansion",
+      "plot_points": [
+        {
+          "week_offset": 2,
+          "event_type": "decision",
+          "description": "Infrastructure Director approves first expansion: 1 additional rack (32 GPUs), $600K incremental ARR. CFO signs off citing proven 8-week CAC payback and workload demand data from CSM.",
+          "sentiment_shift": 0.2,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P5-KPI7",
+              "direction": "improve",
+              "magnitude": "major"
+            },
+            {
+              "kpi_code": "P5-KPI5",
+              "direction": "improve",
+              "magnitude": "major"
+            },
+            {
+              "kpi_code": "P4-KPI5",
+              "direction": "improve",
+              "magnitude": "moderate"
+            }
+          ],
+          "revenue_impact": 600000,
+          "generates_node_type": "DECISION",
+          "csm_action": {
+            "action_type": "deal_support",
+            "description": "Provide deployment timeline, configuration spec, and reference customer data. Coordinate with sales for PO processing.",
+            "cost_estimate": 5000,
+            "response_time_hours": 24
+          }
+        },
+        {
+          "week_offset": 4,
+          "event_type": "milestone",
+          "description": "Second rack commissioned and online in 18 days (faster than initial 25-day deployment). GPU utilization drops from 82% to 55% as capacity doubles. Training job queues clear. Performance metrics improve across the board.",
+          "sentiment_shift": 0.15,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P1-KPI4",
+              "direction": "improve",
+              "magnitude": "major"
+            },
+            {
+              "kpi_code": "P1-KPI5",
+              "direction": "improve",
+              "magnitude": "major"
+            },
+            {
+              "kpi_code": "P3-KPI1",
+              "direction": "improve",
+              "magnitude": "moderate"
+            },
+            {
+              "kpi_code": "P3-KPI2",
+              "direction": "improve",
+              "magnitude": "minor"
+            },
+            {
+              "kpi_code": "P5-KPI1",
+              "direction": "improve",
+              "magnitude": "moderate"
+            }
+          ],
+          "revenue_impact": 0,
+          "generates_node_type": "OUTCOME",
+          "csm_action": {
+            "action_type": "commissioning_oversight",
+            "description": "Field engineer oversight for second rack commissioning. Validate performance baselines and workload migration.",
+            "cost_estimate": 10000,
+            "response_time_hours": 8
+          }
+        },
+        {
+          "week_offset": 6,
+          "event_type": "decision",
+          "description": "VP AI/ML approves POC for inference workloads on new capacity. Workload Diversity Score grows to 4 (adding real-time inference). This decision plants the seed for the second expansion wave.",
+          "sentiment_shift": 0.1,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P3-KPI7",
+              "direction": "improve",
+              "magnitude": "moderate"
+            },
+            {
+              "kpi_code": "P5-KPI6",
+              "direction": "improve",
+              "magnitude": "moderate"
+            },
+            {
+              "kpi_code": "P3-KPI3",
+              "direction": "improve",
+              "magnitude": "minor"
+            }
+          ],
+          "revenue_impact": 0,
+          "generates_node_type": "DECISION",
+          "csm_action": {
+            "action_type": "technical_enablement",
+            "description": "Solutions Architect leads inference workload architecture review. Configure low-latency inference pipeline and monitoring.",
+            "cost_estimate": 8000,
+            "response_time_hours": 48
+          }
+        },
+        {
+          "week_offset": 8,
+          "event_type": "meeting",
+          "description": "QBR with VP AI/ML, Infrastructure Director. Present expansion ROI: $600K investment generating $180K/quarter in workload value. GPU utilization back to 65% and climbing. Platform delivers clear visibility into adoption acceleration.",
+          "sentiment_shift": 0.1,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P4-KPI3",
+              "direction": "improve",
+              "magnitude": "minor"
+            },
+            {
+              "kpi_code": "P4-KPI1",
+              "direction": "improve",
+              "magnitude": "moderate"
+            },
+            {
+              "kpi_code": "P5-KPI8",
+              "direction": "improve",
+              "magnitude": "minor"
+            }
+          ],
+          "revenue_impact": 0,
+          "generates_node_type": "STAKEHOLDER",
+          "csm_action": {
+            "action_type": "executive_alignment",
+            "description": "QBR preparation and delivery. Update success plan with next-phase expansion targets. Share industry benchmark comparisons.",
+            "cost_estimate": 3000,
+            "response_time_hours": 72
+          }
+        }
+      ]
+    },
+    {
+      "phase_id": 3,
+      "name": "Multi-Workload Adoption",
+      "duration_weeks": 12,
+      "health_range": {
+        "start": 78,
+        "end": 84
+      },
+      "description": "Inference workloads go live and GPU utilization climbs rapidly on the 2-rack footprint. Workload Diversity Score hits 5. Capacity utilization crosses 80% again -- second expansion trigger fires. Minor performance pressure creates urgency. CSM navigates a brief period of resource contention before second expansion closes: 2 racks to 4 racks (+$1.2M ARR, total $3.0M).",
+      "revenue_impact_type": "expansion",
+      "plot_points": [
+        {
+          "week_offset": 3,
+          "event_type": "milestone",
+          "description": "Inference workloads go live in production. P95 inference latency at 42ms (target: 50ms). Workload Diversity Score reaches 5 types. GPU utilization climbs to 68%.",
+          "sentiment_shift": 0.1,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P3-KPI3",
+              "direction": "improve",
+              "magnitude": "moderate"
+            },
+            {
+              "kpi_code": "P3-KPI7",
+              "direction": "improve",
+              "magnitude": "moderate"
+            },
+            {
+              "kpi_code": "P3-KPI1",
+              "direction": "improve",
+              "magnitude": "moderate"
+            },
+            {
+              "kpi_code": "P5-KPI6",
+              "direction": "improve",
+              "magnitude": "minor"
+            }
+          ],
+          "revenue_impact": 0,
+          "generates_node_type": "OUTCOME",
+          "csm_action": {
+            "action_type": "success_documentation",
+            "description": "Document inference workload success. Create benchmark comparison showing performance vs. cloud alternatives.",
+            "cost_estimate": 3000,
+            "response_time_hours": 48
+          }
+        },
+        {
+          "week_offset": 6,
+          "event_type": "signal",
+          "description": "GPU utilization crosses 80% threshold. Capacity utilization at 82%. Second expansion signal fires. Workload Growth Velocity at +15% MoM. Expansion Probability (90d) jumps to 65%. Minor training job queue delays begin.",
+          "sentiment_shift": -0.05,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P3-KPI1",
+              "direction": "spike",
+              "magnitude": "moderate"
+            },
+            {
+              "kpi_code": "P5-KPI1",
+              "direction": "spike",
+              "magnitude": "major"
+            },
+            {
+              "kpi_code": "P5-KPI2",
+              "direction": "improve",
+              "magnitude": "major"
+            },
+            {
+              "kpi_code": "P5-KPI7",
+              "direction": "improve",
+              "magnitude": "major"
+            },
+            {
+              "kpi_code": "P3-KPI2",
+              "direction": "degrade",
+              "magnitude": "minor"
+            }
+          ],
+          "revenue_impact": -200000,
+          "generates_node_type": "SIGNAL",
+          "csm_action": {
+            "action_type": "expansion_signal_capture",
+            "description": "Flag second expansion trigger: utilization at 82%, trajectory steep. Prepare capacity forecast and expansion sizing for 2 additional racks.",
+            "cost_estimate": 3000,
+            "response_time_hours": 24
+          }
+        },
+        {
+          "week_offset": 8,
+          "event_type": "meeting",
+          "description": "CSM-led expansion planning session. Present data: 82% utilization, 15% MoM growth, runway depletes in 8 weeks. VP AI/ML champions the case internally. Infrastructure Director requests pricing for 2 additional racks.",
+          "sentiment_shift": 0.1,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P5-KPI5",
+              "direction": "improve",
+              "magnitude": "major"
+            },
+            {
+              "kpi_code": "P5-KPI7",
+              "direction": "improve",
+              "magnitude": "moderate"
+            },
+            {
+              "kpi_code": "P4-KPI1",
+              "direction": "improve",
+              "magnitude": "minor"
+            }
+          ],
+          "revenue_impact": 0,
+          "generates_node_type": "DECISION",
+          "csm_action": {
+            "action_type": "champion_enablement",
+            "description": "Build second expansion business case. Demonstrate compounding ROI: first expansion paid back in 10 weeks. Prepare CFO presentation.",
+            "cost_estimate": 8000,
+            "response_time_hours": 48
+          }
+        },
+        {
+          "week_offset": 10,
+          "event_type": "decision",
+          "description": "CFO approves second expansion: 2 additional racks (64 GPUs), $1.2M incremental ARR. Total footprint grows to 4 racks (128 GPUs), $3.0M ARR. CFO cites compounding ROI data from CSM reports.",
+          "sentiment_shift": 0.2,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P5-KPI7",
+              "direction": "improve",
+              "magnitude": "critical"
+            },
+            {
+              "kpi_code": "P5-KPI5",
+              "direction": "improve",
+              "magnitude": "major"
+            },
+            {
+              "kpi_code": "P4-KPI5",
+              "direction": "improve",
+              "magnitude": "major"
+            }
+          ],
+          "revenue_impact": 1200000,
+          "generates_node_type": "DECISION",
+          "csm_action": {
+            "action_type": "deal_support",
+            "description": "Coordinate deployment plan for 2-rack expansion. Stagger commissioning to minimize disruption to running workloads.",
+            "cost_estimate": 5000,
+            "response_time_hours": 24
+          }
+        },
+        {
+          "week_offset": 12,
+          "event_type": "milestone",
+          "description": "Second expansion racks commissioned. Total footprint: 4 racks, 128 GPUs. GPU utilization normalizes to 52%. All workload queues clear. Health stabilizes at 84. Platform demonstrates clear L&E flywheel.",
+          "sentiment_shift": 0.15,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P1-KPI4",
+              "direction": "improve",
+              "magnitude": "major"
+            },
+            {
+              "kpi_code": "P1-KPI5",
+              "direction": "improve",
+              "magnitude": "major"
+            },
+            {
+              "kpi_code": "P3-KPI1",
+              "direction": "improve",
+              "magnitude": "moderate"
+            },
+            {
+              "kpi_code": "P3-KPI2",
+              "direction": "improve",
+              "magnitude": "moderate"
+            },
+            {
+              "kpi_code": "P5-KPI1",
+              "direction": "improve",
+              "magnitude": "moderate"
+            }
+          ],
+          "revenue_impact": 0,
+          "generates_node_type": "OUTCOME",
+          "csm_action": {
+            "action_type": "commissioning_oversight",
+            "description": "Oversee staggered deployment of 2 expansion racks. Validate performance baselines. Document deployment efficiency improvements.",
+            "cost_estimate": 18000,
+            "response_time_hours": 8
+          }
+        }
+      ]
+    },
+    {
+      "phase_id": 4,
+      "name": "Strategic Expansion",
+      "duration_weeks": 10,
+      "health_range": {
+        "start": 84,
+        "end": 88
+      },
+      "description": "VP AI/ML presents board-level AI strategy requiring 10-rack total footprint. GPU utilization on 4 racks climbs to 75%. Third expansion wave: 4 racks to 10 racks (+$1.8M ARR, total $4.8M). This is a strategic deal -- not capacity-driven but roadmap-driven. CSM facilitates multi-stakeholder alignment across VP AI/ML, Infrastructure Director, and CFO. NRR hits 400%.",
+      "revenue_impact_type": "expansion",
+      "plot_points": [
+        {
+          "week_offset": 2,
+          "event_type": "meeting",
+          "description": "VP AI/ML shares 18-month AI roadmap requiring 10-rack total footprint. Plans include production inference at scale, multi-model training, and edge deployment preparation. CSM positions this as a strategic partnership discussion.",
+          "sentiment_shift": 0.15,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P5-KPI8",
+              "direction": "improve",
+              "magnitude": "major"
+            },
+            {
+              "kpi_code": "P5-KPI3",
+              "direction": "improve",
+              "magnitude": "moderate"
+            },
+            {
+              "kpi_code": "P5-KPI6",
+              "direction": "improve",
+              "magnitude": "moderate"
+            }
+          ],
+          "revenue_impact": 0,
+          "generates_node_type": "STAKEHOLDER",
+          "csm_action": {
+            "action_type": "strategic_planning",
+            "description": "Co-develop infrastructure roadmap with VP AI/ML. Map workload requirements to hardware specifications. Build 18-month capacity model.",
+            "cost_estimate": 12000,
+            "response_time_hours": 72
+          }
+        },
+        {
+          "week_offset": 4,
+          "event_type": "signal",
+          "description": "GPU utilization climbs to 75% on 4-rack footprint. Workload Growth Velocity at +12% MoM. Expansion Probability (90d) at 78%. Platform data validates VP AI/ML's capacity projections -- CFO requests formal expansion proposal.",
+          "sentiment_shift": 0.1,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P3-KPI1",
+              "direction": "improve",
+              "magnitude": "moderate"
+            },
+            {
+              "kpi_code": "P5-KPI1",
+              "direction": "improve",
+              "magnitude": "moderate"
+            },
+            {
+              "kpi_code": "P5-KPI2",
+              "direction": "improve",
+              "magnitude": "moderate"
+            },
+            {
+              "kpi_code": "P5-KPI7",
+              "direction": "improve",
+              "magnitude": "major"
+            }
+          ],
+          "revenue_impact": 0,
+          "generates_node_type": "SIGNAL",
+          "csm_action": {
+            "action_type": "expansion_proposal",
+            "description": "Assemble strategic expansion proposal: 6 additional racks, phased deployment, volume pricing. Include 12-month ROI projection based on proven adoption curves.",
+            "cost_estimate": 15000,
+            "response_time_hours": 48
+          }
+        },
+        {
+          "week_offset": 6,
+          "event_type": "decision",
+          "description": "CFO approves strategic expansion: 6 additional racks (192 GPUs), $1.8M incremental ARR with volume discount. Total footprint: 10 racks (320 GPUs), $4.8M ARR. 4x the initial land. Deal structured as multi-year strategic partnership.",
+          "sentiment_shift": 0.25,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P5-KPI7",
+              "direction": "improve",
+              "magnitude": "critical"
+            },
+            {
+              "kpi_code": "P5-KPI5",
+              "direction": "improve",
+              "magnitude": "critical"
+            },
+            {
+              "kpi_code": "P4-KPI5",
+              "direction": "improve",
+              "magnitude": "major"
+            },
+            {
+              "kpi_code": "P4-KPI1",
+              "direction": "improve",
+              "magnitude": "major"
+            }
+          ],
+          "revenue_impact": 1800000,
+          "generates_node_type": "OUTCOME",
+          "csm_action": {
+            "action_type": "strategic_deal_support",
+            "description": "Coordinate multi-phase deployment plan for 6 racks. Establish strategic partnership governance framework. Set up executive sponsor cadence with CFO.",
+            "cost_estimate": 20000,
+            "response_time_hours": 24
+          }
+        },
+        {
+          "week_offset": 8,
+          "event_type": "milestone",
+          "description": "First 3 strategic expansion racks commissioned. GPU utilization normalizes to 48% across expanded footprint. New workload types onboarding: reinforcement learning and model serving. Partner NPS at 72.",
+          "sentiment_shift": 0.1,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P1-KPI4",
+              "direction": "improve",
+              "magnitude": "major"
+            },
+            {
+              "kpi_code": "P1-KPI2",
+              "direction": "improve",
+              "magnitude": "major"
+            },
+            {
+              "kpi_code": "P3-KPI7",
+              "direction": "improve",
+              "magnitude": "major"
+            },
+            {
+              "kpi_code": "P4-KPI6",
+              "direction": "improve",
+              "magnitude": "moderate"
+            }
+          ],
+          "revenue_impact": 0,
+          "generates_node_type": "OUTCOME",
+          "csm_action": {
+            "action_type": "commissioning_oversight",
+            "description": "Oversee phased commissioning of strategic expansion. Validate infrastructure at scale. Begin long-term capacity monitoring.",
+            "cost_estimate": 25000,
+            "response_time_hours": 8
+          }
+        },
+        {
+          "week_offset": 10,
+          "event_type": "milestone",
+          "description": "All 10 racks operational. Health score at 88. NRR: 400% (1.2M to 4.8M in 48 weeks). VP AI/ML presents partnership success to board. CSM documents complete Land & Expand playbook for replication across portfolio.",
+          "sentiment_shift": 0.15,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P5-KPI1",
+              "direction": "improve",
+              "magnitude": "major"
+            },
+            {
+              "kpi_code": "P5-KPI3",
+              "direction": "improve",
+              "magnitude": "major"
+            },
+            {
+              "kpi_code": "P1-KPI1",
+              "direction": "improve",
+              "magnitude": "moderate"
+            },
+            {
+              "kpi_code": "P4-KPI1",
+              "direction": "improve",
+              "magnitude": "major"
+            },
+            {
+              "kpi_code": "P5-KPI8",
+              "direction": "improve",
+              "magnitude": "major"
+            },
+            {
+              "kpi_code": "P4-KPI3",
+              "direction": "improve",
+              "magnitude": "moderate"
+            }
+          ],
+          "revenue_impact": 0,
+          "generates_node_type": "OUTCOME",
+          "csm_action": {
+            "action_type": "success_celebration",
+            "description": "Executive business review celebrating 4x land. Document L&E playbook. Set up next-year strategic planning cadence.",
+            "cost_estimate": 5000,
+            "response_time_hours": 168
+          }
+        }
+      ]
+    }
+  ],
+  "causal_chains": [
+    {
+      "chain_id": "cc_fast_deployment_to_adoption",
+      "name": "Fast Deployment to GPU Adoption Flywheel",
+      "revenue_impact": 4800000,
+      "links": [
+        {
+          "from_event": "phase0:w1 - Hardware delivery and rack commissioning",
+          "to_event": "phase0:w5 - First workload completes successfully in 12 days",
+          "edge_type": "LED_TO",
+          "lag_weeks": 4,
+          "confidence": 0.9
+        },
+        {
+          "from_event": "phase0:w5 - First workload succeeds, VP AI/ML impressed",
+          "to_event": "phase1:w2 - Second ML team onboarded, GPU at 48%",
+          "edge_type": "LED_TO",
+          "lag_weeks": 5,
+          "confidence": 0.85
+        },
+        {
+          "from_event": "phase1:w2 - Second ML team onboarded",
+          "to_event": "phase1:w8 - GPU utilization hits 72%, expansion signal",
+          "edge_type": "LED_TO",
+          "lag_weeks": 6,
+          "confidence": 0.88
+        }
+      ]
+    },
+    {
+      "chain_id": "cc_utilization_to_first_expansion",
+      "name": "Utilization Threshold to First Expansion",
+      "revenue_impact": 600000,
+      "links": [
+        {
+          "from_event": "phase1:w8 - GPU utilization at 72%, capacity at 75%",
+          "to_event": "phase1:w10 - Capacity planning meeting, 80% threshold",
+          "edge_type": "LED_TO",
+          "lag_weeks": 2,
+          "confidence": 0.9
+        },
+        {
+          "from_event": "phase1:w10 - VP AI/ML proposes POC expansion",
+          "to_event": "phase2:w2 - Infrastructure Director approves first expansion",
+          "edge_type": "LED_TO",
+          "lag_weeks": 4,
+          "confidence": 0.85
+        },
+        {
+          "from_event": "phase2:w2 - First expansion approved ($600K)",
+          "to_event": "phase2:w4 - Second rack commissioned and online",
+          "edge_type": "LED_TO",
+          "lag_weeks": 2,
+          "confidence": 0.92
+        }
+      ]
+    },
+    {
+      "chain_id": "cc_workload_diversity_to_second_expansion",
+      "name": "New Workload Types Drive Second Expansion",
+      "revenue_impact": 1200000,
+      "links": [
+        {
+          "from_event": "phase2:w6 - VP AI/ML approves inference workload POC",
+          "to_event": "phase3:w3 - Inference workloads go live, diversity at 5",
+          "edge_type": "LED_TO",
+          "lag_weeks": 5,
+          "confidence": 0.85
+        },
+        {
+          "from_event": "phase3:w3 - Inference live, GPU climbing",
+          "to_event": "phase3:w6 - GPU crosses 80%, second expansion trigger fires",
+          "edge_type": "LED_TO",
+          "lag_weeks": 3,
+          "confidence": 0.88
+        },
+        {
+          "from_event": "phase3:w6 - Second expansion trigger",
+          "to_event": "phase3:w10 - CFO approves second expansion ($1.2M)",
+          "edge_type": "LED_TO",
+          "lag_weeks": 4,
+          "confidence": 0.82
+        }
+      ]
+    },
+    {
+      "chain_id": "cc_proven_roi_to_strategic_deal",
+      "name": "Proven Expansion ROI to Strategic Partnership",
+      "revenue_impact": 1800000,
+      "links": [
+        {
+          "from_event": "phase3:w12 - Second expansion commissioned, 4 racks running",
+          "to_event": "phase4:w2 - VP AI/ML shares 18-month AI roadmap",
+          "edge_type": "LED_TO",
+          "lag_weeks": 2,
+          "confidence": 0.8
+        },
+        {
+          "from_event": "phase4:w2 - AI roadmap requires 10-rack footprint",
+          "to_event": "phase4:w4 - Platform data validates capacity projections",
+          "edge_type": "INDICATES",
+          "lag_weeks": 2,
+          "confidence": 0.85
+        },
+        {
+          "from_event": "phase4:w4 - CFO requests formal expansion proposal",
+          "to_event": "phase4:w6 - CFO approves strategic 6-rack expansion ($1.8M)",
+          "edge_type": "LED_TO",
+          "lag_weeks": 2,
+          "confidence": 0.88
+        }
+      ]
+    },
+    {
+      "chain_id": "cc_csm_enablement_flywheel",
+      "name": "CSM Enablement Creates Expansion Flywheel",
+      "revenue_impact": 3600000,
+      "links": [
+        {
+          "from_event": "phase0:w5 - CSM captures first-workload success metrics",
+          "to_event": "phase1:w10 - CSM presents ROI at capacity planning meeting",
+          "edge_type": "LED_TO",
+          "lag_weeks": 13,
+          "confidence": 0.82
+        },
+        {
+          "from_event": "phase1:w10 - CSM builds expansion business case for champion",
+          "to_event": "phase2:w2 - Data-driven expansion decision approved",
+          "edge_type": "LED_TO",
+          "lag_weeks": 4,
+          "confidence": 0.85
+        },
+        {
+          "from_event": "phase2:w8 - CSM presents compounding ROI at QBR",
+          "to_event": "phase3:w10 - CFO approves based on proven ROI pattern",
+          "edge_type": "LED_TO",
+          "lag_weeks": 10,
+          "confidence": 0.8
+        },
+        {
+          "from_event": "phase3:w10 - Second expansion proves L&E playbook",
+          "to_event": "phase4:w6 - Strategic partnership approved on track record",
+          "edge_type": "LED_TO",
+          "lag_weeks": 8,
+          "confidence": 0.78
+        }
+      ]
+    }
+  ],
+  "kpi_trajectories": {
+    "P1": {
+      "overall_trend": "improving",
+      "kpi_overrides": [
+        {
+          "kpi_code": "P1-KPI1",
+          "trend": "improving",
+          "inflection_week": 5,
+          "note": "Time-to-First-Workload achieved in 12 days (under 14-day target). Improves with each subsequent expansion deployment."
+        },
+        {
+          "kpi_code": "P1-KPI4",
+          "trend": "improving",
+          "inflection_week": 22,
+          "note": "Deployment Cycle Time improves dramatically: initial 25 days, first expansion 18 days, second expansion 14 days as team gains experience."
+        },
+        {
+          "kpi_code": "P1-KPI5",
+          "trend": "improving",
+          "inflection_week": 22,
+          "note": "Hardware Commissioning Time drops with each wave -- learning curve effect."
+        }
+      ]
+    },
+    "P2": {
+      "overall_trend": "stable",
+      "kpi_overrides": [
+        {
+          "kpi_code": "P2-KPI3",
+          "trend": "volatile",
+          "inflection_week": 32,
+          "note": "Minor incident blip during multi-workload adoption (phase 3) when utilization spikes, quickly resolved."
+        },
+        {
+          "kpi_code": "P2-KPI4",
+          "trend": "stable",
+          "inflection_week": 1,
+          "note": "System uptime stays above 99.5% throughout -- no major outages in this arc."
+        },
+        {
+          "kpi_code": "P2-KPI5",
+          "trend": "stable",
+          "inflection_week": 1,
+          "note": "Thermal management stable -- each expansion adds cooling capacity proportionally."
+        }
+      ]
+    },
+    "P3": {
+      "overall_trend": "improving",
+      "kpi_overrides": [
+        {
+          "kpi_code": "P3-KPI1",
+          "trend": "volatile",
+          "inflection_week": 8,
+          "note": "GPU utilization is the primary story driver: 0% -> 35% -> 72% -> 82%(spike) -> 55%(post-expand) -> 80%(spike) -> 52%(post-expand) -> 75% -> 48%(post-expand). Sawtooth pattern as utilization climbs then resets with each expansion."
+        },
+        {
+          "kpi_code": "P3-KPI7",
+          "trend": "improving",
+          "inflection_week": 10,
+          "note": "Workload Diversity grows steadily: 1 -> 2 -> 3 -> 4 -> 5 -> 6+ types as new teams and use cases onboard."
+        },
+        {
+          "kpi_code": "P3-KPI2",
+          "trend": "stable",
+          "inflection_week": 1,
+          "note": "Training job completion rate stays above 88% except during brief capacity pressure in phase 3."
+        },
+        {
+          "kpi_code": "P3-KPI3",
+          "trend": "improving",
+          "inflection_week": 26,
+          "note": "Inference latency improves as inference workloads mature and infrastructure scales."
+        }
+      ]
+    },
+    "P4": {
+      "overall_trend": "improving",
+      "kpi_overrides": [
+        {
+          "kpi_code": "P4-KPI1",
+          "trend": "improving",
+          "inflection_week": 18,
+          "note": "Partner engagement strengthens with each expansion deal cycle."
+        },
+        {
+          "kpi_code": "P4-KPI5",
+          "trend": "improving",
+          "inflection_week": 18,
+          "note": "Co-selling opportunities increase as expansion deals involve channel partner."
+        },
+        {
+          "kpi_code": "P4-KPI3",
+          "trend": "improving",
+          "inflection_week": 24,
+          "note": "QBR frequency increases from quarterly to bimonthly as relationship deepens."
+        }
+      ]
+    },
+    "P5": {
+      "overall_trend": "improving",
+      "kpi_overrides": [
+        {
+          "kpi_code": "P5-KPI1",
+          "trend": "volatile",
+          "inflection_week": 13,
+          "note": "Capacity utilization follows sawtooth: climbs to 80%+ triggering expansion, resets to ~50% after each capacity add, then climbs again."
+        },
+        {
+          "kpi_code": "P5-KPI2",
+          "trend": "improving",
+          "inflection_week": 10,
+          "note": "Capacity trajectory strongly positive through all phases -- steep positive slope drives expansion confidence."
+        },
+        {
+          "kpi_code": "P5-KPI3",
+          "trend": "improving",
+          "inflection_week": 8,
+          "note": "Workload Growth Velocity sustained above 10% MoM throughout -- the engine of the L&E flywheel."
+        },
+        {
+          "kpi_code": "P5-KPI7",
+          "trend": "volatile",
+          "inflection_week": 13,
+          "note": "Expansion Probability climbs before each expansion decision, resets after close, then climbs again. Three peaks at ~60%, ~75%, ~85%."
+        }
+      ]
+    }
+  },
+  "decisions": [
+    {
+      "decision_id": "dec_poc_workload_expansion",
+      "phase_id": 0,
+      "week": 6,
+      "title": "Approve POC Workload Expansion to Second ML Team",
+      "decision_maker_role": "champion",
+      "options": [
+        {
+          "option": "Onboard second ML team immediately with dedicated GPU allocation",
+          "projected_impact": 3600000,
+          "risk_level": "low"
+        },
+        {
+          "option": "Wait 90 days to evaluate first-workload results before expanding",
+          "projected_impact": 0,
+          "risk_level": "medium"
+        },
+        {
+          "option": "Keep single-team usage and re-evaluate at next budget cycle",
+          "projected_impact": -400000,
+          "risk_level": "high"
+        }
+      ],
+      "chosen_option": 0,
+      "evidence_refs": [
+        "P1-KPI1: Time-to-First-Workload achieved in 12 days (under 14-day target)",
+        "P3-KPI4: Training time 18 hours (under 24-hour benchmark)",
+        "P3-KPI1: GPU utilization at 35% -- ample capacity for second team",
+        "P3-KPI2: Training job completion rate at 95%"
+      ],
+      "revenue_impact": 0,
+      "outcome_description": "VP AI/ML green-lights second ML team onboarding based on fast first-workload success. This triggers the adoption velocity that drives all subsequent expansions."
+    },
+    {
+      "decision_id": "dec_first_rack_expansion",
+      "phase_id": 1,
+      "week": 18,
+      "title": "Approve First Rack Expansion (1 to 2 Racks)",
+      "decision_maker_role": "decision_maker",
+      "options": [
+        {
+          "option": "Expand from 1 rack to 2 racks (+32 GPUs, $600K ARR)",
+          "projected_impact": 600000,
+          "risk_level": "low"
+        },
+        {
+          "option": "Optimize existing workloads to extend capacity runway by 8 weeks",
+          "projected_impact": 0,
+          "risk_level": "medium"
+        },
+        {
+          "option": "Move overflow workloads to cloud GPU provider",
+          "projected_impact": -200000,
+          "risk_level": "high"
+        }
+      ],
+      "chosen_option": 0,
+      "evidence_refs": [
+        "P5-KPI1: Capacity utilization at 80% -- expansion threshold breached",
+        "P3-KPI1: GPU utilization at 78% and climbing",
+        "P5-KPI2: Capacity trajectory at +15% MoM -- steep positive",
+        "P5-KPI3: Workload Growth Velocity at +22% MoM",
+        "P5-KPI7: Expansion Probability at 55%",
+        "CSM ROI analysis: $12K CAC fully recovered in 8 weeks"
+      ],
+      "revenue_impact": 600000,
+      "outcome_description": "Infrastructure Director approves first expansion based on utilization data and proven ROI. CFO signs off citing 8-week CAC payback. Demonstrates platform's ability to surface expansion timing."
+    },
+    {
+      "decision_id": "dec_adopt_inference_workloads",
+      "phase_id": 2,
+      "week": 24,
+      "title": "Adopt Inference Workloads on New Capacity",
+      "decision_maker_role": "champion",
+      "options": [
+        {
+          "option": "Deploy real-time inference workloads on expanded GPU capacity",
+          "projected_impact": 1200000,
+          "risk_level": "low"
+        },
+        {
+          "option": "Focus only on training workloads -- defer inference to cloud",
+          "projected_impact": 200000,
+          "risk_level": "medium"
+        },
+        {
+          "option": "Use expanded capacity only for existing training workloads",
+          "projected_impact": 0,
+          "risk_level": "low"
+        }
+      ],
+      "chosen_option": 0,
+      "evidence_refs": [
+        "P3-KPI7: Workload Diversity at 3 types -- inference adds 4th",
+        "P3-KPI1: GPU utilization at 55% post-expansion -- capacity available",
+        "P5-KPI6: Only 2 new use cases in 90 days -- inference adds growth vector",
+        "Solutions Architect: Inference latency target achievable on current hardware"
+      ],
+      "revenue_impact": 0,
+      "outcome_description": "VP AI/ML approves inference workload deployment. This diversification is the catalyst for the second expansion wave -- new workload types consume capacity faster than training alone."
+    },
+    {
+      "decision_id": "dec_strategic_expansion",
+      "phase_id": 4,
+      "week": 44,
+      "title": "Approve Strategic 10-Rack Expansion",
+      "decision_maker_role": "exec_sponsor",
+      "options": [
+        {
+          "option": "Strategic expansion from 4 to 10 racks (6 additional racks, $1.8M ARR) as multi-year partnership",
+          "projected_impact": 1800000,
+          "risk_level": "low"
+        },
+        {
+          "option": "Incremental expansion: add 2 racks now, revisit in 6 months",
+          "projected_impact": 600000,
+          "risk_level": "medium"
+        },
+        {
+          "option": "Issue competitive RFP for strategic infrastructure partner",
+          "projected_impact": -1200000,
+          "risk_level": "high"
+        }
+      ],
+      "chosen_option": 0,
+      "evidence_refs": [
+        "P5-KPI7: Expansion Probability at 78% -- high confidence",
+        "P5-KPI2: Capacity trajectory sustained +12% MoM across 40 weeks",
+        "P3-KPI1: GPU utilization at 75% on 4-rack footprint",
+        "P5-KPI3: Workload Growth Velocity sustained above 10% MoM for 8 months",
+        "First expansion ROI: paid back in 10 weeks",
+        "Second expansion ROI: paid back in 12 weeks",
+        "VP AI/ML 18-month roadmap requires 10-rack footprint"
+      ],
+      "revenue_impact": 1800000,
+      "outcome_description": "CFO approves strategic expansion as multi-year partnership. Decision driven by compounding ROI data across two prior expansions and VP AI/ML's board-approved AI roadmap. Total ARR: $4.8M (4x initial land)."
+    }
+  ],
+  "outcomes": [
+    {
+      "outcome_id": "out_first_expansion",
+      "title": "First Expansion: 1 to 2 Racks (+$600K ARR)",
+      "outcome_type": "expansion",
+      "revenue_value": 600000,
+      "realized_week": 18,
+      "evidence": "Capacity-driven expansion triggered by 80% utilization threshold. CSM-provided ROI analysis and capacity forecast enabled data-driven decision. 8-week CAC payback proved investment thesis.",
+      "confidence": 1.0
+    },
+    {
+      "outcome_id": "out_second_expansion",
+      "title": "Second Expansion: 2 to 4 Racks (+$1.2M ARR)",
+      "outcome_type": "expansion",
+      "revenue_value": 1200000,
+      "realized_week": 36,
+      "evidence": "Workload-diversity-driven expansion. Inference workloads consumed capacity faster than projected. Compounding ROI from first expansion provided CFO confidence for 2x larger deal.",
+      "confidence": 0.95
+    },
+    {
+      "outcome_id": "out_strategic_expansion",
+      "title": "Strategic Expansion: 4 to 10 Racks (+$1.8M ARR)",
+      "outcome_type": "expansion",
+      "revenue_value": 1800000,
+      "realized_week": 44,
+      "evidence": "Roadmap-driven strategic partnership. Two successful expansions established trust and proven ROI pattern. VP AI/ML's board-approved AI strategy required 10-rack total footprint.",
+      "confidence": 0.9
+    },
+    {
+      "outcome_id": "out_nrr_400",
+      "title": "Net Revenue Retention: 400% in 48 Weeks",
+      "outcome_type": "expansion",
+      "revenue_value": 3600000,
+      "realized_week": 48,
+      "evidence": "ARR grew from $1.2M to $4.8M across 3 expansion waves. NRR of 400% demonstrates platform's ability to identify and accelerate expansion pipeline in new accounts.",
+      "confidence": 0.95
+    },
+    {
+      "outcome_id": "out_cac_payback",
+      "title": "CAC Payback in 8 Weeks",
+      "outcome_type": "expansion",
+      "revenue_value": 12000,
+      "realized_week": 8,
+      "evidence": "Customer acquisition cost fully recovered within 8 weeks of initial deployment. Fast time-to-first-workload (12 days) and immediate GPU adoption drove rapid ROI.",
+      "confidence": 1.0
+    },
+    {
+      "outcome_id": "out_cs_roi",
+      "title": "24x ROI on CS Engagement Investment",
+      "outcome_type": "expansion",
+      "revenue_value": 3600000,
+      "realized_week": 48,
+      "evidence": "Total CS intervention cost: $150,000 (solutions architect, field engineers, capacity planning, ROI analysis, deployment oversight). Net new ARR generated: $3,600,000. ROI: 2,400%.",
+      "confidence": 0.9
+    }
+  ],
+  "edges_template": [
+    {
+      "from_ref": "stakeholder:champion",
+      "to_ref": "decision:dec_poc_workload_expansion",
+      "edge_type": "INVOLVES",
+      "weight": 0.9,
+      "properties": {
+        "role": "proposer",
+        "influence": "high"
+      }
+    },
+    {
+      "from_ref": "decision:dec_poc_workload_expansion",
+      "to_ref": "signal:phase1:w5",
+      "edge_type": "LED_TO",
+      "weight": 0.85,
+      "properties": {
+        "mechanism": "Second ML team onboarding drives GPU utilization from 35% to 60%",
+        "lag_weeks": 7
+      }
+    },
+    {
+      "from_ref": "signal:phase1:w8",
+      "to_ref": "signal:phase1:w10",
+      "edge_type": "LED_TO",
+      "weight": 0.9,
+      "properties": {
+        "mechanism": "72% GPU utilization triggers capacity planning conversation",
+        "kpi_driver": "P3-KPI1"
+      }
+    },
+    {
+      "from_ref": "signal:phase1:w10",
+      "to_ref": "decision:dec_first_rack_expansion",
+      "edge_type": "LED_TO",
+      "weight": 0.85,
+      "properties": {
+        "mechanism": "80% capacity threshold and CSM ROI analysis drive expansion approval",
+        "kpi_driver": "P5-KPI1"
+      }
+    },
+    {
+      "from_ref": "stakeholder:decision_maker",
+      "to_ref": "decision:dec_first_rack_expansion",
+      "edge_type": "INVOLVES",
+      "weight": 0.8,
+      "properties": {
+        "role": "approver",
+        "procurement_authority": true
+      }
+    },
+    {
+      "from_ref": "stakeholder:exec_sponsor",
+      "to_ref": "decision:dec_first_rack_expansion",
+      "edge_type": "INVOLVES",
+      "weight": 0.95,
+      "properties": {
+        "role": "budget_approver",
+        "budget_authority": true
+      }
+    },
+    {
+      "from_ref": "decision:dec_first_rack_expansion",
+      "to_ref": "outcome:out_first_expansion",
+      "edge_type": "LED_TO",
+      "weight": 1.0,
+      "properties": {
+        "mechanism": "Approved expansion directly generates $600K ARR"
+      }
+    },
+    {
+      "from_ref": "decision:dec_adopt_inference_workloads",
+      "to_ref": "signal:phase3:w3",
+      "edge_type": "LED_TO",
+      "weight": 0.85,
+      "properties": {
+        "mechanism": "Inference workloads go live, driving utilization back up on 2-rack footprint",
+        "lag_weeks": 5
+      }
+    },
+    {
+      "from_ref": "signal:phase3:w6",
+      "to_ref": "decision:dec_strategic_expansion",
+      "edge_type": "INDICATES",
+      "weight": 0.78,
+      "properties": {
+        "mechanism": "Second utilization threshold breach signals sustainable growth pattern",
+        "kpi_driver": "P5-KPI1"
+      }
+    },
+    {
+      "from_ref": "stakeholder:champion",
+      "to_ref": "decision:dec_strategic_expansion",
+      "edge_type": "INVOLVES",
+      "weight": 0.9,
+      "properties": {
+        "role": "advocate",
+        "evidence_provider": true,
+        "ai_roadmap_owner": true
+      }
+    },
+    {
+      "from_ref": "stakeholder:exec_sponsor",
+      "to_ref": "decision:dec_strategic_expansion",
+      "edge_type": "INVOLVES",
+      "weight": 0.95,
+      "properties": {
+        "role": "approver",
+        "budget_authority": true,
+        "strategic_partnership": true
+      }
+    },
+    {
+      "from_ref": "decision:dec_strategic_expansion",
+      "to_ref": "outcome:out_strategic_expansion",
+      "edge_type": "LED_TO",
+      "weight": 1.0,
+      "properties": {
+        "mechanism": "Strategic expansion approval generates $1.8M ARR"
+      }
+    },
+    {
+      "from_ref": "outcome:out_first_expansion",
+      "to_ref": "outcome:out_second_expansion",
+      "edge_type": "LED_TO",
+      "weight": 0.85,
+      "properties": {
+        "mechanism": "Proven first expansion ROI creates confidence for larger second expansion"
+      }
+    },
+    {
+      "from_ref": "outcome:out_second_expansion",
+      "to_ref": "outcome:out_strategic_expansion",
+      "edge_type": "LED_TO",
+      "weight": 0.8,
+      "properties": {
+        "mechanism": "Two successful expansions establish trust for strategic partnership deal"
+      }
+    },
+    {
+      "from_ref": "outcome:out_strategic_expansion",
+      "to_ref": "outcome:out_nrr_400",
+      "edge_type": "LED_TO",
+      "weight": 0.95,
+      "properties": {
+        "mechanism": "Three expansion waves compound to 400% NRR"
+      }
+    },
+    {
+      "from_ref": "outcome:out_cac_payback",
+      "to_ref": "outcome:out_first_expansion",
+      "edge_type": "INDICATES",
+      "weight": 0.82,
+      "properties": {
+        "mechanism": "Fast CAC payback validates investment thesis and de-risks expansion decision",
+        "lead_time_weeks": 10
+      }
+    },
+    {
+      "from_ref": "stakeholder:champion",
+      "to_ref": "outcome:out_cs_roi",
+      "edge_type": "INVOLVES",
+      "weight": 0.85,
+      "properties": {
+        "mechanism": "Champion enablement was the primary CS investment driver across all three expansion waves"
+      }
+    },
+    {
+      "from_ref": "signal:phase1:w5",
+      "to_ref": "outcome:out_nrr_400",
+      "edge_type": "INDICATES",
+      "weight": 0.72,
+      "properties": {
+        "mechanism": "60% GPU utilization with steep trajectory was the earliest leading indicator of the full L&E journey",
+        "lead_time_weeks": 35
+      }
+    }
+  ],
+  "industry_benchmarks": [
+    {
+      "kpi_code": "P1-KPI1",
+      "benchmark_source": "Data Center Knowledge Deployment Survey 2026",
+      "industry_p25": 28,
+      "industry_p50": 18,
+      "industry_p75": 10,
+      "account_percentile": 82
+    },
+    {
+      "kpi_code": "P1-KPI4",
+      "benchmark_source": "Data Center Knowledge Deployment Survey 2026",
+      "industry_p25": 55,
+      "industry_p50": 38,
+      "industry_p75": 22,
+      "account_percentile": 75
+    },
+    {
+      "kpi_code": "P3-KPI1",
+      "benchmark_source": "Uptime Institute 2026 GPU Infrastructure Survey",
+      "industry_p25": 42,
+      "industry_p50": 58,
+      "industry_p75": 74,
+      "account_percentile": 88
+    },
+    {
+      "kpi_code": "P3-KPI7",
+      "benchmark_source": "Uptime Institute 2026 AI Workload Diversity Report",
+      "industry_p25": 1,
+      "industry_p50": 2,
+      "industry_p75": 4,
+      "account_percentile": 90
+    },
+    {
+      "kpi_code": "P5-KPI1",
+      "benchmark_source": "Gartner Data Center Infrastructure Report 2026",
+      "industry_p25": 48,
+      "industry_p50": 65,
+      "industry_p75": 80,
+      "account_percentile": 85
+    },
+    {
+      "kpi_code": "P5-KPI2",
+      "benchmark_source": "Gartner Data Center Infrastructure Report 2026",
+      "industry_p25": -2,
+      "industry_p50": 3,
+      "industry_p75": 8,
+      "account_percentile": 95
+    },
+    {
+      "kpi_code": "P5-KPI3",
+      "benchmark_source": "Gartner Data Center Growth Velocity Benchmark 2026",
+      "industry_p25": -5,
+      "industry_p50": 5,
+      "industry_p75": 15,
+      "account_percentile": 92
+    },
+    {
+      "kpi_code": "P5-KPI7",
+      "benchmark_source": "CS Pulse Internal ML Model Validation",
+      "industry_p25": 15,
+      "industry_p50": 35,
+      "industry_p75": 60,
+      "account_percentile": 88
+    },
+    {
+      "kpi_code": "P2-KPI4",
+      "benchmark_source": "Uptime Institute Annual Survey 2026",
+      "industry_p25": 98.5,
+      "industry_p50": 99.5,
+      "industry_p75": 99.95,
+      "account_percentile": 72
+    },
+    {
+      "kpi_code": "P4-KPI1",
+      "benchmark_source": "Canalys Channel Partner Engagement Index 2026",
+      "industry_p25": 52,
+      "industry_p50": 68,
+      "industry_p75": 82,
+      "account_percentile": 75
+    }
+  ]
+}

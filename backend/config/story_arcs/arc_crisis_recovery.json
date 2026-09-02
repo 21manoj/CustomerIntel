@@ -1,0 +1,1355 @@
+{
+  "arc_id": "arc_crisis_recovery",
+  "arc_name": "Crisis Recovery",
+  "version": "1.0",
+  "description": "A $4.8M ARR data center account suffers a catastrophic cooling failure that takes 40% of GPU fleet offline. Health plummets from 82 to 31. The CS team mobilizes a war room, orchestrates systematic recovery, and secures renewal plus $1.2M expansion -- proving 2,495% ROI on $185K CS investment.",
+  "intelligence_dimensions": [
+    "operational_risk",
+    "relationship_resilience",
+    "value_realization",
+    "sentiment_momentum"
+  ],
+  "target_audience": "CFO",
+  "revenue_narrative": {
+    "arr_start": 4800000,
+    "arr_end": 6000000,
+    "arr_at_risk_peak": 4800000,
+    "roi_of_intervention": 2495,
+    "cost_of_inaction": 4800000,
+    "time_horizon_weeks": 32,
+    "intervention_cost": 185000,
+    "net_revenue_saved": 4615000
+  },
+  "cast": [
+    {
+      "role": "decision_maker",
+      "title": "VP Operations",
+      "influence_score": 0.92,
+      "sentiment_arc": [
+        0.6,
+        -0.8,
+        -0.3,
+        0.4,
+        0.8
+      ],
+      "engagement_frequency": "weekly",
+      "appears_in_phase": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ]
+    },
+    {
+      "role": "exec_sponsor",
+      "title": "CTO",
+      "influence_score": 0.95,
+      "sentiment_arc": [
+        0.5,
+        -0.9,
+        -0.5,
+        0.2,
+        0.7
+      ],
+      "engagement_frequency": "biweekly",
+      "appears_in_phase": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ]
+    },
+    {
+      "role": "technical_lead",
+      "title": "Data Center Manager",
+      "influence_score": 0.78,
+      "sentiment_arc": [
+        0.7,
+        -0.6,
+        -0.1,
+        0.5,
+        0.8
+      ],
+      "engagement_frequency": "weekly",
+      "appears_in_phase": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ]
+    },
+    {
+      "role": "champion",
+      "title": "Customer Success Manager",
+      "influence_score": 0.85,
+      "sentiment_arc": [
+        0.7,
+        -0.4,
+        0.2,
+        0.6,
+        0.9
+      ],
+      "engagement_frequency": "weekly",
+      "appears_in_phase": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ]
+    },
+    {
+      "role": "technical_lead",
+      "title": "Support Engineering Lead",
+      "influence_score": 0.8,
+      "sentiment_arc": [
+        0.5,
+        -0.3,
+        0.3,
+        0.6,
+        0.7
+      ],
+      "engagement_frequency": "weekly",
+      "appears_in_phase": [
+        2,
+        3,
+        4,
+        5
+      ]
+    }
+  ],
+  "phases": [
+    {
+      "phase_id": 1,
+      "name": "Pre-Crisis Baseline",
+      "duration_weeks": 6,
+      "health_range": {
+        "start": 82,
+        "end": 80
+      },
+      "description": "Account is healthy and performing well. Routine operations with stable KPIs. Subtle early-warning signals appear in thermal management trending slightly downward and preventive maintenance slipping, but overall health remains solidly in the healthy zone.",
+      "revenue_impact_type": "none",
+      "plot_points": [
+        {
+          "week_offset": 1,
+          "event_type": "milestone",
+          "description": "Quarterly Business Review confirms strong GPU utilization at 78% and healthy expansion trajectory. VP Operations expresses satisfaction with platform stability.",
+          "sentiment_shift": 0.1,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P3-KPI1",
+              "direction": "plateau",
+              "magnitude": "minor"
+            },
+            {
+              "kpi_code": "P5-KPI1",
+              "direction": "plateau",
+              "magnitude": "minor"
+            }
+          ],
+          "revenue_impact": 0,
+          "generates_node_type": "SIGNAL"
+        },
+        {
+          "week_offset": 3,
+          "event_type": "signal",
+          "description": "Thermal Management Score dips from 97% to 93%, crossing below target threshold. CRAC unit in Zone B showing intermittent temperature spikes during peak GPU load.",
+          "sentiment_shift": 0,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P2-KPI5",
+              "direction": "degrade",
+              "magnitude": "minor"
+            },
+            {
+              "kpi_code": "P2-KPI6",
+              "direction": "degrade",
+              "magnitude": "minor"
+            }
+          ],
+          "revenue_impact": 0,
+          "generates_node_type": "SIGNAL"
+        },
+        {
+          "week_offset": 5,
+          "event_type": "signal",
+          "description": "Preventive Maintenance Compliance drops to 88% as ops team defers CRAC unit inspection to prioritize a new deployment. CSM notes this in weekly sync but no action taken.",
+          "sentiment_shift": -0.05,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P2-KPI8",
+              "direction": "degrade",
+              "magnitude": "moderate"
+            },
+            {
+              "kpi_code": "P2-KPI5",
+              "direction": "degrade",
+              "magnitude": "minor"
+            }
+          ],
+          "revenue_impact": 0,
+          "generates_node_type": "SIGNAL",
+          "csm_action": {
+            "action_type": "flag_risk",
+            "description": "CSM flags deferred maintenance in weekly report, recommends scheduling CRAC inspection",
+            "cost_estimate": 500,
+            "response_time_hours": 48
+          }
+        }
+      ]
+    },
+    {
+      "phase_id": 2,
+      "name": "Crisis Event",
+      "duration_weeks": 2,
+      "health_range": {
+        "start": 78,
+        "end": 31
+      },
+      "description": "Catastrophic cooling system failure cascades through the data center. CRAC Unit B fails completely, causing thermal breach in 3 GPU rows. Emergency thermal shutdown takes 40% of GPU fleet offline. Training jobs abort mid-epoch, RMA requests flood in, and critical incident count spikes. Health score plummets from 78 to 31 in 10 days.",
+      "revenue_impact_type": "at_risk",
+      "plot_points": [
+        {
+          "week_offset": 1,
+          "event_type": "incident",
+          "description": "CRAC Unit B compressor fails at 02:14 AM. Zone B ambient temperature rises from 22C to 38C in 47 minutes. Thermal protection triggers emergency GPU throttling on 3 rows (128 GPUs).",
+          "sentiment_shift": -0.6,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P2-KPI5",
+              "direction": "degrade",
+              "magnitude": "critical"
+            },
+            {
+              "kpi_code": "P2-KPI4",
+              "direction": "degrade",
+              "magnitude": "critical"
+            },
+            {
+              "kpi_code": "P3-KPI1",
+              "direction": "degrade",
+              "magnitude": "critical"
+            },
+            {
+              "kpi_code": "P2-KPI6",
+              "direction": "spike",
+              "magnitude": "major"
+            }
+          ],
+          "revenue_impact": -4800000,
+          "generates_node_type": "SIGNAL"
+        },
+        {
+          "week_offset": 1,
+          "event_type": "escalation",
+          "description": "8 active training jobs abort mid-epoch. Training Job Completion Rate crashes to 35%. Data Center Manager triggers P1 incident protocol and pages VP Operations. CTO notified within the hour.",
+          "sentiment_shift": -0.3,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P3-KPI2",
+              "direction": "degrade",
+              "magnitude": "critical"
+            },
+            {
+              "kpi_code": "P3-KPI4",
+              "direction": "spike",
+              "magnitude": "major"
+            },
+            {
+              "kpi_code": "P2-KPI3",
+              "direction": "spike",
+              "magnitude": "critical"
+            },
+            {
+              "kpi_code": "P3-KPI8",
+              "direction": "degrade",
+              "magnitude": "critical"
+            }
+          ],
+          "revenue_impact": 0,
+          "generates_node_type": "SIGNAL",
+          "csm_action": {
+            "action_type": "emergency_response",
+            "description": "CSM activates crisis protocol, schedules emergency bridge call with VP Operations and CTO within 2 hours",
+            "cost_estimate": 2000,
+            "response_time_hours": 2
+          }
+        },
+        {
+          "week_offset": 1,
+          "event_type": "incident",
+          "description": "Post-thermal-breach inspection reveals 14 GPUs with thermal damage requiring RMA. RMA Frequency Rate spikes to 4.4%. MTBF drops to 2,100 hours. Full $4.8M ARR now at risk as customer's CTO questions platform reliability.",
+          "sentiment_shift": -0.4,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P2-KPI1",
+              "direction": "spike",
+              "magnitude": "critical"
+            },
+            {
+              "kpi_code": "P2-KPI2",
+              "direction": "degrade",
+              "magnitude": "critical"
+            },
+            {
+              "kpi_code": "P5-KPI1",
+              "direction": "degrade",
+              "magnitude": "major"
+            },
+            {
+              "kpi_code": "P5-KPI7",
+              "direction": "degrade",
+              "magnitude": "critical"
+            }
+          ],
+          "revenue_impact": 0,
+          "generates_node_type": "SIGNAL"
+        },
+        {
+          "week_offset": 2,
+          "event_type": "decision",
+          "description": "VP Operations convenes emergency leadership meeting. GPU utilization at 38%, inference latency P95 ballooned to 320ms, distributed training efficiency collapsed. Customer threatens to evaluate competing platforms if recovery timeline exceeds 30 days.",
+          "sentiment_shift": -0.2,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P3-KPI3",
+              "direction": "spike",
+              "magnitude": "critical"
+            },
+            {
+              "kpi_code": "P3-KPI6",
+              "direction": "degrade",
+              "magnitude": "major"
+            },
+            {
+              "kpi_code": "P4-KPI1",
+              "direction": "degrade",
+              "magnitude": "major"
+            },
+            {
+              "kpi_code": "P5-KPI5",
+              "direction": "degrade",
+              "magnitude": "critical"
+            }
+          ],
+          "revenue_impact": 0,
+          "generates_node_type": "DECISION"
+        }
+      ]
+    },
+    {
+      "phase_id": 3,
+      "name": "War Room",
+      "duration_weeks": 4,
+      "health_range": {
+        "start": 31,
+        "end": 48
+      },
+      "description": "CS team establishes a dedicated war room with daily standups. Support Engineering Lead deploys on-site for 3 weeks. Emergency hardware replacement approved and expedited. Temporary cooling supplemented with portable units. Health stabilizes in low 30s then begins climbing through 40s as emergency measures take hold.",
+      "revenue_impact_type": "at_risk",
+      "plot_points": [
+        {
+          "week_offset": 1,
+          "event_type": "meeting",
+          "description": "War room established with daily 30-minute standups. CSM, Support Engineering Lead, Data Center Manager, and VP Operations aligned on recovery roadmap. Three workstreams defined: (1) cooling restoration, (2) GPU replacement, (3) workload migration.",
+          "sentiment_shift": 0.15,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P4-KPI1",
+              "direction": "improve",
+              "magnitude": "minor"
+            },
+            {
+              "kpi_code": "P2-KPI7",
+              "direction": "improve",
+              "magnitude": "minor"
+            }
+          ],
+          "revenue_impact": 0,
+          "generates_node_type": "DECISION",
+          "csm_action": {
+            "action_type": "war_room_coordination",
+            "description": "CSM establishes war room cadence, creates shared recovery tracker, coordinates cross-functional workstreams",
+            "cost_estimate": 15000,
+            "response_time_hours": 4
+          }
+        },
+        {
+          "week_offset": 2,
+          "event_type": "milestone",
+          "description": "Emergency hardware replacement approved: 14 replacement GPUs plus 2 portable cooling units shipped overnight ($95K). Support Engineering Lead on-site validates thermal containment strategy. Thermal Management Score recovers to 78%.",
+          "sentiment_shift": 0.2,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P2-KPI5",
+              "direction": "improve",
+              "magnitude": "moderate"
+            },
+            {
+              "kpi_code": "P2-KPI1",
+              "direction": "improve",
+              "magnitude": "minor"
+            },
+            {
+              "kpi_code": "P2-KPI4",
+              "direction": "improve",
+              "magnitude": "moderate"
+            }
+          ],
+          "revenue_impact": 0,
+          "generates_node_type": "OUTCOME",
+          "csm_action": {
+            "action_type": "hardware_expedite",
+            "description": "CSM escalates to supply chain, secures 48-hour expedited shipping for replacement GPUs and portable cooling",
+            "cost_estimate": 95000,
+            "response_time_hours": 8
+          }
+        },
+        {
+          "week_offset": 3,
+          "event_type": "milestone",
+          "description": "First batch of 8 replacement GPUs installed and validated. Workloads begin migrating back to restored capacity. GPU Utilization recovers to 52%. Two of eight aborted training jobs successfully restarted.",
+          "sentiment_shift": 0.15,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P3-KPI1",
+              "direction": "improve",
+              "magnitude": "moderate"
+            },
+            {
+              "kpi_code": "P3-KPI2",
+              "direction": "improve",
+              "magnitude": "moderate"
+            },
+            {
+              "kpi_code": "P2-KPI7",
+              "direction": "improve",
+              "magnitude": "moderate"
+            }
+          ],
+          "revenue_impact": 0,
+          "generates_node_type": "OUTCOME"
+        },
+        {
+          "week_offset": 4,
+          "event_type": "meeting",
+          "description": "Week 4 war room review: health score at 48, trending upward. VP Operations acknowledges rapid response but demands a redundancy plan to prevent recurrence. CTO sets condition: renewal contingent on documented redundancy architecture.",
+          "sentiment_shift": 0.1,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P2-KPI3",
+              "direction": "improve",
+              "magnitude": "minor"
+            },
+            {
+              "kpi_code": "P5-KPI5",
+              "direction": "improve",
+              "magnitude": "minor"
+            }
+          ],
+          "revenue_impact": 0,
+          "generates_node_type": "SIGNAL"
+        }
+      ]
+    },
+    {
+      "phase_id": 4,
+      "name": "Systematic Recovery",
+      "duration_weeks": 12,
+      "health_range": {
+        "start": 48,
+        "end": 85
+      },
+      "description": "Methodical, week-by-week recovery across all five pillars. Remaining GPUs replaced, CRAC system upgraded with N+1 redundancy, preventive maintenance overhauled. GPU utilization climbs back through 60s to 75%+. Training job success rate normalizes. Health score crosses from at-risk (50s) through to healthy (70+) and stabilizes at 85. Expansion conversations resume as capacity utilization returns to pre-crisis levels.",
+      "revenue_impact_type": "protected",
+      "plot_points": [
+        {
+          "week_offset": 2,
+          "event_type": "milestone",
+          "description": "All 14 replacement GPUs installed and operational. Full cooling system restored with temporary redundancy. System Uptime back to 99.2%. RMA rate declining to 2.8%. Health score crosses 55 -- exiting critical zone into at-risk.",
+          "sentiment_shift": 0.15,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P2-KPI4",
+              "direction": "improve",
+              "magnitude": "moderate"
+            },
+            {
+              "kpi_code": "P2-KPI1",
+              "direction": "improve",
+              "magnitude": "moderate"
+            },
+            {
+              "kpi_code": "P3-KPI1",
+              "direction": "improve",
+              "magnitude": "moderate"
+            },
+            {
+              "kpi_code": "P2-KPI2",
+              "direction": "improve",
+              "magnitude": "moderate"
+            }
+          ],
+          "revenue_impact": 0,
+          "generates_node_type": "OUTCOME"
+        },
+        {
+          "week_offset": 6,
+          "event_type": "decision",
+          "description": "N+1 cooling redundancy plan approved by VP Operations ($65K investment). New CRAC unit ordered with automatic failover. Preventive maintenance program restructured to weekly thermal inspections. Health score reaches 65.",
+          "sentiment_shift": 0.2,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P2-KPI5",
+              "direction": "improve",
+              "magnitude": "major"
+            },
+            {
+              "kpi_code": "P2-KPI8",
+              "direction": "improve",
+              "magnitude": "major"
+            },
+            {
+              "kpi_code": "P2-KPI6",
+              "direction": "improve",
+              "magnitude": "moderate"
+            }
+          ],
+          "revenue_impact": 0,
+          "generates_node_type": "DECISION",
+          "csm_action": {
+            "action_type": "redundancy_design",
+            "description": "CSM co-designs N+1 redundancy architecture with Support Engineering Lead, presents ROI analysis to VP Operations showing $4.8M ARR protection for $65K investment",
+            "cost_estimate": 65000,
+            "response_time_hours": 168
+          }
+        },
+        {
+          "week_offset": 9,
+          "event_type": "milestone",
+          "description": "Health score crosses 70 -- back into healthy zone. GPU Utilization at 72%, Training Job Completion Rate at 93%, System Uptime at 99.7%. All aborted training jobs successfully completed. CTO sentiment shifts positive for first time since crisis.",
+          "sentiment_shift": 0.25,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P3-KPI1",
+              "direction": "improve",
+              "magnitude": "moderate"
+            },
+            {
+              "kpi_code": "P3-KPI2",
+              "direction": "improve",
+              "magnitude": "moderate"
+            },
+            {
+              "kpi_code": "P2-KPI4",
+              "direction": "improve",
+              "magnitude": "minor"
+            },
+            {
+              "kpi_code": "P5-KPI7",
+              "direction": "improve",
+              "magnitude": "moderate"
+            }
+          ],
+          "revenue_impact": 0,
+          "generates_node_type": "OUTCOME"
+        },
+        {
+          "week_offset": 12,
+          "event_type": "milestone",
+          "description": "Full recovery confirmed. Health score at 85, exceeding pre-crisis baseline of 82. N+1 cooling installed and validated. MTBF recovered to 9,200 hours. Thermal Management at 98%. Expansion Probability climbs to 62%. VP Operations requests expansion proposal for additional GPU capacity.",
+          "sentiment_shift": 0.2,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P2-KPI2",
+              "direction": "improve",
+              "magnitude": "major"
+            },
+            {
+              "kpi_code": "P2-KPI5",
+              "direction": "improve",
+              "magnitude": "moderate"
+            },
+            {
+              "kpi_code": "P5-KPI7",
+              "direction": "improve",
+              "magnitude": "major"
+            },
+            {
+              "kpi_code": "P5-KPI1",
+              "direction": "improve",
+              "magnitude": "moderate"
+            }
+          ],
+          "revenue_impact": 1200000,
+          "generates_node_type": "SIGNAL"
+        }
+      ]
+    },
+    {
+      "phase_id": 5,
+      "name": "Renewal & Expansion",
+      "duration_weeks": 8,
+      "health_range": {
+        "start": 85,
+        "end": 87
+      },
+      "description": "With health restored and redundancy proven, renewal discussions proceed with high confidence. The crisis response becomes a selling point: CS team's rapid mobilization demonstrates platform commitment. CTO approves 3-year renewal at $4.8M ARR plus $1.2M expansion for additional GPU racks with built-in redundancy. Final ROI: $185K CS investment protected $4.8M ARR and generated $1.2M expansion.",
+      "revenue_impact_type": "expansion",
+      "plot_points": [
+        {
+          "week_offset": 2,
+          "event_type": "meeting",
+          "description": "Renewal kickoff meeting. CSM presents crisis recovery case study showing 54-point health score recovery (31 to 85) in 18 weeks. ROI deck quantifies $185K CS investment protecting $4.8M ARR. VP Operations champions renewal internally.",
+          "sentiment_shift": 0.15,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P4-KPI1",
+              "direction": "improve",
+              "magnitude": "moderate"
+            },
+            {
+              "kpi_code": "P4-KPI3",
+              "direction": "improve",
+              "magnitude": "minor"
+            },
+            {
+              "kpi_code": "P5-KPI5",
+              "direction": "improve",
+              "magnitude": "major"
+            }
+          ],
+          "revenue_impact": 0,
+          "generates_node_type": "SIGNAL",
+          "csm_action": {
+            "action_type": "renewal_strategy",
+            "description": "CSM builds crisis-to-recovery narrative deck for renewal negotiation, quantifies ROI of CS intervention at 2,495%",
+            "cost_estimate": 5000,
+            "response_time_hours": 40
+          }
+        },
+        {
+          "week_offset": 4,
+          "event_type": "decision",
+          "description": "CTO approves 3-year renewal with enhanced SLA terms including guaranteed 4-hour MTTR and N+1 redundancy commitment. Expansion proposal for 2 additional GPU racks ($1.2M) submitted alongside renewal.",
+          "sentiment_shift": 0.2,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P5-KPI7",
+              "direction": "improve",
+              "magnitude": "major"
+            },
+            {
+              "kpi_code": "P5-KPI5",
+              "direction": "improve",
+              "magnitude": "moderate"
+            },
+            {
+              "kpi_code": "P4-KPI5",
+              "direction": "improve",
+              "magnitude": "major"
+            }
+          ],
+          "revenue_impact": 4800000,
+          "generates_node_type": "DECISION"
+        },
+        {
+          "week_offset": 6,
+          "event_type": "milestone",
+          "description": "$4.8M renewal signed. $1.2M expansion order for 2 GPU racks with redundant cooling confirmed. Partner NPS score jumps to 72. Technical Champion Engagement at 88. Health score stable at 87.",
+          "sentiment_shift": 0.15,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P4-KPI6",
+              "direction": "improve",
+              "magnitude": "major"
+            },
+            {
+              "kpi_code": "P5-KPI8",
+              "direction": "improve",
+              "magnitude": "moderate"
+            },
+            {
+              "kpi_code": "P5-KPI2",
+              "direction": "improve",
+              "magnitude": "moderate"
+            }
+          ],
+          "revenue_impact": 1200000,
+          "generates_node_type": "OUTCOME"
+        }
+      ]
+    }
+  ],
+  "causal_chains": [
+    {
+      "chain_id": "cc_cooling_cascade",
+      "name": "Cooling Failure Cascade",
+      "revenue_impact": -4800000,
+      "links": [
+        {
+          "from_event": "Preventive Maintenance Compliance drops to 88%",
+          "to_event": "CRAC Unit B compressor fails",
+          "edge_type": "CAUSED_BY",
+          "lag_weeks": 3,
+          "confidence": 0.75
+        },
+        {
+          "from_event": "CRAC Unit B compressor fails",
+          "to_event": "Thermal breach triggers emergency GPU throttling",
+          "edge_type": "LED_TO",
+          "lag_weeks": 0,
+          "confidence": 0.98
+        },
+        {
+          "from_event": "Thermal breach triggers emergency GPU throttling",
+          "to_event": "GPU Utilization crashes to 38%",
+          "edge_type": "LED_TO",
+          "lag_weeks": 0,
+          "confidence": 0.95
+        },
+        {
+          "from_event": "GPU Utilization crashes to 38%",
+          "to_event": "8 training jobs abort mid-epoch",
+          "edge_type": "LED_TO",
+          "lag_weeks": 0,
+          "confidence": 0.92
+        },
+        {
+          "from_event": "Thermal breach triggers emergency GPU throttling",
+          "to_event": "14 GPUs require RMA from thermal damage",
+          "edge_type": "LED_TO",
+          "lag_weeks": 0,
+          "confidence": 0.88
+        },
+        {
+          "from_event": "14 GPUs require RMA from thermal damage",
+          "to_event": "RMA Rate spikes to 4.4%",
+          "edge_type": "LED_TO",
+          "lag_weeks": 0,
+          "confidence": 0.95
+        }
+      ]
+    },
+    {
+      "chain_id": "cc_escalation_path",
+      "name": "Executive Escalation Path",
+      "revenue_impact": -4800000,
+      "links": [
+        {
+          "from_event": "RMA Rate spikes to 4.4%",
+          "to_event": "Data Center Manager triggers P1 incident protocol",
+          "edge_type": "LED_TO",
+          "lag_weeks": 0,
+          "confidence": 0.9
+        },
+        {
+          "from_event": "Data Center Manager triggers P1 incident protocol",
+          "to_event": "VP Operations and CTO notified",
+          "edge_type": "LED_TO",
+          "lag_weeks": 0,
+          "confidence": 0.98
+        },
+        {
+          "from_event": "VP Operations and CTO notified",
+          "to_event": "CTO questions platform reliability",
+          "edge_type": "LED_TO",
+          "lag_weeks": 0,
+          "confidence": 0.85
+        },
+        {
+          "from_event": "CTO questions platform reliability",
+          "to_event": "Customer threatens competitive evaluation",
+          "edge_type": "LED_TO",
+          "lag_weeks": 1,
+          "confidence": 0.7
+        }
+      ]
+    },
+    {
+      "chain_id": "cc_recovery_path",
+      "name": "War Room to Recovery",
+      "revenue_impact": 4800000,
+      "links": [
+        {
+          "from_event": "War room established with daily standups",
+          "to_event": "Emergency hardware replacement approved",
+          "edge_type": "LED_TO",
+          "lag_weeks": 1,
+          "confidence": 0.92
+        },
+        {
+          "from_event": "Emergency hardware replacement approved",
+          "to_event": "14 replacement GPUs installed and operational",
+          "edge_type": "LED_TO",
+          "lag_weeks": 3,
+          "confidence": 0.9
+        },
+        {
+          "from_event": "14 replacement GPUs installed and operational",
+          "to_event": "GPU Utilization recovers to 72%",
+          "edge_type": "LED_TO",
+          "lag_weeks": 5,
+          "confidence": 0.88
+        },
+        {
+          "from_event": "GPU Utilization recovers to 72%",
+          "to_event": "Health score crosses 70 -- back to healthy",
+          "edge_type": "LED_TO",
+          "lag_weeks": 2,
+          "confidence": 0.85
+        }
+      ]
+    },
+    {
+      "chain_id": "cc_redundancy_to_renewal",
+      "name": "Redundancy Investment to Renewal",
+      "revenue_impact": 6000000,
+      "links": [
+        {
+          "from_event": "CTO demands redundancy plan as renewal condition",
+          "to_event": "N+1 cooling redundancy plan approved",
+          "edge_type": "LED_TO",
+          "lag_weeks": 4,
+          "confidence": 0.88
+        },
+        {
+          "from_event": "N+1 cooling redundancy plan approved",
+          "to_event": "N+1 cooling installed and validated",
+          "edge_type": "LED_TO",
+          "lag_weeks": 6,
+          "confidence": 0.92
+        },
+        {
+          "from_event": "N+1 cooling installed and validated",
+          "to_event": "Health score exceeds pre-crisis baseline",
+          "edge_type": "LED_TO",
+          "lag_weeks": 0,
+          "confidence": 0.9
+        },
+        {
+          "from_event": "Health score exceeds pre-crisis baseline",
+          "to_event": "CTO approves 3-year renewal with enhanced SLA",
+          "edge_type": "LED_TO",
+          "lag_weeks": 4,
+          "confidence": 0.82
+        },
+        {
+          "from_event": "CTO approves 3-year renewal with enhanced SLA",
+          "to_event": "$1.2M expansion order confirmed",
+          "edge_type": "LED_TO",
+          "lag_weeks": 2,
+          "confidence": 0.78
+        }
+      ]
+    }
+  ],
+  "kpi_trajectories": {
+    "P1": {
+      "overall_trend": "stable",
+      "kpi_overrides": [
+        {
+          "kpi_code": "P1-KPI3",
+          "trend": "volatile",
+          "inflection_week": 7,
+          "note": "Configuration Accuracy dips during emergency GPU replacement and recovers once validated"
+        }
+      ]
+    },
+    "P2": {
+      "overall_trend": "volatile",
+      "kpi_overrides": [
+        {
+          "kpi_code": "P2-KPI4",
+          "trend": "recovering",
+          "inflection_week": 7,
+          "note": "System Uptime crashes from 99.8% to 60% at week 7, recovers to 99.7% by week 21"
+        },
+        {
+          "kpi_code": "P2-KPI5",
+          "trend": "recovering",
+          "inflection_week": 7,
+          "note": "Thermal Management Score crashes from 93% to 28% at week 7, recovers to 98% by week 24"
+        },
+        {
+          "kpi_code": "P2-KPI1",
+          "trend": "recovering",
+          "inflection_week": 7,
+          "note": "RMA Rate spikes from 0.8% to 4.4% at week 7, normalizes to 0.6% by week 20"
+        },
+        {
+          "kpi_code": "P2-KPI3",
+          "trend": "recovering",
+          "inflection_week": 7,
+          "note": "Critical Incidents spike from 0 to 12 at week 7, return to 1 by week 18"
+        },
+        {
+          "kpi_code": "P2-KPI2",
+          "trend": "recovering",
+          "inflection_week": 7,
+          "note": "MTBF drops from 9,500 to 2,100 hours at week 7, recovers to 9,200 by week 24"
+        },
+        {
+          "kpi_code": "P2-KPI8",
+          "trend": "recovering",
+          "inflection_week": 5,
+          "note": "Preventive Maintenance drops to 88% pre-crisis (contributing cause), overhauled to 98% post-recovery"
+        }
+      ]
+    },
+    "P3": {
+      "overall_trend": "volatile",
+      "kpi_overrides": [
+        {
+          "kpi_code": "P3-KPI1",
+          "trend": "recovering",
+          "inflection_week": 7,
+          "note": "GPU Utilization crashes from 78% to 38% at week 7, recovers through 52% (w11), 72% (w21) to 76% (w24)"
+        },
+        {
+          "kpi_code": "P3-KPI2",
+          "trend": "recovering",
+          "inflection_week": 7,
+          "note": "Training Job Completion Rate crashes from 94% to 35% at week 7, recovers to 93% by week 21"
+        },
+        {
+          "kpi_code": "P3-KPI3",
+          "trend": "recovering",
+          "inflection_week": 8,
+          "note": "Inference Latency P95 spikes from 42ms to 320ms at week 8, normalizes to 45ms by week 20"
+        },
+        {
+          "kpi_code": "P3-KPI6",
+          "trend": "recovering",
+          "inflection_week": 8,
+          "note": "Distributed Training Efficiency drops from 88% to 52% at week 8 due to reduced GPU pool, recovers to 86% by week 22"
+        }
+      ]
+    },
+    "P4": {
+      "overall_trend": "recovering",
+      "kpi_overrides": [
+        {
+          "kpi_code": "P4-KPI1",
+          "trend": "recovering",
+          "inflection_week": 8,
+          "note": "Partner Engagement drops during crisis as trust erodes, recovers through war room transparency to exceed baseline"
+        },
+        {
+          "kpi_code": "P4-KPI6",
+          "trend": "recovering",
+          "inflection_week": 8,
+          "note": "Partner NPS dips to 25 during crisis, recovers to 72 by renewal -- crisis response becomes a trust builder"
+        }
+      ]
+    },
+    "P5": {
+      "overall_trend": "volatile",
+      "kpi_overrides": [
+        {
+          "kpi_code": "P5-KPI1",
+          "trend": "recovering",
+          "inflection_week": 7,
+          "note": "Capacity Utilization drops as 40% of GPUs go offline, recovers as fleet is restored"
+        },
+        {
+          "kpi_code": "P5-KPI7",
+          "trend": "recovering",
+          "inflection_week": 7,
+          "note": "Expansion Probability crashes from 58% to 8% during crisis, recovers to 72% post-recovery as expansion conversations resume"
+        },
+        {
+          "kpi_code": "P5-KPI5",
+          "trend": "recovering",
+          "inflection_week": 8,
+          "note": "Budget Availability Signals drop to 20 as customer freezes spending during crisis, recover to 78 as renewal approaches"
+        },
+        {
+          "kpi_code": "P5-KPI2",
+          "trend": "volatile",
+          "inflection_week": 7,
+          "note": "Capacity Utilization Trajectory swings negative during crisis then sharply positive during recovery ramp"
+        }
+      ]
+    }
+  },
+  "decisions": [
+    {
+      "decision_id": "d_declare_p1",
+      "phase_id": 1,
+      "week": 7,
+      "title": "Declare P1 Incident",
+      "decision_maker_role": "decision_maker",
+      "options": [
+        {
+          "option": "Declare P1 and activate full incident response with executive notification",
+          "projected_impact": 4800000,
+          "risk_level": "low"
+        },
+        {
+          "option": "Treat as P2 incident and handle through standard support channels",
+          "projected_impact": 2400000,
+          "risk_level": "high"
+        },
+        {
+          "option": "Defer classification pending root cause analysis",
+          "projected_impact": 0,
+          "risk_level": "high"
+        }
+      ],
+      "chosen_option": 0,
+      "evidence_refs": [
+        "P2-KPI4 System Uptime crashed to 60%",
+        "P2-KPI5 Thermal Management at 28%",
+        "40% of GPU fleet offline",
+        "8 active training jobs aborted"
+      ],
+      "revenue_impact": 4800000,
+      "outcome_description": "Declaring P1 triggered immediate executive engagement, enabling war room formation within 24 hours. Fast escalation shortened recovery timeline by an estimated 3 weeks vs. standard P2 process."
+    },
+    {
+      "decision_id": "d_emergency_hardware",
+      "phase_id": 2,
+      "week": 10,
+      "title": "Approve Emergency Hardware Replacement",
+      "decision_maker_role": "decision_maker",
+      "options": [
+        {
+          "option": "Expedite 14 replacement GPUs via overnight shipping plus 2 portable cooling units ($95K)",
+          "projected_impact": 4800000,
+          "risk_level": "low"
+        },
+        {
+          "option": "Standard RMA replacement process (6-8 week lead time)",
+          "projected_impact": 2400000,
+          "risk_level": "high"
+        },
+        {
+          "option": "Partial replacement -- only replace 8 most critical GPUs ($55K)",
+          "projected_impact": 3200000,
+          "risk_level": "medium"
+        }
+      ],
+      "chosen_option": 0,
+      "evidence_refs": [
+        "14 GPUs with thermal damage confirmed",
+        "P2-KPI1 RMA Rate at 4.4% (critical threshold 2.6%)",
+        "P3-KPI1 GPU Utilization at 38%",
+        "Customer CTO threatening competitive evaluation"
+      ],
+      "revenue_impact": 4800000,
+      "outcome_description": "Full expedited replacement restored GPU fleet in 3 weeks vs. 8 weeks for standard RMA. The $95K investment protected $4.8M ARR by keeping recovery within customer's 30-day deadline."
+    },
+    {
+      "decision_id": "d_redundancy_plan",
+      "phase_id": 3,
+      "week": 18,
+      "title": "Implement N+1 Cooling Redundancy Plan",
+      "decision_maker_role": "decision_maker",
+      "options": [
+        {
+          "option": "Full N+1 redundancy: additional CRAC unit with automatic failover ($65K)",
+          "projected_impact": 4800000,
+          "risk_level": "low"
+        },
+        {
+          "option": "Enhanced monitoring only: add thermal sensors and automated alerts ($12K)",
+          "projected_impact": 1200000,
+          "risk_level": "medium"
+        },
+        {
+          "option": "No additional investment -- rely on improved maintenance schedule",
+          "projected_impact": 0,
+          "risk_level": "high"
+        }
+      ],
+      "chosen_option": 0,
+      "evidence_refs": [
+        "CTO set redundancy as condition for renewal",
+        "Root cause analysis showing single CRAC as single point of failure",
+        "ROI analysis: $65K investment protects $4.8M ARR (7,385% ROI)",
+        "P2-KPI8 Preventive Maintenance now at 98%"
+      ],
+      "revenue_impact": 4800000,
+      "outcome_description": "N+1 redundancy eliminated the single point of failure that caused the crisis. This directly satisfied CTO's renewal condition and became a key proof point in the expansion proposal."
+    },
+    {
+      "decision_id": "d_renewal_expansion",
+      "phase_id": 4,
+      "week": 28,
+      "title": "Approve Renewal with SLA Enhancement and Expansion",
+      "decision_maker_role": "exec_sponsor",
+      "options": [
+        {
+          "option": "3-year renewal at $4.8M ARR with enhanced SLA plus $1.2M expansion for redundant GPU racks",
+          "projected_impact": 6000000,
+          "risk_level": "low"
+        },
+        {
+          "option": "1-year renewal at $4.8M ARR with standard SLA, defer expansion",
+          "projected_impact": 4800000,
+          "risk_level": "medium"
+        },
+        {
+          "option": "Decline renewal, pursue competitive RFP process",
+          "projected_impact": -4800000,
+          "risk_level": "high"
+        }
+      ],
+      "chosen_option": 0,
+      "evidence_refs": [
+        "Health score recovered to 85 (exceeding pre-crisis 82)",
+        "N+1 redundancy installed and validated",
+        "Crisis recovery ROI of 2,495% on $185K CS investment",
+        "P5-KPI7 Expansion Probability at 72%",
+        "VP Operations championing renewal internally"
+      ],
+      "revenue_impact": 6000000,
+      "outcome_description": "CTO approved 3-year deal based on demonstrated crisis response capability and redundancy investment. The $1.2M expansion for additional GPU racks with built-in redundancy was a direct outcome of the trust rebuilt during recovery."
+    }
+  ],
+  "outcomes": [
+    {
+      "outcome_id": "o_arr_retained",
+      "title": "$4.8M ARR Renewal Secured",
+      "outcome_type": "retention",
+      "revenue_value": 4800000,
+      "realized_week": 30,
+      "evidence": "3-year renewal signed with enhanced SLA. Health score at 85 post-recovery vs. 82 pre-crisis baseline. CTO approval driven by demonstrated crisis response and N+1 redundancy installation.",
+      "confidence": 0.95
+    },
+    {
+      "outcome_id": "o_expansion_redundancy",
+      "title": "$1.2M Expansion - Redundant GPU Racks",
+      "outcome_type": "expansion",
+      "revenue_value": 1200000,
+      "realized_week": 30,
+      "evidence": "Customer ordered 2 additional GPU racks with built-in N+1 cooling redundancy. Crisis experience directly drove demand for resilient infrastructure expansion.",
+      "confidence": 0.88
+    },
+    {
+      "outcome_id": "o_churn_averted",
+      "title": "Churn Averted - $4.8M ARR at Risk",
+      "outcome_type": "churn_averted",
+      "revenue_value": 4800000,
+      "realized_week": 30,
+      "evidence": "Full $4.8M ARR was at risk during crisis when CTO threatened competitive evaluation. CSM-led war room, $95K emergency hardware, and $65K redundancy investment ($185K total including coordination costs) saved the account. ROI: 2,495%.",
+      "confidence": 0.92
+    },
+    {
+      "outcome_id": "o_cost_reduction_ops",
+      "title": "Operational Cost Reduction from Preventive Maintenance Overhaul",
+      "outcome_type": "cost_reduction",
+      "revenue_value": 180000,
+      "realized_week": 24,
+      "evidence": "Restructured preventive maintenance program (from 88% to 98% compliance) projected to reduce unplanned downtime by 60%, saving an estimated $180K/year in emergency repair costs and SLA penalties.",
+      "confidence": 0.72
+    }
+  ],
+  "edges_template": [
+    {
+      "from_ref": "signal:phase1:w3",
+      "to_ref": "signal:phase1:w5",
+      "edge_type": "INDICATES",
+      "weight": 0.6,
+      "properties": {
+        "description": "Thermal management dip indicates maintenance gap"
+      }
+    },
+    {
+      "from_ref": "signal:phase1:w5",
+      "to_ref": "signal:phase2:w1",
+      "edge_type": "CAUSED_BY",
+      "weight": 0.75,
+      "properties": {
+        "description": "Deferred CRAC maintenance contributed to compressor failure"
+      }
+    },
+    {
+      "from_ref": "signal:phase2:w1",
+      "to_ref": "signal:phase2:w1",
+      "edge_type": "LED_TO",
+      "weight": 0.98,
+      "properties": {
+        "description": "Cooling failure immediately caused thermal breach and GPU throttling"
+      }
+    },
+    {
+      "from_ref": "signal:phase2:w1",
+      "to_ref": "stakeholder:exec_sponsor",
+      "edge_type": "INVOLVES",
+      "weight": 0.95,
+      "properties": {
+        "description": "CTO directly engaged in P1 incident response"
+      }
+    },
+    {
+      "from_ref": "signal:phase2:w1",
+      "to_ref": "stakeholder:decision_maker",
+      "edge_type": "INVOLVES",
+      "weight": 0.92,
+      "properties": {
+        "description": "VP Operations leads crisis decision-making"
+      }
+    },
+    {
+      "from_ref": "decision:phase2:w2",
+      "to_ref": "decision:phase3:w1",
+      "edge_type": "LED_TO",
+      "weight": 0.88,
+      "properties": {
+        "description": "Emergency meeting decision led to war room establishment"
+      }
+    },
+    {
+      "from_ref": "decision:phase3:w1",
+      "to_ref": "signal:phase3:w2",
+      "edge_type": "LED_TO",
+      "weight": 0.92,
+      "properties": {
+        "description": "War room coordination enabled emergency hardware approval"
+      }
+    },
+    {
+      "from_ref": "signal:phase3:w2",
+      "to_ref": "signal:phase3:w3",
+      "edge_type": "LED_TO",
+      "weight": 0.9,
+      "properties": {
+        "description": "Emergency hardware delivery enabled GPU restoration"
+      }
+    },
+    {
+      "from_ref": "signal:phase3:w4",
+      "to_ref": "decision:phase4:w6",
+      "edge_type": "LED_TO",
+      "weight": 0.85,
+      "properties": {
+        "description": "CTO's redundancy demand drove N+1 cooling investment decision"
+      }
+    },
+    {
+      "from_ref": "decision:phase4:w6",
+      "to_ref": "signal:phase4:w12",
+      "edge_type": "LED_TO",
+      "weight": 0.88,
+      "properties": {
+        "description": "N+1 redundancy investment enabled full recovery beyond baseline"
+      }
+    },
+    {
+      "from_ref": "signal:phase4:w12",
+      "to_ref": "signal:phase5:w2",
+      "edge_type": "LED_TO",
+      "weight": 0.82,
+      "properties": {
+        "description": "Full recovery and exceeded baseline drove renewal confidence"
+      }
+    },
+    {
+      "from_ref": "signal:phase5:w2",
+      "to_ref": "decision:phase5:w4",
+      "edge_type": "LED_TO",
+      "weight": 0.85,
+      "properties": {
+        "description": "ROI presentation influenced CTO renewal and expansion approval"
+      }
+    },
+    {
+      "from_ref": "decision:phase5:w4",
+      "to_ref": "signal:phase5:w6",
+      "edge_type": "LED_TO",
+      "weight": 0.95,
+      "properties": {
+        "description": "Renewal approval directly led to signed deal and expansion order"
+      }
+    },
+    {
+      "from_ref": "stakeholder:champion",
+      "to_ref": "decision:phase3:w1",
+      "edge_type": "INVOLVES",
+      "weight": 0.9,
+      "properties": {
+        "description": "CSM orchestrated war room formation and recovery coordination"
+      }
+    },
+    {
+      "from_ref": "stakeholder:technical_lead",
+      "to_ref": "signal:phase3:w2",
+      "edge_type": "INVOLVES",
+      "weight": 0.85,
+      "properties": {
+        "description": "Support Engineering Lead validated thermal containment and hardware replacement on-site"
+      }
+    }
+  ],
+  "industry_benchmarks": [
+    {
+      "kpi_code": "P2-KPI4",
+      "benchmark_source": "Uptime Institute 2025 Global Data Center Survey",
+      "industry_p25": 99.0,
+      "industry_p50": 99.5,
+      "industry_p75": 99.95,
+      "account_percentile": 15
+    },
+    {
+      "kpi_code": "P2-KPI5",
+      "benchmark_source": "ASHRAE TC 9.9 Data Center Thermal Guidelines",
+      "industry_p25": 88,
+      "industry_p50": 93,
+      "industry_p75": 97,
+      "account_percentile": 5
+    },
+    {
+      "kpi_code": "P2-KPI1",
+      "benchmark_source": "Data Center Hardware Reliability Report 2025",
+      "industry_p25": 1.8,
+      "industry_p50": 1.2,
+      "industry_p75": 0.6,
+      "account_percentile": 8
+    },
+    {
+      "kpi_code": "P3-KPI1",
+      "benchmark_source": "MLPerf Infrastructure Benchmarks 2025",
+      "industry_p25": 55,
+      "industry_p50": 68,
+      "industry_p75": 82,
+      "account_percentile": 12
+    },
+    {
+      "kpi_code": "P2-KPI3",
+      "benchmark_source": "ITIL Service Management Benchmarks",
+      "industry_p25": 4,
+      "industry_p50": 2,
+      "industry_p75": 1,
+      "account_percentile": 3
+    },
+    {
+      "kpi_code": "P3-KPI2",
+      "benchmark_source": "AI Infrastructure Operational Benchmarks 2025",
+      "industry_p25": 78,
+      "industry_p50": 88,
+      "industry_p75": 95,
+      "account_percentile": 8
+    },
+    {
+      "kpi_code": "P2-KPI2",
+      "benchmark_source": "Data Center Hardware Reliability Report 2025",
+      "industry_p25": 5000,
+      "industry_p50": 8000,
+      "industry_p75": 12000,
+      "account_percentile": 10
+    },
+    {
+      "kpi_code": "P5-KPI7",
+      "benchmark_source": "CS Pulse Internal ML Model Benchmarks",
+      "industry_p25": 25,
+      "industry_p50": 45,
+      "industry_p75": 65,
+      "account_percentile": 5
+    }
+  ]
+}

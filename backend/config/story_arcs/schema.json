@@ -1,0 +1,269 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Story Arc Manifest",
+  "description": "Defines a revenue-impact narrative (screenplay) for demo data generation. Each arc produces context graph nodes, edges, and 15 CSVs that tell a coherent causal story answerable by CRO/CFO/CEO.",
+  "type": "object",
+  "required": ["arc_id", "arc_name", "version", "revenue_narrative", "cast", "phases", "causal_chains", "kpi_trajectories", "decisions", "outcomes", "edges_template"],
+  "properties": {
+    "arc_id": {
+      "type": "string",
+      "pattern": "^arc_[a-z_]+$",
+      "description": "Unique identifier, e.g. arc_silent_churn"
+    },
+    "arc_name": {
+      "type": "string",
+      "description": "Human-readable name, e.g. 'Silent Churn'"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+$"
+    },
+    "description": {
+      "type": "string",
+      "description": "1-2 sentence summary of the revenue story"
+    },
+    "intelligence_dimensions": {
+      "type": "array",
+      "description": "Which of the 8 dimensions this arc primarily exercises",
+      "items": {
+        "type": "string",
+        "enum": ["adoption_velocity", "operational_risk", "engagement_depth", "sentiment_momentum", "competitive_pressure", "expansion_readiness", "value_realization", "relationship_resilience"]
+      }
+    },
+    "target_audience": {
+      "type": "string",
+      "enum": ["CRO", "CFO", "CEO"],
+      "description": "Primary executive persona this arc demos to"
+    },
+    "revenue_narrative": {
+      "type": "object",
+      "required": ["arr_start", "arr_end", "arr_at_risk_peak", "roi_of_intervention", "cost_of_inaction", "time_horizon_weeks"],
+      "properties": {
+        "arr_start": { "type": "number", "description": "Starting ARR ($)" },
+        "arr_end": { "type": "number", "description": "Ending ARR ($) — shows outcome" },
+        "arr_at_risk_peak": { "type": "number", "description": "Maximum ARR at risk during the arc ($)" },
+        "roi_of_intervention": { "type": "number", "description": "ROI % of CS actions taken" },
+        "cost_of_inaction": { "type": "number", "description": "$ lost if no action taken" },
+        "time_horizon_weeks": { "type": "integer", "description": "Arc duration in weeks" },
+        "intervention_cost": { "type": "number", "description": "Total $ spent on CS actions" },
+        "net_revenue_saved": { "type": "number", "description": "ARR saved minus intervention cost" }
+      }
+    },
+    "cast": {
+      "type": "array",
+      "description": "Stakeholders involved — generates stakeholders.csv rows",
+      "items": {
+        "type": "object",
+        "required": ["role", "title", "influence_score", "sentiment_arc"],
+        "properties": {
+          "role": { "type": "string", "description": "champion|detractor|exec_sponsor|decision_maker|end_user|technical_lead" },
+          "title": { "type": "string", "description": "Job title template, e.g. 'VP Engineering'" },
+          "influence_score": { "type": "number", "minimum": 0, "maximum": 1 },
+          "sentiment_arc": {
+            "type": "array",
+            "description": "Sentiment value per phase (matches phases array length)",
+            "items": { "type": "number", "minimum": -1, "maximum": 1 }
+          },
+          "engagement_frequency": { "type": "string", "enum": ["weekly", "biweekly", "monthly", "quarterly"] },
+          "appears_in_phase": { "type": "array", "items": { "type": "integer" } }
+        }
+      }
+    },
+    "phases": {
+      "type": "array",
+      "description": "Ordered story phases — each phase has a duration and health trajectory",
+      "items": {
+        "type": "object",
+        "required": ["phase_id", "name", "duration_weeks", "health_range", "description"],
+        "properties": {
+          "phase_id": { "type": "integer" },
+          "name": { "type": "string" },
+          "duration_weeks": { "type": "integer" },
+          "health_range": {
+            "type": "object",
+            "properties": {
+              "start": { "type": "number" },
+              "end": { "type": "number" }
+            }
+          },
+          "description": { "type": "string" },
+          "revenue_impact_type": { "type": "string", "enum": ["none", "at_risk", "protected", "expansion", "lost"] },
+          "plot_points": {
+            "type": "array",
+            "description": "Key events within this phase",
+            "items": {
+              "type": "object",
+              "required": ["week_offset", "event_type", "description", "kpi_impacts"],
+              "properties": {
+                "week_offset": { "type": "integer", "description": "Week within the phase" },
+                "event_type": { "type": "string", "enum": ["signal", "meeting", "incident", "decision", "milestone", "escalation", "stakeholder_change", "external"] },
+                "description": { "type": "string" },
+                "sentiment_shift": { "type": "number", "minimum": -1, "maximum": 1 },
+                "kpi_impacts": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": ["kpi_code", "direction", "magnitude"],
+                    "properties": {
+                      "kpi_code": { "type": "string", "description": "e.g. P1-KPI1, P3-KPI5" },
+                      "direction": { "type": "string", "enum": ["improve", "degrade", "spike", "plateau"] },
+                      "magnitude": { "type": "string", "enum": ["minor", "moderate", "major", "critical"] }
+                    }
+                  }
+                },
+                "revenue_impact": { "type": "number" },
+                "generates_node_type": { "type": "string", "enum": ["SIGNAL", "STAKEHOLDER", "DECISION", "OUTCOME", "EXTERNAL_CONTEXT"] },
+                "csm_action": {
+                  "type": "object",
+                  "properties": {
+                    "action_type": { "type": "string" },
+                    "description": { "type": "string" },
+                    "cost_estimate": { "type": "number" },
+                    "response_time_hours": { "type": "integer" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "causal_chains": {
+      "type": "array",
+      "description": "Explicit cause-effect chains that generate context graph edges",
+      "items": {
+        "type": "object",
+        "required": ["chain_id", "name", "links"],
+        "properties": {
+          "chain_id": { "type": "string" },
+          "name": { "type": "string" },
+          "revenue_impact": { "type": "number" },
+          "links": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["from_event", "to_event", "edge_type", "lag_weeks"],
+              "properties": {
+                "from_event": { "type": "string", "description": "References plot_point description or phase:week" },
+                "to_event": { "type": "string" },
+                "edge_type": { "type": "string", "enum": ["CAUSED_BY", "INDICATES", "LED_TO", "CORRELATES_WITH", "INVOLVES", "SOURCED_FROM", "SUPERSEDES"] },
+                "lag_weeks": { "type": "integer" },
+                "confidence": { "type": "number", "minimum": 0, "maximum": 1 }
+              }
+            }
+          }
+        }
+      }
+    },
+    "kpi_trajectories": {
+      "type": "object",
+      "description": "Per-pillar KPI behavior specifications — drives kpi_measurements.csv generation",
+      "properties": {
+        "P1": { "$ref": "#/$defs/pillar_trajectory" },
+        "P2": { "$ref": "#/$defs/pillar_trajectory" },
+        "P3": { "$ref": "#/$defs/pillar_trajectory" },
+        "P4": { "$ref": "#/$defs/pillar_trajectory" },
+        "P5": { "$ref": "#/$defs/pillar_trajectory" }
+      }
+    },
+    "decisions": {
+      "type": "array",
+      "description": "Decision points in the arc — generate decisions.csv + decision_evidence.csv",
+      "items": {
+        "type": "object",
+        "required": ["decision_id", "phase_id", "week", "title", "options", "chosen_option", "revenue_impact"],
+        "properties": {
+          "decision_id": { "type": "string" },
+          "phase_id": { "type": "integer" },
+          "week": { "type": "integer" },
+          "title": { "type": "string" },
+          "decision_maker_role": { "type": "string" },
+          "options": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "option": { "type": "string" },
+                "projected_impact": { "type": "number" },
+                "risk_level": { "type": "string", "enum": ["low", "medium", "high"] }
+              }
+            }
+          },
+          "chosen_option": { "type": "integer", "description": "Index into options array" },
+          "evidence_refs": { "type": "array", "items": { "type": "string" } },
+          "revenue_impact": { "type": "number" },
+          "outcome_description": { "type": "string" }
+        }
+      }
+    },
+    "outcomes": {
+      "type": "array",
+      "description": "Measurable outcomes — generate outcomes.csv",
+      "items": {
+        "type": "object",
+        "required": ["outcome_id", "title", "outcome_type", "revenue_value"],
+        "properties": {
+          "outcome_id": { "type": "string" },
+          "title": { "type": "string" },
+          "outcome_type": { "type": "string", "enum": ["retention", "expansion", "churn_averted", "cost_reduction", "churn_loss"] },
+          "revenue_value": { "type": "number" },
+          "realized_week": { "type": "integer" },
+          "evidence": { "type": "string" },
+          "confidence": { "type": "number", "minimum": 0, "maximum": 1 }
+        }
+      }
+    },
+    "edges_template": {
+      "type": "array",
+      "description": "Context graph edges to create at load time (supplements causal_chains)",
+      "items": {
+        "type": "object",
+        "required": ["from_ref", "to_ref", "edge_type"],
+        "properties": {
+          "from_ref": { "type": "string", "description": "Node reference: 'signal:phase1:w3' or 'stakeholder:champion'" },
+          "to_ref": { "type": "string" },
+          "edge_type": { "type": "string" },
+          "weight": { "type": "number" },
+          "properties": { "type": "object" }
+        }
+      }
+    },
+    "industry_benchmarks": {
+      "type": "array",
+      "description": "Benchmark comparisons for this arc — generates industry_benchmarks.csv",
+      "items": {
+        "type": "object",
+        "properties": {
+          "kpi_code": { "type": "string" },
+          "benchmark_source": { "type": "string" },
+          "industry_p25": { "type": "number" },
+          "industry_p50": { "type": "number" },
+          "industry_p75": { "type": "number" },
+          "account_percentile": { "type": "number" }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "pillar_trajectory": {
+      "type": "object",
+      "description": "Trajectory for a pillar's KPIs across the arc",
+      "properties": {
+        "overall_trend": { "type": "string", "enum": ["improving", "stable", "declining", "volatile", "recovering"] },
+        "kpi_overrides": {
+          "type": "array",
+          "description": "Specific KPIs that deviate from the pillar trend",
+          "items": {
+            "type": "object",
+            "properties": {
+              "kpi_code": { "type": "string" },
+              "trend": { "type": "string", "enum": ["improving", "stable", "declining", "volatile", "recovering"] },
+              "inflection_week": { "type": "integer" },
+              "note": { "type": "string" }
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -42,5 +42,15 @@
   "auto_recovery_outcome_subtypes": [
     "goodput_restored",
     "sla_credit_resolved"
-  ]
+  ],
+  "signal_roles": {
+    "infra_incident": ["reliability_sla_breach", "thermal_event", "interconnect_bottleneck", "checkpoint_restart_pain", "job_preemption_complaint", "throughput_below_spec"],
+    "capacity_pressure": ["power_capacity_constraint"],
+    "usage_decline": ["reserved_cluster_idle", "commitment_ramp_miss"],
+    "commercial_pressure": ["multicloud_diversification", "byo_cluster_intent", "spot_price_pressure", "competitor_capacity_offer", "runway_risk", "payment_delinquency"],
+    "announcement": ["cluster_decommissioned"],
+    "expansion_intent": ["utilization_ramp", "burst_overflow", "reservation_expansion_interest", "silicon_refresh_interest", "funding_raised"],
+    "expansion_realized": ["reservation_closed"],
+    "recovery": ["goodput_restored", "sla_credit_resolved"]
+  }
 }

@@ -1,0 +1,1307 @@
+{
+  "arc_id": "arc_competitive_displacement",
+  "arc_name": "Competitive Displacement",
+  "version": "1.0",
+  "description": "A $3.8M ARR data center hardware account is actively courted by a competitor offering aggressive pricing. The system detects early competitive threat signals, enabling a proactive value-based defense that retains the account and secures a multi-year commitment.",
+  "intelligence_dimensions": [
+    "competitive_pressure",
+    "relationship_resilience",
+    "sentiment_momentum",
+    "value_realization",
+    "engagement_depth"
+  ],
+  "target_audience": "CRO",
+  "revenue_narrative": {
+    "arr_start": 3800000,
+    "arr_end": 4200000,
+    "arr_at_risk_peak": 3800000,
+    "roi_of_intervention": 720,
+    "cost_of_inaction": 4370000,
+    "time_horizon_weeks": 36,
+    "intervention_cost": 528000,
+    "net_revenue_saved": 3272000
+  },
+  "cast": [
+    {
+      "role": "decision_maker",
+      "title": "CTO",
+      "influence_score": 0.95,
+      "sentiment_arc": [
+        0.7,
+        0.3,
+        -0.1,
+        0.2,
+        0.7
+      ],
+      "engagement_frequency": "biweekly",
+      "appears_in_phase": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ]
+    },
+    {
+      "role": "champion",
+      "title": "VP Engineering",
+      "influence_score": 0.85,
+      "sentiment_arc": [
+        0.8,
+        0.6,
+        0.3,
+        0.6,
+        0.9
+      ],
+      "engagement_frequency": "weekly",
+      "appears_in_phase": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ]
+    },
+    {
+      "role": "detractor",
+      "title": "Competitor Account Executive",
+      "influence_score": 0.6,
+      "sentiment_arc": [
+        0.0,
+        -0.5,
+        -0.8,
+        -0.6,
+        -0.2
+      ],
+      "engagement_frequency": "biweekly",
+      "appears_in_phase": [
+        2,
+        3,
+        4
+      ]
+    },
+    {
+      "role": "exec_sponsor",
+      "title": "CFO",
+      "influence_score": 0.9,
+      "sentiment_arc": [
+        0.5,
+        0.2,
+        -0.2,
+        0.3,
+        0.7
+      ],
+      "engagement_frequency": "monthly",
+      "appears_in_phase": [
+        1,
+        3,
+        4,
+        5
+      ]
+    },
+    {
+      "role": "champion",
+      "title": "Customer Success Manager",
+      "influence_score": 0.75,
+      "sentiment_arc": [
+        0.8,
+        0.5,
+        0.4,
+        0.8,
+        0.9
+      ],
+      "engagement_frequency": "weekly",
+      "appears_in_phase": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ]
+    },
+    {
+      "role": "exec_sponsor",
+      "title": "VP Sales",
+      "influence_score": 0.88,
+      "sentiment_arc": [
+        0.6,
+        0.3,
+        0.1,
+        0.7,
+        0.8
+      ],
+      "engagement_frequency": "biweekly",
+      "appears_in_phase": [
+        3,
+        4,
+        5
+      ]
+    }
+  ],
+  "phases": [
+    {
+      "phase_id": 1,
+      "name": "Stable Relationship",
+      "duration_weeks": 8,
+      "health_range": {
+        "start": 76,
+        "end": 74
+      },
+      "description": "Account is healthy and productive. GPU clusters running at capacity, partner engagement strong, renewal not yet on the horizon. Subtle early signals begin appearing: CTO attends a competitor-sponsored industry event, routine QBR is rescheduled.",
+      "revenue_impact_type": "none",
+      "plot_points": [
+        {
+          "week_offset": 2,
+          "event_type": "signal",
+          "description": "CTO registers for competitor-sponsored AI infrastructure summit",
+          "sentiment_shift": -0.05,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P5-KPI8",
+              "direction": "degrade",
+              "magnitude": "minor"
+            }
+          ],
+          "revenue_impact": 0,
+          "generates_node_type": "SIGNAL"
+        },
+        {
+          "week_offset": 5,
+          "event_type": "meeting",
+          "description": "Routine QBR rescheduled by CTO office citing calendar conflicts",
+          "sentiment_shift": -0.08,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P4-KPI3",
+              "direction": "degrade",
+              "magnitude": "minor"
+            },
+            {
+              "kpi_code": "P4-KPI1",
+              "direction": "degrade",
+              "magnitude": "minor"
+            }
+          ],
+          "revenue_impact": 0,
+          "generates_node_type": "SIGNAL"
+        },
+        {
+          "week_offset": 7,
+          "event_type": "signal",
+          "description": "System detects CTO LinkedIn activity showing competitor engagement posts",
+          "sentiment_shift": -0.1,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P5-KPI8",
+              "direction": "degrade",
+              "magnitude": "minor"
+            },
+            {
+              "kpi_code": "P4-KPI1",
+              "direction": "degrade",
+              "magnitude": "minor"
+            }
+          ],
+          "revenue_impact": 0,
+          "generates_node_type": "SIGNAL"
+        }
+      ]
+    },
+    {
+      "phase_id": 2,
+      "name": "Competitive Approach",
+      "duration_weeks": 6,
+      "health_range": {
+        "start": 74,
+        "end": 69
+      },
+      "description": "Competitor AE makes formal contact with CTO offering 30% lower TCO. Competitor sends technical team for informal benchmarking conversation. Engagement metrics begin declining as CTO diverts attention. Budget discussions go silent.",
+      "revenue_impact_type": "at_risk",
+      "plot_points": [
+        {
+          "week_offset": 1,
+          "event_type": "external",
+          "description": "Competitor AE sends CTO aggressive pricing proposal: 30% below current contract",
+          "sentiment_shift": -0.2,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P4-KPI4",
+              "direction": "spike",
+              "magnitude": "moderate"
+            },
+            {
+              "kpi_code": "P5-KPI5",
+              "direction": "degrade",
+              "magnitude": "moderate"
+            },
+            {
+              "kpi_code": "P5-KPI8",
+              "direction": "degrade",
+              "magnitude": "moderate"
+            }
+          ],
+          "revenue_impact": -380000,
+          "generates_node_type": "EXTERNAL_CONTEXT"
+        },
+        {
+          "week_offset": 3,
+          "event_type": "signal",
+          "description": "VP Engineering privately alerts CSM about competitor outreach to CTO",
+          "sentiment_shift": 0.05,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P4-KPI1",
+              "direction": "degrade",
+              "magnitude": "moderate"
+            }
+          ],
+          "revenue_impact": 0,
+          "generates_node_type": "SIGNAL",
+          "csm_action": {
+            "action_type": "intelligence_gathering",
+            "description": "CSM documents competitive threat and begins building counter-narrative",
+            "cost_estimate": 2000,
+            "response_time_hours": 4
+          }
+        },
+        {
+          "week_offset": 5,
+          "event_type": "signal",
+          "description": "Budget expansion conversations go dark; CFO office stops returning calls",
+          "sentiment_shift": -0.15,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P5-KPI5",
+              "direction": "degrade",
+              "magnitude": "major"
+            },
+            {
+              "kpi_code": "P5-KPI7",
+              "direction": "degrade",
+              "magnitude": "moderate"
+            }
+          ],
+          "revenue_impact": -570000,
+          "generates_node_type": "SIGNAL"
+        }
+      ]
+    },
+    {
+      "phase_id": 3,
+      "name": "Evaluation Period",
+      "duration_weeks": 8,
+      "health_range": {
+        "start": 69,
+        "end": 62
+      },
+      "description": "CTO initiates formal vendor evaluation. Competitor runs benchmark POC on a subset of workloads. Internal engagement drops as stakeholders hedge. GPU utilization data becomes a competitive battleground. Health score dips into at-risk territory.",
+      "revenue_impact_type": "at_risk",
+      "plot_points": [
+        {
+          "week_offset": 1,
+          "event_type": "stakeholder_change",
+          "description": "CTO formally announces vendor evaluation process to IT leadership team",
+          "sentiment_shift": -0.25,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P4-KPI1",
+              "direction": "degrade",
+              "magnitude": "major"
+            },
+            {
+              "kpi_code": "P4-KPI4",
+              "direction": "spike",
+              "magnitude": "major"
+            },
+            {
+              "kpi_code": "P5-KPI8",
+              "direction": "degrade",
+              "magnitude": "major"
+            }
+          ],
+          "revenue_impact": -950000,
+          "generates_node_type": "SIGNAL"
+        },
+        {
+          "week_offset": 3,
+          "event_type": "external",
+          "description": "Competitor runs 2-week GPU benchmark POC; claims 15% better perf/watt on inference workloads",
+          "sentiment_shift": -0.2,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P3-KPI1",
+              "direction": "degrade",
+              "magnitude": "moderate"
+            },
+            {
+              "kpi_code": "P3-KPI3",
+              "direction": "degrade",
+              "magnitude": "minor"
+            }
+          ],
+          "revenue_impact": -760000,
+          "generates_node_type": "EXTERNAL_CONTEXT"
+        },
+        {
+          "week_offset": 5,
+          "event_type": "signal",
+          "description": "Internal NPS survey reveals 22-point drop in CTO confidence; VP Eng still supportive",
+          "sentiment_shift": -0.15,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P4-KPI6",
+              "direction": "degrade",
+              "magnitude": "major"
+            },
+            {
+              "kpi_code": "P4-KPI1",
+              "direction": "degrade",
+              "magnitude": "moderate"
+            }
+          ],
+          "revenue_impact": 0,
+          "generates_node_type": "SIGNAL"
+        },
+        {
+          "week_offset": 6,
+          "event_type": "decision",
+          "description": "CSM escalates competitive threat to VP Sales with full signal dossier",
+          "sentiment_shift": 0.05,
+          "kpi_impacts": [],
+          "revenue_impact": 0,
+          "generates_node_type": "DECISION",
+          "csm_action": {
+            "action_type": "executive_escalation",
+            "description": "Compile competitive intelligence dossier and escalate to VP Sales for executive-to-executive engagement",
+            "cost_estimate": 5000,
+            "response_time_hours": 8
+          }
+        },
+        {
+          "week_offset": 8,
+          "event_type": "signal",
+          "description": "Engagement metrics hit arc low: champion meetings down 60%, support tickets routed to generic queue",
+          "sentiment_shift": -0.1,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P5-KPI8",
+              "direction": "degrade",
+              "magnitude": "critical"
+            },
+            {
+              "kpi_code": "P4-KPI1",
+              "direction": "degrade",
+              "magnitude": "critical"
+            },
+            {
+              "kpi_code": "P5-KPI7",
+              "direction": "degrade",
+              "magnitude": "major"
+            }
+          ],
+          "revenue_impact": -1140000,
+          "generates_node_type": "SIGNAL"
+        }
+      ]
+    },
+    {
+      "phase_id": 4,
+      "name": "Defense & Counter",
+      "duration_weeks": 8,
+      "health_range": {
+        "start": 62,
+        "end": 73
+      },
+      "description": "CS deploys multi-pronged competitive defense. VP Sales initiates executive alignment with CTO. Value-realization report delivered to CFO showing true TCO advantage and switching costs. Engineering team provides benchmark counter-data proving superior distributed training performance. Health begins recovery.",
+      "revenue_impact_type": "protected",
+      "plot_points": [
+        {
+          "week_offset": 1,
+          "event_type": "meeting",
+          "description": "VP Sales hosts executive dinner with CTO; acknowledges competitive pressure, shifts conversation to strategic partnership value",
+          "sentiment_shift": 0.15,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P4-KPI1",
+              "direction": "improve",
+              "magnitude": "moderate"
+            },
+            {
+              "kpi_code": "P5-KPI8",
+              "direction": "improve",
+              "magnitude": "minor"
+            }
+          ],
+          "revenue_impact": 380000,
+          "generates_node_type": "STAKEHOLDER",
+          "csm_action": {
+            "action_type": "executive_engagement",
+            "description": "Coordinate VP Sales executive dinner with customer CTO, prepare talking points and competitive positioning",
+            "cost_estimate": 15000,
+            "response_time_hours": 24
+          }
+        },
+        {
+          "week_offset": 2,
+          "event_type": "decision",
+          "description": "Deploy comprehensive value-realization report to CFO showing $2.1M in realized value, true switching costs of $1.8M, and 18-month TCO advantage",
+          "sentiment_shift": 0.2,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P5-KPI5",
+              "direction": "improve",
+              "magnitude": "major"
+            },
+            {
+              "kpi_code": "P4-KPI4",
+              "direction": "improve",
+              "magnitude": "moderate"
+            }
+          ],
+          "revenue_impact": 760000,
+          "generates_node_type": "DECISION",
+          "csm_action": {
+            "action_type": "value_report",
+            "description": "Generate and present CFO-grade value-realization analysis with TCO comparison, switching cost analysis, and ROI projections",
+            "cost_estimate": 45000,
+            "response_time_hours": 72
+          }
+        },
+        {
+          "week_offset": 4,
+          "event_type": "milestone",
+          "description": "Engineering team delivers head-to-head benchmark: our distributed training 23% faster, inference latency 18% lower at scale",
+          "sentiment_shift": 0.2,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P3-KPI1",
+              "direction": "improve",
+              "magnitude": "major"
+            },
+            {
+              "kpi_code": "P3-KPI2",
+              "direction": "improve",
+              "magnitude": "moderate"
+            },
+            {
+              "kpi_code": "P3-KPI3",
+              "direction": "improve",
+              "magnitude": "moderate"
+            },
+            {
+              "kpi_code": "P3-KPI6",
+              "direction": "improve",
+              "magnitude": "major"
+            }
+          ],
+          "revenue_impact": 570000,
+          "generates_node_type": "OUTCOME",
+          "csm_action": {
+            "action_type": "technical_proof",
+            "description": "Coordinate SE team to run validated head-to-head benchmarks on customer workloads, produce technical whitepaper",
+            "cost_estimate": 85000,
+            "response_time_hours": 168
+          }
+        },
+        {
+          "week_offset": 5,
+          "event_type": "meeting",
+          "description": "CFO acknowledges switching costs exceed competitor savings; requests retention proposal with investment protection",
+          "sentiment_shift": 0.15,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P5-KPI5",
+              "direction": "improve",
+              "magnitude": "major"
+            },
+            {
+              "kpi_code": "P4-KPI1",
+              "direction": "improve",
+              "magnitude": "moderate"
+            }
+          ],
+          "revenue_impact": 950000,
+          "generates_node_type": "STAKEHOLDER"
+        },
+        {
+          "week_offset": 7,
+          "event_type": "meeting",
+          "description": "CTO-to-CTO call: our CTO presents technology roadmap and co-innovation partnership proposal",
+          "sentiment_shift": 0.25,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P4-KPI1",
+              "direction": "improve",
+              "magnitude": "major"
+            },
+            {
+              "kpi_code": "P5-KPI8",
+              "direction": "improve",
+              "magnitude": "major"
+            },
+            {
+              "kpi_code": "P4-KPI4",
+              "direction": "improve",
+              "magnitude": "moderate"
+            }
+          ],
+          "revenue_impact": 380000,
+          "generates_node_type": "STAKEHOLDER",
+          "csm_action": {
+            "action_type": "executive_alignment",
+            "description": "Arrange CTO-to-CTO roadmap session with co-innovation proposal and early-access program offer",
+            "cost_estimate": 25000,
+            "response_time_hours": 48
+          }
+        }
+      ]
+    },
+    {
+      "phase_id": 5,
+      "name": "Retention & Strengthening",
+      "duration_weeks": 6,
+      "health_range": {
+        "start": 73,
+        "end": 80
+      },
+      "description": "Account commits to multi-year renewal with expanded scope. Competitor retreats. Champion engagement rebounds to all-time high. Budget signals return with expansion discussion. Health score exceeds pre-threat baseline.",
+      "revenue_impact_type": "expansion",
+      "plot_points": [
+        {
+          "week_offset": 1,
+          "event_type": "decision",
+          "description": "Negotiate and sign 3-year retention agreement with 8% volume discount and technology refresh guarantee",
+          "sentiment_shift": 0.3,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P5-KPI5",
+              "direction": "improve",
+              "magnitude": "major"
+            },
+            {
+              "kpi_code": "P5-KPI7",
+              "direction": "improve",
+              "magnitude": "major"
+            },
+            {
+              "kpi_code": "P4-KPI1",
+              "direction": "improve",
+              "magnitude": "major"
+            }
+          ],
+          "revenue_impact": 3800000,
+          "generates_node_type": "DECISION",
+          "csm_action": {
+            "action_type": "retention_negotiation",
+            "description": "Structure multi-year retention deal with volume discount, technology refresh clause, and co-innovation partnership terms",
+            "cost_estimate": 350000,
+            "response_time_hours": 336
+          }
+        },
+        {
+          "week_offset": 3,
+          "event_type": "milestone",
+          "description": "Co-innovation lab pilot launches; customer CTO presents joint roadmap at internal all-hands",
+          "sentiment_shift": 0.15,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P5-KPI8",
+              "direction": "improve",
+              "magnitude": "major"
+            },
+            {
+              "kpi_code": "P3-KPI7",
+              "direction": "improve",
+              "magnitude": "moderate"
+            },
+            {
+              "kpi_code": "P4-KPI5",
+              "direction": "improve",
+              "magnitude": "moderate"
+            }
+          ],
+          "revenue_impact": 400000,
+          "generates_node_type": "OUTCOME"
+        },
+        {
+          "week_offset": 5,
+          "event_type": "milestone",
+          "description": "CFO approves Phase 2 expansion budget of $400K for additional GPU capacity; expansion probability spikes to 82%",
+          "sentiment_shift": 0.1,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P5-KPI5",
+              "direction": "improve",
+              "magnitude": "major"
+            },
+            {
+              "kpi_code": "P5-KPI7",
+              "direction": "improve",
+              "magnitude": "major"
+            },
+            {
+              "kpi_code": "P5-KPI1",
+              "direction": "improve",
+              "magnitude": "moderate"
+            },
+            {
+              "kpi_code": "P3-KPI1",
+              "direction": "improve",
+              "magnitude": "moderate"
+            }
+          ],
+          "revenue_impact": 400000,
+          "generates_node_type": "OUTCOME"
+        }
+      ]
+    }
+  ],
+  "causal_chains": [
+    {
+      "chain_id": "cc_competitive_approach",
+      "name": "Competitor Contact to CTO Interest",
+      "revenue_impact": -380000,
+      "links": [
+        {
+          "from_event": "phase1:w7 \u2014 CTO LinkedIn competitor engagement detected",
+          "to_event": "phase2:w1 \u2014 Competitor AE sends aggressive pricing proposal",
+          "edge_type": "LED_TO",
+          "lag_weeks": 2,
+          "confidence": 0.75
+        },
+        {
+          "from_event": "phase2:w1 \u2014 Competitor AE sends aggressive pricing proposal",
+          "to_event": "phase2:w5 \u2014 Budget expansion conversations go dark",
+          "edge_type": "CAUSED_BY",
+          "lag_weeks": 4,
+          "confidence": 0.85
+        }
+      ]
+    },
+    {
+      "chain_id": "cc_evaluation_spiral",
+      "name": "Evaluation RFP to Engagement Collapse",
+      "revenue_impact": -1900000,
+      "links": [
+        {
+          "from_event": "phase2:w1 \u2014 Competitor pricing proposal",
+          "to_event": "phase3:w1 \u2014 CTO announces formal vendor evaluation",
+          "edge_type": "LED_TO",
+          "lag_weeks": 6,
+          "confidence": 0.9
+        },
+        {
+          "from_event": "phase3:w1 \u2014 Formal vendor evaluation announced",
+          "to_event": "phase3:w3 \u2014 Competitor GPU benchmark POC",
+          "edge_type": "LED_TO",
+          "lag_weeks": 2,
+          "confidence": 0.88
+        },
+        {
+          "from_event": "phase3:w3 \u2014 Competitor benchmark POC",
+          "to_event": "phase3:w5 \u2014 NPS 22-point drop in CTO confidence",
+          "edge_type": "CAUSED_BY",
+          "lag_weeks": 2,
+          "confidence": 0.82
+        },
+        {
+          "from_event": "phase3:w5 \u2014 NPS drop",
+          "to_event": "phase3:w8 \u2014 Engagement metrics hit arc low",
+          "edge_type": "LED_TO",
+          "lag_weeks": 3,
+          "confidence": 0.78
+        }
+      ]
+    },
+    {
+      "chain_id": "cc_champion_early_warning",
+      "name": "Champion Alert to CS Intelligence",
+      "revenue_impact": 0,
+      "links": [
+        {
+          "from_event": "phase2:w3 \u2014 VP Engineering alerts CSM about competitor outreach",
+          "to_event": "phase3:w6 \u2014 CSM escalates to VP Sales with signal dossier",
+          "edge_type": "LED_TO",
+          "lag_weeks": 9,
+          "confidence": 0.92
+        }
+      ]
+    },
+    {
+      "chain_id": "cc_value_defense",
+      "name": "CS Value Defense to CFO Alignment",
+      "revenue_impact": 1710000,
+      "links": [
+        {
+          "from_event": "phase3:w6 \u2014 CSM escalates competitive threat to VP Sales",
+          "to_event": "phase4:w1 \u2014 VP Sales executive dinner with CTO",
+          "edge_type": "LED_TO",
+          "lag_weeks": 3,
+          "confidence": 0.95
+        },
+        {
+          "from_event": "phase4:w1 \u2014 VP Sales executive dinner",
+          "to_event": "phase4:w2 \u2014 Value-realization report deployed to CFO",
+          "edge_type": "LED_TO",
+          "lag_weeks": 1,
+          "confidence": 0.9
+        },
+        {
+          "from_event": "phase4:w2 \u2014 Value-realization report to CFO",
+          "to_event": "phase4:w5 \u2014 CFO acknowledges switching costs exceed savings",
+          "edge_type": "CAUSED_BY",
+          "lag_weeks": 3,
+          "confidence": 0.88
+        }
+      ]
+    },
+    {
+      "chain_id": "cc_technical_counter",
+      "name": "Benchmark Counter to Technical Confidence",
+      "revenue_impact": 570000,
+      "links": [
+        {
+          "from_event": "phase3:w3 \u2014 Competitor benchmark POC claims 15% advantage",
+          "to_event": "phase4:w4 \u2014 Engineering delivers head-to-head benchmark counter",
+          "edge_type": "SUPERSEDES",
+          "lag_weeks": 9,
+          "confidence": 0.92
+        },
+        {
+          "from_event": "phase4:w4 \u2014 Our benchmark counter shows 23% distributed training advantage",
+          "to_event": "phase4:w7 \u2014 CTO-to-CTO roadmap and co-innovation call",
+          "edge_type": "LED_TO",
+          "lag_weeks": 3,
+          "confidence": 0.85
+        }
+      ]
+    },
+    {
+      "chain_id": "cc_retention_to_expansion",
+      "name": "Executive Alignment to Multi-Year Retention and Expansion",
+      "revenue_impact": 4200000,
+      "links": [
+        {
+          "from_event": "phase4:w5 \u2014 CFO acknowledges switching costs",
+          "to_event": "phase4:w7 \u2014 CTO-to-CTO co-innovation call",
+          "edge_type": "LED_TO",
+          "lag_weeks": 2,
+          "confidence": 0.88
+        },
+        {
+          "from_event": "phase4:w7 \u2014 CTO-to-CTO co-innovation call",
+          "to_event": "phase5:w1 \u2014 3-year retention agreement signed",
+          "edge_type": "LED_TO",
+          "lag_weeks": 2,
+          "confidence": 0.93
+        },
+        {
+          "from_event": "phase5:w1 \u2014 Multi-year retention signed",
+          "to_event": "phase5:w5 \u2014 CFO approves Phase 2 expansion budget",
+          "edge_type": "LED_TO",
+          "lag_weeks": 4,
+          "confidence": 0.8
+        }
+      ]
+    }
+  ],
+  "kpi_trajectories": {
+    "P1": {
+      "overall_trend": "stable",
+      "kpi_overrides": [
+        {
+          "kpi_code": "P1-KPI1",
+          "trend": "stable",
+          "inflection_week": 0,
+          "note": "Deployment velocity unaffected by competitive dynamics; existing infrastructure continues operating normally"
+        }
+      ]
+    },
+    "P2": {
+      "overall_trend": "stable",
+      "kpi_overrides": [
+        {
+          "kpi_code": "P2-KPI1",
+          "trend": "stable",
+          "inflection_week": 0,
+          "note": "RMA rates unchanged; hardware quality is not the competitive vector"
+        },
+        {
+          "kpi_code": "P2-KPI4",
+          "trend": "stable",
+          "inflection_week": 0,
+          "note": "Uptime remains strong; used as proof point in value defense"
+        }
+      ]
+    },
+    "P3": {
+      "overall_trend": "volatile",
+      "kpi_overrides": [
+        {
+          "kpi_code": "P3-KPI1",
+          "trend": "volatile",
+          "inflection_week": 17,
+          "note": "GPU Utilization becomes competitive battleground during evaluation; competitor claims better perf/watt. Counter-benchmark at w26 restores confidence. Key value defense metric."
+        },
+        {
+          "kpi_code": "P3-KPI2",
+          "trend": "stable",
+          "inflection_week": 0,
+          "note": "Training job completion remains high; operational reality contradicts competitor claims"
+        },
+        {
+          "kpi_code": "P3-KPI3",
+          "trend": "volatile",
+          "inflection_week": 17,
+          "note": "Inference latency scrutinized during competitor POC; validated as superior at scale in counter-benchmark"
+        },
+        {
+          "kpi_code": "P3-KPI6",
+          "trend": "recovering",
+          "inflection_week": 26,
+          "note": "Distributed training efficiency highlighted in counter-benchmark as 23% advantage; key differentiator"
+        },
+        {
+          "kpi_code": "P3-KPI7",
+          "trend": "improving",
+          "inflection_week": 33,
+          "note": "Co-innovation lab drives new workload diversity post-retention"
+        }
+      ]
+    },
+    "P4": {
+      "overall_trend": "declining",
+      "kpi_overrides": [
+        {
+          "kpi_code": "P4-KPI1",
+          "trend": "volatile",
+          "inflection_week": 9,
+          "note": "Partner engagement drops sharply as CTO diverts attention to competitor evaluation; recovers with executive re-engagement in Phase 4"
+        },
+        {
+          "kpi_code": "P4-KPI3",
+          "trend": "declining",
+          "inflection_week": 5,
+          "note": "QBR rescheduled and then skipped during evaluation period; resumes in Phase 5"
+        },
+        {
+          "kpi_code": "P4-KPI4",
+          "trend": "volatile",
+          "inflection_week": 9,
+          "note": "Channel conflict spikes when competitor enters direct engagement with CTO; normalizes after retention commitment"
+        },
+        {
+          "kpi_code": "P4-KPI5",
+          "trend": "recovering",
+          "inflection_week": 33,
+          "note": "Co-selling opportunities re-emerge after co-innovation lab launch"
+        },
+        {
+          "kpi_code": "P4-KPI6",
+          "trend": "declining",
+          "inflection_week": 19,
+          "note": "Partner NPS drops 22 points at CTO level during evaluation; rebounds with retention deal"
+        }
+      ]
+    },
+    "P5": {
+      "overall_trend": "volatile",
+      "kpi_overrides": [
+        {
+          "kpi_code": "P5-KPI5",
+          "trend": "volatile",
+          "inflection_week": 13,
+          "note": "Budget signals go completely dark when competitor pricing enters CFO consideration; recover dramatically when value-realization report shifts TCO narrative"
+        },
+        {
+          "kpi_code": "P5-KPI7",
+          "trend": "volatile",
+          "inflection_week": 13,
+          "note": "Expansion probability collapses during evaluation as renewal itself becomes uncertain; spikes to 82% after retention deal locks in expansion path"
+        },
+        {
+          "kpi_code": "P5-KPI8",
+          "trend": "volatile",
+          "inflection_week": 9,
+          "note": "Technical champion engagement (VP Eng) dips under pressure but never fully collapses \u2014 champion remains loyal. CTO engagement drops severely then recovers with co-innovation offer."
+        },
+        {
+          "kpi_code": "P5-KPI1",
+          "trend": "improving",
+          "inflection_week": 35,
+          "note": "Capacity utilization ticks up post-retention as Phase 2 expansion budget unlocks new GPU capacity"
+        }
+      ]
+    }
+  },
+  "decisions": [
+    {
+      "decision_id": "d1_escalate_competitive_threat",
+      "phase_id": 1,
+      "week": 14,
+      "title": "Escalate competitive threat to VP Sales with full signal dossier",
+      "decision_maker_role": "champion",
+      "options": [
+        {
+          "option": "Continue monitoring without executive escalation; CSM handles relationship at working level",
+          "projected_impact": -1900000,
+          "risk_level": "high"
+        },
+        {
+          "option": "Escalate to VP Sales with compiled competitive intelligence dossier and recommended defense playbook",
+          "projected_impact": 380000,
+          "risk_level": "medium"
+        },
+        {
+          "option": "Immediately offer preemptive discount to match competitor pricing",
+          "projected_impact": -760000,
+          "risk_level": "medium"
+        }
+      ],
+      "chosen_option": 1,
+      "evidence_refs": [
+        "CTO LinkedIn competitor engagement (w7)",
+        "Competitor AE pricing proposal (w9)",
+        "VP Engineering champion alert (w11)",
+        "Budget conversations going dark (w13)",
+        "NPS 22-point CTO confidence drop (w19)"
+      ],
+      "revenue_impact": 380000,
+      "outcome_description": "Escalation to VP Sales triggered executive-to-executive engagement strategy, preventing reactive discounting and enabling value-based defense"
+    },
+    {
+      "decision_id": "d2_deploy_value_report_cfo",
+      "phase_id": 3,
+      "week": 24,
+      "title": "Deploy value-realization report for CFO with TCO defense",
+      "decision_maker_role": "exec_sponsor",
+      "options": [
+        {
+          "option": "Let CTO evaluation proceed without CFO engagement; risk pure price comparison",
+          "projected_impact": -3800000,
+          "risk_level": "high"
+        },
+        {
+          "option": "Deploy comprehensive value-realization report to CFO showing $2.1M realized value, $1.8M switching costs, and 18-month TCO advantage",
+          "projected_impact": 1140000,
+          "risk_level": "low"
+        },
+        {
+          "option": "Offer modest retention discount (5%) without value justification",
+          "projected_impact": -190000,
+          "risk_level": "medium"
+        }
+      ],
+      "chosen_option": 1,
+      "evidence_refs": [
+        "GPU utilization data showing 72% avg (value proof)",
+        "99.7% uptime over 18 months (reliability proof)",
+        "Training job completion 94% (operational proof)",
+        "Switching cost analysis: $1.8M migration + 6-month productivity loss",
+        "Competitor benchmark counter: 23% distributed training advantage"
+      ],
+      "revenue_impact": 1140000,
+      "outcome_description": "CFO concluded that competitor's 30% price advantage was offset by $1.8M switching costs and proven operational value; shifted evaluation criteria from price to total value"
+    },
+    {
+      "decision_id": "d3_negotiate_multiyear_retention",
+      "phase_id": 3,
+      "week": 29,
+      "title": "Negotiate multi-year retention agreement with investment incentives",
+      "decision_maker_role": "exec_sponsor",
+      "options": [
+        {
+          "option": "Standard 1-year renewal at current pricing",
+          "projected_impact": 0,
+          "risk_level": "high"
+        },
+        {
+          "option": "3-year retention agreement with 8% volume discount, technology refresh guarantee, and co-innovation partnership",
+          "projected_impact": 3800000,
+          "risk_level": "low"
+        },
+        {
+          "option": "2-year agreement with 15% discount to firmly close competitor option",
+          "projected_impact": 2660000,
+          "risk_level": "medium"
+        }
+      ],
+      "chosen_option": 1,
+      "evidence_refs": [
+        "CFO TCO analysis acceptance (w26)",
+        "CTO-to-CTO co-innovation roadmap alignment (w29)",
+        "VP Engineering champion endorsement",
+        "Counter-benchmark technical validation",
+        "Expansion probability recovered to 68% pre-signing"
+      ],
+      "revenue_impact": 3800000,
+      "outcome_description": "3-year multi-year agreement secured $3.8M ARR with path to expansion. 8% volume discount ($304K/yr) is significantly less margin impact than the $570K replacement cost of losing the account entirely."
+    }
+  ],
+  "outcomes": [
+    {
+      "outcome_id": "o1_arr_retained",
+      "title": "Full $3.8M ARR retained through competitive defense",
+      "outcome_type": "retention",
+      "revenue_value": 3800000,
+      "realized_week": 29,
+      "evidence": "3-year retention agreement signed; competitor displacement averted through value-based defense strategy",
+      "confidence": 0.95
+    },
+    {
+      "outcome_id": "o2_multiyear_lockin",
+      "title": "3-year commitment providing $11.4M contracted revenue",
+      "outcome_type": "retention",
+      "revenue_value": 11400000,
+      "realized_week": 29,
+      "evidence": "Multi-year agreement with technology refresh guarantee eliminates annual competitive vulnerability",
+      "confidence": 0.92
+    },
+    {
+      "outcome_id": "o3_churn_cost_averted",
+      "title": "Avoided $570K replacement cost and $1.8M customer switching costs",
+      "outcome_type": "churn_averted",
+      "revenue_value": 570000,
+      "realized_week": 29,
+      "evidence": "Replacement cost estimate: $570K (sales cycle, onboarding new account, logo loss impact). Customer switching cost: $1.8M (migration, retraining, productivity loss).",
+      "confidence": 0.88
+    },
+    {
+      "outcome_id": "o4_expansion_unlocked",
+      "title": "Phase 2 GPU expansion of $400K approved",
+      "outcome_type": "expansion",
+      "revenue_value": 400000,
+      "realized_week": 35,
+      "evidence": "CFO approved expansion budget after retention deal removed competitive uncertainty; expansion probability reached 82%",
+      "confidence": 0.8
+    },
+    {
+      "outcome_id": "o5_roi_of_defense",
+      "title": "720% ROI on $528K competitive defense investment",
+      "outcome_type": "retention",
+      "revenue_value": 3802000,
+      "realized_week": 36,
+      "evidence": "Total defense investment: $528K (executive engagement $40K, value analysis $45K, benchmark counter $85K, retention discount $304K/yr, co-innovation setup $54K). Revenue protected: $3.8M ARR + $400K expansion = $4.2M. ROI: ($4.2M - $528K) / $528K = 696%, rounded to 720% including intangible relationship value.",
+      "confidence": 0.85
+    }
+  ],
+  "edges_template": [
+    {
+      "from_ref": "signal:phase1:w7",
+      "to_ref": "external:phase2:w1",
+      "edge_type": "INDICATES",
+      "weight": 0.75,
+      "properties": {
+        "signal_type": "competitive_interest",
+        "detection_method": "social_listening"
+      }
+    },
+    {
+      "from_ref": "external:phase2:w1",
+      "to_ref": "signal:phase2:w5",
+      "edge_type": "CAUSED_BY",
+      "weight": 0.85,
+      "properties": {
+        "impact_type": "budget_freeze",
+        "lag_weeks": 4
+      }
+    },
+    {
+      "from_ref": "stakeholder:champion",
+      "to_ref": "signal:phase2:w3",
+      "edge_type": "SOURCED_FROM",
+      "weight": 0.92,
+      "properties": {
+        "trust_level": "high",
+        "relationship_type": "champion_alert"
+      }
+    },
+    {
+      "from_ref": "signal:phase2:w3",
+      "to_ref": "decision:d1_escalate_competitive_threat",
+      "edge_type": "LED_TO",
+      "weight": 0.9,
+      "properties": {
+        "decision_trigger": "champion_intelligence"
+      }
+    },
+    {
+      "from_ref": "external:phase3:w3",
+      "to_ref": "signal:phase3:w5",
+      "edge_type": "CAUSED_BY",
+      "weight": 0.82,
+      "properties": {
+        "impact_type": "confidence_erosion",
+        "competitor_claim": "15% perf/watt advantage"
+      }
+    },
+    {
+      "from_ref": "decision:d1_escalate_competitive_threat",
+      "to_ref": "stakeholder:exec_sponsor_vp_sales",
+      "edge_type": "INVOLVES",
+      "weight": 0.95,
+      "properties": {
+        "engagement_type": "executive_escalation"
+      }
+    },
+    {
+      "from_ref": "stakeholder:exec_sponsor_vp_sales",
+      "to_ref": "stakeholder:decision_maker_cto",
+      "edge_type": "INVOLVES",
+      "weight": 0.88,
+      "properties": {
+        "engagement_type": "executive_dinner",
+        "phase": 4
+      }
+    },
+    {
+      "from_ref": "decision:d2_deploy_value_report_cfo",
+      "to_ref": "stakeholder:exec_sponsor_cfo",
+      "edge_type": "INVOLVES",
+      "weight": 0.9,
+      "properties": {
+        "deliverable": "value_realization_report",
+        "content": "TCO_defense"
+      }
+    },
+    {
+      "from_ref": "external:phase3:w3",
+      "to_ref": "outcome:phase4:w4",
+      "edge_type": "SUPERSEDES",
+      "weight": 0.92,
+      "properties": {
+        "counter_type": "benchmark_refutation",
+        "our_advantage": "23% distributed training, 18% inference latency"
+      }
+    },
+    {
+      "from_ref": "decision:d2_deploy_value_report_cfo",
+      "to_ref": "decision:d3_negotiate_multiyear_retention",
+      "edge_type": "LED_TO",
+      "weight": 0.88,
+      "properties": {
+        "mechanism": "CFO alignment enabled retention negotiation"
+      }
+    },
+    {
+      "from_ref": "decision:d3_negotiate_multiyear_retention",
+      "to_ref": "outcome:o1_arr_retained",
+      "edge_type": "LED_TO",
+      "weight": 0.95,
+      "properties": {
+        "deal_structure": "3yr_with_refresh_guarantee"
+      }
+    },
+    {
+      "from_ref": "outcome:o1_arr_retained",
+      "to_ref": "outcome:o4_expansion_unlocked",
+      "edge_type": "LED_TO",
+      "weight": 0.8,
+      "properties": {
+        "mechanism": "retention_removes_uncertainty_enables_investment"
+      }
+    },
+    {
+      "from_ref": "stakeholder:champion",
+      "to_ref": "outcome:o1_arr_retained",
+      "edge_type": "INVOLVES",
+      "weight": 0.85,
+      "properties": {
+        "role": "internal_advocate",
+        "loyalty": "maintained_under_pressure"
+      }
+    },
+    {
+      "from_ref": "signal:phase3:w8",
+      "to_ref": "signal:phase2:w5",
+      "edge_type": "CORRELATES_WITH",
+      "weight": 0.78,
+      "properties": {
+        "pattern": "engagement_budget_covariance",
+        "insight": "engagement drop and budget silence are correlated competitive threat indicators"
+      }
+    }
+  ],
+  "industry_benchmarks": [
+    {
+      "kpi_code": "P4-KPI1",
+      "benchmark_source": "Gartner Data Center Vendor Benchmark 2025",
+      "industry_p25": 52,
+      "industry_p50": 68,
+      "industry_p75": 81,
+      "account_percentile": 72
+    },
+    {
+      "kpi_code": "P4-KPI4",
+      "benchmark_source": "Forrester Channel Health Index 2025",
+      "industry_p25": 38,
+      "industry_p50": 25,
+      "industry_p75": 12,
+      "account_percentile": 55
+    },
+    {
+      "kpi_code": "P5-KPI8",
+      "benchmark_source": "TSIA Champion Engagement Benchmark 2025",
+      "industry_p25": 48,
+      "industry_p50": 64,
+      "industry_p75": 79,
+      "account_percentile": 68
+    },
+    {
+      "kpi_code": "P5-KPI5",
+      "benchmark_source": "IDC Data Center Spending Signals 2025",
+      "industry_p25": 35,
+      "industry_p50": 55,
+      "industry_p75": 74,
+      "account_percentile": 62
+    },
+    {
+      "kpi_code": "P3-KPI1",
+      "benchmark_source": "MLCommons GPU Infrastructure Benchmark 2025",
+      "industry_p25": 45,
+      "industry_p50": 62,
+      "industry_p75": 78,
+      "account_percentile": 74
+    },
+    {
+      "kpi_code": "P3-KPI6",
+      "benchmark_source": "MLCommons Distributed Training Efficiency 2025",
+      "industry_p25": 68,
+      "industry_p50": 79,
+      "industry_p75": 91,
+      "account_percentile": 88
+    },
+    {
+      "kpi_code": "P4-KPI6",
+      "benchmark_source": "Bain & Company B2B NPS Benchmark 2025",
+      "industry_p25": 12,
+      "industry_p50": 35,
+      "industry_p75": 58,
+      "account_percentile": 65
+    },
+    {
+      "kpi_code": "P5-KPI7",
+      "benchmark_source": "Gainsight Expansion Probability Benchmark 2025",
+      "industry_p25": 22,
+      "industry_p50": 42,
+      "industry_p75": 65,
+      "account_percentile": 58
+    },
+    {
+      "kpi_code": "P2-KPI4",
+      "benchmark_source": "Uptime Institute Data Center Availability 2025",
+      "industry_p25": 98.5,
+      "industry_p50": 99.2,
+      "industry_p75": 99.8,
+      "account_percentile": 82
+    },
+    {
+      "kpi_code": "P3-KPI2",
+      "benchmark_source": "MLCommons Training Job Success Rate 2025",
+      "industry_p25": 78,
+      "industry_p50": 87,
+      "industry_p75": 94,
+      "account_percentile": 76
+    }
+  ]
+}

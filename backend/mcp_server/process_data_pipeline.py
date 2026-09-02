@@ -12,9 +12,11 @@ reflected — see each stage's docstring.
 Present:
   calculate_health_scores         (Stage 2 — Tier 2A-4, ORM rewrite)
   backfill_product_adoption       (Stage 2b)
-  link_stakeholders_to_decisions  (item 38 — runs AFTER Wizard A)
+  run_wizard_a_step               (Stage 3 — Tier 2A-5, Wizard A v2: journeys/)
+  link_stakeholders_to_decisions  (item 38 — after Wizard A; now links only
+                                   OBSERVED decisions, since v2 writes no
+                                   synthetic DECISION nodes)
 
-Next: run_wizard_a_step (Tier 2A-5 — needs health scores, hence after).
 Deferred with their consumers: publish_health_events (event_system.py +
 its three subscribers — push intelligence, product health, CG regen —
 are all later phases; there is nothing to publish to yet), LLM tier-1
@@ -272,6 +274,37 @@ def backfill_product_adoption(customer_id: int, acct_list: list, vertical: str) 
         logger.warning('Product adoption back-fill failed (non-fatal): %s', e)
         db.session.rollback()
         return None
+
+
+# ═══════════════════════════════════════════════════════════════
+# Stage 3: Wizard A v2 — journeys, evidence-cited arcs, leading layer
+# ═══════════════════════════════════════════════════════════════
+
+def run_wizard_a_step(customer_id: int, changed_account_ids: Set[int], mode: str = 'auto'):
+    """Build journeys for the accounts whose health changed this run (all
+    accounts on full_recalc or when no journey exists yet). Returns
+    (step, duration_s, summary)."""
+    from models import JourneyData
+    t0 = time.time()
+    try:
+        from journeys.wizard_a import run_wizard_a
+        ids = None
+        if mode != 'full_recalc' and changed_account_ids:
+            has_any = JourneyData.query.filter_by(customer_id=customer_id).first() is not None
+            ids = changed_account_ids if has_any else None
+        res = run_wizard_a(customer_id, ids)
+        dur = round(time.time() - t0, 2)
+        cov = res['coverage']
+        step = (
+            f"wizard_a_{res['processed']}_journeys_"
+            f"{cov['classified']}_classified_{cov['steady']}_steady_{cov['unclassified']}_unclassified"
+        ) if res['processed'] else None
+        return step, dur, res
+    except Exception as e:
+        logger.error('Wizard A step failed (non-fatal): %s', e, exc_info=True)
+        from extensions import db
+        db.session.rollback()
+        return None, round(time.time() - t0, 2), None
 
 
 # Stakeholder role (substring-matched against STAKEHOLDER.node_subtype) →

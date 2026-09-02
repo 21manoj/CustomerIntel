@@ -14,19 +14,40 @@ _CONFIG_PATH = os.path.join(os.path.dirname(__file__), '..', 'config', 'health_t
 _cached = None
 
 
+_cached_full = None
+
+
+def _load_full():
+    global _cached_full
+    if _cached_full is None:
+        with open(_CONFIG_PATH, 'r') as f:
+            _cached_full = json.load(f)
+    return _cached_full
+
+
 def _load():
     global _cached
     if _cached is None:
-        with open(_CONFIG_PATH, 'r') as f:
-            _cached = json.load(f)['thresholds']
+        _cached = _load_full()['thresholds']
     return _cached
 
 
 def reload():
     """Force reload from disk (call after Settings UI saves changes)."""
-    global _cached
+    global _cached, _cached_full
     _cached = None
+    _cached_full = None
     return _load()
+
+
+def leading_indicator_config() -> dict:
+    """Two-layer indicator parameters (journeys/): signal window, decay, divergence threshold."""
+    return _load_full()['leading_indicator']
+
+
+def phase_rules() -> dict:
+    """Journey phase-detection parameters (journeys/)."""
+    return _load_full()['phase_rules']
 
 
 def healthy_min() -> int:

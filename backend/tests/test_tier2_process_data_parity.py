@@ -237,6 +237,70 @@ def test_adoption_backfill_uses_p6_for_datacenter(loaded):
             assert a.profile_metadata['product_adoption'] == round(float(latest.contributing_pillars['P6']), 1)
 
 
+def _old_wizard_a():
+    import csv
+    import json
+    d = FIXTURES / 'old_repo_wizard_a'
+    arcs = {r['account_name']: r for r in csv.DictReader(open(d / 'accounts_arcs.csv'))}
+    traj = {}
+    for r in csv.DictReader(open(d / 'generated_nodes.csv')):
+        if r['node_subtype'] == 'arc_detection':
+            traj[r['account_name']] = json.loads(r['properties'])['arc_type']
+    return arcs, traj
+
+
+def test_wizard_a_v2_runs_and_writes_journeys(loaded):
+    cid, res = loaded
+    from models import JourneyData
+    assert any(s.startswith('wizard_a_12_journeys_') for s in res['steps_completed']), res['steps_completed']
+    assert res['wizard_a']['coverage']['classified'] + res['wizard_a']['coverage']['steady'] \
+        + res['wizard_a']['coverage']['unclassified'] == 12
+    with app.app_context():
+        assert JourneyData.query.filter_by(customer_id=cid).count() == 12
+
+
+def test_wizard_a_v2_vs_old_repo_cited_disagreements(loaded):
+    """Tier 2A-5 parity contract (docs/design/wizard-a-assessment.md §5):
+    not 'reproduce the old output' — the old output is wrong for a
+    documented share of accounts — but: health-derived fields match
+    exactly; no arc without evidence; every disagreement with the old arc
+    is explainable from the journey's own evidence."""
+    from models import JourneyData
+    cid, _ = loaded
+    old_arcs, old_traj = _old_wizard_a()
+    with app.app_context():
+        names = {a.account_id: a.account_name for a in _accounts(cid)}
+        rows = {names[r.account_id]: r.journey_json for r in JourneyData.query.filter_by(customer_id=cid).all()}
+    assert set(rows) == set(old_arcs)
+
+    table = []
+    for name, j in sorted(rows.items()):
+        old = old_arcs[name]
+        arc = j['arc']
+        # 1. Same scores → the old trajectory classifier, kept as a feature, must agree exactly.
+        assert j['summary']['trajectory'] == old_traj[name], (name, j['summary']['trajectory'], old_traj[name])
+        # 2. No arc is asserted without cited episodes.
+        if arc['state'] == 'classified':
+            assert arc['supporting_episode_ids'], name
+            assert arc['arc_type'] != 'competitive_displacement' or 'commercial_pressure' in arc['observed_roles'], name
+            assert arc['arc_type'] != 'exec_sponsor_change' or 'champion_change' in arc['observed_roles'], name
+        # 3. The old fallback (competitive_displacement @ 0.55) never survives as-is.
+        if old['arc_type'] == 'competitive_displacement' and float(old['arc_confidence']) == 0.55:
+            assert not (arc['arc_type'] == 'competitive_displacement' and not arc['supporting_episode_ids']), name
+        table.append((name, old['arc_type'], float(old['arc_confidence']), arc['state'], arc['arc_type'],
+                      ','.join(arc['observed_roles']), j['leading_vs_trailing']['lead_days']))
+
+    # Printed for the record when run with -s: old arc vs v2 state/arc with the evidence roles.
+    print('\n%-24s %-26s %-5s %-13s %-24s %s' % ('account', 'old_arc', 'conf', 'v2_state', 'v2_arc', 'roles | lead_days'))
+    for r in table:
+        print('%-24s %-26s %-5s %-13s %-24s %s | %s' % r)
+    # Every account got a determinate state and the leading layer was written.
+    assert all(r[3] in ('classified', 'steady', 'unclassified') for r in table)
+    with app.app_context():
+        assert HealthScore.query.join(Account, Account.account_id == HealthScore.account_id).filter(
+            Account.customer_id == cid, HealthScore.qual_score.isnot(None)).count() > 0
+
+
 def test_linked_signal_edges(loaded):
     """Item 37a: every one of the 40 outcomes carries a resolvable
     linked_signal_id → 40 LED_TO edges, all stamped unknown/unattributed."""

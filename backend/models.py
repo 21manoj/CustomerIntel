@@ -479,6 +479,34 @@ class CsvUploadStaging(db.Model):
     )
 
 
+class JourneyData(db.Model):
+    """One journey per account — Wizard A v2's output (Tier 2A-5, 2026-09-02).
+
+    journey_json is schema v3 (see journeys/journey_builder.py): evidence-
+    bearing episodes, phases with transition triggers, an evidence-cited arc
+    hypothesis (or 'steady' / 'unclassified'), the leading-vs-trailing
+    divergence series with first-warning dates, counterfactual hooks around
+    interventions, the expected-path overlay from the story-arc template,
+    and the shared feature vector Wizards B and D both read. The old repo's
+    v2 journey was the health table re-keyed (one event per month, sentiment
+    = sign of the health delta) — see docs/design/wizard-a-assessment.md.
+    """
+    __tablename__ = 'journey_data'
+    id = db.Column(db.Integer, primary_key=True)
+    customer_id = db.Column(db.Integer, db.ForeignKey('customers.customer_id'), nullable=False, index=True)
+    account_id = db.Column(db.Integer, db.ForeignKey('accounts.account_id'), nullable=False, index=True)
+    journey_json = db.Column(db.JSON, nullable=False)
+    total_weeks = db.Column(db.Integer)
+    journey_pattern = db.Column(db.String(50))     # arc_type, or 'steady' / 'unclassified'
+    generator_version = db.Column(db.String(20), default='3.0')
+    generated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    __table_args__ = (
+        db.UniqueConstraint('customer_id', 'account_id', name='unique_account_journey'),
+    )
+
+
 class HealthScore(db.Model):
     """L3: Overall health score (weighted average of pillar scores)."""
     __tablename__ = 'health_scores'

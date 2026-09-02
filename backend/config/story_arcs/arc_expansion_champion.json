@@ -1,0 +1,1305 @@
+{
+  "arc_id": "arc_expansion_champion",
+  "arc_name": "Expansion Champion",
+  "version": "1.0",
+  "description": "A $2.4M ARR data center hardware account where a VP Engineering champion drives GPU workload adoption, triggering a capacity crunch that converts into a $5.2M expansion deal -- proving the ROI of proactive CS engagement and champion enablement.",
+  "intelligence_dimensions": [
+    "expansion_readiness",
+    "adoption_velocity",
+    "value_realization",
+    "engagement_depth"
+  ],
+  "target_audience": "CRO",
+  "revenue_narrative": {
+    "arr_start": 2400000,
+    "arr_end": 7600000,
+    "arr_at_risk_peak": 1200000,
+    "roi_of_intervention": 3500,
+    "cost_of_inaction": 5200000,
+    "time_horizon_weeks": 36,
+    "intervention_cost": 148000,
+    "net_revenue_saved": 5052000
+  },
+  "cast": [
+    {
+      "role": "champion",
+      "title": "VP Engineering",
+      "influence_score": 0.9,
+      "sentiment_arc": [
+        0.6,
+        0.8,
+        0.5,
+        0.7,
+        0.95
+      ],
+      "engagement_frequency": "weekly",
+      "appears_in_phase": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ]
+    },
+    {
+      "role": "exec_sponsor",
+      "title": "CTO",
+      "influence_score": 0.95,
+      "sentiment_arc": [
+        0.5,
+        0.6,
+        0.4,
+        0.65,
+        0.9
+      ],
+      "engagement_frequency": "monthly",
+      "appears_in_phase": [
+        0,
+        2,
+        3,
+        4
+      ]
+    },
+    {
+      "role": "decision_maker",
+      "title": "Infrastructure Director",
+      "influence_score": 0.8,
+      "sentiment_arc": [
+        0.5,
+        0.55,
+        0.3,
+        0.6,
+        0.85
+      ],
+      "engagement_frequency": "biweekly",
+      "appears_in_phase": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ]
+    },
+    {
+      "role": "technical_lead",
+      "title": "CSM (Ours)",
+      "influence_score": 0.7,
+      "sentiment_arc": [
+        0.7,
+        0.8,
+        0.5,
+        0.75,
+        0.95
+      ],
+      "engagement_frequency": "weekly",
+      "appears_in_phase": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ]
+    }
+  ],
+  "phases": [
+    {
+      "phase_id": 0,
+      "name": "Stable Foundation",
+      "duration_weeks": 8,
+      "health_range": {
+        "start": 72,
+        "end": 75
+      },
+      "description": "Account is healthy and operationally stable. GPU utilization sits at ~55%, workloads are running smoothly, and the VP Engineering champion begins exploring new AI use cases. This is the calm before the growth surge.",
+      "revenue_impact_type": "none",
+      "plot_points": [
+        {
+          "week_offset": 1,
+          "event_type": "meeting",
+          "description": "QBR with CTO and VP Engineering reviews current infrastructure health and AI roadmap. VP Engineering shares plans to onboard 3 new ML teams.",
+          "sentiment_shift": 0.1,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P5-KPI8",
+              "direction": "improve",
+              "magnitude": "minor"
+            },
+            {
+              "kpi_code": "P4-KPI3",
+              "direction": "improve",
+              "magnitude": "minor"
+            }
+          ],
+          "revenue_impact": 0,
+          "generates_node_type": "STAKEHOLDER",
+          "csm_action": {
+            "action_type": "executive_alignment",
+            "description": "Document AI roadmap expansion plans and identify champion influence path",
+            "cost_estimate": 2000,
+            "response_time_hours": 24
+          }
+        },
+        {
+          "week_offset": 3,
+          "event_type": "decision",
+          "description": "VP Engineering proposes POC for new large-language-model fine-tuning workloads on existing GPU cluster. CSM facilitates architecture review to ensure success.",
+          "sentiment_shift": 0.15,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P3-KPI7",
+              "direction": "improve",
+              "magnitude": "minor"
+            },
+            {
+              "kpi_code": "P3-KPI1",
+              "direction": "improve",
+              "magnitude": "minor"
+            },
+            {
+              "kpi_code": "P5-KPI6",
+              "direction": "improve",
+              "magnitude": "minor"
+            }
+          ],
+          "revenue_impact": 0,
+          "generates_node_type": "DECISION",
+          "csm_action": {
+            "action_type": "technical_enablement",
+            "description": "Arrange solutions architect for POC architecture review and GPU cluster optimization",
+            "cost_estimate": 8000,
+            "response_time_hours": 48
+          }
+        },
+        {
+          "week_offset": 6,
+          "event_type": "milestone",
+          "description": "POC workloads deployed successfully. GPU utilization climbs from 55% to 62%. VP Engineering reports positive results to CTO.",
+          "sentiment_shift": 0.1,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P3-KPI1",
+              "direction": "improve",
+              "magnitude": "moderate"
+            },
+            {
+              "kpi_code": "P3-KPI2",
+              "direction": "improve",
+              "magnitude": "minor"
+            },
+            {
+              "kpi_code": "P5-KPI1",
+              "direction": "improve",
+              "magnitude": "minor"
+            }
+          ],
+          "revenue_impact": 0,
+          "generates_node_type": "SIGNAL",
+          "csm_action": {
+            "action_type": "success_documentation",
+            "description": "Capture POC results and create internal business case document for champion",
+            "cost_estimate": 3000,
+            "response_time_hours": 72
+          }
+        }
+      ]
+    },
+    {
+      "phase_id": 1,
+      "name": "Usage Acceleration",
+      "duration_weeks": 8,
+      "health_range": {
+        "start": 75,
+        "end": 82
+      },
+      "description": "Champion drives aggressive workload onboarding. GPU utilization surges from 62% to 78% as 3 new ML teams start training jobs. Capacity utilization crosses 80% threshold -- the expansion signal fires. Health rises as platform proves its value.",
+      "revenue_impact_type": "expansion",
+      "plot_points": [
+        {
+          "week_offset": 2,
+          "event_type": "signal",
+          "description": "GPU utilization crosses 70% for the first time. Workload Diversity Score increases to 4 distinct workload types. AI platform showing strong adoption.",
+          "sentiment_shift": 0.1,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P3-KPI1",
+              "direction": "improve",
+              "magnitude": "moderate"
+            },
+            {
+              "kpi_code": "P3-KPI7",
+              "direction": "improve",
+              "magnitude": "moderate"
+            },
+            {
+              "kpi_code": "P5-KPI3",
+              "direction": "improve",
+              "magnitude": "moderate"
+            }
+          ],
+          "revenue_impact": 0,
+          "generates_node_type": "SIGNAL",
+          "csm_action": {
+            "action_type": "expansion_signal_capture",
+            "description": "Flag expansion signal in CRM. Prepare capacity planning analysis for champion.",
+            "cost_estimate": 1500,
+            "response_time_hours": 24
+          }
+        },
+        {
+          "week_offset": 4,
+          "event_type": "milestone",
+          "description": "GPU utilization hits 75% -- the key expansion threshold. Capacity utilization at 78%. Training job completion rate holds strong at 93%. Champion's teams are scaling rapidly.",
+          "sentiment_shift": 0.15,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P3-KPI1",
+              "direction": "improve",
+              "magnitude": "major"
+            },
+            {
+              "kpi_code": "P5-KPI1",
+              "direction": "improve",
+              "magnitude": "moderate"
+            },
+            {
+              "kpi_code": "P5-KPI2",
+              "direction": "improve",
+              "magnitude": "major"
+            },
+            {
+              "kpi_code": "P5-KPI7",
+              "direction": "improve",
+              "magnitude": "moderate"
+            }
+          ],
+          "revenue_impact": 0,
+          "generates_node_type": "SIGNAL",
+          "csm_action": {
+            "action_type": "capacity_planning",
+            "description": "Present capacity trajectory analysis to VP Engineering showing runway depletion forecast",
+            "cost_estimate": 5000,
+            "response_time_hours": 48
+          }
+        },
+        {
+          "week_offset": 7,
+          "event_type": "meeting",
+          "description": "CSM-led capacity planning session with VP Engineering and Infrastructure Director. Show capacity runway depletes in 10 weeks at current growth rate. Champion agrees to raise expansion budget request.",
+          "sentiment_shift": 0.1,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P5-KPI1",
+              "direction": "improve",
+              "magnitude": "moderate"
+            },
+            {
+              "kpi_code": "P5-KPI4",
+              "direction": "improve",
+              "magnitude": "major"
+            },
+            {
+              "kpi_code": "P5-KPI5",
+              "direction": "improve",
+              "magnitude": "moderate"
+            },
+            {
+              "kpi_code": "P5-KPI7",
+              "direction": "improve",
+              "magnitude": "moderate"
+            }
+          ],
+          "revenue_impact": 0,
+          "generates_node_type": "DECISION",
+          "csm_action": {
+            "action_type": "champion_enablement",
+            "description": "Build ROI deck and TCO comparison for champion to present internally for budget approval",
+            "cost_estimate": 10000,
+            "response_time_hours": 72
+          }
+        }
+      ]
+    },
+    {
+      "phase_id": 2,
+      "name": "Capacity Crunch",
+      "duration_weeks": 8,
+      "health_range": {
+        "start": 82,
+        "end": 65
+      },
+      "description": "GPU utilization exceeds 85%, causing resource contention and performance degradation. Training jobs queue, inference latency spikes, and teams compete for GPU time. Health drops into at-risk as the infrastructure groans under load. This is the crisis that creates urgency for expansion.",
+      "revenue_impact_type": "at_risk",
+      "plot_points": [
+        {
+          "week_offset": 2,
+          "event_type": "signal",
+          "description": "GPU utilization hits 85%. Training job completion rate drops to 82% as jobs queue for resources. Inference latency (P95) climbs from 40ms to 65ms. First complaints from ML teams.",
+          "sentiment_shift": -0.15,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P3-KPI1",
+              "direction": "spike",
+              "magnitude": "major"
+            },
+            {
+              "kpi_code": "P3-KPI2",
+              "direction": "degrade",
+              "magnitude": "moderate"
+            },
+            {
+              "kpi_code": "P3-KPI3",
+              "direction": "degrade",
+              "magnitude": "moderate"
+            },
+            {
+              "kpi_code": "P5-KPI1",
+              "direction": "spike",
+              "magnitude": "major"
+            }
+          ],
+          "revenue_impact": -400000,
+          "generates_node_type": "SIGNAL",
+          "csm_action": {
+            "action_type": "risk_mitigation",
+            "description": "Emergency workload optimization session. Implement GPU scheduling policies to reduce contention.",
+            "cost_estimate": 12000,
+            "response_time_hours": 12
+          }
+        },
+        {
+          "week_offset": 4,
+          "event_type": "incident",
+          "description": "Critical GPU memory exhaustion incident. Two production inference endpoints go down for 3 hours. Thermal management score degrades as GPUs run at sustained high load. Infrastructure Director raises concerns about reliability.",
+          "sentiment_shift": -0.25,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P3-KPI5",
+              "direction": "degrade",
+              "magnitude": "critical"
+            },
+            {
+              "kpi_code": "P2-KPI3",
+              "direction": "degrade",
+              "magnitude": "major"
+            },
+            {
+              "kpi_code": "P2-KPI4",
+              "direction": "degrade",
+              "magnitude": "moderate"
+            },
+            {
+              "kpi_code": "P2-KPI5",
+              "direction": "degrade",
+              "magnitude": "moderate"
+            },
+            {
+              "kpi_code": "P3-KPI3",
+              "direction": "degrade",
+              "magnitude": "major"
+            }
+          ],
+          "revenue_impact": -800000,
+          "generates_node_type": "SIGNAL",
+          "csm_action": {
+            "action_type": "incident_response",
+            "description": "Deploy field engineer for thermal assessment. Implement GPU memory guardrails. Prepare incident RCA for CTO.",
+            "cost_estimate": 18000,
+            "response_time_hours": 4
+          }
+        },
+        {
+          "week_offset": 6,
+          "event_type": "escalation",
+          "description": "VP Engineering escalates to CTO: current infrastructure cannot support AI roadmap. Without expansion, 2 planned ML projects will be delayed 6 months. CTO requests expansion proposal within 2 weeks.",
+          "sentiment_shift": -0.1,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P5-KPI7",
+              "direction": "improve",
+              "magnitude": "major"
+            },
+            {
+              "kpi_code": "P5-KPI5",
+              "direction": "improve",
+              "magnitude": "major"
+            },
+            {
+              "kpi_code": "P3-KPI4",
+              "direction": "degrade",
+              "magnitude": "moderate"
+            }
+          ],
+          "revenue_impact": -1200000,
+          "generates_node_type": "DECISION",
+          "csm_action": {
+            "action_type": "expansion_proposal",
+            "description": "Assemble expansion proposal with ROI analysis, capacity forecast, and implementation timeline for CTO review",
+            "cost_estimate": 15000,
+            "response_time_hours": 48
+          }
+        }
+      ]
+    },
+    {
+      "phase_id": 3,
+      "name": "Expansion Negotiation",
+      "duration_weeks": 6,
+      "health_range": {
+        "start": 65,
+        "end": 72
+      },
+      "description": "Budget secured internally. CSM works with champion and Infrastructure Director to size the expansion correctly. Negotiations on pricing, configuration, and timeline. Performance stabilizes with interim GPU scheduling optimization. Health recovers as expansion path becomes concrete.",
+      "revenue_impact_type": "expansion",
+      "plot_points": [
+        {
+          "week_offset": 2,
+          "event_type": "decision",
+          "description": "CTO approves $5.2M expansion budget. Infrastructure Director begins procurement process. CSM provides detailed sizing recommendation based on workload growth projections.",
+          "sentiment_shift": 0.2,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P5-KPI5",
+              "direction": "improve",
+              "magnitude": "major"
+            },
+            {
+              "kpi_code": "P5-KPI7",
+              "direction": "improve",
+              "magnitude": "major"
+            },
+            {
+              "kpi_code": "P4-KPI5",
+              "direction": "improve",
+              "magnitude": "moderate"
+            }
+          ],
+          "revenue_impact": 2600000,
+          "generates_node_type": "DECISION",
+          "csm_action": {
+            "action_type": "deal_support",
+            "description": "Provide detailed configuration spec, deployment timeline, and competitive displacement analysis to support procurement",
+            "cost_estimate": 20000,
+            "response_time_hours": 48
+          }
+        },
+        {
+          "week_offset": 4,
+          "event_type": "meeting",
+          "description": "Technical deep-dive with Infrastructure Director on expansion architecture. CSM arranges reference call with similar customer who expanded successfully. Pricing negotiation begins.",
+          "sentiment_shift": 0.15,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P4-KPI1",
+              "direction": "improve",
+              "magnitude": "moderate"
+            },
+            {
+              "kpi_code": "P4-KPI2",
+              "direction": "improve",
+              "magnitude": "minor"
+            },
+            {
+              "kpi_code": "P5-KPI7",
+              "direction": "improve",
+              "magnitude": "moderate"
+            }
+          ],
+          "revenue_impact": 0,
+          "generates_node_type": "STAKEHOLDER",
+          "csm_action": {
+            "action_type": "reference_facilitation",
+            "description": "Coordinate reference customer call and prepare negotiation support materials for sales team",
+            "cost_estimate": 8000,
+            "response_time_hours": 72
+          }
+        },
+        {
+          "week_offset": 5,
+          "event_type": "milestone",
+          "description": "Interim GPU scheduling optimization deployed. Training job completion rate recovers to 88%. Inference latency improves to 52ms. Demonstrates CS team's ability to deliver value under pressure.",
+          "sentiment_shift": 0.1,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P3-KPI2",
+              "direction": "improve",
+              "magnitude": "moderate"
+            },
+            {
+              "kpi_code": "P3-KPI3",
+              "direction": "improve",
+              "magnitude": "moderate"
+            },
+            {
+              "kpi_code": "P3-KPI6",
+              "direction": "improve",
+              "magnitude": "minor"
+            },
+            {
+              "kpi_code": "P2-KPI4",
+              "direction": "improve",
+              "magnitude": "minor"
+            }
+          ],
+          "revenue_impact": 0,
+          "generates_node_type": "OUTCOME",
+          "csm_action": {
+            "action_type": "optimization_delivery",
+            "description": "Deploy GPU workload scheduler with priority queuing. Document performance recovery metrics.",
+            "cost_estimate": 12000,
+            "response_time_hours": 24
+          }
+        }
+      ]
+    },
+    {
+      "phase_id": 4,
+      "name": "Expansion Close",
+      "duration_weeks": 6,
+      "health_range": {
+        "start": 72,
+        "end": 88
+      },
+      "description": "Expansion order signed and deployment begins. New GPU racks arrive and are commissioned. GPU utilization normalizes as capacity doubles. Health score climbs into strong-healthy territory. Champion's internal credibility soars, creating a long-term renewal anchor.",
+      "revenue_impact_type": "expansion",
+      "plot_points": [
+        {
+          "week_offset": 2,
+          "event_type": "decision",
+          "description": "Infrastructure Director signs $5.2M expansion purchase order. 128 additional GPUs across 4 new racks. Deployment timeline: 8 weeks to full production.",
+          "sentiment_shift": 0.3,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P5-KPI7",
+              "direction": "improve",
+              "magnitude": "critical"
+            },
+            {
+              "kpi_code": "P5-KPI5",
+              "direction": "improve",
+              "magnitude": "major"
+            },
+            {
+              "kpi_code": "P4-KPI5",
+              "direction": "improve",
+              "magnitude": "major"
+            }
+          ],
+          "revenue_impact": 5200000,
+          "generates_node_type": "OUTCOME",
+          "csm_action": {
+            "action_type": "deployment_planning",
+            "description": "Coordinate deployment plan with field engineering. Establish commissioning timeline and acceptance criteria.",
+            "cost_estimate": 15000,
+            "response_time_hours": 24
+          }
+        },
+        {
+          "week_offset": 4,
+          "event_type": "milestone",
+          "description": "First 2 expansion racks commissioned and online. GPU utilization drops from 88% to 68% as capacity doubles. Training job queues clear immediately. Performance metrics normalize across the board.",
+          "sentiment_shift": 0.2,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P3-KPI1",
+              "direction": "improve",
+              "magnitude": "major"
+            },
+            {
+              "kpi_code": "P3-KPI2",
+              "direction": "improve",
+              "magnitude": "major"
+            },
+            {
+              "kpi_code": "P3-KPI3",
+              "direction": "improve",
+              "magnitude": "major"
+            },
+            {
+              "kpi_code": "P1-KPI5",
+              "direction": "improve",
+              "magnitude": "moderate"
+            },
+            {
+              "kpi_code": "P2-KPI5",
+              "direction": "improve",
+              "magnitude": "moderate"
+            }
+          ],
+          "revenue_impact": 0,
+          "generates_node_type": "OUTCOME",
+          "csm_action": {
+            "action_type": "commissioning_oversight",
+            "description": "On-site field engineer oversight for rack commissioning. Validate performance baselines.",
+            "cost_estimate": 20000,
+            "response_time_hours": 8
+          }
+        },
+        {
+          "week_offset": 6,
+          "event_type": "milestone",
+          "description": "All 4 expansion racks commissioned. Full deployment complete. VP Engineering presents expansion success to board, crediting CS partnership. Account health at 88, expansion probability resets for next cycle.",
+          "sentiment_shift": 0.15,
+          "kpi_impacts": [
+            {
+              "kpi_code": "P5-KPI1",
+              "direction": "improve",
+              "magnitude": "moderate"
+            },
+            {
+              "kpi_code": "P5-KPI3",
+              "direction": "improve",
+              "magnitude": "moderate"
+            },
+            {
+              "kpi_code": "P1-KPI2",
+              "direction": "improve",
+              "magnitude": "major"
+            },
+            {
+              "kpi_code": "P1-KPI1",
+              "direction": "improve",
+              "magnitude": "moderate"
+            },
+            {
+              "kpi_code": "P4-KPI1",
+              "direction": "improve",
+              "magnitude": "major"
+            },
+            {
+              "kpi_code": "P5-KPI8",
+              "direction": "improve",
+              "magnitude": "major"
+            }
+          ],
+          "revenue_impact": 0,
+          "generates_node_type": "OUTCOME",
+          "csm_action": {
+            "action_type": "success_celebration",
+            "description": "Executive business review celebrating expansion success. Set up next-cycle growth planning.",
+            "cost_estimate": 5000,
+            "response_time_hours": 168
+          }
+        }
+      ]
+    }
+  ],
+  "causal_chains": [
+    {
+      "chain_id": "cc_gpu_to_expansion",
+      "name": "GPU Utilization to Expansion Order",
+      "revenue_impact": 5200000,
+      "links": [
+        {
+          "from_event": "phase0:w3 - POC for new LLM workloads approved",
+          "to_event": "phase1:w2 - GPU utilization crosses 70%",
+          "edge_type": "LED_TO",
+          "lag_weeks": 7,
+          "confidence": 0.85
+        },
+        {
+          "from_event": "phase1:w2 - GPU utilization crosses 70%",
+          "to_event": "phase1:w4 - GPU utilization hits 75% expansion threshold",
+          "edge_type": "LED_TO",
+          "lag_weeks": 2,
+          "confidence": 0.9
+        },
+        {
+          "from_event": "phase1:w4 - GPU utilization hits 75% expansion threshold",
+          "to_event": "phase2:w2 - GPU utilization hits 85%, performance degrades",
+          "edge_type": "LED_TO",
+          "lag_weeks": 6,
+          "confidence": 0.88
+        },
+        {
+          "from_event": "phase2:w2 - GPU utilization hits 85%, performance degrades",
+          "to_event": "phase2:w6 - CTO requests expansion proposal",
+          "edge_type": "LED_TO",
+          "lag_weeks": 4,
+          "confidence": 0.92
+        },
+        {
+          "from_event": "phase2:w6 - CTO requests expansion proposal",
+          "to_event": "phase3:w2 - CTO approves $5.2M expansion budget",
+          "edge_type": "LED_TO",
+          "lag_weeks": 4,
+          "confidence": 0.8
+        },
+        {
+          "from_event": "phase3:w2 - CTO approves $5.2M expansion budget",
+          "to_event": "phase4:w2 - Expansion PO signed",
+          "edge_type": "LED_TO",
+          "lag_weeks": 6,
+          "confidence": 0.9
+        }
+      ]
+    },
+    {
+      "chain_id": "cc_capacity_crunch",
+      "name": "Capacity Crunch to Performance Degradation",
+      "revenue_impact": -1200000,
+      "links": [
+        {
+          "from_event": "phase1:w4 - GPU utilization hits 75% expansion threshold",
+          "to_event": "phase2:w2 - Training job completion rate drops",
+          "edge_type": "CAUSED_BY",
+          "lag_weeks": 6,
+          "confidence": 0.92
+        },
+        {
+          "from_event": "phase2:w2 - Training job completion rate drops",
+          "to_event": "phase2:w4 - Critical GPU memory exhaustion incident",
+          "edge_type": "LED_TO",
+          "lag_weeks": 2,
+          "confidence": 0.85
+        },
+        {
+          "from_event": "phase2:w4 - Critical GPU memory exhaustion incident",
+          "to_event": "phase2:w6 - VP Engineering escalates to CTO",
+          "edge_type": "LED_TO",
+          "lag_weeks": 2,
+          "confidence": 0.95
+        }
+      ]
+    },
+    {
+      "chain_id": "cc_champion_influence",
+      "name": "Champion Enablement to Budget Approval",
+      "revenue_impact": 5200000,
+      "links": [
+        {
+          "from_event": "phase0:w1 - QBR reveals AI roadmap expansion",
+          "to_event": "phase0:w3 - VP Engineering proposes POC",
+          "edge_type": "LED_TO",
+          "lag_weeks": 2,
+          "confidence": 0.8
+        },
+        {
+          "from_event": "phase1:w7 - CSM builds ROI deck for champion",
+          "to_event": "phase2:w6 - VP Engineering escalates with data",
+          "edge_type": "INDICATES",
+          "lag_weeks": 7,
+          "confidence": 0.85
+        },
+        {
+          "from_event": "phase2:w6 - VP Engineering escalates with data",
+          "to_event": "phase3:w2 - CTO approves $5.2M budget",
+          "edge_type": "LED_TO",
+          "lag_weeks": 4,
+          "confidence": 0.88
+        }
+      ]
+    },
+    {
+      "chain_id": "cc_optimization_bridge",
+      "name": "Interim Optimization Preserves Relationship",
+      "revenue_impact": 400000,
+      "links": [
+        {
+          "from_event": "phase2:w4 - Critical GPU memory exhaustion incident",
+          "to_event": "phase3:w5 - GPU scheduling optimization deployed",
+          "edge_type": "LED_TO",
+          "lag_weeks": 7,
+          "confidence": 0.9
+        },
+        {
+          "from_event": "phase3:w5 - GPU scheduling optimization deployed",
+          "to_event": "phase4:w2 - Expansion PO signed",
+          "edge_type": "CORRELATES_WITH",
+          "lag_weeks": 3,
+          "confidence": 0.75
+        }
+      ]
+    }
+  ],
+  "kpi_trajectories": {
+    "P1": {
+      "overall_trend": "stable",
+      "kpi_overrides": [
+        {
+          "kpi_code": "P1-KPI1",
+          "trend": "improving",
+          "inflection_week": 30,
+          "note": "Time-to-First-Workload improves during expansion deployment as team gains experience"
+        },
+        {
+          "kpi_code": "P1-KPI2",
+          "trend": "improving",
+          "inflection_week": 32,
+          "note": "Installation Completion Rate spikes during expansion rack commissioning"
+        },
+        {
+          "kpi_code": "P1-KPI5",
+          "trend": "improving",
+          "inflection_week": 30,
+          "note": "Hardware Commissioning Time benefits from lessons learned in initial deployment"
+        }
+      ]
+    },
+    "P2": {
+      "overall_trend": "volatile",
+      "kpi_overrides": [
+        {
+          "kpi_code": "P2-KPI3",
+          "trend": "volatile",
+          "inflection_week": 20,
+          "note": "Critical incidents spike during capacity crunch (phase 2), then recover after expansion"
+        },
+        {
+          "kpi_code": "P2-KPI4",
+          "trend": "declining",
+          "inflection_week": 18,
+          "note": "System uptime degrades during GPU memory exhaustion incident at week 20"
+        },
+        {
+          "kpi_code": "P2-KPI5",
+          "trend": "volatile",
+          "inflection_week": 20,
+          "note": "Thermal management stressed during peak GPU utilization, recovers post-expansion"
+        }
+      ]
+    },
+    "P3": {
+      "overall_trend": "volatile",
+      "kpi_overrides": [
+        {
+          "kpi_code": "P3-KPI1",
+          "trend": "improving",
+          "inflection_week": 8,
+          "note": "GPU utilization is the primary driver: 55% -> 62% -> 78% -> 88% -> 68% (post-expansion)"
+        },
+        {
+          "kpi_code": "P3-KPI2",
+          "trend": "volatile",
+          "inflection_week": 18,
+          "note": "Training job completion rate drops during capacity crunch then recovers"
+        },
+        {
+          "kpi_code": "P3-KPI3",
+          "trend": "volatile",
+          "inflection_week": 18,
+          "note": "Inference latency spikes during capacity crunch: 40ms -> 65ms -> 52ms -> 35ms"
+        },
+        {
+          "kpi_code": "P3-KPI5",
+          "trend": "volatile",
+          "inflection_week": 20,
+          "note": "GPU memory efficiency critical during memory exhaustion incident"
+        },
+        {
+          "kpi_code": "P3-KPI7",
+          "trend": "improving",
+          "inflection_week": 3,
+          "note": "Workload diversity steadily increases as new ML teams onboard"
+        }
+      ]
+    },
+    "P4": {
+      "overall_trend": "improving",
+      "kpi_overrides": [
+        {
+          "kpi_code": "P4-KPI1",
+          "trend": "improving",
+          "inflection_week": 24,
+          "note": "Partner engagement score rises as expansion deal involves channel partner"
+        },
+        {
+          "kpi_code": "P4-KPI5",
+          "trend": "improving",
+          "inflection_week": 24,
+          "note": "Co-selling opportunities increase with expansion deal pipeline"
+        }
+      ]
+    },
+    "P5": {
+      "overall_trend": "improving",
+      "kpi_overrides": [
+        {
+          "kpi_code": "P5-KPI1",
+          "trend": "volatile",
+          "inflection_week": 10,
+          "note": "Capacity utilization rises steeply then resets after expansion doubles capacity"
+        },
+        {
+          "kpi_code": "P5-KPI2",
+          "trend": "improving",
+          "inflection_week": 10,
+          "note": "Capacity trajectory strongly positive through usage acceleration"
+        },
+        {
+          "kpi_code": "P5-KPI7",
+          "trend": "improving",
+          "inflection_week": 12,
+          "note": "Expansion probability climbs from 25% to 90% then resets after close"
+        },
+        {
+          "kpi_code": "P5-KPI8",
+          "trend": "improving",
+          "inflection_week": 1,
+          "note": "Technical champion engagement rises throughout as VP Engineering drives expansion"
+        }
+      ]
+    }
+  },
+  "decisions": [
+    {
+      "decision_id": "dec_poc_approval",
+      "phase_id": 0,
+      "week": 3,
+      "title": "Approve POC for New LLM Fine-Tuning Workloads",
+      "decision_maker_role": "champion",
+      "options": [
+        {
+          "option": "Approve POC with dedicated GPU allocation for LLM fine-tuning",
+          "projected_impact": 5200000,
+          "risk_level": "low"
+        },
+        {
+          "option": "Delay POC until Q3 budget cycle",
+          "projected_impact": 0,
+          "risk_level": "medium"
+        },
+        {
+          "option": "Reject POC - use cloud provider GPUs instead",
+          "projected_impact": -800000,
+          "risk_level": "high"
+        }
+      ],
+      "chosen_option": 0,
+      "evidence_refs": [
+        "P3-KPI1: GPU utilization at 55% with room for POC workloads",
+        "P3-KPI7: Only 2 workload types -- opportunity to diversify",
+        "P5-KPI6: Zero new use cases in last 90 days"
+      ],
+      "revenue_impact": 0,
+      "outcome_description": "POC approved. VP Engineering allocates 20% of GPU capacity for LLM fine-tuning evaluation. This becomes the catalyst for the entire expansion chain."
+    },
+    {
+      "decision_id": "dec_expansion_budget",
+      "phase_id": 2,
+      "week": 21,
+      "title": "Request Capacity Expansion Budget from CTO",
+      "decision_maker_role": "champion",
+      "options": [
+        {
+          "option": "Request $5.2M expansion for 128 additional GPUs (4 racks)",
+          "projected_impact": 5200000,
+          "risk_level": "low"
+        },
+        {
+          "option": "Request $2.8M partial expansion for 64 GPUs (2 racks)",
+          "projected_impact": 2800000,
+          "risk_level": "medium"
+        },
+        {
+          "option": "Optimize existing capacity and defer expansion to next fiscal year",
+          "projected_impact": -1200000,
+          "risk_level": "high"
+        }
+      ],
+      "chosen_option": 0,
+      "evidence_refs": [
+        "P3-KPI1: GPU utilization at 88% -- above critical threshold",
+        "P3-KPI2: Training job completion rate dropped from 93% to 82%",
+        "P5-KPI1: Capacity utilization at 92% -- near saturation",
+        "P5-KPI2: Capacity trajectory showing +12% MoM growth",
+        "P2-KPI3: Critical incidents doubled in 30 days due to resource contention",
+        "CSM-provided ROI analysis showing 35% return on expansion investment"
+      ],
+      "revenue_impact": 5200000,
+      "outcome_description": "VP Engineering presents CSM-built ROI deck to CTO. CTO approves full $5.2M budget citing AI roadmap strategic importance and capacity data from CS team."
+    },
+    {
+      "decision_id": "dec_expansion_order",
+      "phase_id": 3,
+      "week": 30,
+      "title": "Sign Expansion Purchase Order",
+      "decision_maker_role": "decision_maker",
+      "options": [
+        {
+          "option": "Sign $5.2M PO for 128 GPUs with 8-week deployment timeline",
+          "projected_impact": 5200000,
+          "risk_level": "low"
+        },
+        {
+          "option": "Split order into two phases: 64 GPUs now, 64 GPUs in 6 months",
+          "projected_impact": 2600000,
+          "risk_level": "medium"
+        },
+        {
+          "option": "Issue RFP to evaluate competitive alternatives",
+          "projected_impact": -2400000,
+          "risk_level": "high"
+        }
+      ],
+      "chosen_option": 0,
+      "evidence_refs": [
+        "P5-KPI7: Expansion probability at 92% -- highest confidence",
+        "P5-KPI5: Budget approved and available",
+        "P3-KPI2: Training job completion recovered to 88% with interim optimization",
+        "P4-KPI1: Partner engagement strong -- smooth procurement process",
+        "Reference call: Similar customer achieved 40% GPU utilization headroom post-expansion",
+        "CSM deployment timeline: 8 weeks to production, minimal disruption"
+      ],
+      "revenue_impact": 5200000,
+      "outcome_description": "Infrastructure Director signs $5.2M PO. Full 128-GPU expansion with 8-week deployment commitment. CS team credited with data-driven urgency creation and champion enablement."
+    }
+  ],
+  "outcomes": [
+    {
+      "outcome_id": "out_expansion_deal",
+      "title": "$5.2M Expansion Deal Closed",
+      "outcome_type": "expansion",
+      "revenue_value": 5200000,
+      "realized_week": 30,
+      "evidence": "Signed PO for 128 additional GPUs (4 racks). Direct result of champion-driven growth enabled by CSM capacity analysis and ROI documentation.",
+      "confidence": 1.0
+    },
+    {
+      "outcome_id": "out_arr_growth",
+      "title": "ARR Growth from $2.4M to $7.6M",
+      "outcome_type": "expansion",
+      "revenue_value": 5200000,
+      "realized_week": 36,
+      "evidence": "Account ARR increased 217% over 36 weeks. Expansion hardware fully deployed and operational by week 36.",
+      "confidence": 0.95
+    },
+    {
+      "outcome_id": "out_churn_averted",
+      "title": "Competitive Displacement Risk Averted",
+      "outcome_type": "churn_averted",
+      "revenue_value": 2400000,
+      "realized_week": 24,
+      "evidence": "During capacity crunch, Infrastructure Director evaluated cloud GPU alternatives. CSM's interim optimization and expansion proposal prevented migration of workloads to competitor infrastructure.",
+      "confidence": 0.8
+    },
+    {
+      "outcome_id": "out_cs_roi",
+      "title": "35x ROI on CS Engagement Investment",
+      "outcome_type": "expansion",
+      "revenue_value": 5052000,
+      "realized_week": 36,
+      "evidence": "Total CS intervention cost: $148,000 (solutions architect, field engineers, ROI analysis, optimization, deployment). Net revenue generated: $5,052,000. ROI: 3,414%.",
+      "confidence": 0.9
+    }
+  ],
+  "edges_template": [
+    {
+      "from_ref": "stakeholder:champion",
+      "to_ref": "decision:dec_poc_approval",
+      "edge_type": "INVOLVES",
+      "weight": 0.9,
+      "properties": {
+        "role": "proposer",
+        "influence": "high"
+      }
+    },
+    {
+      "from_ref": "decision:dec_poc_approval",
+      "to_ref": "signal:phase1:w2",
+      "edge_type": "LED_TO",
+      "weight": 0.85,
+      "properties": {
+        "mechanism": "POC workloads drive GPU utilization increase",
+        "lag_weeks": 7
+      }
+    },
+    {
+      "from_ref": "signal:phase1:w4",
+      "to_ref": "signal:phase2:w2",
+      "edge_type": "LED_TO",
+      "weight": 0.88,
+      "properties": {
+        "mechanism": "Continued workload growth pushes utilization past capacity",
+        "kpi_driver": "P3-KPI1"
+      }
+    },
+    {
+      "from_ref": "signal:phase2:w2",
+      "to_ref": "signal:phase2:w4",
+      "edge_type": "CAUSED_BY",
+      "weight": 0.92,
+      "properties": {
+        "mechanism": "Resource contention causes GPU memory exhaustion",
+        "kpi_driver": "P3-KPI5"
+      }
+    },
+    {
+      "from_ref": "signal:phase2:w4",
+      "to_ref": "decision:dec_expansion_budget",
+      "edge_type": "LED_TO",
+      "weight": 0.95,
+      "properties": {
+        "mechanism": "Critical incident creates urgency for expansion",
+        "sentiment_impact": "negative_to_urgent"
+      }
+    },
+    {
+      "from_ref": "stakeholder:champion",
+      "to_ref": "decision:dec_expansion_budget",
+      "edge_type": "INVOLVES",
+      "weight": 0.9,
+      "properties": {
+        "role": "advocate",
+        "evidence_provider": true
+      }
+    },
+    {
+      "from_ref": "stakeholder:exec_sponsor",
+      "to_ref": "decision:dec_expansion_budget",
+      "edge_type": "INVOLVES",
+      "weight": 0.95,
+      "properties": {
+        "role": "approver",
+        "budget_authority": true
+      }
+    },
+    {
+      "from_ref": "decision:dec_expansion_budget",
+      "to_ref": "decision:dec_expansion_order",
+      "edge_type": "LED_TO",
+      "weight": 0.9,
+      "properties": {
+        "mechanism": "Budget approval enables procurement",
+        "lag_weeks": 12
+      }
+    },
+    {
+      "from_ref": "stakeholder:decision_maker",
+      "to_ref": "decision:dec_expansion_order",
+      "edge_type": "INVOLVES",
+      "weight": 0.8,
+      "properties": {
+        "role": "signer",
+        "procurement_authority": true
+      }
+    },
+    {
+      "from_ref": "decision:dec_expansion_order",
+      "to_ref": "outcome:out_expansion_deal",
+      "edge_type": "LED_TO",
+      "weight": 1.0,
+      "properties": {
+        "mechanism": "Signed PO directly creates expansion revenue"
+      }
+    },
+    {
+      "from_ref": "signal:phase1:w4",
+      "to_ref": "outcome:out_expansion_deal",
+      "edge_type": "INDICATES",
+      "weight": 0.75,
+      "properties": {
+        "mechanism": "75% GPU utilization threshold was the leading indicator of expansion",
+        "lead_time_weeks": 18
+      }
+    },
+    {
+      "from_ref": "outcome:out_expansion_deal",
+      "to_ref": "outcome:out_arr_growth",
+      "edge_type": "LED_TO",
+      "weight": 0.95,
+      "properties": {
+        "mechanism": "Expansion deal directly grows ARR"
+      }
+    },
+    {
+      "from_ref": "stakeholder:champion",
+      "to_ref": "outcome:out_cs_roi",
+      "edge_type": "INVOLVES",
+      "weight": 0.85,
+      "properties": {
+        "mechanism": "Champion enablement was the primary CS investment driver"
+      }
+    },
+    {
+      "from_ref": "signal:phase2:w4",
+      "to_ref": "outcome:out_churn_averted",
+      "edge_type": "INDICATES",
+      "weight": 0.8,
+      "properties": {
+        "mechanism": "Critical incident nearly triggered competitive evaluation"
+      }
+    }
+  ],
+  "industry_benchmarks": [
+    {
+      "kpi_code": "P3-KPI1",
+      "benchmark_source": "Uptime Institute 2025 GPU Infrastructure Survey",
+      "industry_p25": 42,
+      "industry_p50": 58,
+      "industry_p75": 74,
+      "account_percentile": 85
+    },
+    {
+      "kpi_code": "P3-KPI2",
+      "benchmark_source": "MLPerf Training Benchmark 2025",
+      "industry_p25": 78,
+      "industry_p50": 87,
+      "industry_p75": 94,
+      "account_percentile": 72
+    },
+    {
+      "kpi_code": "P3-KPI3",
+      "benchmark_source": "MLPerf Inference Benchmark 2025",
+      "industry_p25": 85,
+      "industry_p50": 55,
+      "industry_p75": 35,
+      "account_percentile": 65
+    },
+    {
+      "kpi_code": "P5-KPI1",
+      "benchmark_source": "Gartner Data Center Infrastructure Report 2025",
+      "industry_p25": 48,
+      "industry_p50": 65,
+      "industry_p75": 80,
+      "account_percentile": 90
+    },
+    {
+      "kpi_code": "P5-KPI2",
+      "benchmark_source": "Gartner Data Center Infrastructure Report 2025",
+      "industry_p25": -2,
+      "industry_p50": 3,
+      "industry_p75": 8,
+      "account_percentile": 95
+    },
+    {
+      "kpi_code": "P5-KPI7",
+      "benchmark_source": "CS Pulse Internal ML Model Validation",
+      "industry_p25": 15,
+      "industry_p50": 35,
+      "industry_p75": 60,
+      "account_percentile": 92
+    },
+    {
+      "kpi_code": "P2-KPI1",
+      "benchmark_source": "TBR Enterprise Hardware Reliability Study 2025",
+      "industry_p25": 3.8,
+      "industry_p50": 2.1,
+      "industry_p75": 0.9,
+      "account_percentile": 68
+    },
+    {
+      "kpi_code": "P2-KPI4",
+      "benchmark_source": "Uptime Institute Annual Survey 2025",
+      "industry_p25": 98.5,
+      "industry_p50": 99.5,
+      "industry_p75": 99.95,
+      "account_percentile": 55
+    },
+    {
+      "kpi_code": "P4-KPI1",
+      "benchmark_source": "Canalys Channel Partner Engagement Index 2025",
+      "industry_p25": 52,
+      "industry_p50": 68,
+      "industry_p75": 82,
+      "account_percentile": 78
+    },
+    {
+      "kpi_code": "P5-KPI8",
+      "benchmark_source": "CS Pulse Champion Engagement Benchmark",
+      "industry_p25": 45,
+      "industry_p50": 62,
+      "industry_p75": 80,
+      "account_percentile": 88
+    }
+  ]
+}

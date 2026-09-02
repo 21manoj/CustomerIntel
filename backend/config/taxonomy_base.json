@@ -49,5 +49,23 @@
     "revenue_growth",
     "partial_recovery",
     "capacity_constraint"
-  ]
+  ],
+  "signal_roles": {
+    "_description": "Vertical-agnostic role -> signal subtypes. Journey/arc rules are written against roles, never literal subtypes (mirrors pillar_roles in the KPI catalogs). A subtype belongs to exactly one role. 'announcement' = the customer stating a financial intent outright; it is excluded from the behavioral (leading) composite so lead-time measurement isn't contaminated by the event it predicts.",
+    "champion_change": ["champion_departure", "champion_loss", "champion_disengagement", "executive_departure", "stakeholder_departure", "stakeholder_change", "org_change"],
+    "engagement_decline": ["engagement_gap", "engagement_decline", "engagement_drop", "login_decline", "nps_decline", "csat_drop"],
+    "usage_decline": ["usage_decline", "feature_adoption_drop", "kpi_decline", "kpi_breach"],
+    "escalation": ["escalation", "escalation_increase", "support_escalation", "support_spike", "stakeholder_escalation"],
+    "infra_incident": ["critical_incident", "incident", "system_outage", "performance_degradation", "sla_breach"],
+    "capacity_pressure": ["capacity_warning"],
+    "delivery_stall": ["deployment_delay", "onboarding_delay", "ttfv_exceeded", "expansion_stall", "deployment_blocked", "integration_failure"],
+    "commercial_pressure": ["competitor_mention", "competitor_evaluation", "budget_pressure", "budget_review", "budget_change", "contract_dispute", "downsizing", "expansion_cancelled", "renewal_risk"],
+    "announcement": ["churn_notice", "cancellation_request", "non_renewal_notice"],
+    "expansion_intent": ["expansion_signal", "expansion_discussion", "usage_spike", "feature_adoption", "feature_adoption_increase", "rapid_adoption"],
+    "expansion_realized": ["expansion_completed"],
+    "advocacy": ["advocacy", "champion_advocacy", "nps_increase", "positive_engagement", "champion_reengagement", "executive_engagement"],
+    "recovery": ["health_improvement", "kpi_recovery", "deployment_improvement", "churn_averted", "recovery_milestone", "fast_onboarding", "onboarding_milestone"],
+    "intervention": ["csm_intervention", "csm_action", "playbook_executed", "sla_started", "health_score_alert"],
+    "routine": ["routine_review", "seasonal_pattern", "support_ticket"]
+  }
 }

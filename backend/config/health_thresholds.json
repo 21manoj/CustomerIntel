@@ -24,5 +24,19 @@
       "bg_class": "bg-red-100",
       "text_class": "text-red-800"
     }
+  },
+  "leading_indicator": {
+    "_description": "Two-layer indicator model (journeys/). qual_score is the recency-weighted behavioral composite over signal_window_days; divergence = qual_score - kpi_only_score; |divergence| >= divergence_warning_pts labels the month early_warning (leading below trailing) or recovery_watch (leading above). decay_lambda_per_day 0.023 = ~30-day half-life, the monthly-upload default from the Recency-Signal-DNA spec.",
+    "signal_window_days": 60,
+    "decay_lambda_per_day": 0.023,
+    "divergence_warning_pts": 10,
+    "default_sentiment_by_polarity": {"negative": -0.6, "positive": 0.6, "neutral": 0.0}
+  },
+  "phase_rules": {
+    "_description": "Journey phase per scored month from health band + slope (pts/month). resolution: slope > resolution_slope_pts and health >= at_risk.min after a prior dip below at_risk.min; intervention: health < at_risk.min; deterioration: slope < deterioration_slope_pts and health < healthy.min + deterioration_health_ceiling_offset; else baseline.",
+    "deterioration_slope_pts": -1,
+    "resolution_slope_pts": 3,
+    "deterioration_health_ceiling_offset": 5,
+    "phase_trigger_lookback_days": 45
   }
 }

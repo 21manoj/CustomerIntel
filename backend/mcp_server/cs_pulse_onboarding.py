@@ -370,6 +370,7 @@ def _process_data_impl(customer_id: int, mode: str = 'auto') -> dict:
         from mcp_server.process_data_pipeline import (
             calculate_health_scores,
             backfill_product_adoption,
+            run_wizard_a_step,
             link_stakeholders_to_decisions,
         )
 
@@ -433,7 +434,12 @@ def _process_data_impl(customer_id: int, mode: str = 'auto') -> dict:
         timings['product_adoption'] = round(time.time() - _t, 2)
 
         # Stage 2c: proactive signal scan                — later phase
-        # Stage 3: Wizard A (arc classification)        — Tier 2A-5
+
+        # Stage 3: Wizard A v2 — journeys, evidence-cited arcs, leading layer
+        wa_step, wa_duration, wa_summary = run_wizard_a_step(customer_id, changed_account_ids, mode)
+        if wa_step:
+            steps.append(wa_step)
+        timings['wizard_a'] = wa_duration
 
         # Item 38: stakeholder→decision INVOLVES linking, after Wizard A.
         _t = time.time()
@@ -465,7 +471,11 @@ def _process_data_impl(customer_id: int, mode: str = 'auto') -> dict:
             'kpi_measurements': kpi_count,
             'csv_files_processed': files_processed,
             'steps_completed': steps,
-            'context_graph_audit': None,  # populated once Wizard A is ported
+            'context_graph_audit': None,  # invariant audit — later phase
+            'wizard_a': (
+                {'coverage': wa_summary['coverage'], 'arcs': wa_summary['arcs']}
+                if wa_summary else None
+            ),
             'errors': errors,
             'duration_s': duration,
             'timings': timings,

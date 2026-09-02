@@ -20,6 +20,15 @@
       "items": {"type": "string", "pattern": "^[a-z_]+$"},
       "uniqueItems": true
     },
+    "signal_roles": {
+      "type": "object",
+      "description": "role name -> signal subtypes. Keys starting with '_' are documentation. A subtype may belong to exactly one role; an overlay may add subtypes to a role but not move a base subtype to another role.",
+      "additionalProperties": {
+        "type": "array",
+        "items": {"type": "string", "pattern": "^[a-z_]+$"},
+        "uniqueItems": true
+      }
+    },
     "revenue_buckets": {
       "type": "object",
       "additionalProperties": false,
