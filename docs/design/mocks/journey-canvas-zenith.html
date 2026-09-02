@@ -4,40 +4,40 @@
 <style>
 :root{
   color-scheme:light;
-  --ground:#f5f6f3; --surface:#fcfdfb; --surface-2:#eef1ed;
+  --ground:#f5f6f3; --surface:#fcfdfb; --surface-2:#eef1ed; --surface-3:#e4e9e5;
   --ink:#101816; --ink-2:#4d5955; --ink-3:#7f8b87; --hair:#dfe3df; --hair-2:#cfd5d1;
   --accent:#1f5f5b; --accent-ink:#ffffff;
   --trailing:#2a78d6; --leading:#eda100;
   --neg:#d03b3b; --pos:#0ca30c; --neutral-mark:#7f8b87;
   --wash-neg:rgba(208,59,59,.07); --wash-pos:rgba(12,163,12,.07); --wash-trailing:rgba(42,120,214,.08); --wash-leading:rgba(237,161,0,.10);
-  --wash-now:rgba(31,95,91,.06); --wash-window:rgba(208,59,59,.05);
+  --wash-now:rgba(31,95,91,.06); --wash-window:rgba(208,59,59,.05); --wash-fan:rgba(208,59,59,.10); --wash-fan-2:rgba(208,59,59,.05);
   --shadow:0 1px 0 rgba(16,24,22,.06);
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
     color-scheme:dark;
-    --ground:#0e1312; --surface:#141a19; --surface-2:#1b2321;
+    --ground:#0e1312; --surface:#141a19; --surface-2:#1b2321; --surface-3:#243030;
     --ink:#eef1ee; --ink-2:#b7c2be; --ink-3:#8a9793; --hair:#26302e; --hair-2:#33403d;
     --accent:#7fc2bb; --accent-ink:#0e1312;
     --trailing:#3987e5; --leading:#c98500;
     --wash-neg:rgba(208,59,59,.14); --wash-pos:rgba(12,163,12,.12); --wash-trailing:rgba(57,135,229,.12); --wash-leading:rgba(201,133,0,.14);
-    --wash-now:rgba(127,194,187,.08); --wash-window:rgba(208,59,59,.08);
+    --wash-now:rgba(127,194,187,.08); --wash-window:rgba(208,59,59,.08); --wash-fan:rgba(208,59,59,.18); --wash-fan-2:rgba(208,59,59,.09);
     --shadow:none;
   }
 }
 :root[data-theme="dark"]{
   color-scheme:dark;
-  --ground:#0e1312; --surface:#141a19; --surface-2:#1b2321;
+  --ground:#0e1312; --surface:#141a19; --surface-2:#1b2321; --surface-3:#243030;
   --ink:#eef1ee; --ink-2:#b7c2be; --ink-3:#8a9793; --hair:#26302e; --hair-2:#33403d;
   --accent:#7fc2bb; --accent-ink:#0e1312;
   --trailing:#3987e5; --leading:#c98500;
   --wash-neg:rgba(208,59,59,.14); --wash-pos:rgba(12,163,12,.12); --wash-trailing:rgba(57,135,229,.12); --wash-leading:rgba(201,133,0,.14);
-  --wash-now:rgba(127,194,187,.08); --wash-window:rgba(208,59,59,.08);
+  --wash-now:rgba(127,194,187,.08); --wash-window:rgba(208,59,59,.08); --wash-fan:rgba(208,59,59,.18); --wash-fan-2:rgba(208,59,59,.09);
   --shadow:none;
 }
 *{box-sizing:border-box}
 body{margin:0;background:var(--ground);color:var(--ink);font:15px/1.5 "IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif}
-.page{max-width:1320px;margin:0 auto;padding:28px 24px 64px}
+.page{max-width:1360px;margin:0 auto;padding:28px 24px 64px}
 h1,h2,h3{font-family:"IBM Plex Serif",Georgia,serif;font-weight:500;text-wrap:balance;margin:0}
 h1{font-size:28px;line-height:1.2}
 h2{font-size:18px;margin-bottom:8px}
@@ -47,39 +47,43 @@ h2{font-size:18px;margin-bottom:8px}
 .masthead{display:flex;justify-content:space-between;align-items:flex-end;gap:24px;padding-bottom:16px;border-bottom:1px solid var(--hair-2)}
 .masthead .sub{color:var(--ink-2);margin-top:4px}
 .badge{display:inline-flex;align-items:center;gap:6px;padding:3px 8px;border:1px solid var(--hair-2);border-radius:3px;font:500 11px/1.2 "IBM Plex Mono",monospace;letter-spacing:.04em;color:var(--ink-2);background:var(--surface)}
-.badge.warn{border-color:var(--neg);color:var(--ink)}
 .badge .dot{width:8px;height:8px;border-radius:50%;display:inline-block}
+.band{display:flex;align-items:baseline;gap:12px;margin:26px 0 10px}
+.band h2{margin:0} .band .eyebrow{margin-left:auto}
 /* Band 2 — now */
-.now{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:1px;background:var(--hair);border:1px solid var(--hair);margin-top:20px}
-.tile{background:var(--surface);padding:14px 16px;min-height:112px;display:flex;flex-direction:column;gap:6px}
-.tile .label{font-size:12px;color:var(--ink-3)}
+.now{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:1px;background:var(--hair);border:1px solid var(--hair)}
+.tile{background:var(--surface);padding:14px 16px;min-height:168px;display:flex;flex-direction:column;gap:6px}
+.tile .label{font-size:12px;color:var(--ink-3);display:flex;justify-content:space-between;gap:6px 8px;flex-wrap:wrap;align-items:center}
 .tile .value{font-size:30px;font-weight:600;line-height:1.05;letter-spacing:-.01em}
 .tile .value small{font-size:14px;font-weight:500;color:var(--ink-2);margin-left:4px}
-.tile .foot{font-size:12px;color:var(--ink-2);margin-top:auto}
+.tile .foot{font-size:12px;color:var(--ink-2);margin-top:auto;line-height:1.4}
 .tile.hero .value{font-size:40px}
-.pill{display:inline-block;padding:2px 8px;border-radius:999px;font:500 11px/1.4 "IBM Plex Mono",monospace;letter-spacing:.03em}
+.tile svg{display:block;width:100%;height:auto;overflow:visible}
+.pill{display:inline-block;padding:2px 8px;border-radius:999px;font:500 11px/1.4 "IBM Plex Mono",monospace;letter-spacing:.03em;white-space:nowrap}
 .pill.warn{background:var(--wash-neg);color:var(--ink);border:1px solid var(--neg)}
 .pill.ok{background:var(--wash-pos);color:var(--ink);border:1px solid var(--pos)}
 .pill.info{background:var(--wash-trailing);color:var(--ink);border:1px solid var(--trailing)}
-.meter{height:6px;background:var(--surface-2);border-radius:3px;overflow:hidden}
-.meter i{display:block;height:100%;background:var(--accent)}
+.pill.ghost{background:var(--surface-2);color:var(--ink-2);border:1px solid var(--hair-2)}
+.chips{display:flex;flex-wrap:wrap;gap:4px}
+.mini{font:11px/1.35 "IBM Plex Mono",monospace;color:var(--ink-2)}
+.mini b{color:var(--ink);font-weight:500}
 /* canvas */
-.canvas{margin-top:22px;background:var(--surface);border:1px solid var(--hair);box-shadow:var(--shadow)}
+.canvas{background:var(--surface);border:1px solid var(--hair);box-shadow:var(--shadow)}
 .canvas-head{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:12px 16px;border-bottom:1px solid var(--hair);flex-wrap:wrap}
-.legend{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--ink-2)}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--ink-2)}
 .legend span{display:inline-flex;align-items:center;gap:6px}
 .key{width:18px;height:0;border-top:2px solid var(--trailing);display:inline-block}
-.key.step{border-top-style:solid}
 .key.lead{border-top-color:var(--leading)}
+.key.proj{border-top:2px dashed var(--leading)}
 .key.exp{border-top:2px dotted var(--ink-3)}
 .sw{width:10px;height:10px;display:inline-block}
 .scrub{display:flex;align-items:center;gap:10px;font-size:12px;color:var(--ink-2)}
-.scrub input{width:220px;accent-color:var(--accent)}
+.scrub input{width:240px;accent-color:var(--accent)}
 .scrub b{font-family:"IBM Plex Mono",monospace;font-weight:500;color:var(--ink)}
 .plot{overflow-x:auto}
-svg{display:block;width:100%;height:auto;font-family:"IBM Plex Sans",system-ui,sans-serif}
-.axis text,.lane-label,.tick{font-family:"IBM Plex Mono",monospace;font-size:11px;fill:var(--ink-3)}
-.lane-label{font-size:11px;letter-spacing:.06em;text-transform:uppercase;fill:var(--ink-3)}
+svg.canvas-svg{display:block;width:100%;height:auto;font-family:"IBM Plex Sans",system-ui,sans-serif}
+.tick{font-family:"IBM Plex Mono",monospace;font-size:11px;fill:var(--ink-3)}
+.lane-label{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.06em;text-transform:uppercase;fill:var(--ink-3)}
 .hair{stroke:var(--hair);stroke-width:1}
 .hair2{stroke:var(--hair-2);stroke-width:1}
 .thresh{stroke:var(--hair-2);stroke-width:1}
@@ -87,7 +91,7 @@ svg{display:block;width:100%;height:auto;font-family:"IBM Plex Sans",system-ui,s
 .phase-label{font-family:"IBM Plex Serif",serif;font-size:12px;fill:var(--ink-2)}
 .trailing-line{fill:none;stroke:var(--trailing);stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
 .leading-line{fill:none;stroke:var(--leading);stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
-.leading-proj{fill:none;stroke:var(--leading);stroke-width:2;stroke-dasharray:2 5;stroke-linecap:round}
+.leading-proj{fill:none;stroke:var(--leading);stroke-width:2;stroke-dasharray:3 5;stroke-linecap:round}
 .expected{fill:none;stroke:var(--ink-3);stroke-width:1.5;stroke-dasharray:1 4;stroke-linecap:round}
 .gap-neg{fill:var(--wash-leading)} .gap-pos{fill:var(--wash-pos)}
 .mark{stroke:var(--surface);stroke-width:2;cursor:pointer}
@@ -95,6 +99,7 @@ svg{display:block;width:100%;height:auto;font-family:"IBM Plex Sans",system-ui,s
 .mark.hollow{fill:var(--surface);stroke-width:2}
 .mark.hollow.neg{stroke:var(--neg)} .mark.hollow.pos{stroke:var(--pos)}
 .mark.decision{fill:var(--accent);stroke:var(--surface)}
+.mark.planned{fill:var(--surface);stroke:var(--accent);stroke-dasharray:2 2}
 .hit{fill:transparent;cursor:pointer}
 .hit:focus{outline:none} .hit:focus + .mark, .mark:hover{stroke:var(--ink);stroke-width:2}
 .presence{stroke:var(--hair-2);stroke-width:6;stroke-linecap:round}
@@ -106,35 +111,36 @@ svg{display:block;width:100%;height:auto;font-family:"IBM Plex Sans",system-ui,s
 .now-label{font-family:"IBM Plex Mono",monospace;font-size:11px;fill:var(--accent);letter-spacing:.06em}
 .future{fill:var(--wash-now)}
 .window{fill:var(--wash-window)}
+.silence{fill:var(--surface-2)}
+.fan{fill:var(--wash-fan)} .fan2{fill:var(--wash-fan-2)}
+.fan-median{fill:none;stroke:var(--neg);stroke-width:2;stroke-dasharray:4 4;stroke-linecap:round}
+.outlook{fill:var(--wash-neg)} .outlook-rest{fill:var(--surface-2)}
+.trip{stroke:var(--ink-2);stroke-width:1;stroke-dasharray:2 3}
 .count{font-family:"IBM Plex Mono",monospace;font-size:10px;fill:var(--ink);font-weight:500;pointer-events:none}
 .dlabel{font-family:"IBM Plex Mono",monospace;font-size:11px;fill:var(--ink-2)}
-.tip{position:fixed;z-index:10;max-width:320px;background:var(--ink);color:var(--ground);padding:8px 10px;font-size:12px;line-height:1.4;border-radius:3px;pointer-events:none;opacity:0;transition:opacity .12s}
+.dlabel.strong{fill:var(--ink);font-weight:500}
+.tip{position:fixed;z-index:10;max-width:340px;background:var(--ink);color:var(--ground);padding:8px 10px;font-size:12px;line-height:1.4;border-radius:3px;pointer-events:none;opacity:0;transition:opacity .12s}
 .tip b{display:block;font-weight:600;margin-bottom:2px}
 .tip .m{font-family:"IBM Plex Mono",monospace;opacity:.8}
 /* below the plot */
-.grid2{display:grid;grid-template-columns:1.25fr 1fr;gap:20px;margin-top:20px}
+.grid2{display:grid;grid-template-columns:1.2fr 1fr;gap:20px;margin-top:20px}
 .card{background:var(--surface);border:1px solid var(--hair);padding:18px 20px}
 .card h2{display:flex;align-items:baseline;gap:10px}
 .story p{max-width:68ch;margin:0 0 10px;color:var(--ink);font-size:15px}
 .story .ch{font-family:"IBM Plex Serif",serif;font-size:13px;color:var(--ink-2);margin:12px 0 4px}
 .cite{font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--accent);vertical-align:super;margin-left:2px}
-.next{display:grid;grid-template-columns:1fr;gap:12px}
-.fcard{border:1px solid var(--hair);padding:12px 14px;background:var(--ground)}
-.fcard h3{font-size:14px;font-family:"IBM Plex Sans",system-ui,sans-serif;font-weight:600;margin-bottom:4px}
-.fcard .basis{font-size:12px;color:var(--ink-3);margin-top:6px}
-.fcard ul{margin:6px 0 0;padding-left:18px;font-size:13px}
-.range{display:flex;align-items:center;gap:8px;margin-top:6px}
-.range .bar{flex:1;height:10px;background:var(--surface-2);border-radius:2px;position:relative}
-.range .bar i{position:absolute;top:0;bottom:0;background:var(--wash-neg);border-left:1px solid var(--neg);border-right:1px solid var(--neg)}
-.range .bar b{position:absolute;top:-3px;width:2px;height:16px;background:var(--ink)}
+.ledger{width:100%;border-collapse:collapse;font-size:13px}
+.ledger th,.ledger td{padding:8px 8px;border-bottom:1px solid var(--hair);vertical-align:top;text-align:left}
+.ledger th{font:500 11px/1.3 "IBM Plex Mono",monospace;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-3)}
+.ledger td.when{font-family:"IBM Plex Mono",monospace;white-space:nowrap;color:var(--ink-2)}
+.ledger td.basis{font-size:12px;color:var(--ink-3)}
 .honesty{margin-top:20px;display:flex;flex-wrap:wrap;gap:8px 18px;padding:12px 16px;border:1px solid var(--hair);background:var(--surface);font-size:12px;color:var(--ink-2)}
-table{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:8px}
-th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--hair);vertical-align:top}
-th{font-weight:500;color:var(--ink-3);font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.05em;text-transform:uppercase}
+table.index{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:8px}
+table.index th,table.index td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--hair);vertical-align:top}
+table.index th{font-weight:500;color:var(--ink-3);font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.05em;text-transform:uppercase}
 td.n,th.n{text-align:right;font-variant-numeric:tabular-nums;font-family:"IBM Plex Mono",monospace}
 .notes{margin-top:24px;color:var(--ink-2);font-size:13px;max-width:78ch}
-.notes h2{margin-bottom:6px}
-@media (max-width:900px){.now{grid-template-columns:repeat(3,1fr)} .grid2{grid-template-columns:1fr}}
+@media (max-width:980px){.now{grid-template-columns:repeat(3,1fr)} .grid2{grid-template-columns:1fr}}
 @media (prefers-reduced-motion:reduce){.tip{transition:none}}
 </style>
 
@@ -151,18 +157,14 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums;font-family:"IBM Pl
     </div>
   </header>
 
+  <div class="band"><h2>Now</h2><span class="dim">the state header — every number here is one the platform can defend</span><span class="eyebrow" id="now-eyebrow"></span></div>
   <section class="now" id="now" aria-label="Current state"></section>
 
+  <div class="band"><h2>Then → now → next</h2><span class="dim">one time axis: the story, the now line, and the next six months</span>
+    <div class="scrub" style="margin-left:auto"><label for="scrub">Now:</label><input id="scrub" type="range" min="0" max="100" value="100" aria-label="Move the now line back in time"><b id="scrub-date"></b></div></div>
   <section class="canvas" aria-label="Journey timeline">
-    <div class="canvas-head">
-      <div class="legend" id="legend"></div>
-      <div class="scrub">
-        <label for="scrub">Now:</label>
-        <input id="scrub" type="range" min="0" max="100" value="100" aria-label="Move the now line back in time">
-        <b id="scrub-date"></b>
-      </div>
-    </div>
-    <div class="plot"><svg id="svg" viewBox="0 0 1280 660" role="img" aria-labelledby="svg-title"><title id="svg-title">Zenith Data Corp journey — past, now, next six months</title></svg></div>
+    <div class="canvas-head"><div class="legend" id="legend"></div></div>
+    <div class="plot"><svg class="canvas-svg" id="svg" viewBox="0 0 1320 820" role="img" aria-labelledby="svg-title"><title id="svg-title">Zenith Data Corp journey — past, now, next six months</title></svg></div>
   </section>
 
   <div class="grid2">
@@ -170,9 +172,9 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums;font-family:"IBM Pl
       <h2>The story <span class="eyebrow">every sentence cites an episode</span></h2>
       <div id="story"></div>
     </section>
-    <section class="card" aria-label="Next 3 to 6 months">
-      <h2>The next 3–6 months <span class="eyebrow">for the renewal decision</span></h2>
-      <div class="next" id="next"></div>
+    <section class="card" aria-label="Forecast ledger">
+      <h2>Forecast ledger <span class="eyebrow">what we expect · on what basis · what changes it</span></h2>
+      <table class="ledger" id="ledger"></table>
     </section>
   </div>
 
@@ -180,12 +182,12 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums;font-family:"IBM Pl
 
   <section class="card" style="margin-top:20px" aria-label="Episode index">
     <h2>Episode index <span class="eyebrow">table view of every mark</span></h2>
-    <div style="overflow-x:auto"><table id="index"></table></div>
+    <div style="overflow-x:auto"><table class="index" id="index"></table></div>
   </section>
 
   <section class="notes">
     <h2>Design notes</h2>
-    <p>Rendered from the new build's journey v3 for this account — nothing here is hand-typed. Three bands share one time axis: the state header (now), the story (past) and the forecast (next), with the now line as a scrubber so the forecast can be audited against what was known earlier. Realized ARR movement is drawn solid; narrative outcomes hollow. Signals are placed by role and colored by polarity with a shape as the second channel; where the source sentiment contradicts the role, the mark is flagged rather than trusted. Forward statements carry their basis and, on this tenant, say plainly that no loss event exists to calibrate against.</p>
+    <p>Rendered from the new build's journey v3 for this account — nothing here is hand-typed. Three bands share one time axis: the state header (now), the story (past) and the forecast (next), with the now line as a scrubber so the forecast can be audited against what was known earlier. Realized ARR movement is drawn solid; narrative outcomes hollow. Signals sit by role and are colored by polarity with a shape as the second channel; where the source sentiment contradicts the role, the mark is flagged rather than trusted. Every forward mark on the canvas has a row in the forecast ledger stating its basis; on this tenant the likelihood fan is a prior, and says so.</p>
   </section>
 </div>
 <div class="tip" id="tip" role="status" aria-live="polite"></div>
@@ -196,20 +198,19 @@ const NS = 'http://www.w3.org/2000/svg';
 const fmtUSD = v => '$' + (Math.abs(v) >= 1e6 ? (v/1e6).toFixed(v%1e6?2:1).replace(/\.0$/,'') + 'M' : (v/1e3).toFixed(0) + 'K');
 const fmtSignedUSD = v => (v < 0 ? '−' : '+') + fmtUSD(Math.abs(v));
 const dt = s => new Date(s.length === 10 ? s + 'T00:00:00' : s);
-const iso = d => d.toISOString().slice(0,10);
 const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const fmtD = d => `${MON[d.getMonth()]} ${d.getDate()}, ${String(d.getFullYear()).slice(2)}`;
 const fmtM = d => `${MON[d.getMonth()]} ${String(d.getFullYear()).slice(2)}`;
 const addDays = (d,n) => new Date(d.getTime() + n*864e5);
 const monthEnd = s => { const d = dt(s); return new Date(d.getFullYear(), d.getMonth()+1, 0); };
+const clean = t => t.replace(/ \(Zenith Data Corp\)/,'').replace(/ — Zenith Data Corp/,'');
 
-// ---- derived, whole-journey facts ---------------------------------------
+// ---- whole-journey facts ----------------------------------------------------
 const AS_OF = dt(D.as_of.slice(0,10));
 const renewal = dt(D.account.profile.renewal_date);
+const contractStart = dt(D.account.profile.contract_start);
 const ROLE_LABEL = {usage_decline:'Usage decline', engagement_decline:'Engagement decline', commercial_pressure:'Commercial pressure', escalation:'Escalation', infra_incident:'Infra incident', champion_change:'Champion change', recovery:'Recovery', advocacy:'Advocacy', expansion_intent:'Expansion intent', intervention:'CSM intervention', routine:'Routine', crm_flag:'CSM risk flag'};
 const ROLE_POL = {usage_decline:-1, engagement_decline:-1, commercial_pressure:-1, escalation:-1, infra_incident:-1, champion_change:-1, capacity_pressure:-1, delivery_stall:-1, recovery:1, advocacy:1, expansion_intent:1, expansion_realized:1};
-
-// dedupe identical same-day signals (same title + date) → ×n; flag polarity conflicts
 const sigs = [];
 for (const e of D.episodes.filter(e => e.kind === 'signal')) {
   const key = e.date.slice(0,10) + '|' + e.title;
@@ -220,138 +221,212 @@ for (const e of D.episodes.filter(e => e.kind === 'signal')) {
   sigs.push({key, n:1, ids:[e.episode_id], e, pol: rolePol !== 0 ? rolePol : Math.sign(e.sentiment||0), conflict});
 }
 const outcomes = D.episodes.filter(e => e.kind === 'outcome');
-const decisions = D.episodes.filter(e => e.kind === 'decision' || (e.kind === 'signal' && e.role === 'intervention'));
-const transitions = D.episodes.filter(e => e.kind === 'health_transition');
 const seq = {}; D.episodes.forEach((e,i) => seq[e.episode_id] = i+1);
 const byId = Object.fromEntries(D.episodes.map(e => [e.episode_id, e]));
 const roles = [...new Set(sigs.map(s => s.e.role || 'unmapped'))].sort((a,b) => (ROLE_POL[a]||0) - (ROLE_POL[b]||0) || a.localeCompare(b));
+const REALIZED = ['lost','expansion'];
 
-// ---- header (Band 2) --------------------------------------------------------
-function header(now) {
-  const s = [...D.series].filter(x => monthEnd(x.month) <= addDays(now, 1)).pop() || D.series[0];
-  const daysToRenewal = Math.round((renewal - now)/864e5);
-  const arc = D.arc;
-  const lost = outcomes.filter(o => o.revenue_bucket === 'lost' && dt(o.date) <= now).reduce((a,o)=>a+Math.abs(o.revenue||0),0);
-  const exp = outcomes.filter(o => o.revenue_bucket === 'expansion' && dt(o.date) <= now).reduce((a,o)=>a+Math.abs(o.revenue||0),0);
-  const atRisk = outcomes.filter(o => o.revenue_bucket === 'at_risk' && dt(o.date) <= now).reduce((a,o)=>a+Math.abs(o.revenue||0),0);
-  const prot = outcomes.filter(o => o.revenue_bucket === 'protected' && dt(o.date) <= now).reduce((a,o)=>a+Math.abs(o.revenue||0),0);
-  const arr = D.account.arr;
-  const nrr = (arr - lost + exp)/arr;
-  const div = s.divergence;
-  const divLabel = s.early_warning === 'early_warning' ? 'behavior ahead of the numbers' : s.early_warning === 'recovery_watch' ? 'behavior recovering ahead of the numbers' : s.early_warning === 'aligned' ? 'aligned with the numbers' : 'no signals in window';
-  const phaseNow = (D.phases.filter(p => dt(p.entered_at) <= now).pop() || {}).name || '—';
-  const openWarn = D.series.filter(x => x.early_warning === 'early_warning' && monthEnd(x.month) <= now).length;
-  const people = D.stakeholders.map(x => x.node_subtype);
-  const kpiCls = s.kpi_only >= 70 ? 'ok' : s.kpi_only >= 50 ? 'warn' : 'warn';
-  document.getElementById('now').innerHTML = `
-    <div class="tile hero"><div class="label">Health — KPI layer <span class="muted">(the only number that feeds anything financial)</span></div>
-      <div class="value">${s.kpi_only.toFixed(1)}</div>
-      <div class="foot"><span class="pill ${s.kpi_only>=70?'ok':'warn'}">${s.kpi_only>=70?'healthy':s.kpi_only>=50?'at risk':'critical'}</span> <span class="mono">${fmtM(dt(s.month))}</span></div></div>
-    <div class="tile"><div class="label">Leading — behavioral layer</div>
-      <div class="value">${s.qual == null ? '—' : s.qual.toFixed(1)}<small>${div == null ? '' : (div>0?'+':'') + div.toFixed(1)}</small></div>
-      <div class="foot"><span class="pill ${s.early_warning==='early_warning'?'warn':s.early_warning==='recovery_watch'?'ok':'info'}">${s.early_warning || 'silent'}</span> ${divLabel}</div></div>
-    <div class="tile"><div class="label">Arc hypothesis</div>
-      <div class="value" style="font-size:20px;font-family:'IBM Plex Serif',serif;font-weight:500">${arc.arc_type ? arc.arc_type.replace(/_/g,' ') : arc.state}</div>
-      <div class="foot">phase <b>${phaseNow}</b> · ${arc.supporting_episode_ids.length} episodes cite this · rule-match confidence ${arc.confidence ?? '—'}<br><span class="muted">almost: ${arc.alternatives.map(a=>a.arc_type.replace(/_/g,' ')).join(', ') || 'none'}</span></div></div>
-    <div class="tile"><div class="label">Renewal</div>
-      <div class="value">${daysToRenewal}<small>days</small></div>
-      <div class="meter" title="days to renewal"><i style="width:${Math.max(4,Math.min(100, 100 - daysToRenewal/365*100))}%"></i></div>
-      <div class="foot">${fmtD(renewal)} · ARR ${fmtUSD(arr)} · ${D.account.profile.tier}<br><span class="muted">${daysToRenewal<=90?'inside the 90-day risk window':'risk window opens '+fmtD(addDays(renewal,-90))}</span></div></div>
-    <div class="tile"><div class="label">Realized NRR</div>
-      <div class="value">${(nrr*100).toFixed(0)}<small>%</small></div>
-      <div class="foot">lost ${fmtUSD(lost)} · booked ${fmtUSD(exp)}<br><span class="muted">narrative: ${fmtUSD(atRisk)} flagged at risk · ${fmtUSD(prot)} protected — not ARR movement</span></div></div>
-    <div class="tile"><div class="label">People &amp; open warnings</div>
-      <div class="foot" style="margin-top:0;font-size:13px">${['champion','executive_sponsor','csm'].map(r => `<span class="pill ${people.includes(r)?'ok':'warn'}">${r.replace('_',' ')} ${people.includes(r)?'✓':'—'}</span>`).join(' ')}</div>
-      <div class="foot">${openWarn} early-warning month${openWarn===1?'':'s'} so far · no loss event yet — the renewal is the test</div></div>`;
+// ---- forecast model (transparent, prior-only on this tenant) ------------------
+// P(loss event by renewal): no loss events in this tenant's history → arc prior only.
+// The prior's shape is explicit: the tenant's own baseline→deterioration transition
+// probability (p_det, ~1.4 mo) times an assumed conversion from deterioration to a
+// loss decision at renewal, bracketed wide [0.10, 1.0] because nothing calibrates it.
+function forecast(now) {
+  const phaseNow = (D.phases.filter(p => dt(p.entered_at) <= now).pop() || {}).name || 'baseline';
+  const t = D.wizard_b.transitions;
+  const outs = Object.entries(t).filter(([k]) => k.startsWith(phaseNow + '→')).map(([k,v]) => ({to:k.split('→')[1], ...v}));
+  const det = outs.find(o => o.to === 'deterioration') || outs.find(o => o.to === 'intervention');
+  const pDet = det ? det.probability : 0.5, moDet = det ? det.avg_months_before_transition : 1.5;
+  const lastSig = sigs.filter(s => dt(s.e.date) <= now).map(s => dt(s.e.date)).sort((a,b)=>b-a)[0];
+  const silent = lastSig ? addDays(lastSig, 60) : null;
+  const daysToRenewal = Math.max(0, Math.round((renewal - now)/864e5));
+  const lo = Math.round(pDet * 0.10 * 100) / 100, med = Math.round(pDet * 0.55 * 100) / 100, hi = Math.round(pDet * 1.0 * 100) / 100;
+  return {phaseNow, outs, det, pDet, moDet, silent, daysToRenewal, lo, med, hi,
+          calibrated: D.wizard_b.h1.events >= 10,
+          events: D.wizard_b.h1.events, account_months: D.wizard_b.h1.account_months,
+          windowOpens: addDays(renewal, -90),
+          actions: (D.expected_path ? D.expected_path.typical_decisions.filter(d => d.phase_id >= 3) : []).slice(0,2)};
 }
 
-// ---- canvas -------------------------------------------------------------------
-const W = 1280, H = 660, L = 132, R = 24;
-const X0 = new Date(2025,5,15), X1 = new Date(2026,8,30);
-const x = d => L + (d - X0)/(X1 - X0) * (W - L - R);
-const HY0 = 56, HY1 = 236;                 // health region (score 100 → HY0, 20 → HY1)
-const y = v => HY0 + (100 - v)/80 * (HY1 - HY0);
-const SIG_Y0 = 290, SIG_ROW = 22;          // signal rows by role
-const PEOPLE_Y0 = SIG_Y0 + roles.length*SIG_ROW + 34;
-const ACT_Y = PEOPLE_Y0 + 4*20 + 40;       // actions & outcomes
-const AX_Y = ACT_Y + 52;
-
+// ---- tiny SVG helpers -------------------------------------------------------------
 function el(tag, attrs, parent) { const n = document.createElementNS(NS, tag); for (const k in attrs) n.setAttribute(k, attrs[k]); if (parent) parent.appendChild(n); return n; }
 function text(parent, x_, y_, s, cls, attrs={}) { const t = el('text', {x:x_, y:y_, class:cls, ...attrs}, parent); t.textContent = s; return t; }
 const tip = document.getElementById('tip');
 function bindTip(node, html) {
-  const show = ev => { tip.innerHTML = html; tip.style.opacity = 1; const px = (ev.clientX ?? 0) + 14, py = (ev.clientY ?? 0) + 14; tip.style.left = Math.min(px, window.innerWidth - 340) + 'px'; tip.style.top = py + 'px'; };
-  node.addEventListener('mousemove', show); node.addEventListener('focus', ev => { const r = node.getBoundingClientRect(); show({clientX:r.left, clientY:r.top}); });
+  const show = ev => { tip.innerHTML = html; tip.style.opacity = 1; const px = (ev.clientX ?? 0) + 14, py = (ev.clientY ?? 0) + 14; tip.style.left = Math.min(px, window.innerWidth - 360) + 'px'; tip.style.top = py + 'px'; };
+  node.addEventListener('mousemove', show); node.addEventListener('focus', () => { const r = node.getBoundingClientRect(); show({clientX:r.left, clientY:r.top}); });
   node.addEventListener('mouseleave', () => tip.style.opacity = 0); node.addEventListener('blur', () => tip.style.opacity = 0);
 }
+
+// ---- Band 2: NOW -----------------------------------------------------------------------
+function header(now) {
+  const ser = D.series.filter(x => monthEnd(x.month) <= addDays(now, 1));
+  const s = ser[ser.length-1] || D.series[0];
+  const F = forecast(now);
+  const arr = D.account.arr;
+  const sum = (bucket) => outcomes.filter(o => o.revenue_bucket === bucket && dt(o.date) <= now).reduce((a,o)=>a+Math.abs(o.revenue||0),0);
+  const lost = sum('lost'), exp = sum('expansion'), atRisk = sum('at_risk'), prot = sum('protected');
+  const nrr = (arr - lost + exp)/arr;
+  const div = s.divergence;
+  const divLabel = s.early_warning === 'early_warning' ? 'behavior ahead of the numbers' : s.early_warning === 'recovery_watch' ? 'behavior recovering ahead of the numbers' : s.early_warning === 'aligned' ? 'aligned with the numbers' : 'no signals in window';
+  const openWarn = ser.filter(x => x.early_warning === 'early_warning').length;
+  const people = D.stakeholders.map(x => x.node_subtype);
+  const arc = D.arc;
+
+  // sparkline: both layers, 9 months, thresholds
+  const W=240, H=54, n = D.series.length, PW = 206;
+  const sx = i => 4 + i*(PW-8)/(n-1), sy = v => H - 4 - (v-20)/80*(H-8);
+  const trail = ser.map((x,i) => `${i?'L':'M'}${sx(i)},${sy(x.kpi_only)}`).join(' ');
+  const lead = ser.map((x,i) => x.qual==null?null:[sx(i),sy(x.qual)]).filter(Boolean);
+  const spark = `<svg viewBox="0 0 ${W} ${H}" aria-hidden="true">
+    <line x1="4" x2="${PW}" y1="${sy(70)}" y2="${sy(70)}" class="thresh"/><line x1="4" x2="${PW}" y1="${sy(50)}" y2="${sy(50)}" class="thresh"/>
+    ${ser.map((x,i)=> x.qual==null?'':`<rect x="${sx(i)-((PW-8)/(n-1))/2}" y="${Math.min(sy(x.qual),sy(x.kpi_only))}" width="${(PW-8)/(n-1)}" height="${Math.abs(sy(x.qual)-sy(x.kpi_only))}" class="${x.divergence<0?'gap-neg':'gap-pos'}"/>`).join('')}
+    <path d="${trail}" class="trailing-line"/><path d="${lead.map((p,i)=>(i?'L':'M')+p[0]+','+p[1]).join(' ')}" class="leading-line"/>
+    ${ser.length?`<circle cx="${sx(ser.length-1)}" cy="${sy(s.kpi_only)}" r="4" fill="var(--trailing)" stroke="var(--surface)" stroke-width="2"/>`:''}
+    ${lead.length?`<circle cx="${lead[lead.length-1][0]}" cy="${lead[lead.length-1][1]}" r="4" fill="var(--leading)" stroke="var(--surface)" stroke-width="2"/>`:''}
+    <text x="${PW+6}" y="${sy(70)+4}" class="tick">70</text><text x="${PW+6}" y="${sy(50)+4}" class="tick">50</text></svg>`;
+  // divergence bar (signed, ±60)
+  const dw = 220, dc = dw/2, dx = div==null?0:Math.max(-60,Math.min(60,div))/60*(dc-6);
+  const divbar = `<svg viewBox="0 0 ${dw} 26" aria-hidden="true"><line x1="6" x2="${dw-6}" y1="13" y2="13" class="hair2"/><line x1="${dc}" x2="${dc}" y1="4" y2="22" class="hair2"/>
+    <rect x="${Math.min(dc,dc+dx)}" y="7" width="${Math.abs(dx)}" height="12" fill="${div<0?'var(--neg)':'var(--pos)'}" opacity=".85"/>
+    <text x="6" y="25" class="tick">−60</text><text x="${dw-6}" y="25" class="tick" text-anchor="end">+60</text></svg>`;
+  // phase strip
+  const p0 = dt(D.phases[0].entered_at), pw = 220;
+  const px = d => 4 + (d - p0)/(now - p0)*(pw-8);
+  const phases = D.phases.filter(p => dt(p.entered_at) <= now);
+  const strip = `<svg viewBox="0 0 ${pw} 22" aria-hidden="true">${phases.map((p,i)=>{const a=dt(p.entered_at), b=p.exited_at&&dt(p.exited_at)<=now?dt(p.exited_at):now; return `<rect x="${px(a)}" y="4" width="${Math.max(2,px(b)-px(a)-2)}" height="12" class="phase ${p.name}"/>`}).join('')}
+    ${phases.map((p)=>{const a=dt(p.entered_at); return `<text x="${px(a)+3}" y="14" class="tick">${p.name.slice(0,5)}</text>`}).join('')}</svg>`;
+  // renewal countdown
+  const cw = 220, cx = d => 4 + (d - contractStart)/(renewal - contractStart)*(cw-8);
+  const countdown = `<svg viewBox="0 0 ${cw} 30" aria-hidden="true"><rect x="4" y="8" width="${cw-8}" height="8" rx="2" fill="var(--surface-2)"/>
+    <rect x="${cx(F.windowOpens)}" y="8" width="${cx(renewal)-cx(F.windowOpens)}" height="8" class="window" stroke="var(--neg)" stroke-width="1"/>
+    <rect x="4" y="8" width="${Math.max(0,cx(now)-4)}" height="8" rx="2" fill="var(--accent)" opacity=".7"/>
+    <line x1="${cx(now)}" x2="${cx(now)}" y1="3" y2="21" class="now-line"/>
+    <text x="4" y="29" class="tick">${fmtM(contractStart)}</text><text x="${cx(F.windowOpens)}" y="5" class="tick" text-anchor="middle">−90 d</text><text x="${cw-4}" y="29" class="tick" text-anchor="end">${fmtM(renewal)}</text></svg>`;
+  // products
+  const prods = D.account.profile.products || [];
+  const maxArr = Math.max(...prods.map(p=>p.arr));
+  const prodbars = `<svg viewBox="0 0 250 ${prods.length*16+2}" aria-hidden="true">${prods.map((p,i)=>`<rect x="0" y="${i*16+3}" width="${p.arr/maxArr*60}" height="9" fill="var(--trailing)" opacity=".75"/><text x="66" y="${i*16+11}" class="tick">${p.name.length>22?p.name.slice(0,21)+'…':p.name} · ${fmtUSD(p.arr)}</text>`).join('')}</svg>`;
+  // realized vs narrative
+  const rmax = Math.max(1, lost, exp, atRisk, prot);
+  const bar = (v,cls,label,y) => `<rect x="0" y="${y}" width="${v/rmax*70}" height="9" ${cls}/><text x="76" y="${y+8}" class="tick">${label} ${fmtUSD(v)}</text>`;
+  const revbars = `<svg viewBox="0 0 250 70" aria-hidden="true">
+    ${bar(lost,'fill="var(--neg)"','lost',2)}${bar(exp,'fill="var(--pos)"','booked',18)}
+    ${bar(atRisk,'fill="var(--surface)" stroke="var(--neg)" stroke-width="1.5"','at risk (narr.)',36)}${bar(prot,'fill="var(--surface)" stroke="var(--pos)" stroke-width="1.5"','protected (narr.)',52)}</svg>`;
+
+  const champScore = D.account.profile.primary_champion_engagement_score;
+  document.getElementById('now').innerHTML = `
+    <div class="tile hero"><div class="label"><span>Health — KPI layer</span><span class="pill ${s.kpi_only>=70?'ok':'warn'}">${s.kpi_only>=70?'healthy':s.kpi_only>=50?'at risk':'critical'}</span></div>
+      <div class="value">${s.kpi_only.toFixed(1)}</div>${spark}
+      <div class="foot">${fmtM(dt(s.month))} · slope ${(D.features.health_slope_1mo>0?'+':'')}${D.features.health_slope_1mo}/mo · lowest ${Math.min(...ser.map(x=>x.kpi_only)).toFixed(1)}<br><span class="muted">the only number that feeds anything financial</span></div></div>
+    <div class="tile"><div class="label"><span>Leading — behavioral layer</span><span class="pill ${s.early_warning==='early_warning'?'warn':s.early_warning==='recovery_watch'?'ok':'info'}">${s.early_warning || 'silent'}</span></div>
+      <div class="value">${s.qual == null ? '—' : s.qual.toFixed(1)}<small>${div == null ? '' : (div>0?'+':'') + div.toFixed(1)} vs KPI</small></div>${divbar}
+      <div class="chips">${Object.entries(s.roles||{}).map(([r,n])=>`<span class="pill ${ (ROLE_POL[r]||0)<0?'warn':(ROLE_POL[r]||0)>0?'ok':'ghost'}">${ROLE_LABEL[r]||r}${n>1?' ×'+n:''}</span>`).join('')}</div>
+      <div class="foot">${divLabel} · ${openWarn} early-warning month${openWarn===1?'':'s'} so far</div></div>
+    <div class="tile"><div class="label"><span>Arc hypothesis</span><span class="pill ghost">phase ${F.phaseNow}</span></div>
+      <div class="value" style="font-size:22px;font-family:'IBM Plex Serif',serif;font-weight:500">${arc.arc_type ? arc.arc_type.replace(/_/g,' ') : arc.state}</div>${strip}
+      <div class="chips">cited by ${arc.supporting_episode_ids.map(id=>`<span class="pill ghost">#${seq[id]}</span>`).join('')}</div>
+      <div class="foot">rule-match constant ${arc.confidence ?? '—'} — not a probability · almost: ${arc.alternatives.map(a=>a.arc_type.replace(/_/g,' ')).join(', ') || 'none'}</div></div>
+    <div class="tile"><div class="label"><span>Renewal</span><span class="pill ${F.daysToRenewal<=90?'warn':'ghost'}">${F.daysToRenewal<=90?'inside risk window':'window opens '+MON[F.windowOpens.getMonth()]+' '+F.windowOpens.getDate()}</span></div>
+      <div class="value">${F.daysToRenewal}<small>days</small></div>${countdown}
+      <div class="mini"><b>${fmtUSD(arr)}</b> ARR · ${D.account.profile.tier} · adoption ${D.account.profile.product_adoption ?? '—'}</div>${prodbars}</div>
+    <div class="tile"><div class="label"><span>Realized NRR</span><span class="pill ghost">lost &amp; booked only</span></div>
+      <div class="value">${(nrr*100).toFixed(0)}<small>%</small></div>${revbars}
+      <div class="foot"><span class="muted">narrative outcomes are flagged, not summed — the old header added them to ARR</span></div></div>
+    <div class="tile"><div class="label"><span>People</span><span class="pill ghost">${people.length} on roster</span></div>
+      <div class="chips" style="margin-top:2px">${['champion','executive_sponsor','csm','cs_manager'].map(r => `<span class="pill ${people.includes(r)?'ok':'warn'}">${r.replace('_',' ')} ${people.includes(r)?'✓':'—'}</span>`).join('')}</div>
+      <div class="mini" style="margin-top:6px"><b>${D.account.profile.primary_champion_name}</b> · ${D.account.profile.primary_champion_title}<br>engagement ${champScore}/100 · declined last two QBRs (Oct 15)<br><b>${D.account.profile.csm_name}</b> · CSM since Mar 8, 26 (new)<br><b>${D.account.profile.executive_sponsor}</b> · exec sponsor</div>
+      <div class="foot">no loss event yet — the renewal is the test</div></div>`;
+  document.getElementById('now-eyebrow').textContent = `as of ${fmtD(now)}`;
+}
+
+// ---- canvas geometry --------------------------------------------------------------------
+const W = 1320, H = 820, L = 200, R = 28;
+const X0 = new Date(2025,5,15), X1 = new Date(2026,8,30);
+const x = d => L + (d - X0)/(X1 - X0) * (W - L - R);
+const HY0 = 64, HY1 = 250;
+const y = v => HY0 + (100 - v)/80 * (HY1 - HY0);
+const SIG_Y0 = 312, SIG_ROW = 22;
+const PEOPLE_Y0 = SIG_Y0 + roles.length*SIG_ROW + 36;
+const ACT_Y = PEOPLE_Y0 + 4*20 + 44;
+const FC_Y0 = ACT_Y + 104, FC_Y1 = FC_Y0 + 96;
+const fy = p => FC_Y1 - p*(FC_Y1 - FC_Y0);
+const AX_Y = FC_Y1 + 12;
 
 function draw(now) {
   const svg = document.getElementById('svg'); svg.innerHTML = '';
   const g = el('g', {}, svg);
-  // month grid + axis
+  const F = forecast(now);
+  // grid + axis
   for (let d = new Date(2025,6,1); d <= X1; d = new Date(d.getFullYear(), d.getMonth()+1, 1)) {
     el('line', {x1:x(d), x2:x(d), y1:HY0-8, y2:AX_Y, class:'hair'}, g);
     text(g, x(d)+4, AX_Y+16, fmtM(d), 'tick');
   }
-  // future wash + now line
+  // future wash, renewal window
   el('rect', {x:x(now), y:HY0-8, width:x(X1)-x(now), height:AX_Y-HY0+8, class:'future'}, g);
-  // renewal window
-  el('rect', {x:x(addDays(renewal,-90)), y:HY0-8, width:x(renewal)-x(addDays(renewal,-90)), height:AX_Y-HY0+8, class:'window'}, g);
+  el('rect', {x:x(F.windowOpens), y:HY0-8, width:x(renewal)-x(F.windowOpens), height:AX_Y-HY0+8, class:'window'}, g);
   el('line', {x1:x(renewal), x2:x(renewal), y1:HY0-8, y2:AX_Y, class:'hair2'}, g);
   text(g, x(renewal)+4, HY0-14, 'renewal ' + fmtD(renewal), 'flag');
-  text(g, x(addDays(renewal,-90))+4, HY0-14, '90-day risk window →', 'flag');
+  text(g, x(F.windowOpens)+4, HY0-14, '90-day risk window →', 'flag');
 
-  // phases (backdrop across health region)
+  // ── phases (past) + outlook strip (future) ──
   const phases = D.phases.filter(p => dt(p.entered_at) <= now);
   phases.forEach((p, i) => {
-    const start = dt(p.entered_at); const end = p.exited_at && dt(p.exited_at) <= now ? dt(p.exited_at) : (i === phases.length-1 ? now : dt(p.exited_at));
+    const start = dt(p.entered_at); const end = p.exited_at && dt(p.exited_at) <= now ? dt(p.exited_at) : now;
     el('rect', {x:x(start), y:HY0-8, width:Math.max(0,x(end)-x(start)), height:HY1-HY0+8, class:'phase ' + p.name}, g);
-    text(g, x(start)+6, HY0+6, p.name + (p.trigger_episode_id && byId[p.trigger_episode_id] ? '  ← ' + seq[p.trigger_episode_id] : ''), 'phase-label');
+    const lbl = p.name + (p.trigger_episode_id && byId[p.trigger_episode_id] ? '  ← ' + seq[p.trigger_episode_id] : '');
+    if (x(end) - x(start) < 110) text(g, x(end)-6, HY0+6, lbl, 'phase-label', {'text-anchor':'end'});
+    else text(g, x(start)+6, HY0+6, lbl, 'phase-label');
   });
-  // thresholds
+  if (F.det) { // phase outlook: expected transition window, split by probability
+    const t0 = now, t1 = addDays(now, Math.round(F.moDet*30));
+    el('rect', {x:x(t0), y:HY0-8, width:x(t1)-x(t0), height:10, class:'outlook-rest'}, g);
+    el('rect', {x:x(t0), y:HY0-8, width:(x(t1)-x(t0))*F.pDet, height:10, class:'outlook'}, g);
+    const lbl = text(g, x(t0)+6, HY0+14, `outlook: → ${F.det.to} ${Math.round(F.pDet*100)}% in ~${F.moDet.toFixed(1)} mo (${F.det.count} of ${Math.round(F.det.count/F.det.probability)} here)`, 'phase-label');
+    bindTip(lbl, `<b>Expected next phase — a prior, not a prediction</b><span class="m">From ${F.phaseNow}, this tenant's history: → ${F.det.to} in ${F.det.count} of ${Math.round(F.det.count/F.det.probability)} phase segments, after ~${F.moDet} months; most often triggered by ${Object.keys(F.det.triggers)[0]}. Source: Wizard B transition matrix.</span>`);
+  }
+  // thresholds + lane labels
   [[70,'healthy'],[50,'at risk']].forEach(([v,l]) => { el('line', {x1:L, x2:x(X1), y1:y(v), y2:y(v), class:'thresh'}, g); text(g, L-8, y(v)+4, `${v} ${l}`, 'tick', {'text-anchor':'end'}); });
   text(g, 16, HY0+6, 'HEALTH', 'lane-label');
-  text(g, 16, HY0+22, 'KPI (trailing)', 'dlabel'); el('line',{x1:16,x2:34,y1:HY0+34,y2:HY0+34,class:'trailing-line'},g);
-  text(g, 16, HY0+52, 'behavioral (leading)', 'dlabel'); el('line',{x1:16,x2:34,y1:HY0+64,y2:HY0+64,class:'leading-line'},g);
-  text(g, 16, HY0+82, 'expected path', 'dlabel'); el('line',{x1:16,x2:34,y1:HY0+94,y2:HY0+94,class:'expected'},g);
+  text(g, 16, HY0+24, 'KPI (trailing)', 'dlabel'); el('line',{x1:16,x2:34,y1:HY0+36,y2:HY0+36,class:'trailing-line'},g);
+  text(g, 16, HY0+54, 'behavioral (leading)', 'dlabel'); el('line',{x1:16,x2:34,y1:HY0+66,y2:HY0+66,class:'leading-line'},g);
+  text(g, 16, HY0+84, 'expected path', 'dlabel'); el('line',{x1:16,x2:34,y1:HY0+96,y2:HY0+96,class:'expected'},g);
 
-  // series up to now
+  // ── series ──
   const ser = D.series.filter(s => monthEnd(s.month) <= addDays(now,1));
-  // gap wash
-  ser.forEach((s, i) => { if (s.qual == null || s.early_warning === 'aligned') return;
+  ser.forEach(s => { if (s.qual == null || s.early_warning === 'aligned') return;
     const x0 = x(dt(s.month)), x1 = x(monthEnd(s.month));
     const top = y(Math.max(s.qual, s.kpi_only)), bot = y(Math.min(s.qual, s.kpi_only));
     el('rect', {x:x0, y:top, width:x1-x0, height:bot-top, class: s.divergence < 0 ? 'gap-neg' : 'gap-pos'}, g); });
-  // expected path overlay aligned at deterioration entry
   const det = D.phases.find(p => p.name === 'deterioration');
   if (det && D.expected_path && dt(det.entered_at) <= now) {
     let d0 = dt(det.entered_at); const pts = [];
     D.expected_path.phases.forEach((p, i) => { if (i === 0) pts.push([d0, p.health_start]); d0 = addDays(d0, p.duration_weeks*7); pts.push([d0, p.health_end]); });
     el('path', {d: pts.map((p,i)=>(i?'L':'M')+x(p[0])+','+y(p[1])).join(' '), class:'expected'}, g);
-    const last = pts[pts.length-1]; text(g, x(last[0])+4, y(last[1])+4, 'expected ' + last[1], 'dlabel');
+    const last = pts[pts.length-1]; text(g, x(last[0])+6, y(last[1])+22, 'template path ends at ' + last[1], 'dlabel');
   }
-  // trailing step line
   let dTrail = ''; ser.forEach((s,i) => { const x0 = x(dt(s.month)), x1 = x(monthEnd(s.month)); dTrail += (i?'L':'M') + x0 + ',' + y(s.kpi_only) + ' L' + x1 + ',' + y(s.kpi_only) + ' '; });
   el('path', {d:dTrail, class:'trailing-line'}, g);
-  // leading curve (mid-month points)
   const lead = ser.filter(s => s.qual != null).map(s => [new Date(dt(s.month).getFullYear(), dt(s.month).getMonth(), 15), s.qual]);
   el('path', {d: lead.map((p,i)=>(i?'L':'M')+x(p[0])+','+y(p[1])).join(' '), class:'leading-line'}, g);
-  lead.forEach(p => { const c = el('circle', {cx:x(p[0]), cy:y(p[1]), r:4, class:'mark', style:'fill:var(--leading)'}, g); });
-  // leading projection after now: holds while signals are in the 60-day window, then silent
-  const lastSig = sigs.filter(s => dt(s.e.date) <= now).map(s => dt(s.e.date)).sort((a,b)=>b-a)[0];
-  if (lastSig && lead.length) { const silent = addDays(lastSig, 60); const lp = lead[lead.length-1];
-    el('path', {d:`M${x(lp[0])},${y(lp[1])} L${x(silent)},${y(lp[1])}`, class:'leading-proj'}, g);
-    text(g, x(silent)+4, y(lp[1])+4, 'silent after ' + fmtD(silent) + ' unless new signals', 'dlabel'); }
-  // end labels
+  lead.forEach(p => el('circle', {cx:x(p[0]), cy:y(p[1]), r:4, class:'mark', style:'fill:var(--leading)'}, g));
+  // leading: hold, then silence
+  if (F.silent && lead.length) { const lp = lead[lead.length-1];
+    el('path', {d:`M${x(lp[0])},${y(lp[1])} L${x(F.silent)},${y(lp[1])}`, class:'leading-proj'}, g);
+    el('rect', {x:x(F.silent), y:HY0+8, width:Math.max(0,x(renewal)-x(F.silent)), height:HY1-HY0-8, class:'silence', opacity:.6}, g);
+    text(g, x(F.silent)+6, HY0+30, 'behavioral layer silent from ' + fmtD(F.silent), 'dlabel strong');
+    text(g, x(F.silent)+6, HY0+44, 'unless new signals — no curve invented', 'dlabel'); }
   if (ser.length) { const s = ser[ser.length-1]; text(g, x(monthEnd(s.month))+6, y(s.kpi_only)+4, 'KPI ' + s.kpi_only.toFixed(1), 'dlabel'); }
-  // flags: first leading / trailing warning
-  // lead-time flags live in the strip between the health region and the signal lanes
+  // tripwire on the health region
+  el('line', {x1:x(now), x2:x(renewal), y1:y(50), y2:y(50), class:'trip'}, g);
+  text(g, x(F.windowOpens)+6, y(50)+14, 'tripwire: KPI < 70 in window · leading < 50', 'dlabel');
+  // lead-time flags
   const fl = D.lvt.first_leading_warning_at, ft = D.lvt.first_trailing_warning_at;
   if (fl && monthEnd(fl) <= now) { const xx = x(monthEnd(fl)); el('line', {x1:xx, x2:xx, y1:HY0-2, y2:HY1+20, class:'flag-line'}, g); text(g, xx+5, HY1+16, '⚑ behavioral layer first warned ' + fmtM(dt(fl)), 'flag'); }
   if (ft && monthEnd(ft) <= now) { const xx = x(monthEnd(ft)); el('line', {x1:xx, x2:xx, y1:HY0-2, y2:HY1+34, class:'flag-line'}, g); text(g, xx+5, HY1+30, '⚑ KPI crossed at-risk ' + fmtM(dt(ft)) + ' — ' + D.lvt.lead_days + ' days after the behavioral layer', 'flag'); }
-  else if (fl && monthEnd(fl) <= now) { text(g, x(monthEnd(fl))+5, HY1+30, 'KPI never crossed at-risk (lowest ' + Math.min(...ser.map(s=>s.kpi_only)).toFixed(1) + ') — lead time still open', 'flag'); }
+  else if (fl && monthEnd(fl) <= now) { text(g, x(monthEnd(fl))+5, HY1+30, 'KPI never crossed at-risk (lowest ' + Math.min(...ser.map(s=>s.kpi_only)).toFixed(1) + ') — lead time still open; renewal is the test', 'flag'); }
 
-  // signals by role
+  // ── signals by role ──
   text(g, 16, SIG_Y0-10, 'SIGNALS BY ROLE', 'lane-label');
   roles.forEach((r, i) => { const yy = SIG_Y0 + i*SIG_ROW + 8; text(g, 16, yy+4, ROLE_LABEL[r] || r, 'dlabel'); el('line', {x1:L, x2:x(X1), y1:yy, y2:yy, class:'hair'}, g); });
   sigs.filter(s => dt(s.e.date) <= now).forEach(s => {
@@ -364,45 +439,82 @@ function draw(now) {
     else m = el('circle', {cx:xx, cy:yy, r:5, class:'mark '+cls}, g);
     if (s.n > 1) text(g, xx+8, yy+4, '×'+s.n, 'count');
     if (s.conflict) { el('circle', {cx:xx+7, cy:yy-7, r:4, class:'mark', style:'fill:var(--surface);stroke:var(--neg)'}, g); text(g, xx+4.6, yy-4, '!', 'count'); }
-    bindTip(hit, `<b>${seq[s.e.episode_id]}. ${s.e.title}</b><span class="m">${fmtD(dt(s.e.date))} · ${ROLE_LABEL[r]||r} · sentiment ${s.e.sentiment ?? '—'}${s.n>1?' · ×'+s.n+' identical rows':''}${s.conflict?' · <b>polarity conflict: role negative, sentiment positive — mark follows the role</b>':''}</span>`);
-    bindTip(m, hit.getAttribute('aria-label'));
+    const html = `<b>${seq[s.e.episode_id]}. ${clean(s.e.title)}</b><span class="m">${fmtD(dt(s.e.date))} · ${ROLE_LABEL[r]||r} · sentiment ${s.e.sentiment ?? '—'}${s.n>1?' · ×'+s.n+' identical source rows':''}${s.conflict?' · <b>polarity conflict: role negative, sentiment positive — mark follows the role</b>':''}</span>`;
+    bindTip(hit, html); bindTip(m, html);
   });
+  // future signal expectations (tripwire roles) as hollow markers at the window open
+  if (F.det) { const yyc = SIG_Y0 + roles.indexOf('commercial_pressure')*SIG_ROW + 8; if (roles.includes('commercial_pressure')) {
+    const xx = x(F.windowOpens); const m = el('path', {d:`M${xx-6},${yyc-5} L${xx+6},${yyc-5} L${xx},${yyc+6} Z`, class:'mark hollow neg', tabindex:0}, g);
+    text(g, xx+10, yyc-1, 'watch: a commercial-pressure or champion-change', 'dlabel');
+    text(g, xx+10, yyc+10, 'signal here re-opens deterioration', 'dlabel');
+    bindTip(m, `<b>Tripwire</b><span class="m">The two roles that opened deterioration on this tenant (${Object.keys(F.det.triggers).join(', ')}). Any such signal after now moves the outlook to deterioration immediately.</span>`); } }
 
-  // people
+  // ── people ──
   text(g, 16, PEOPLE_Y0-10, 'PEOPLE', 'lane-label');
+  const ROLE_SHORT = {champion:'champion', executive_sponsor:'exec sponsor', csm:'CSM', cs_manager:'CS manager'};
   const people = D.stakeholders.map(s => ({role:s.node_subtype, name:(s.properties||{}).name || s.title.split(' (')[0]}));
-  people.forEach((p, i) => { const yy = PEOPLE_Y0 + i*20 + 6; text(g, 16, yy+4, `${p.name} · ${p.role.replace('_',' ')}`, 'dlabel');
-    const start = p.role === 'csm' ? dt('2026-03-08') : X0; // CSM change is a dated episode
-    if (p.role === 'csm') { el('line', {x1:x(X0)+8, x2:x(start)-6, y1:yy, y2:yy, class:'presence'}, g); text(g, x(X0)+12, yy-6, 'previous CSM', 'count'); }
+  people.forEach((p, i) => { const yy = PEOPLE_Y0 + i*20 + 6; text(g, 16, yy+4, `${p.name} · ${ROLE_SHORT[p.role]||p.role}`, 'dlabel');
+    const start = p.role === 'csm' ? dt('2026-03-08') : X0;
+    if (p.role === 'csm') { el('line', {x1:x(X0)+8, x2:x(start)-6, y1:yy, y2:yy, class:'presence'}, g); text(g, x(X0)+12, yy-7, 'previous CSM', 'count'); }
     el('line', {x1:x(start)+6, x2:x(now), y1:yy, y2:yy, class:'presence active'}, g);
-    if (p.role === 'champion') { const dd = dt('2025-10-15'); if (dd <= now) { el('path', {d:`M${x(dd)-6},${yy-5} L${x(dd)+6},${yy-5} L${x(dd)},${yy+6} Z`, class:'mark neg'}, g); text(g, x(dd)+9, yy+4, 'declined last two QBRs', 'dlabel'); } }
+    el('line', {x1:x(now), x2:x(renewal), y1:yy, y2:yy, class:'presence', 'stroke-dasharray':'2 6'}, g);
+    if (p.role === 'champion') { const dd = dt('2025-10-15'); if (dd <= now) { const m = el('path', {d:`M${x(dd)-6},${yy-5} L${x(dd)+6},${yy-5} L${x(dd)},${yy+6} Z`, class:'mark neg', tabindex:0}, g); text(g, x(dd)+9, yy+4, 'declined last two QBRs', 'dlabel'); bindTip(m, '<b>5. Champion Lisa Park declined last two QBR invitations</b><span class="m">Oct 15, 25 · engagement decline · the only dated stakeholder change before the CSM swap</span>'); } }
     if (p.role === 'csm' && start <= now) { el('path', {d:`M${x(start)-5},${yy} L${x(start)},${yy-6} L${x(start)+5},${yy} L${x(start)},${yy+6} Z`, class:'mark decision'}, g); text(g, x(start)+9, yy+4, 'new CSM assigned', 'dlabel'); } });
 
-  // actions & outcomes
+  // ── actions & outcomes ──
   text(g, 16, ACT_Y-10, 'ACTIONS & OUTCOMES', 'lane-label');
   el('line', {x1:L, x2:x(X1), y1:ACT_Y+8, y2:ACT_Y+8, class:'hair'}, g);
   D.hooks.filter(h => dt(h.date) <= now).forEach(h => { const xx = x(dt(h.date)); const x0 = x(addDays(dt(h.date),-90)), x1 = x(Math.min(addDays(dt(h.date),90), now));
     el('rect', {x:x0, y:ACT_Y-4, width:x1-x0, height:24, class:'phase intervention'}, g);
     const m = el('path', {d:`M${xx-6},${ACT_Y+8} L${xx},${ACT_Y+1} L${xx+6},${ACT_Y+8} L${xx},${ACT_Y+15} Z`, class:'mark decision', tabindex:0}, g);
     text(g, xx, ACT_Y-8, `intervention ${h.health_before.last} → ${h.health_after.last} (+${(h.health_after.last-h.health_before.last).toFixed(1)})`, 'dlabel', {'text-anchor':'end'});
-    bindTip(m, `<b>${seq[h.episode_id]}. ${h.title}</b><span class="m">${fmtD(dt(h.date))} · health before ${h.health_before.last} → after ${h.health_after.last} · outcomes within 90 d: ${h.outcomes_after.map(o=>o.bucket+' '+fmtSignedUSD(o.revenue||0)).join(', ')||'none'}<br>a before/after comparison on this account — not a causal estimate</span>`); });
-  outcomes.filter(o => dt(o.date) <= now).forEach((o, i) => { const xx = x(dt(o.date)); const realized = ['lost','expansion'].includes(o.revenue_bucket); const neg = ['lost','at_risk'].includes(o.revenue_bucket);
-    const yy = ACT_Y + 8 + (i % 2 ? 20 : 0);
+    bindTip(m, `<b>${seq[h.episode_id]}. ${clean(h.title)}</b><span class="m">${fmtD(dt(h.date))} · health before ${h.health_before.last} → after ${h.health_after.last} · outcomes within 90 d: ${h.outcomes_after.map(o=>o.bucket+' '+fmtSignedUSD(o.revenue||0)).join(', ')||'none'}<br>a before/after comparison on this account — not a causal estimate</span>`); });
+  // rows: negative outcomes on rows 0/1, positive on rows 2/3 — keeps the
+  // labels of the March outcomes clear of the recommended actions after now
+  const rowCount = {neg:0, pos:0};
+  outcomes.filter(o => dt(o.date) <= now).forEach((o) => { const xx = x(dt(o.date)); const realized = REALIZED.includes(o.revenue_bucket); const neg = ['lost','at_risk'].includes(o.revenue_bucket);
+    const k = neg ? 'neg' : 'pos'; const row = (neg ? 0 : 2) + (rowCount[k]++ % 2); const yy = ACT_Y + 8 + row*20;
     const m = neg ? el('path', {d:`M${xx-7},${yy-6} L${xx+7},${yy-6} L${xx},${yy+7} Z`, class:'mark ' + (realized?'':'hollow ') + 'neg', tabindex:0}, g)
                   : el('path', {d:`M${xx-7},${yy+6} L${xx+7},${yy+6} L${xx},${yy-7} Z`, class:'mark ' + (realized?'':'hollow ') + 'pos', tabindex:0}, g);
     text(g, xx+10, yy+4, `${fmtSignedUSD(o.revenue)} ${o.revenue_bucket.replace('_',' ')}${realized?'':' (narrative)'}`, 'dlabel');
-    bindTip(m, `<b>${seq[o.episode_id]}. ${o.title}</b><span class="m">${fmtD(dt(o.date))} · bucket ${o.revenue_bucket} · ${realized?'realized ARR movement':'narrative annotation — not counted in NRR'}${o.meta&&o.meta.evidence_clamped?' · confidence clamped: no evidence attached':''}</span>`);
-    // evidence link from the signal it was linked to
+    bindTip(m, `<b>${seq[o.episode_id]}. ${clean(o.title)}</b><span class="m">${fmtD(dt(o.date))} · bucket ${o.revenue_bucket} · ${realized?'realized ARR movement':'narrative annotation — not counted in NRR'}${o.meta&&o.meta.evidence_clamped?' · confidence clamped: no evidence attached':''}</span>`);
     const link = D.links.find(l => l.outcome_title === o.title);
     if (link) { const sx = x(dt(link.signal_date)); const srole = (sigs.find(s => s.e.date.slice(0,10) === link.signal_date) || {}).e; const sy = srole ? SIG_Y0 + roles.indexOf(srole.role||'unmapped')*SIG_ROW + 8 : SIG_Y0;
       el('path', {d:`M${sx},${sy+8} C${sx},${(sy+yy)/2} ${xx},${(sy+yy)/2} ${xx},${yy-8}`, class:'link'}, g); } });
+  // planned actions (future, hollow)
+  F.actions.forEach((a, i) => { const when = i === 0 ? addDays(now, 14) : F.windowOpens; const xx = x(when), yy = ACT_Y + 8 + (i ? 20 : 0);
+    const m = el('path', {d:`M${xx-6},${yy} L${xx},${yy-7} L${xx+6},${yy} L${xx},${yy+7} Z`, class:'mark planned', tabindex:0}, g);
+    text(g, xx+10, yy+4, `recommended: ${a.title.length>40?a.title.slice(0,38)+'…':a.title}`, 'dlabel');
+    const iv = D.wizard_b.interventions[0];
+    bindTip(m, `<b>Recommended — ${a.title}</b><span class="m">${fmtD(when)} · the ${D.arc.arc_type.replace(/_/g,' ')} template's decision for this phase (${a.decision_maker_role||'CSM'}). Observed on this account: the one intervention so far (${iv?clean(iv.title):'—'}) was followed by ${iv?'+'+iv.lift_pts.toFixed(1)+' health points and '+fmtUSD(iv.revenue_after_protected)+' of narrative protection within 90 d':'—'} — a before/after comparison, not attribution.</span>`); });
 
-  // now line + label
-  el('line', {x1:x(now), x2:x(now), y1:HY0-22, y2:AX_Y, class:'now-line'}, g);
-  text(g, x(now)+6, HY0-26, 'NOW · ' + fmtD(now) + (now < AS_OF ? ' (time-travel)' : '') + '   ·   next 6 months →', 'now-label');
+  // ── forecast lane: likelihood fan ──
+  text(g, 16, FC_Y0-10, 'LIKELIHOOD OF A LOSS EVENT', 'lane-label');
+  text(g, 16, FC_Y0+6, 'by the renewal · cumulative', 'dlabel');
+  [0,0.5,1].forEach(p => { el('line', {x1:L, x2:x(X1), y1:fy(p), y2:fy(p), class:'hair'}, g); text(g, L-8, fy(p)+4, Math.round(p*100)+'%', 'tick', {'text-anchor':'end'}); });
+  // past: realized event markers (none here) + "no loss events on record"
+  text(g, x(X0)+8, fy(0)-6, `history: ${F.events} loss events in ${F.account_months} account-months on this tenant — nothing to calibrate`, 'dlabel');
+  const steps = 24, pts = [];
+  for (let i = 0; i <= steps; i++) { const f = i/steps, d = new Date(now.getTime() + f*(renewal - now)); const ease = f*f*(3-2*f); pts.push([x(d), fy(F.lo*ease), fy(F.med*ease), fy(F.hi*ease)]); }
+  el('path', {d: pts.map((p,i)=>(i?'L':'M')+p[0]+','+p[3]).join(' ') + ' ' + pts.slice().reverse().map(p=>'L'+p[0]+','+p[1]).join(' ') + ' Z', class:'fan'}, g);
+  el('path', {d: pts.map((p,i)=>(i?'L':'M')+p[0]+','+p[2]).join(' '), class:'fan-median'}, g);
+  el('circle', {cx:x(renewal), cy:fy(F.med), r:4, style:'fill:var(--neg)', class:'mark'}, g);
+  text(g, x(renewal)+6, fy(F.hi)+4, `${Math.round(F.hi*100)}%`, 'dlabel');
+  text(g, x(renewal)+6, fy(F.med)+4, `${Math.round(F.med*100)}% median`, 'dlabel strong');
+  text(g, x(renewal)+6, fy(F.lo)+4, `${Math.round(F.lo*100)}%`, 'dlabel');
+  text(g, x(renewal)+6, fy(F.med)+16, `≈ ${fmtUSD(D.account.arr*F.med)} exp. loss`, 'dlabel');
+  const fanLbl = text(g, x(now)+8, fy(1)+14, F.calibrated ? 'calibrated on this tenant' : 'ARC PRIOR — not calibrated here · band deliberately wide', 'flag');
+  bindTip(fanLbl, `<b>How this band is built</b><span class="m">P(loss by renewal) = P(re-enter deterioration from ${F.phaseNow}) × P(a deterioration ends in a loss decision). The first factor is this tenant's own transition rate (${Math.round(F.pDet*100)}%). The second has no observation on this tenant (0 loss events), so it is bracketed [0.10, 1.0] — hence ${Math.round(F.lo*100)}–${Math.round(F.hi*100)}%. Sources in trust order: tenant base rate (none) → calibrated predictor (Wizard D, not yet ported) → this prior.</span>`);
+  // dated tripwires on the axis
+  [[F.windowOpens,'risk window opens'],[F.silent,'behavioral layer silent'],[renewal,'renewal decision']].forEach(([d,l],i) => { if (!d) return;
+    el('line', {x1:x(d), x2:x(d), y1:FC_Y0-4, y2:FC_Y1, class:'trip'}, g); text(g, x(d)-4, FC_Y1-4-i*13, l, 'dlabel', {'text-anchor':'end'}); });
+
+  // ── now line ──
+  el('line', {x1:x(now), x2:x(now), y1:HY0-30, y2:AX_Y, class:'now-line'}, g);
+  text(g, x(now)+6, HY0-34, 'NOW · ' + fmtD(now) + (now < AS_OF ? ' (time-travel)' : '') + '   ·   next 6 months →', 'now-label');
 }
 
-// ---- story ---------------------------------------------------------------------
+// ---- story ---------------------------------------------------------------------------------
 function story(now) {
   const eps = D.episodes.filter(e => dt(e.date) <= now && e.kind !== 'renewal');
   const cite = e => `<span class="cite">[${seq[e.episode_id]}]</span>`;
@@ -415,12 +527,12 @@ function story(now) {
     html += `<div class="ch">${fmtM(start)}${end < now ? '–' + fmtM(new Date(end.getTime()-864e5)) : ' → now'} · ${p.name}</div>`;
     const sig = inPhase.filter(e => e.kind==='signal'), out = inPhase.filter(e => e.kind==='outcome'), ht = inPhase.filter(e => e.kind==='health_transition');
     const parts = [];
-    if (p.trigger_episode_id && byId[p.trigger_episode_id] && i > 0) parts.push(`The phase opened with ${byId[p.trigger_episode_id].title.replace(/ \(Zenith Data Corp\)/,'').replace(/ — Zenith Data Corp/,'')}${cite(byId[p.trigger_episode_id])}.`);
+    if (p.trigger_episode_id && byId[p.trigger_episode_id] && i > 0) parts.push(`The phase opened with ${clean(byId[p.trigger_episode_id].title)}${cite(byId[p.trigger_episode_id])}.`);
     const neg = sig.filter(e => (ROLE_POL[e.role]||0) < 0), pos = sig.filter(e => (ROLE_POL[e.role]||0) > 0);
     if (neg.length) parts.push(`${neg.length === 1 ? 'A negative signal' : neg.length + ' negative signals'} — ${[...new Set(neg.map(e=>ROLE_LABEL[e.role]||e.role))].join(', ').toLowerCase()} — ${neg.map(cite).join('')}${s.length ? ` while KPI health moved ${s[0].kpi_only.toFixed(1)} → ${s[s.length-1].kpi_only.toFixed(1)}` : ''}.`);
     const ew = s.filter(x => x.early_warning === 'early_warning');
     if (ew.length) parts.push(`The behavioral layer was in early warning ${ew.length} of ${s.length} month${s.length===1?'':'s'} (widest gap ${Math.min(...ew.map(x=>x.divergence)).toFixed(0)} points).`);
-    if (out.length) parts.push(out.map(o => `${o.title.replace(/ — Zenith Data Corp/,'')} ${fmtSignedUSD(o.revenue)}${['lost','expansion'].includes(o.revenue_bucket)?'':' (narrative, not ARR)'}${cite(o)}`).join('; ') + '.');
+    if (out.length) parts.push(out.map(o => `${clean(o.title)} ${fmtSignedUSD(o.revenue)}${REALIZED.includes(o.revenue_bucket)?'':' (narrative, not ARR)'}${cite(o)}`).join('; ') + '.');
     if (pos.length) parts.push(`${pos.length === 1 ? 'A positive signal' : pos.length + ' positive signals'} — ${[...new Set(pos.map(e=>ROLE_LABEL[e.role]||e.role))].join(', ').toLowerCase()} ${pos.map(cite).join('')}.`);
     ht.forEach(h => parts.push(`${h.title}${cite(h)}.`));
     html += `<p>${parts.join(' ')}</p>`;
@@ -430,41 +542,20 @@ function story(now) {
   document.getElementById('story').innerHTML = html || '<p class="muted">Nothing known yet at this date.</p>';
 }
 
-// ---- next 3–6 months ----------------------------------------------------------------
-function next(now) {
-  const wb = D.wizard_b; const t = wb.transitions;
-  const phaseNow = (D.phases.filter(p => dt(p.entered_at) <= now).pop() || {}).name || 'baseline';
-  const outs = Object.entries(t).filter(([k]) => k.startsWith(phaseNow + '→')).map(([k,v]) => ({to:k.split('→')[1], ...v}));
-  const lastSig = sigs.filter(s => dt(s.e.date) <= now).map(s => dt(s.e.date)).sort((a,b)=>b-a)[0];
-  const silent = lastSig ? addDays(lastSig, 60) : null;
-  const h1 = wb.h1; const daysToRenewal = Math.round((renewal - now)/864e5);
-  const iv = wb.interventions[0];
-  document.getElementById('next').innerHTML = `
-    <div class="fcard"><h3>Leading trajectory — mechanical</h3>
-      <div>The behavioral composite holds at its last value while its signals are inside the 60-day window${silent ? `, then goes <b>silent on ${fmtD(silent)}</b>` : ''}. No curve is invented past that point.</div>
-      <div class="basis">basis: recency window (60 d, λ 0.023/d) on this account's own signals</div></div>
-    <div class="fcard"><h3>Expected next phase — prior</h3>
-      <div>From <b>${phaseNow}</b>, this tenant's history says: ${outs.length ? outs.map(o => `→ <b>${o.to}</b> ${Math.round(o.probability*100)}% (${o.count} of ${Math.round(o.count/o.probability)} segments, after ~${o.avg_months_before_transition} mo; usually triggered by ${Object.keys(o.triggers)[0]||'—'})`).join('; ') : 'no transitions observed from this phase'}.
-      ${D.expected_path ? `The ${D.arc.arc_type.replace(/_/g,' ')} template's typical path ends at health ${D.expected_path.phases[D.expected_path.phases.length-1].health_end}; this account is at ${D.features.health_now}.` : ''}</div>
-      <div class="basis">basis: Wizard B transition matrix on ${wb.h1.account_months} account-months of this tenant + the arc template — a prior, not a prediction for this account</div></div>
-    <div class="fcard"><h3>Likelihood of a loss event by the renewal (${daysToRenewal} d)</h3>
-      <div class="range"><span class="mono muted">0%</span><div class="bar"><i style="left:5%;right:45%"></i><b style="left:30%"></b></div><span class="mono muted">100%</span></div>
-      <div style="font-size:13px;margin-top:6px"><b>Not calibrated on this tenant.</b> Its history holds <b>${h1.events} loss events</b> across ${h1.account_months} account-months, so no base rate exists; the band above is the arc prior only and is deliberately wide. The CFO line inherits it: expected loss ${fmtUSD(D.account.arr*0.05)}–${fmtUSD(D.account.arr*0.55)} on ${fmtUSD(D.account.arr)} ARR.</div>
-      <div class="basis">sources in trust order: tenant Hindsight base rate (none) → calibrated predictor (Wizard D, not yet ported) → arc prior (shown) · evidence: ${wb.evidence_label}</div></div>
-    <div class="fcard"><h3>Tripwires — what would change this</h3>
-      <ul>
-        <li>Behavioral composite drops below 50 (now ${D.features.qual_now ?? '—'})</li>
-        <li>A <b>commercial pressure</b> or <b>champion change</b> signal (the two roles that opened deterioration on this tenant)</li>
-        <li>No signal for 30 days after ${silent ? fmtD(addDays(silent,-30)) : '—'} — the layer goes blind, not green</li>
-        <li>Renewal risk window opens <b>${fmtD(addDays(renewal,-90))}</b>; KPI health below 70 inside it</li>
-      </ul>
-      <div class="basis">each tripwire maps to a role or threshold the platform already computes — nothing here needs a model</div></div>
-    <div class="fcard"><h3>Recommended action — with the observed effect</h3>
-      <div>${D.expected_path ? `Template's next decision for this phase: <b>${(D.expected_path.typical_decisions[1]||D.expected_path.typical_decisions[0]).title}</b>. ` : ''}${iv ? `The one intervention on this account — ${iv.title.replace(/ \(Zenith Data Corp\)/,'')} on ${fmtD(dt(iv.date))} — was followed by <b>+${iv.lift_pts.toFixed(1)} health points</b> and ${fmtUSD(iv.revenue_after_protected)} of narrative protection within 90 days.` : ''}</div>
-      <div class="basis">observed on this account; a before/after comparison, not attribution</div></div>`;
+// ---- forecast ledger ---------------------------------------------------------------------------
+function ledger(now) {
+  const F = forecast(now); const iv = D.wizard_b.interventions[0];
+  const rows = [
+    ['now → ' + (F.silent ? fmtD(F.silent) : '—'), 'Behavioral composite holds at ' + (D.features.qual_now ?? '—') + ', then goes silent', 'recency window (60 d, λ 0.023/d) on this account\'s own signals', 'any new signal'],
+    [`~${F.moDet} mo`, F.det ? `${Math.round(F.pDet*100)}% chance of re-entering ${F.det.to}` : 'no transition observed from this phase', F.det ? `this tenant's transition matrix: ${F.det.count} of ${Math.round(F.det.count/F.det.probability)} ${F.phaseNow} segments (Wizard B)` : '—', F.det ? `a ${Object.keys(F.det.triggers)[0].replace('_',' ')} signal` : '—'],
+    [fmtD(F.windowOpens), 'Renewal risk window opens; KPI health below 70 inside it is a tripwire', 'days-to-renewal band 91–180 → 31–90 (feature vector)', 'the renewal date moving'],
+    [fmtD(renewal), `${Math.round(F.lo*100)}–${Math.round(F.hi*100)}% chance of a loss event (median ${Math.round(F.med*100)}%) · expected loss ${fmtUSD(D.account.arr*F.lo)}–${fmtUSD(D.account.arr*F.hi)}`, `arc prior only — ${F.events} loss events on this tenant, nothing to calibrate; Wizard D not yet ported`, 'the first calibrated tenant narrows this band'],
+    [fmtD(addDays(now,14)) + ' / ' + fmtD(F.windowOpens), F.actions.map(a=>a.title).join(' · ') || '—', `template decisions for this phase; observed on this account: ${iv ? '+'+iv.lift_pts.toFixed(1)+' pts after '+clean(iv.title) : '—'} (before/after, not attribution)`, 'whether the action is taken'],
+  ];
+  document.getElementById('ledger').innerHTML = `<thead><tr><th>when</th><th>we expect</th><th>basis</th><th>changes it</th></tr></thead><tbody>${rows.map(r=>`<tr><td class="when">${r[0]}</td><td>${r[1]}</td><td class="basis">${r[2]}</td><td class="basis">${r[3]}</td></tr>`).join('')}</tbody>`;
 }
 
-// ---- honesty strip, index, legend ---------------------------------------------------------
+// ---- honesty strip, index, legend --------------------------------------------------------------
 function honesty() {
   const conflicts = sigs.filter(s => s.conflict).length, dups = sigs.filter(s => s.n > 1).length;
   const mapped = sigs.filter(s => s.e.role).length;
@@ -474,21 +565,22 @@ function honesty() {
     `<span><b>Polarity conflicts flagged:</b> ${conflicts}</span>`,
     `<span><b>Duplicate source rows collapsed:</b> ${dups}</span>`,
     `<span><b>Arc:</b> rule-match constant, not a probability · cited by ${D.arc.supporting_episode_ids.length} episodes · contradicting: ${D.arc.contradicting_evidence.join('; ')||'none'}</span>`,
-    `<span><b>Outcomes:</b> ${outcomes.filter(o=>['lost','expansion'].includes(o.revenue_bucket)).length} realized · ${outcomes.length - outcomes.filter(o=>['lost','expansion'].includes(o.revenue_bucket)).length} narrative</span>`,
+    `<span><b>Outcomes:</b> ${outcomes.filter(o=>REALIZED.includes(o.revenue_bucket)).length} realized · ${outcomes.length - outcomes.filter(o=>REALIZED.includes(o.revenue_bucket)).length} narrative</span>`,
+    `<span><b>Forecast:</b> prior-only on this tenant (0 loss events) · every forward mark has a ledger row</span>`,
     `<span><b>Generated:</b> journey v3 as of ${fmtD(AS_OF)}</span>`].join('');
   const rows = D.episodes.map(e => `<tr><td class="n">${seq[e.episode_id]}</td><td class="mono">${e.date.slice(0,10)}</td><td>${e.kind.replace('_',' ')}</td><td>${e.role ? (ROLE_LABEL[e.role]||e.role) : (e.subtype||'')}</td><td>${e.title}</td><td class="n">${e.sentiment ?? ''}</td><td class="n">${e.revenue != null ? fmtSignedUSD(e.revenue) : ''}</td><td>${e.revenue_bucket||''}</td></tr>`).join('');
   document.getElementById('index').innerHTML = `<thead><tr><th class="n">#</th><th>date</th><th>kind</th><th>role / subtype</th><th>title</th><th class="n">sentiment</th><th class="n">amount</th><th>bucket</th></tr></thead><tbody>${rows}</tbody>`;
-  document.getElementById('legend').innerHTML = `<span><i class="key"></i>KPI health (trailing)</span><span><i class="key lead"></i>behavioral (leading)</span><span><i class="key exp"></i>expected path</span><span><i class="sw" style="background:var(--neg);clip-path:polygon(0 0,100% 0,50% 100%)"></i>negative signal</span><span><i class="sw" style="background:var(--pos);clip-path:polygon(0 100%,100% 100%,50% 0)"></i>positive signal</span><span><i class="sw" style="border:2px solid var(--neg);width:8px;height:8px"></i>narrative outcome</span><span><i class="sw" style="background:var(--accent);transform:rotate(45deg);width:8px;height:8px"></i>decision / intervention</span><span><i class="sw" style="background:var(--wash-neg);border:1px solid var(--hair-2)"></i>deterioration phase</span>`;
+  document.getElementById('legend').innerHTML = `<span><i class="key"></i>KPI health (trailing)</span><span><i class="key lead"></i>behavioral (leading)</span><span><i class="key proj"></i>leading hold → silence</span><span><i class="key exp"></i>expected path (template)</span><span><i class="sw" style="background:var(--neg);clip-path:polygon(0 0,100% 0,50% 100%)"></i>negative signal</span><span><i class="sw" style="background:var(--pos);clip-path:polygon(0 100%,100% 100%,50% 0)"></i>positive signal</span><span><i class="sw" style="border:2px solid var(--neg);width:8px;height:8px"></i>narrative outcome (hollow) · solid = realized ARR</span><span><i class="sw" style="background:var(--accent);transform:rotate(45deg);width:8px;height:8px"></i>decision / intervention</span><span><i class="sw" style="border:1.5px dashed var(--accent);transform:rotate(45deg);width:8px;height:8px"></i>recommended (future)</span><span><i class="sw" style="background:var(--wash-fan);border:1px solid var(--neg)"></i>likelihood band (prior)</span>`;
   document.getElementById('subtitle').textContent = `${D.account.profile.tier} · ${D.account.profile.products.map(p=>p.name).join(', ')} · champion ${D.account.profile.primary_champion_name} · CSM ${D.account.profile.csm_name}`;
   document.getElementById('origin-badge').innerHTML = `<i class="dot" style="background:var(--neg)"></i> synthetic tenant — mechanism, not evidence`;
   document.getElementById('asof-badge').textContent = `journey as of ${fmtD(AS_OF)}`;
 }
 
-// ---- scrubber ----------------------------------------------------------------------------------
+// ---- scrubber ------------------------------------------------------------------------------------
 const scrub = document.getElementById('scrub');
 const T0 = new Date(2025,7,31);
 function nowFromScrub() { const f = +scrub.value/100; return f >= 1 ? AS_OF : new Date(T0.getTime() + f*(AS_OF - T0)); }
-function render() { const now = nowFromScrub(); document.getElementById('scrub-date').textContent = fmtD(now); header(now); draw(now); story(now); next(now); }
+function render() { const now = nowFromScrub(); document.getElementById('scrub-date').textContent = fmtD(now); header(now); draw(now); story(now); ledger(now); document.documentElement.setAttribute('data-rendered','1'); }
 scrub.addEventListener('input', render);
 honesty(); render();
 </script>
