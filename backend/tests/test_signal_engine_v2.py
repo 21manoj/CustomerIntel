@@ -264,6 +264,31 @@ class TestExtractionFailureIsNotEvidence:
             assert n.node_subtype == 'seat_reduction_request' and n.properties['role'] == 'commercial_pressure'
 
 
+class TestLiveMonthsOnTheJourney:
+    def test_signal_after_last_scored_month_is_visible(self, tenant):
+        """Signals run ahead of the monthly KPI feed. Evidence dated after the
+        last scored month must appear on the journey now — as live months with
+        qual and roles but no trailing — not after the next KPI upload."""
+        cid, aid = tenant
+        from mcp_server.cs_pulse_onboarding import submit_signal
+        with app.app_context():
+            before = JourneyData.query.filter_by(customer_id=cid, account_id=aid).first().journey_json
+            last_scored = before['last_scored_month']
+        res = submit_signal(cid, aid, 'CFO office asked for a full vendor review before renewal', source_type='crm_activity',
+                            signal_type='budget_review', occurred_at='2026-07-09T10:00:00Z')
+        assert res['processed'] is True
+        with app.app_context():
+            j = JourneyData.query.filter_by(customer_id=cid, account_id=aid).first().journey_json
+            assert j['last_scored_month'] == last_scored and '2026-07-01' in j['live_months']
+            jul = next(s for s in j['leading_vs_trailing']['series'] if s['month'] == '2026-07-01')
+            assert jul['live'] is True and jul['kpi_only'] is None and jul['divergence'] is None
+            assert jul['early_warning'] == 'leading_only' and jul['qual'] is not None
+            assert jul['roles'].get('commercial_pressure') == 1
+            assert j['as_of'] >= '2026-07-09' and j['last_evidence_at'].startswith('2026-07-09')
+            scored = [s for s in j['leading_vs_trailing']['series'] if not s['live']]
+            assert scored[-1]['month'] == last_scored                    # scored axis untouched
+
+
 class TestHttpSurface:
     @pytest.fixture(scope='class')
     def client(self, tenant):

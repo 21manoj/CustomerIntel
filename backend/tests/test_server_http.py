@@ -151,3 +151,22 @@ class TestApiKeyService:
 
 if __name__ == '__main__':
     pytest.main([__file__, '-v'])
+
+
+class TestLLMLedger:
+    def test_record_usage_writes_a_row(self, client):
+        """Every LLM call site must be proven tracked: the ledger table exists in
+        this build (LLMUsageLog → create_all) and record_usage lands a row."""
+        import mcp_server.common as _common
+        from extensions import db
+        from models import Customer, LLMUsageLog
+        from utils.llm_budget_controller import record_usage, estimate_cost
+        with _common.get_flask_app().app_context():
+            c = Customer(customer_name='Ledger', email=f'l_{uuid.uuid4().hex[:6]}@t.test', domain=f'l-{uuid.uuid4().hex[:6]}.test')
+            db.session.add(c)
+            db.session.commit()
+            record_usage(customer_id=c.customer_id, module='signal_engine_enrichment', tokens_in=5424, tokens_out=991,
+                         model='claude-sonnet-5', success=True)
+            row = LLMUsageLog.query.filter_by(customer_id=c.customer_id).one()
+            assert row.module == 'signal_engine_enrichment' and row.tokens_in == 5424 and row.success is True
+            assert float(row.cost_estimate_usd) == estimate_cost('claude-sonnet-5', 5424, 991) > 0

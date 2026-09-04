@@ -33,6 +33,9 @@ DEFAULT_MAX_PROACTIVE_CALLS_PER_RUN = 50
 
 # ── Cost rates (approximate, per million tokens) ───────────────────
 COST_RATES = {
+    # claude-sonnet-5 (signal engine default since 2026-09-04): ASSUMED at the Sonnet 4.6 rate
+    # until list pricing is confirmed — recompute historical rows if it differs.
+    'claude-sonnet-5': {'input_per_mtok': 3.0, 'output_per_mtok': 15.0},
     'claude-sonnet-4-6': {'input_per_mtok': 3.0, 'output_per_mtok': 15.0},
     # Retired Sonnet-4 snapshot — kept for cost recompute over historical llm_usage_log rows.
     'claude-sonnet-4-20250514': {'input_per_mtok': 3.0, 'output_per_mtok': 15.0},

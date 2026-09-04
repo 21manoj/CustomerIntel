@@ -262,10 +262,16 @@ def detect_phases(points: List[tuple], episodes: List[Episode]) -> List[dict]:
 # ═══════════════════════════════════════════════════════════════════════
 
 def leading_series(points: List[tuple], kpi_only: Dict[date, float], episodes: List[Episode]) -> dict:
-    """Per scored month: kpi_only (trailing), qual (leading — recency-weighted
+    """Per month: kpi_only (trailing), qual (leading — recency-weighted
     behavioral composite of the signals in the trailing window), their
     divergence, and the early-warning label. Plus the first-warning dates
-    for each layer, which is what the lead-time backtest measures."""
+    for each layer, which is what the lead-time backtest measures.
+
+    `points` may end with LIVE months — (month, None) — for evidence that
+    arrived after the last scored KPI month (signals always run ahead of a
+    monthly KPI feed). Those months carry qual/roles, no trailing, label
+    'leading_only'. Without them a live signal would be invisible on the
+    journey until the next KPI upload — the opposite of a leading indicator."""
     from utils.taxonomy_loader import LEADING_EXCLUDED_ROLES
     li = ht.leading_indicator_config()
     window = timedelta(days=li['signal_window_days'])
@@ -296,9 +302,11 @@ def leading_series(points: List[tuple], kpi_only: Dict[date, float], episodes: L
                 if e.role:
                     roles[e.role] = roles.get(e.role, 0) + 1
         qual = round(num / den, 2) if den else None
-        trailing = kpi_only.get(m, score)
-        div = round(qual - trailing, 2) if qual is not None else None
-        if div is None:
+        trailing = kpi_only.get(m, score)          # None on a live month: no KPI row yet
+        div = round(qual - trailing, 2) if (qual is not None and trailing is not None) else None
+        if trailing is None:
+            label = 'leading_only' if qual is not None else None
+        elif div is None:
             label = None
         elif div <= -warn:
             label = 'early_warning'
@@ -308,11 +316,11 @@ def leading_series(points: List[tuple], kpi_only: Dict[date, float], episodes: L
             label = 'aligned'
         if first_leading is None and qual is not None and (label == 'early_warning' or qual < at_risk):
             first_leading = m
-        if first_trailing is None and trailing < at_risk:
+        if first_trailing is None and trailing is not None and trailing < at_risk:
             first_trailing = m
         series.append({
-            'month': m.isoformat(), 'kpi_only': round(trailing, 2), 'qual': qual,
-            'divergence': div, 'early_warning': label, 'signal_count': n,
+            'month': m.isoformat(), 'kpi_only': round(trailing, 2) if trailing is not None else None, 'qual': qual,
+            'divergence': div, 'early_warning': label, 'signal_count': n, 'live': trailing is None,
             'contributing_episode_ids': contributors, 'roles': roles,
         })
     lead_days = (first_trailing - first_leading).days if first_leading and first_trailing else None
@@ -361,6 +369,26 @@ def counterfactual_hooks(episodes: List[Episode], points: List[tuple]) -> List[d
 # Assemble
 # ═══════════════════════════════════════════════════════════════════════
 
+def _next_month(m: date) -> date:
+    return date(m.year + (m.month == 12), (m.month % 12) + 1, 1)
+
+
+def _live_months(points: List[tuple], episodes: List[Episode]) -> List[date]:
+    """Months after the last scored month (or from the first signal, when
+    nothing is scored yet — the signals-only tier) up to the latest observed
+    signal, capped at the current month."""
+    dates = [e.date for e in episodes if e.kind == 'signal']
+    if not dates:
+        return []
+    latest = min(max(dates), datetime.utcnow()).date().replace(day=1)
+    m = _next_month(points[-1][0]) if points else min(dates).date().replace(day=1)
+    out = []
+    while m <= latest:
+        out.append(m)
+        m = _next_month(m)
+    return out
+
+
 def build_journey(account, vertical: str) -> dict:
     """Journey schema v3 for one account. Pure read; persistence is wizard_a.run_wizard_a."""
     from models import HealthScore
@@ -378,11 +406,15 @@ def build_journey(account, vertical: str) -> dict:
         for hs in health_rows if hs.health_score is not None
     }
     scores = [s for _, s in points]
-    as_of = month_end(points[-1][0]) if points else datetime.utcnow()
-
     episodes = collect_episodes(account, taxonomy, health_rows)
+    live_months = _live_months(points, episodes)
+    last_evidence = max((e.date for e in episodes if e.kind == 'signal'), default=None)
+    as_of = month_end(points[-1][0]) if points else datetime.utcnow()
+    if last_evidence and last_evidence > as_of:
+        as_of = min(last_evidence, datetime.utcnow())     # evidence after the last scored month moves 'now' forward
+
     phases = detect_phases(points, episodes)
-    lvt = leading_series(points, kpi_only, episodes)
+    lvt = leading_series(points + [(m, None) for m in live_months], kpi_only, episodes)
     fv = feat.compute(account, vertical, taxonomy, points, episodes, phases, lvt, as_of)
     arc = arc_classifier.classify(fv, episodes, taxonomy, as_of)
     hooks = counterfactual_hooks(episodes, points)
@@ -398,6 +430,9 @@ def build_journey(account, vertical: str) -> dict:
         'account_name': account.account_name,
         'vertical': vertical,
         'as_of': as_of.isoformat(),
+        'last_scored_month': points[-1][0].isoformat() if points else None,
+        'live_months': [m.isoformat() for m in live_months],
+        'last_evidence_at': last_evidence.isoformat() if last_evidence else None,
         'arc': arc,
         'state': arc['state'],
         'current_phase': phases[-1]['name'] if phases else None,

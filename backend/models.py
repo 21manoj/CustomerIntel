@@ -78,6 +78,25 @@ class User(db.Model):
     )
 
 
+class LLMUsageLog(db.Model):
+    """One row per LLM call — the durable spend ledger utils.llm_budget_controller
+    writes (record_usage) and reads (can_call, get_usage_summary). Declared here so
+    db.create_all() creates it; before 2026-09-04 nothing created the table in
+    this build and every record_usage silently failed."""
+    __tablename__ = 'llm_usage_log'
+
+    id = db.Column(db.Integer, primary_key=True)
+    customer_id = db.Column(db.Integer, db.ForeignKey('customers.customer_id'), nullable=False, index=True)
+    module = db.Column(db.String(100), nullable=False)          # e.g. signal_engine_enrichment
+    model = db.Column(db.String(100), nullable=False)
+    tokens_in = db.Column(db.Integer, nullable=False, default=0)
+    tokens_out = db.Column(db.Integer, nullable=False, default=0)
+    cost_estimate_usd = db.Column(db.Numeric(12, 6), nullable=False, default=0)
+    success = db.Column(db.Boolean, nullable=False, default=True)
+    error_message = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, nullable=False, server_default=db.func.now(), index=True)   # server-side: the controller INSERTs raw SQL
+
+
 class CustomerApiKey(db.Model):
     """Customer-scoped MCP API keys (csp_{scope}_{random}); SHA-256 hash only.
     Ported 2026-09-02 for the HTTP transport (the Tier 2A known gap)."""
