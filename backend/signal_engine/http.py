@@ -2,7 +2,7 @@
 HTTP surface for the signal engine — Starlette routes mounted on the
 CustomerIntelV1 server beside /mcp (server.register_signal_routes).
 
-  POST /api/signals/ingest/{manual|email|slack|transcript|ticket|crm_activity}   JSON, Bearer key
+  POST /api/signals/ingest/{source}   one route per pipeline.SOURCE_TYPES, JSON, Bearer key
   POST /api/signals/ingest/transcript/upload      multipart .txt/.vtt/.srt, Bearer key
   POST /api/signals/ingest/email/parse            SendGrid Inbound Parse (signature + customer toggle)
   POST /api/signals/ingest/slack/events           Slack Events API (signature + customer toggle)
@@ -61,7 +61,8 @@ def register_signal_routes(mcp) -> None:
     from signal_engine.email_receiver import handle_inbound_email
     from signal_engine.slack_events import handle_slack_event
 
-    for source in ('manual', 'email', 'slack', 'transcript', 'ticket', 'crm_activity'):
+    from signal_engine.pipeline import SOURCE_TYPES
+    for source in SOURCE_TYPES:
         def _make(src):
             async def ingest(request):
                 data = await _json(request)
@@ -140,6 +141,7 @@ def register_signal_routes(mcp) -> None:
 ROUTES = (
     '/api/signals/ingest/manual', '/api/signals/ingest/email', '/api/signals/ingest/slack',
     '/api/signals/ingest/transcript', '/api/signals/ingest/ticket', '/api/signals/ingest/crm_activity',
+    '/api/signals/ingest/meeting', '/api/signals/ingest/external',
     '/api/signals/ingest/transcript/upload', '/api/signals/ingest/email/parse', '/api/signals/ingest/slack/events',
     '/api/signals/process', '/api/signals/review-queue', '/api/signals/status',
 )

@@ -105,3 +105,10 @@ def test_missing_setting_raises_instead_of_defaulting():
     from signal_engine import settings
     with pytest.raises(KeyError):
         settings.get('llm', 'no_such_key')
+
+
+def test_every_source_type_has_an_http_route():
+    from signal_engine.http import ROUTES
+    from signal_engine.pipeline import SOURCE_TYPES
+    for src in SOURCE_TYPES:
+        assert f'/api/signals/ingest/{src}' in ROUTES, src
