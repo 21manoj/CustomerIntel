@@ -92,6 +92,16 @@ def get_kpis(vertical: str) -> Dict[str, Dict[str, Any]]:
     return _kpis_cache[vertical]
 
 
+def get_vertical_description(vertical: str) -> Optional[str]:
+    """The catalog's own 'description' (None when the catalog has none)."""
+    import json
+    path = _find_json_catalog_path(normalize_vertical(vertical))
+    if not path:
+        return None
+    with open(path, encoding='utf-8') as f:
+        return json.load(f).get('description') or None
+
+
 def get_pillar_roles(vertical: str) -> Dict[str, str]:
     """Get the role_name -> pillar_code map for a vertical.
 

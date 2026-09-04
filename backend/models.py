@@ -420,6 +420,7 @@ class QualitativeSignal(db.Model):
     # Signal engine v2 (2026-09-03): exact-duplicate detection and a real timestamp
     # (signal_date is a Date; the journey needs the moment the event happened).
     content_hash = db.Column(db.String(64), nullable=True, index=True)
+    source_ref = db.Column(db.String(255), nullable=True)      # ticket id / message ts / CRM activity id
     occurred_at = db.Column(db.DateTime, nullable=True)
 
     __table_args__ = (

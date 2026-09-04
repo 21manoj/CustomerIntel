@@ -30,14 +30,14 @@ import hashlib
 import logging
 import re
 import uuid
-from datetime import datetime, timedelta
-from typing import Dict, Iterable, List, Optional
+from datetime import datetime
+from typing import Dict, List, Optional
+
+from signal_engine import settings
 
 logger = logging.getLogger(__name__)
 
 SOURCE_TYPES = ('manual', 'email', 'slack', 'transcript', 'ticket', 'crm_activity', 'meeting', 'external')
-STRUCTURED_SOURCES = ('ticket', 'crm_activity', 'external')     # carry a category → subtype; no LLM needed
-DEDUP_WINDOW_DAYS = 7
 UNCLASSIFIED_SUBTYPE = 'unclassified_signal'
 
 
@@ -48,7 +48,7 @@ def normalize_text(text: str) -> str:
 
 
 def content_hash(account_id: int, text: str) -> str:
-    return hashlib.sha256(f'{account_id}|{normalize_text(text)[:2000]}'.encode('utf-8')).hexdigest()
+    return hashlib.sha256(f"{account_id}|{normalize_text(text)[:settings.get('dedup', 'hash_chars')]}".encode('utf-8')).hexdigest()
 
 
 def _parse_when(value) -> datetime:
@@ -66,8 +66,7 @@ def _parse_when(value) -> datetime:
 
 def ingest(customer_id: int, account_id: int, source_type: str, raw_text: str, *,
            occurred_at=None, participants: Optional[List[dict]] = None, signal_type: Optional[str] = None,
-           source_ref: Optional[str] = None, consent_verified: Optional[bool] = None,
-           metadata: Optional[dict] = None) -> dict:
+           source_ref: Optional[str] = None, consent_verified: Optional[bool] = None) -> dict:
     """Store one signal. Returns {'status': 'queued'|'duplicate', 'signal_id', ...}.
 
     `signal_type`, when given, must be a taxonomy subtype (structured path).
@@ -94,7 +93,7 @@ def ingest(customer_id: int, account_id: int, source_type: str, raw_text: str, *
     dup = (QualitativeSignal.query
            .filter(QualitativeSignal.account_id == acct.account_id, QualitativeSignal.content_hash == h)
            .order_by(QualitativeSignal.id.desc()).first())
-    if dup and dup.occurred_at and abs((when - dup.occurred_at).days) <= DEDUP_WINDOW_DAYS:
+    if dup and dup.occurred_at and abs((when - dup.occurred_at).days) <= settings.get('dedup', 'window_days'):
         logger.info('signal duplicate: account=%s hash=%s parent=%s', acct.account_id, h[:12], dup.signal_id)
         return {'status': 'duplicate', 'duplicate_of': dup.signal_id, 'account_id': acct.account_id,
                 'customer_id': acct.customer_id, 'content_hash': h}
@@ -102,11 +101,11 @@ def ingest(customer_id: int, account_id: int, source_type: str, raw_text: str, *
     signal_id = str(uuid.uuid4())
     sig = QualitativeSignal(
         signal_id=signal_id, customer_id=acct.customer_id, account_id=acct.account_id,
-        signal_type=(signal_type or source_type), content=raw_text[:2000], sentiment='neutral',
+        signal_type=(signal_type or source_type), content=raw_text[:settings.get('storage', 'content_chars')], sentiment='neutral',
         signal_date=when.date(), occurred_at=when, source_type=source_type, raw_text=raw_text,
         requires_review=False, consent_verified=bool(consent_verified) if consent_verified is not None else source_type != 'transcript',
         composite_signal_id=signal_id, stakeholder_roles=participants or None, content_hash=h,
-        keywords=(source_ref or None),
+        source_ref=(source_ref or None),
     )
     db.session.add(sig)
     db.session.commit()
@@ -134,7 +133,8 @@ def resolve_person(customer_id: int, account_id: int, name_or_email: Optional[st
         return out
     key = out['name'].lower()
     is_email = '@' in key
-    acct = Account.query.get(account_id) if hasattr(Account, 'query') else None
+    from extensions import db
+    acct = db.session.get(Account, account_id)
     pm = (acct.profile_metadata or {}) if acct else {}
     roster = [
         ('champion', pm.get('primary_champion_name'), pm.get('primary_champion_email'), pm.get('primary_champion_title')),
@@ -214,16 +214,23 @@ def materialize(sig, enrichment: dict, taxonomy):
             people.append(resolve_person(sig.customer_id, sig.account_id, nm, p.get('role')))
     primary = next((p for p in people if p['resolved']), people[0] if people else None)
 
+    from signal_engine.urgency import classify_structural_urgency, resolve_effective_urgency
+    sig.structural_urgency = classify_structural_urgency(cls['role'])
+    sig.effective_urgency = resolve_effective_urgency(sig.structural_urgency, enrichment.get('urgency_score'),
+                                                      enrichment.get('escalation_probability'))
+
+    band = settings.get('storage', 'sentiment_label_band')
     when = sig.occurred_at or datetime.combine(sig.signal_date, datetime.min.time())
     props = {
         'signal_id': sig.signal_id, 'signal_ref': sig.signal_id,
-        'sentiment': 'positive' if score > 0.1 else 'negative' if score < -0.1 else 'neutral',
+        'sentiment': 'positive' if score > band else 'negative' if score < -band else 'neutral',
         'sentiment_score': str(round(score, 2)), 'raw_sentiment_score': raw,
         'polarity_conflict': conflict, 'role': cls['role'], 'classification_basis': cls['basis'],
         'intents': cls['intents'], 'urgency_score': enrichment.get('urgency_score'),
         'escalation_probability': enrichment.get('escalation_probability'),
         'requires_review': bool(enrichment.get('requires_review')),
         'llm_model_version': enrichment.get('llm_model_version'),
+        'structural_urgency': sig.structural_urgency, 'effective_urgency': sig.effective_urgency,
         'people': people, 'source_type': sig.source_type, 'evidence_tier': 'observed',
     }
     if primary:
@@ -247,6 +254,7 @@ def materialize(sig, enrichment: dict, taxonomy):
 # ── process ─────────────────────────────────────────────────────────────
 
 def _apply_enrichment(sig, result: dict) -> None:
+    """Copy the LLM's fields onto the signal row (urgency is set in materialize, for both paths)."""
     for field in ('relationship_sentiment', 'product_sentiment', 'urgency_score', 'escalation_probability',
                   'intent_signals', 'stakeholder_roles', 'suggested_action', 'confidence',
                   'requires_review', 'llm_model_version'):
@@ -254,18 +262,6 @@ def _apply_enrichment(sig, result: dict) -> None:
             if field == 'stakeholder_roles' and sig.stakeholder_roles:
                 continue   # the source's participants beat the model's guesses
             setattr(sig, field, result[field])
-    try:
-        from signal_engine.urgency import classify_structural_urgency, resolve_effective_urgency, AccountContext, SignalContext
-        structural = classify_structural_urgency(
-            SignalContext(intent_signals=result.get('intent_signals', []), health_delta=0,
-                          llm_urgency_score=result.get('urgency_score', 0.5),
-                          escalation_probability=result.get('escalation_probability', 0)),
-            AccountContext(account_id=sig.account_id))
-        sig.structural_urgency = structural
-        sig.effective_urgency = resolve_effective_urgency(structural, result.get('urgency_score', 0.5),
-                                                          result.get('escalation_probability', 0))
-    except Exception as e:  # pragma: no cover
-        logger.debug('urgency classification skipped: %s', e)
 
 
 def process_pending(customer_id: Optional[int] = None, limit: int = 50, rebuild_journeys: bool = True) -> dict:

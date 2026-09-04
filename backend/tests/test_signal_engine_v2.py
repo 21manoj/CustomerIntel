@@ -93,8 +93,10 @@ class TestSubmitSignalStructuredPath:
             assert n.properties['stakeholder_role'] == 'champion' and n.properties['evidence_tier'] == 'observed'
             assert n.properties['llm_model_version'] == 'structured_rule_map'
             assert float(n.properties['sentiment_score']) < 0                 # role default: negative
+            assert n.properties['structural_urgency'] == 'critical' == n.properties['effective_urgency']   # champion_change floor, structured path too
             sig = QualitativeSignal.query.filter_by(signal_id=res['signal_id']).first()
             assert sig.cg_node_id == n.node_id and sig.content_hash and sig.occurred_at
+            assert sig.effective_urgency == 'critical' and sig.source_ref == 'crm:evt:1'   # own column now, not keywords
 
     def test_journey_picked_it_up(self, tenant):
         cid, aid = tenant

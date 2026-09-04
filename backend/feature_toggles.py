@@ -114,8 +114,8 @@ class FeatureToggleManager:
             ),
             FeatureToggle.SIGNAL_ENGINE: FeatureConfig(
                 enabled=True,
-                description="QSIM Signal Engine: qualitative signal ingestion, LLM enrichment, "
-                            "structural urgency classification, CG collision, composite scoring",
+                description="Signal engine: qualitative signal ingestion, LLM enrichment, role-based "
+                            "urgency, OBSERVED evidence nodes on the journey (webhook sources need this toggle)",
                 version="1.0.0",
                 dependencies=[FeatureToggle.CONTEXT_GRAPH],
                 environment_required=None

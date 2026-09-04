@@ -16,7 +16,7 @@ Two fixes made during the port, not present in the old repo:
 2. get_pillar_labels(vertical: str = 'dc2_s') had a silent dc2_s default
    that no real caller ever relied on (every live call site already passes
    an explicit vertical) — same pattern as the dc2_s defaults removed
-   elsewhere in Tier 1 (signal_engine/fusion.py, vertical_health.py). Made
+   elsewhere in Tier 1 (vertical_health.py). Made
    required, no default.
 
 get_playbook_config() is NOT ported yet: PLAYBOOK_CONFIG data lives only in

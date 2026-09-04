@@ -1,38 +1,36 @@
-#!/usr/bin/env python3
 """
-QSIM Signal Engine — LLM Enrichment Service.
+LLM enrichment — turns free text into structured intelligence the
+pipeline can classify: intents (a closed vocabulary, every entry a
+taxonomy subtype), sentiment, perceived urgency, people, a suggested
+action, and per-field confidence.
 
-Enriches raw signals with sentiment, intent, urgency, stakeholder roles
-using Claude Sonnet via Anthropic SDK. Vertical-aware prompts ensure
-accurate extraction for DC2_S vs SaaS Premium contexts.
+Structured signals (a declared taxonomy subtype) never come here; the
+pipeline maps them by rule. Without ANTHROPIC_API_KEY a keyword stub
+answers, always flagged requires_review.
 
-Feature-toggled: Only active when FEATURE_SIGNAL_ENGINE=true.
+Prompt context comes from the customer's own KPI catalog (vertical
+registry) — there is no per-vertical prose in code — plus the account's
+recent signals for duplicate/trajectory awareness.
 
-Cost guardrails:
-  - Max 200 LLM calls per customer per day
-  - Max 50 LLM calls per account per day
-  - Cache TTL: 1 hour for near-identical signals
-  - ~$0.003 per signal (Claude Sonnet)
+Tunables: config/signal_engine.json → llm.* (model, limits, thresholds);
+SIGNAL_ENRICHMENT_MODEL overrides the model at runtime. Every call is
+metered through utils.llm_budget_controller.record_usage.
 """
+from __future__ import annotations
 
 import json
 import logging
 import os
-from datetime import datetime, timedelta
-from typing import Dict, Optional, List
+from datetime import datetime
+from typing import Dict, List, Optional
+
+from signal_engine import settings
 
 logger = logging.getLogger(__name__)
 
-# ============================================================
-# Configuration
-# ============================================================
-
-DEFAULT_MODEL = "claude-sonnet-4-6"
-MAX_CALLS_PER_CUSTOMER_PER_DAY = 200
-MAX_CALLS_PER_ACCOUNT_PER_DAY = 50
-CONFIDENCE_THRESHOLD = 0.6  # Below this → requires_review=True
-
-# Intent codes recognized by the system
+# Intent codes the model may emit. Each must be a signal subtype in
+# config/taxonomy_base.json (tests/test_signal_engine_config.py pins this),
+# so classification is a lookup, not a second vocabulary.
 VALID_INTENTS = [
     'renewal_risk', 'expansion_interest', 'champion_change',
     'product_frustration', 'feature_request', 'executive_escalation',
@@ -40,82 +38,30 @@ VALID_INTENTS = [
     'nps_drop_indicator', 'positive_advocacy',
 ]
 
-# ============================================================
-# Vertical-aware prompt templates
-# ============================================================
-
-VERTICAL_CONTEXT = {
-    'dc2_s': {
-        'name': 'Data Center Hardware Infrastructure',
-        'description': 'GPU/AI compute, rack deployment, thermal management, power capacity',
-        'pillars': 'P1 Deployment Velocity, P2 Operational Stability, P3 AI Workload Performance, P4 Channel & Partner Health, P5 Expansion Readiness',
-        'key_terms': 'racks, GPUs, thermal throttling, power draw, deployment, firmware, DCIM, colocation',
-    },
-    'saas_premium': {
-        'name': 'SaaS Premium',
-        'description': 'Product-led SaaS with subscription renewals, feature adoption, support tickets',
-        'pillars': 'P1 Product Adoption & Usage, P2 Customer Engagement, P3 Customer Sentiment & Support, P4 Partner & Ecosystem Health, P5 Revenue & Growth',
-        'key_terms': 'DAU, feature adoption, onboarding, NPS, CSAT, churn, expansion, upsell, seats',
-    },
-    # Aug 21 2026 vertical-coupling audit (Bug 2): sourced from
-    # config/datacenter_v1_kpi_catalog.json's own 'description'/pillars/KPIs —
-    # not hand-guessed — so a datacenter_v1 tenant's signals stop being
-    # enriched against dc2_s's rack/thermal/colocation framing.
-    'datacenter_v1': {
-        'name': 'GPU-Rental Neocloud',
-        'description': 'GPU-rental neocloud — rent NVIDIA GPUs hourly / reserved clusters; '
-                        'health optimized for realized revenue x utilization x goodput x sellable power',
-        'pillars': 'P1 Revenue & Unit Economics, P2 Fleet Utilization & Goodput, '
-                   'P3 Reliability & SLA Delivery, P4 Power & Facility, '
-                   'P5 Commercial & Expansion, P6 Provisioning Velocity',
-        'key_terms': 'GPU-hour, utilization, goodput, reserved cluster, SLA attainment, '
-                     'fabric error rate, stranded power, PUE, time-to-first-job, silicon refresh',
-    },
-    # Sourced from config/healthcare_provider_kpi_catalog.json's own pillars/KPIs.
-    'healthcare_provider': {
-        'name': 'Healthcare Provider',
-        'description': 'Patient care delivery, clinical operations, provider satisfaction, '
-                        'regulatory compliance',
-        'pillars': 'P1 Patient Outcomes, P2 Operational Efficiency, '
-                   'P3 Provider Satisfaction, P4 Compliance & Risk',
-        'key_terms': 'patient satisfaction, readmission rate, treatment adherence, '
-                     'bed utilization, wait time, staff-to-patient ratio, provider NPS, '
-                     'EHR uptime, HIPAA compliance, incident response',
-    },
-}
+_NEUTRAL_CONTEXT = {'description': 'No vertical-specific context available',
+                    'pillars': '(unavailable)', 'key_terms': '(unavailable)'}
 
 
-def _build_generic_vertical_context(vertical: str) -> Dict:
-    """Fail-closed fallback for a registered vertical with no curated
-    VERTICAL_CONTEXT entry yet — derives context from the vertical's own
-    KPI catalog (via vertical_registry) instead of silently borrowing
-    dc2_s's rack/GPU-hardware framing (Aug 21 2026 vertical-coupling audit,
-    Bug 2). If the catalog itself can't be loaded, returns a neutral,
-    vertical-agnostic stub — never dc2_s's context.
-    """
+def build_vertical_context(vertical: str) -> Dict:
+    """Prompt context derived from the vertical's own catalog: its
+    description, pillars and KPI names. Never another vertical's framing;
+    if the catalog cannot be read, a neutral stub."""
     try:
-        from utils.vertical_registry import get_pillars, get_kpis
+        from utils.vertical_registry import get_pillars, get_kpis, get_vertical_description
         pillars = get_pillars(vertical) or {}
         kpis = get_kpis(vertical) or {}
-        pillar_str = ', '.join(
-            f"{pid} {pdef.get('name', pid)}" for pid, pdef in sorted(pillars.items())
-        ) or '(no pillars registered)'
+        pillar_str = ', '.join(f"{pid} {pdef.get('name', pid)}" for pid, pdef in sorted(pillars.items())) or '(no pillars registered)'
         kpi_names = [kdef.get('name') for kdef in kpis.values() if kdef.get('name')]
-        terms_str = ', '.join(kpi_names[:12]) or '(no KPIs registered)'
         return {
             'name': vertical.replace('_', ' ').title(),
-            'description': f'{vertical} vertical (auto-derived from its KPI catalog)',
+            'description': get_vertical_description(vertical) or f'{vertical} vertical (from its KPI catalog)',
             'pillars': pillar_str,
-            'key_terms': terms_str,
+            'key_terms': ', '.join(kpi_names[:settings.get('llm', 'context_signals') * 3]) or '(no KPIs registered)',
         }
     except Exception as e:
-        logger.warning("QSIM enrichment: could not derive vertical context for %r: %s", vertical, e)
-        return {
-            'name': vertical or 'Unknown Vertical',
-            'description': 'No vertical-specific context available',
-            'pillars': '(unavailable)',
-            'key_terms': '(unavailable)',
-        }
+        logger.warning("enrichment: could not derive vertical context for %r: %s", vertical, e)
+        return {'name': vertical or 'Unknown Vertical', **_NEUTRAL_CONTEXT}
+
 
 ENRICHMENT_PROMPT = """You are a B2B Customer Success signal extraction engine for the {vertical_name} vertical.
 
@@ -162,276 +108,120 @@ RESPOND WITH THIS EXACT JSON STRUCTURE:
 }}"""
 
 
-# ============================================================
-# Cost tracking (in-memory for Phase 2, Redis/DB in Phase 3)
-# ============================================================
+# ── daily call budget (process-local; llm_budget_controller keeps the durable ledger) ──
 
-_call_counts: Dict[str, Dict[str, int]] = {}  # {date_key: {customer_X: count, account_Y: count}}
+_call_counts: Dict[str, Dict[str, int]] = {}   # {date: {customer_X: n, account_Y: n}}
 
 
-def _check_rate_limit(customer_id: int, account_id: int) -> Optional[str]:
-    """Check if customer/account has exceeded daily LLM call limits.
-
-    Returns error message if limit exceeded, None if OK.
-    """
-    today = datetime.utcnow().strftime('%Y-%m-%d')
-    if today not in _call_counts:
-        _call_counts.clear()  # Reset on new day
-        _call_counts[today] = {}
-
-    counts = _call_counts[today]
-    cust_key = f"customer_{customer_id}"
-    acct_key = f"account_{account_id}"
-
-    if counts.get(cust_key, 0) >= MAX_CALLS_PER_CUSTOMER_PER_DAY:
-        return f"Customer {customer_id} exceeded daily limit ({MAX_CALLS_PER_CUSTOMER_PER_DAY} calls/day)"
-    if counts.get(acct_key, 0) >= MAX_CALLS_PER_ACCOUNT_PER_DAY:
-        return f"Account {account_id} exceeded daily limit ({MAX_CALLS_PER_ACCOUNT_PER_DAY} calls/day)"
-
-    return None
-
-
-def _record_call(customer_id: int, account_id: int):
-    """Record an LLM call for rate limiting."""
+def _today_counts() -> Dict[str, int]:
     today = datetime.utcnow().strftime('%Y-%m-%d')
     if today not in _call_counts:
         _call_counts.clear()
         _call_counts[today] = {}
-
-    counts = _call_counts[today]
-    cust_key = f"customer_{customer_id}"
-    acct_key = f"account_{account_id}"
-    counts[cust_key] = counts.get(cust_key, 0) + 1
-    counts[acct_key] = counts.get(acct_key, 0) + 1
+    return _call_counts[today]
 
 
-# ============================================================
-# Qdrant Context Retrieval (RAG for enrichment)
-# ============================================================
+def _check_rate_limit(customer_id: int, account_id: int) -> Optional[str]:
+    counts = _today_counts()
+    per_customer = settings.get('llm', 'max_calls_per_customer_per_day')
+    per_account = settings.get('llm', 'max_calls_per_account_per_day')
+    if counts.get(f'customer_{customer_id}', 0) >= per_customer:
+        return f'Customer {customer_id} exceeded daily limit ({per_customer} calls/day)'
+    if counts.get(f'account_{account_id}', 0) >= per_account:
+        return f'Account {account_id} exceeded daily limit ({per_account} calls/day)'
+    return None
 
-def _retrieve_similar_signals(
-    customer_id: int,
-    account_id: int,
-    raw_text: str,
-    top_k: int = 5,
-) -> tuple:
-    """Search Qdrant for similar past signals to provide context.
 
-    Returns:
-        (similar_signals_block, dedup_instruction, similar_signals_list)
-        - similar_signals_block: formatted string for prompt injection
-        - dedup_instruction: instruction if potential duplicates found
-        - similar_signals_list: raw list of matches for post-processing
-    """
-    similar_signals: List[dict] = []
+def _record_call(customer_id: int, account_id: int) -> None:
+    counts = _today_counts()
+    counts[f'customer_{customer_id}'] = counts.get(f'customer_{customer_id}', 0) + 1
+    counts[f'account_{account_id}'] = counts.get(f'account_{account_id}', 0) + 1
 
+
+# ── account context for the prompt ──
+
+def _recent_account_signals(account_id: int) -> List[dict]:
+    """The account's latest SIGNAL nodes — what the model sees for duplicate
+    and trajectory awareness. (The old build tried a Qdrant vector store
+    first; this build has none, so the SQL path is the path.)"""
     try:
-        from utils.qdrant_signal_search import SignalVectorStore
-        store = SignalVectorStore(customer_id)
-        similar_signals = store.search(
-            query=raw_text[:500],  # Use signal text as semantic query
-            account_id=account_id,
-            top_k=top_k,
-            threshold=0.4,  # Lower threshold to catch more context
-        )
-        if similar_signals:
-            logger.debug(
-                "QSIM enrichment: Qdrant returned %d similar signals for account %d",
-                len(similar_signals), account_id,
-            )
-    except Exception as e:
-        logger.debug("QSIM enrichment: Qdrant unavailable, enriching without context: %s", e)
-
-    # Fall back to SQL if Qdrant unavailable
-    if not similar_signals:
-        try:
-            from models import ContextNode
-            recent = (
-                ContextNode.query
-                .filter_by(account_id=account_id, node_type='SIGNAL')
-                .order_by(ContextNode.occurred_at.desc())
-                .limit(top_k)
-                .all()
-            )
-            similar_signals = [
-                {
-                    'title': n.title or '(no title)',
-                    'subtype': n.node_subtype or 'signal',
-                    'score': 0.5,  # No similarity score from SQL
-                    'sentiment': (n.properties or {}).get('sentiment', 'unknown'),
-                }
-                for n in recent
-            ]
-        except Exception:
-            pass  # Proceed without context
-
-    # Build prompt block
-    if similar_signals:
-        lines = []
-        for s in similar_signals[:5]:
-            score = s.get('score', 0)
-            lines.append(
-                f"  - [{s.get('subtype', 'signal')}] {s.get('title', '?')} "
-                f"(similarity: {score:.0%}, sentiment: {s.get('sentiment', '?')})"
-            )
-        similar_block = (
-            "\nRECENT SIMILAR SIGNALS FOR THIS ACCOUNT (from semantic search):\n"
-            + "\n".join(lines)
-            + "\n\nUse these to:\n"
-            "  1. Detect if the new signal is a DUPLICATE of an existing one\n"
-            "  2. Understand the account's recent trajectory and context\n"
-            "  3. Correlate this signal with existing patterns\n"
-        )
-
-        # Check for high-similarity matches that might be duplicates
-        high_sim = [s for s in similar_signals if s.get('score', 0) >= 0.85]
-        if high_sim:
-            dedup = (
-                "\nDUPLICATE CHECK: One or more existing signals have >85% similarity. "
-                "If this new signal conveys the SAME information, set is_duplicate=true "
-                "and explain in duplicate_reason. Do NOT set is_duplicate for signals "
-                "that are related but contain NEW information.\n"
-            )
-        else:
-            dedup = ""
-    else:
-        similar_block = ""
-        dedup = ""
-
-    return similar_block, dedup, similar_signals
+        from models import ContextNode
+        recent = (ContextNode.query.filter_by(account_id=account_id, node_type='SIGNAL')
+                  .order_by(ContextNode.occurred_at.desc()).limit(settings.get('llm', 'context_signals')).all())
+        return [{'title': n.title or '(no title)', 'subtype': n.node_subtype or 'signal',
+                 'sentiment': (n.properties or {}).get('sentiment', 'unknown')} for n in recent]
+    except Exception:
+        return []
 
 
-# ============================================================
-# LLM Enrichment
-# ============================================================
+def _context_blocks(similar: List[dict]) -> tuple:
+    if not similar:
+        return '', ''
+    lines = [f"  - [{s['subtype']}] {s['title']} (sentiment: {s['sentiment']})" for s in similar]
+    block = ("\nRECENT SIGNALS FOR THIS ACCOUNT:\n" + "\n".join(lines) +
+             "\n\nUse these to:\n  1. Detect if the new signal is a DUPLICATE of an existing one\n"
+             "  2. Understand the account's recent trajectory and context\n  3. Correlate this signal with existing patterns\n")
+    dedup = ("\nDUPLICATE CHECK: if this new signal conveys the SAME information as one above, set is_duplicate=true "
+             "and explain in duplicate_reason. Do NOT set is_duplicate for signals that are related but contain NEW information.\n")
+    return block, dedup
 
-def enrich_signal(
-    signal_id: str,
-    raw_text: str,
-    account_id: int,
-    customer_id: int,
-    vertical: str = 'dc2_s',
-) -> Dict:
-    """Enrich a raw signal using Qdrant context retrieval + Claude Sonnet.
 
-    Flow: Qdrant semantic search → context stuffing → Claude LLM → structured output.
-    Falls back to Claude-only if Qdrant unavailable.
+# ── enrichment ──
 
-    Returns enrichment dict with sentiment, intent, urgency, etc.
-    On failure, returns partial result with requires_review=True.
-
-    Args:
-        signal_id: The signal UUID
-        raw_text: Original communication text
-        account_id: Account ID
-        customer_id: Customer ID
-        vertical: Customer vertical ('dc2_s' or 'saas_premium')
-
-    Returns:
-        Dict with enrichment fields matching QualitativeSignal columns
-    """
-    # Rate limit check
+def enrich_signal(signal_id: str, raw_text: str, account_id: int, customer_id: int, vertical: str) -> Dict:
+    """Enrich one free-text signal. Returns a dict matching QualitativeSignal
+    columns; on any failure a partial result with requires_review=True."""
     limit_error = _check_rate_limit(customer_id, account_id)
     if limit_error:
-        logger.warning("QSIM rate limit: %s", limit_error)
-        return {
-            'requires_review': True,
-            'confidence': {'rate_limited': True},
-            'suggested_action': f'Rate limited: {limit_error}',
-        }
+        logger.warning('enrichment rate limit: %s', limit_error)
+        return {'requires_review': True, 'confidence': {'rate_limited': True},
+                'suggested_action': f'Rate limited: {limit_error}'}
 
-    # Step 1: Retrieve similar signals from Qdrant for context
-    similar_block, dedup_instruction, similar_signals = _retrieve_similar_signals(
-        customer_id, account_id, raw_text,
-    )
-
-    # Step 2: Build vertical-aware prompt WITH Qdrant context
-    # Aug 21 2026 vertical-coupling audit (Bug 2): used to fall back to
-    # dc2_s's context for ANY unrecognized vertical — now derives a real
-    # context from that vertical's own KPI catalog instead.
-    v_ctx = VERTICAL_CONTEXT.get(vertical) or _build_generic_vertical_context(vertical)
+    similar = _recent_account_signals(account_id)
+    similar_block, dedup_instruction = _context_blocks(similar)
+    v_ctx = build_vertical_context(vertical)
     prompt = ENRICHMENT_PROMPT.format(
-        vertical_name=v_ctx['name'],
-        vertical_description=v_ctx['description'],
-        vertical_pillars=v_ctx['pillars'],
-        vertical_terms=v_ctx['key_terms'],
-        similar_signals_block=similar_block,
-        dedup_instruction=dedup_instruction,
-        intent_codes=', '.join(VALID_INTENTS),
-        raw_text=raw_text[:3000],  # Truncate for cost control
+        vertical_name=v_ctx['name'], vertical_description=v_ctx['description'],
+        vertical_pillars=v_ctx['pillars'], vertical_terms=v_ctx['key_terms'],
+        similar_signals_block=similar_block, dedup_instruction=dedup_instruction,
+        intent_codes=', '.join(VALID_INTENTS), raw_text=raw_text[:settings.get('llm', 'prompt_text_chars')],
     )
 
-    # Call Claude
     api_key = os.environ.get('ANTHROPIC_API_KEY')
     if not api_key:
-        logger.warning("QSIM enrichment: ANTHROPIC_API_KEY not set — returning stub enrichment")
+        logger.warning('enrichment: ANTHROPIC_API_KEY not set — keyword stub')
         return _stub_enrichment(raw_text)
 
+    model = settings.llm_model()
     try:
         import anthropic
         client = anthropic.Anthropic(api_key=api_key)
-
-        response = client.messages.create(
-            model=DEFAULT_MODEL,
-            max_tokens=1024,
-            messages=[{"role": "user", "content": prompt}],
-        )
-
-        # Cost tracking — canonical path via llm_budget_controller.
+        response = client.messages.create(model=model, max_tokens=settings.get('llm', 'max_tokens'),
+                                          messages=[{'role': 'user', 'content': prompt}])
         try:
-            from utils.llm_budget_controller import record_usage as _record_usage
-            _record_usage(
-                customer_id=customer_id,
-                module='signal_engine_enrichment',
-                tokens_in=response.usage.input_tokens,
-                tokens_out=response.usage.output_tokens,
-                model=DEFAULT_MODEL,
-                success=True,
-            )
-        except Exception as _cost_err:
-            logger.debug('signal_engine_enrichment: cost tracking failed: %s', _cost_err)
-
+            from utils.llm_budget_controller import record_usage
+            record_usage(customer_id=customer_id, module='signal_engine_enrichment',
+                         tokens_in=response.usage.input_tokens, tokens_out=response.usage.output_tokens,
+                         model=model, success=True)
+        except Exception as cost_err:
+            logger.debug('signal_engine_enrichment: cost tracking failed: %s', cost_err)
         _record_call(customer_id, account_id)
 
-        # Parse response
-        content = response.content[0].text.strip()
-        enrichment = json.loads(content)
-
-        # Validate and sanitize
-        enrichment = _validate_enrichment(enrichment)
-        enrichment['llm_model_version'] = DEFAULT_MODEL
-
-        # Track context source for observability
-        enrichment['_context_source'] = 'qdrant' if similar_signals else 'sql_fallback'
-        enrichment['_similar_signal_count'] = len(similar_signals)
-
-        logger.info(
-            "QSIM enrichment complete: signal=%s intents=%s urgency=%.2f review=%s "
-            "context=%s(%d) duplicate=%s",
-            signal_id, enrichment.get('intent_signals', []),
-            enrichment.get('urgency_score', 0), enrichment.get('requires_review', False),
-            enrichment.get('_context_source', 'none'), len(similar_signals),
-            enrichment.get('is_duplicate', False),
-        )
-
+        enrichment = _validate_enrichment(json.loads(response.content[0].text.strip()))
+        enrichment['llm_model_version'] = model
+        enrichment['_similar_signal_count'] = len(similar)
+        logger.info('enrichment complete: signal=%s intents=%s urgency=%.2f review=%s context=%d duplicate=%s',
+                    signal_id, enrichment.get('intent_signals', []), enrichment.get('urgency_score', 0),
+                    enrichment.get('requires_review', False), len(similar), enrichment.get('is_duplicate', False))
         return enrichment
-
     except json.JSONDecodeError as e:
-        logger.warning("QSIM enrichment: invalid JSON from LLM for signal %s: %s", signal_id, e)
-        return {
-            'requires_review': True,
-            'confidence': {'parse_error': True},
-            'suggested_action': 'LLM returned invalid JSON — manual review required',
-            'llm_model_version': DEFAULT_MODEL,
-        }
-
+        logger.warning('enrichment: invalid JSON from LLM for signal %s: %s', signal_id, e)
+        return {'requires_review': True, 'confidence': {'parse_error': True},
+                'suggested_action': 'LLM returned invalid JSON — manual review required', 'llm_model_version': model}
     except Exception as e:
-        logger.exception("QSIM enrichment failed for signal %s: %s", signal_id, e)
-        return {
-            'requires_review': True,
-            'confidence': {'error': str(e)},
-            'suggested_action': f'Enrichment error: {str(e)[:100]}',
-        }
+        logger.exception('enrichment failed for signal %s: %s', signal_id, e)
+        return {'requires_review': True, 'confidence': {'error': str(e)},
+                'suggested_action': f'Enrichment error: {str(e)[:100]}'}
 
 
 def _validate_enrichment(data: Dict) -> Dict:
@@ -458,7 +248,7 @@ def _validate_enrichment(data: Dict) -> Dict:
     # Check confidence threshold
     confidence = data.get('confidence', {})
     low_confidence = any(
-        v < CONFIDENCE_THRESHOLD
+        v < settings.get('llm', 'confidence_threshold')
         for k, v in confidence.items()
         if isinstance(v, (int, float))
     )
@@ -526,122 +316,3 @@ def _stub_enrichment(raw_text: str) -> Dict:
         'requires_review': True,
         'llm_model_version': 'stub_keyword_v1',
     }
-
-
-# ============================================================
-# Batch enrichment (for processing queue)
-# ============================================================
-
-def enrich_pending_signals(customer_id: int, limit: int = 20) -> Dict:
-    """Enrich all un-enriched signals for a customer.
-
-    Processes signals that have source_type set (QSIM-ingested)
-    but no intent_signals (not yet enriched).
-
-    Args:
-        customer_id: Customer to process
-        limit: Max signals to enrich in this batch
-
-    Returns:
-        Summary dict with counts
-    """
-    try:
-        from extensions import db
-        from models import QualitativeSignal, Account
-        from utils.vertical_registry import get_vertical_for_customer
-
-        vertical = get_vertical_for_customer(customer_id)
-
-        # Get account IDs for this customer
-        account_ids = [a.account_id for a in
-                       Account.query.filter_by(customer_id=customer_id)
-                       .with_entities(Account.account_id).all()]
-
-        if not account_ids:
-            return {'status': 'no_accounts', 'enriched': 0}
-
-        # Find un-enriched QSIM signals
-        signals = QualitativeSignal.query.filter(
-            QualitativeSignal.account_id.in_(account_ids),
-            QualitativeSignal.source_type.isnot(None),  # QSIM-ingested
-            QualitativeSignal.intent_signals.is_(None),  # Not yet enriched
-        ).limit(limit).all()
-
-        if not signals:
-            return {'status': 'nothing_to_enrich', 'enriched': 0}
-
-        enriched_count = 0
-        errors = 0
-
-        for sig in signals:
-            raw = sig.raw_text or sig.content or ''
-            if not raw:
-                continue
-
-            result = enrich_signal(
-                signal_id=sig.signal_id,
-                raw_text=raw,
-                account_id=sig.account_id,
-                customer_id=customer_id,
-                vertical=vertical,
-            )
-
-            # Apply enrichment to signal
-            for field in ('sentiment_score', 'relationship_sentiment', 'product_sentiment',
-                          'urgency_score', 'escalation_probability', 'intent_signals',
-                          'stakeholder_roles', 'suggested_action', 'confidence',
-                          'requires_review', 'llm_model_version'):
-                if field in result:
-                    try:
-                        setattr(sig, field, result[field])
-                    except Exception:
-                        pass
-
-            # Run structural urgency classifier
-            try:
-                from signal_engine.urgency import (
-                    classify_structural_urgency, resolve_effective_urgency,
-                    AccountContext, SignalContext,
-                )
-                acct_ctx = AccountContext(account_id=sig.account_id)
-                sig_ctx = SignalContext(
-                    intent_signals=result.get('intent_signals', []),
-                    health_delta=0,  # Would need actual health data
-                    llm_urgency_score=result.get('urgency_score', 0.5),
-                    escalation_probability=result.get('escalation_probability', 0),
-                )
-                structural = classify_structural_urgency(sig_ctx, acct_ctx)
-                effective = resolve_effective_urgency(
-                    structural,
-                    result.get('urgency_score', 0.5),
-                    result.get('escalation_probability', 0),
-                )
-                sig.structural_urgency = structural
-                sig.effective_urgency = effective
-            except Exception as e:
-                logger.debug("Urgency classification skipped: %s", e)
-
-            # Map sentiment to existing sentiment column
-            score = result.get('sentiment_score', 0)
-            if score > 0.2:
-                sig.sentiment = 'positive'
-            elif score < -0.2:
-                sig.sentiment = 'negative'
-            else:
-                sig.sentiment = 'neutral'
-
-            enriched_count += 1
-
-        db.session.commit()
-
-        return {
-            'status': 'completed',
-            'enriched': enriched_count,
-            'errors': errors,
-            'customer_id': customer_id,
-            'vertical': vertical,
-        }
-
-    except Exception as e:
-        logger.exception("Batch enrichment failed: %s", e)
-        return {'status': 'error', 'error': str(e), 'enriched': 0}

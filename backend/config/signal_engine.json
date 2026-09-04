@@ -1,0 +1,44 @@
+{
+  "_doc": "Signal engine v2 tunables — the single source for every number the engine uses. Loaded by signal_engine/settings.py. Env SIGNAL_ENRICHMENT_MODEL overrides llm.model at runtime (ops); everything else changes here.",
+  "dedup": {
+    "window_days": 7,
+    "hash_chars": 2000
+  },
+  "storage": {
+    "content_chars": 2000,
+    "sentiment_label_band": 0.1
+  },
+  "worker": {
+    "poll_interval_seconds": 60,
+    "batch_size": 20,
+    "startup_delay_seconds": 30,
+    "drain_pause_seconds": 2,
+    "max_consecutive_errors": 5,
+    "error_backoff_seconds": 300
+  },
+  "llm": {
+    "model": "claude-sonnet-4-6",
+    "max_tokens": 1024,
+    "prompt_text_chars": 3000,
+    "context_signals": 5,
+    "max_calls_per_customer_per_day": 200,
+    "max_calls_per_account_per_day": 50,
+    "confidence_threshold": 0.6
+  },
+  "urgency": {
+    "_doc": "structural_by_role: floor per taxonomy signal role (keys must be signal_roles in taxonomy_base.json). perceived_bands: LLM urgency_score → level. Effective = max(structural, perceived), escalation_probability ≥ boost_threshold lifts perceived one level.",
+    "structural_by_role": {
+      "escalation": "critical",
+      "champion_change": "critical",
+      "commercial_pressure": "high",
+      "delivery_stall": "high",
+      "infra_incident": "high",
+      "usage_decline": "medium",
+      "engagement_decline": "medium",
+      "capacity_pressure": "medium",
+      "product_friction": "medium"
+    },
+    "perceived_bands": {"critical": 0.8, "high": 0.6, "medium": 0.4},
+    "escalation_boost_threshold": 0.7
+  }
+}

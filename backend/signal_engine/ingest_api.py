@@ -59,7 +59,7 @@ def ingest_from_payload(source_type: str, data: dict, *, require_customer_toggle
                      occurred_at=data.get('occurred_at') or data.get('timestamp'),
                      participants=data.get('participant_list') or data.get('participants'),
                      signal_type=data.get('signal_type'), source_ref=data.get('source_ref') or data.get('thread_or_channel_id'),
-                     consent_verified=data.get('consent_verified'), metadata=data.get('metadata'))
+                     consent_verified=data.get('consent_verified'))
     except ValueError as e:
         return 400, {'error': str(e)}
     except Exception as e:  # pragma: no cover
@@ -149,7 +149,6 @@ def status_payload() -> dict:
         'capabilities': {
             'ingestion': enabled,
             'structural_urgency': enabled,
-            'cg_collision_check': enabled,
             'composite_fusion': False,      # retired — the journey's leading composite is the only leading score
             'llm_enrichment': llm_available,
             'structured_rule_map': enabled,
