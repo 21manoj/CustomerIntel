@@ -14,12 +14,53 @@ if str(BACKEND) not in sys.path:
     sys.path.insert(0, str(BACKEND))
 
 
-def test_every_intent_code_is_a_taxonomy_subtype():
-    from signal_engine.enrichment import VALID_INTENTS
+def test_tool_schema_enum_is_exactly_the_tenant_vocabulary():
+    """Free text can reach every role: the tool schema's subtype enum is the
+    tenant's whole vocabulary (base + overlay), and every role has subtypes."""
+    from signal_engine.enrichment import record_signals_tool, vocabulary_block, examples_block
+    from utils.taxonomy_loader import get_taxonomy
+    for vertical in ('dc2_s', 'saas_premium', 'datacenter_v1', 'healthcare_provider'):
+        tax = get_taxonomy(vertical)
+        enum = record_signals_tool(tax, [])['input_schema']['properties']['signals']['items']['properties']['subtype']['enum']
+        assert enum == tax.all_subtypes() and len(enum) > 100, vertical
+        assert all(len(subs) > 0 for subs in tax.signal_roles.values()), vertical
+        block = vocabulary_block(tax)
+        assert all(role in block for role in tax.signal_roles), vertical
+        assert len(tax.examples) >= 7 and 'signals:' in examples_block(tax), vertical
+
+
+def test_every_vertical_has_its_own_vocabulary_overlay():
+    from utils.taxonomy_loader import get_taxonomy
+    for vertical in ('dc2_s', 'saas_premium', 'datacenter_v1', 'healthcare_provider'):
+        tax = get_taxonomy(vertical)
+        assert len(tax.all_subtypes()) > 100, f'{vertical} has no overlay vocabulary'
+    assert 'ehr_downtime' in get_taxonomy('healthcare_provider').signal_roles['infra_incident']
+    assert 'ehr_downtime' not in get_taxonomy('saas_premium').signal_roles['infra_incident']
+
+
+def test_roster_role_enum_only_when_roster_known():
+    from signal_engine.enrichment import record_signals_tool
     from utils.taxonomy_loader import get_taxonomy
     tax = get_taxonomy('dc2_s')
-    missing = [i for i in VALID_INTENTS if not tax.signal_role(i)]
-    assert not missing, f'intent codes with no taxonomy role: {missing}'
+    person = record_signals_tool(tax, [])['input_schema']['properties']['signals']['items']['properties']['people']['items']
+    assert 'roster_role' not in person['properties']
+    person = record_signals_tool(tax, [{'name': 'A', 'role': 'champion'}])['input_schema']['properties']['signals']['items']['properties']['people']['items']
+    assert person['properties']['roster_role']['enum'] == ['champion']
+
+
+def test_normalize_extraction_drops_unknown_and_flags_review():
+    from signal_engine.enrichment import normalize_extraction
+    from utils.taxonomy_loader import get_taxonomy
+    tax = get_taxonomy('saas_premium')
+    out = normalize_extraction({'signals': [
+        {'subtype': 'seat_underutilization', 'quote': 'half the seats', 'sentiment_score': -0.4, 'urgency_score': 0.5,
+         'escalation_probability': 0.1, 'confidence': 0.9, 'people': [{'name': 'Priya', 'roster_role': 'champion'}]},
+        {'subtype': 'made_up_thing', 'quote': 'x', 'sentiment_score': 0, 'urgency_score': 0, 'confidence': 1},
+    ], 'requires_review': False, 'is_duplicate': False, 'suggested_action': 'call'}, tax)
+    assert [s['subtype'] for s in out['signals']] == ['seat_underutilization']
+    assert out['signals'][0]['role'] == 'usage_decline'
+    assert out['dropped_unknown_subtypes'] == 1 and out['requires_review'] is True
+    assert out['intent_signals'] == ['seat_underutilization'] and out['stakeholder_roles'][0]['roster_role'] == 'champion'
 
 
 def test_urgency_role_floors_name_real_roles():

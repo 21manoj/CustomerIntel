@@ -2,7 +2,7 @@
   "version": "0.1",
   "extends": "base",
   "vertical": "dc2_s",
-  "description": "DC2_S (Data Center) vertical overlay. Empty today — extend here when DC-specific subtypes appear.",
+  "description": "DC2_S (Data Center) vertical overlay. signal_roles add vertical vocabulary under base roles (polarity comes from the role); signal_examples are few-shots for the extraction prompt.",
   "polarity_ambiguous_outcome_subtypes": [],
   "polarity_ambiguous_signal_subtypes": [],
   "revenue_buckets": {
@@ -11,5 +11,65 @@
     "expansion": [],
     "protected": []
   },
-  "auto_recovery_outcome_subtypes": []
+  "auto_recovery_outcome_subtypes": [],
+  "signal_roles": {
+    "infra_incident": [
+      "thermal_throttling_event",
+      "rma_spike",
+      "firmware_regression",
+      "power_event"
+    ],
+    "delivery_stall": [
+      "rack_commissioning_delay",
+      "network_readiness_block",
+      "site_readiness_delay"
+    ],
+    "usage_decline": [
+      "gpu_utilization_drop",
+      "training_job_failures"
+    ],
+    "capacity_pressure": [
+      "rack_space_exhausted",
+      "power_headroom_exhausted"
+    ],
+    "commercial_pressure": [
+      "channel_partner_conflict",
+      "alternative_vendor_rfp",
+      "lease_vs_buy_review"
+    ],
+    "expansion_intent": [
+      "additional_rack_interest",
+      "next_gen_gpu_interest",
+      "second_site_interest"
+    ],
+    "recovery": [
+      "thermal_issue_resolved",
+      "uptime_restored"
+    ],
+    "product_friction": [
+      "dcim_integration_pain"
+    ]
+  },
+  "signal_examples": [
+    {
+      "text": "Rack 7 is throttling again under sustained training load; we had to cap clocks and the ML team is furious.",
+      "subtypes": [
+        "thermal_throttling_event",
+        "escalation"
+      ]
+    },
+    {
+      "text": "Network readiness sign-off slipped two weeks, so the second pod can't be commissioned until the fabric team is done.",
+      "subtypes": [
+        "network_readiness_block"
+      ]
+    },
+    {
+      "text": "We're out of rack space on the floor and the CTO asked what a second site would look like next year.",
+      "subtypes": [
+        "rack_space_exhausted",
+        "second_site_interest"
+      ]
+    }
+  ]
 }

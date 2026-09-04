@@ -2,7 +2,7 @@
   "version": "0.1",
   "extends": "base",
   "vertical": "saas_premium",
-  "description": "SaaS Premium vertical overlay. Empty today — extend here when SaaS-specific subtypes appear.",
+  "description": "SaaS Premium vertical overlay. signal_roles add vertical vocabulary under base roles (polarity comes from the role); signal_examples are few-shots for the extraction prompt.",
   "polarity_ambiguous_outcome_subtypes": [],
   "polarity_ambiguous_signal_subtypes": [],
   "revenue_buckets": {
@@ -11,5 +11,69 @@
     "expansion": [],
     "protected": []
   },
-  "auto_recovery_outcome_subtypes": []
+  "auto_recovery_outcome_subtypes": [],
+  "signal_roles": {
+    "usage_decline": [
+      "dau_drop",
+      "seat_underutilization",
+      "module_abandonment",
+      "api_usage_drop"
+    ],
+    "engagement_decline": [
+      "qbr_no_show",
+      "training_dropoff",
+      "community_silence"
+    ],
+    "delivery_stall": [
+      "onboarding_stalled",
+      "golden_path_blocked",
+      "integration_blocked"
+    ],
+    "commercial_pressure": [
+      "seat_reduction_request",
+      "tier_downgrade_interest",
+      "procurement_review"
+    ],
+    "expansion_intent": [
+      "seat_expansion_interest",
+      "module_upsell_interest",
+      "new_team_rollout"
+    ],
+    "product_friction": [
+      "workflow_friction",
+      "integration_bug",
+      "performance_complaint"
+    ],
+    "advocacy": [
+      "case_study_consent",
+      "reference_call_agreed",
+      "review_site_rating"
+    ],
+    "escalation": [
+      "csat_detractor_response"
+    ]
+  },
+  "signal_examples": [
+    {
+      "text": "Half the seats haven't logged in since March; procurement wants to true-down at renewal.",
+      "subtypes": [
+        "seat_underutilization",
+        "seat_reduction_request"
+      ]
+    },
+    {
+      "text": "The Salesforce sync keeps dropping records and the ops team has stopped trusting the workflow.",
+      "subtypes": [
+        "integration_bug",
+        "workflow_friction"
+      ]
+    },
+    {
+      "text": "Marketing is happy to do a case study, and they asked about adding the analytics module for the EMEA team.",
+      "subtypes": [
+        "case_study_consent",
+        "module_upsell_interest"
+      ]
+    }
+  ]
 }

@@ -2,7 +2,7 @@
   "version": "0.1",
   "extends": "base",
   "vertical": "healthcare_provider",
-  "description": "Healthcare Provider vertical overlay. Empty today — extend here when healthcare-specific subtypes appear.",
+  "description": "Healthcare Provider vertical overlay. signal_roles add vertical vocabulary under base roles (polarity comes from the role); signal_examples are few-shots for the extraction prompt.",
   "polarity_ambiguous_outcome_subtypes": [],
   "polarity_ambiguous_signal_subtypes": [],
   "revenue_buckets": {
@@ -11,5 +11,63 @@
     "expansion": [],
     "protected": []
   },
-  "auto_recovery_outcome_subtypes": []
+  "auto_recovery_outcome_subtypes": [],
+  "signal_roles": {
+    "infra_incident": [
+      "ehr_downtime",
+      "phi_incident"
+    ],
+    "escalation": [
+      "clinical_safety_escalation",
+      "compliance_finding"
+    ],
+    "delivery_stall": [
+      "go_live_delay",
+      "clinician_training_backlog"
+    ],
+    "usage_decline": [
+      "clinician_adoption_drop",
+      "order_set_bypass"
+    ],
+    "commercial_pressure": [
+      "budget_cycle_freeze",
+      "rfp_for_replacement",
+      "merger_integration_review"
+    ],
+    "expansion_intent": [
+      "additional_facility_interest",
+      "new_department_rollout"
+    ],
+    "product_friction": [
+      "clinician_workflow_complaint",
+      "alert_fatigue"
+    ],
+    "advocacy": [
+      "provider_nps_promoter",
+      "conference_reference"
+    ]
+  },
+  "signal_examples": [
+    {
+      "text": "Nurses are bypassing the order sets because the alerts fire on everything; the CMIO raised it as a safety concern.",
+      "subtypes": [
+        "alert_fatigue",
+        "clinical_safety_escalation"
+      ]
+    },
+    {
+      "text": "Go-live for the east campus slipped to November because clinician training is three weeks behind.",
+      "subtypes": [
+        "go_live_delay",
+        "clinician_training_backlog"
+      ]
+    },
+    {
+      "text": "The CMO wants to present our readmission results at the regional conference and asked about the outpatient department.",
+      "subtypes": [
+        "conference_reference",
+        "new_department_rollout"
+      ]
+    }
+  ]
 }

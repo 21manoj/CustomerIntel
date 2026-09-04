@@ -174,5 +174,102 @@
       "product_complaint",
       "bug_report"
     ]
-  }
+  },
+  "signal_role_definitions": {
+    "_description": "One-line, model-facing definition per signal role (what it IS / what it is NOT). Read by the signal engine's extraction prompt so free text classifies against the same vocabulary as structured sources. Every key must be a role in signal_roles.",
+    "champion_change": {
+      "is": "A key internal advocate or sponsor leaves, changes role, goes quiet, or is replaced.",
+      "not": "A new contact joining while the champion stays."
+    },
+    "engagement_decline": {
+      "is": "The customer stops showing up: missed reviews, unanswered outreach, fewer meetings or logins.",
+      "not": "A single reschedule."
+    },
+    "usage_decline": {
+      "is": "Measured use of what they bought falls, or a KPI breaches its threshold.",
+      "not": "A seasonal dip the customer explains."
+    },
+    "escalation": {
+      "is": "The customer raises a problem above normal support: executive involvement, formal complaint, support spike.",
+      "not": "An ordinary ticket."
+    },
+    "infra_incident": {
+      "is": "An outage, failure, degradation or SLA breach on the delivered system or service.",
+      "not": "A planned maintenance window."
+    },
+    "capacity_pressure": {
+      "is": "The customer is running out of headroom they bought: power, seats, capacity, licences.",
+      "not": "Asking to buy more — that is expansion_intent."
+    },
+    "delivery_stall": {
+      "is": "Deployment, onboarding, expansion or time-to-value is delayed or blocked.",
+      "not": "A stall the customer caused and has already resolved."
+    },
+    "commercial_pressure": {
+      "is": "Money or competition: competitor evaluation, budget cuts, pricing pushback, renewal risk, downsizing.",
+      "not": "A decision already announced — that is announcement."
+    },
+    "announcement": {
+      "is": "The customer states a decision already made: churn notice, cancellation, non-renewal.",
+      "not": "Hints, threats or risks — those are commercial_pressure."
+    },
+    "crm_flag": {
+      "is": "The CSM's or CRM's own risk assessment — a human judgement about the account.",
+      "not": "Anything the customer said or did."
+    },
+    "expansion_intent": {
+      "is": "The customer asks about, plans, or shows appetite for more: seats, capacity, modules, sites, refresh.",
+      "not": "An expansion that has already closed."
+    },
+    "expansion_realized": {
+      "is": "An expansion actually closed, signed, or went live.",
+      "not": "Interest or a quote."
+    },
+    "advocacy": {
+      "is": "The customer praises, references, promotes, or publicly endorses the product or team.",
+      "not": "Politeness in an otherwise negative message."
+    },
+    "recovery": {
+      "is": "A previously bad metric or situation measurably improved or stabilized.",
+      "not": "A promise that it will improve."
+    },
+    "intervention": {
+      "is": "An action the vendor took: playbook, CSM call, credit, executive visit.",
+      "not": "Something the customer did."
+    },
+    "routine": {
+      "is": "Business as usual: scheduled reviews, ordinary tickets, feature requests without frustration.",
+      "not": "A request wrapped in a complaint — that is product_friction."
+    },
+    "product_friction": {
+      "is": "The customer is frustrated by the product itself: bugs, complaints, usability, missing capability that hurts.",
+      "not": "An infrastructure outage — that is infra_incident."
+    }
+  },
+  "signal_examples": [
+    {
+      "text": "Our exec sponsor Dana moved to a new role in ops; not sure who owns this relationship now.",
+      "subtypes": [
+        "executive_departure"
+      ]
+    },
+    {
+      "text": "Finance is reviewing all vendor spend before Q3 and asked us to justify the renewal.",
+      "subtypes": [
+        "budget_review",
+        "renewal_risk"
+      ]
+    },
+    {
+      "text": "Great session today — the team loved the new dashboard and asked what it would take to roll it out to two more regions.",
+      "subtypes": [
+        "positive_engagement",
+        "expansion_discussion"
+      ]
+    },
+    {
+      "text": "Sending the meeting notes as promised.",
+      "subtypes": []
+    }
+  ]
 }

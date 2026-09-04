@@ -1,24 +1,32 @@
 """
-LLM enrichment — turns free text into structured intelligence the
-pipeline can classify: intents (a closed vocabulary, every entry a
-taxonomy subtype), sentiment, perceived urgency, people, a suggested
-action, and per-field confidence.
+LLM extraction — free text in, a LIST of taxonomy-typed signals out.
+
+Every element of the vocabulary the model may use is the tenant's own
+(taxonomy base + vertical overlay): role definitions, the closed subtype
+set (enforced as a tool-schema enum, not by instruction), and the
+vertical's few-shot examples. People are matched against the account's
+roster in the prompt, so the model returns a roster role, not a guess.
 
 Structured signals (a declared taxonomy subtype) never come here; the
 pipeline maps them by rule. Without ANTHROPIC_API_KEY a keyword stub
-answers, always flagged requires_review.
+answers in the same shape, always flagged requires_review.
 
-Prompt context comes from the customer's own KPI catalog (vertical
-registry) — there is no per-vertical prose in code — plus the account's
-recent signals for duplicate/trajectory awareness.
+Output shape (also stored on QualitativeSignal.extractions):
+    {'signals': [{subtype, role, quote, sentiment_score, urgency_score,
+                  escalation_probability, people: [{name, title, roster_role}], confidence}],
+     'is_duplicate', 'duplicate_reason', 'suggested_action', 'requires_review',
+     'llm_model_version',
+     # flattened from the first signal / the whole list, for the columns the
+     # review queue and the journey already read:
+     'sentiment_score', 'urgency_score', 'escalation_probability',
+     'intent_signals' (subtypes in order), 'stakeholder_roles', 'confidence'}
 
-Tunables: config/signal_engine.json → llm.* (model, limits, thresholds);
-SIGNAL_ENRICHMENT_MODEL overrides the model at runtime. Every call is
-metered through utils.llm_budget_controller.record_usage.
+Tunables: config/signal_engine.json → llm.*; SIGNAL_ENRICHMENT_MODEL
+overrides the model. Every call is metered through
+utils.llm_budget_controller.record_usage.
 """
 from __future__ import annotations
 
-import json
 import logging
 import os
 from datetime import datetime
@@ -28,15 +36,35 @@ from signal_engine import settings
 
 logger = logging.getLogger(__name__)
 
-# Intent codes the model may emit. Each must be a signal subtype in
-# config/taxonomy_base.json (tests/test_signal_engine_config.py pins this),
-# so classification is a lookup, not a second vocabulary.
-VALID_INTENTS = [
-    'renewal_risk', 'expansion_interest', 'champion_change',
-    'product_frustration', 'feature_request', 'executive_escalation',
-    'pricing_concern', 'competitor_mention', 'deployment_blocker',
-    'nps_drop_indicator', 'positive_advocacy',
-]
+TOOL_NAME = 'record_signals'
+STUB_MODEL_VERSION = 'stub_keyword_v2'
+
+SYSTEM_PROMPT = """You are the signal extraction engine of a B2B Customer Success platform for the {vertical_name} vertical.
+You read one customer communication and record every distinct customer-success signal in it, each typed with a subtype from the closed vocabulary below. You never invent subtypes. A text can contain zero, one, or several signals; record each once, citing the exact words that support it.
+
+Industry context: {vertical_description}
+Health pillars: {vertical_pillars}
+Vertical terms you will see: {vertical_terms}
+
+SIGNAL ROLES AND THEIR SUBTYPES (subtype → meaning of its role):
+{vocabulary_block}
+
+RULES
+- Only the customer's own words and actions are signals. Vendor actions are `intervention` roles; a CSM's opinion about risk is a `crm_flag`.
+- Sentiment is about the customer's stance toward the vendor and product, -1.0 to +1.0. Urgency is how soon someone must act, 0.0 to 1.0.
+- Confidence reflects explicitness: 1.0 stated directly, 0.7 strongly implied, 0.5 weakly implied. Below {confidence_threshold} on any signal, set requires_review.
+- People: name anyone the text identifies. If a person matches the ACCOUNT ROSTER, return their roster_role; otherwise leave roster_role unset.
+- If the text carries the SAME information as one of the RECENT SIGNALS, set is_duplicate and explain; related-but-new information is not a duplicate.
+- Nothing to record (a pleasantry, a scheduling note) → an empty signals list, not a forced signal.
+
+EXAMPLES
+{examples_block}"""
+
+USER_PROMPT = """ACCOUNT ROSTER (known people on this account):
+{roster_block}
+{similar_signals_block}
+TEXT TO ANALYZE:
+{raw_text}"""
 
 _NEUTRAL_CONTEXT = {'description': 'No vertical-specific context available',
                     'pillars': '(unavailable)', 'key_terms': '(unavailable)'}
@@ -63,49 +91,61 @@ def build_vertical_context(vertical: str) -> Dict:
         return {'name': vertical or 'Unknown Vertical', **_NEUTRAL_CONTEXT}
 
 
-ENRICHMENT_PROMPT = """You are a B2B Customer Success signal extraction engine for the {vertical_name} vertical.
+def vocabulary_block(taxonomy) -> str:
+    lines = []
+    for role, subs in taxonomy.vocabulary().items():
+        d = taxonomy.role_definitions.get(role, {})
+        lines.append(f"- {role}: {d.get('is', '')} NOT: {d.get('not', '')}\n    subtypes: {', '.join(subs)}")
+    return '\n'.join(lines)
 
-Industry context: {vertical_description}
-Key pillars: {vertical_pillars}
-Industry terminology: {vertical_terms}
-{similar_signals_block}
-Analyze the following customer communication and extract structured intelligence.
-Return ONLY valid JSON. No preamble. No markdown fences. No explanation.
 
-Confidence scores reflect explicitness:
-  1.0 = stated directly in the text
-  0.7 = strongly implied
-  0.5 = weakly implied
-  0.0 = not determinable from the text
+def examples_block(taxonomy) -> str:
+    out = []
+    for ex in taxonomy.examples:
+        out.append(f'Text: "{ex["text"]}"\n  → signals: {", ".join(ex["subtypes"]) or "(none)"}')
+    return '\n'.join(out) or '(none)'
 
-If confidence for any field is below {confidence_threshold}, set requires_review to true.
-{dedup_instruction}
-VALID INTENT CODES (use ONLY these):
-{intent_codes}
 
-TEXT TO ANALYZE:
-{raw_text}
+def roster_block(roster: List[dict]) -> str:
+    if not roster:
+        return '(no known people on this account)'
+    return '\n'.join(f"- {p['name']} — {p.get('title') or '?'} (roster_role: {p['role']})" for p in roster)
 
-RESPOND WITH THIS EXACT JSON STRUCTURE:
-{{
-  "sentiment_score": <float -1.0 to +1.0>,
-  "relationship_sentiment": <float -1.0 to +1.0>,
-  "product_sentiment": <float -1.0 to +1.0>,
-  "urgency_score": <float 0.0 to 1.0>,
-  "escalation_probability": <float 0.0 to 1.0>,
-  "intent_signals": ["<intent_code>", ...],
-  "stakeholder_roles": [{{"role": "<title>", "name": "<name or null>"}}],
-  "suggested_action": "<one sentence recommended CSM action>",
-  "is_duplicate": <boolean>,
-  "duplicate_reason": "<null or explanation if duplicate>",
-  "confidence": {{
-    "sentiment_score": <float>,
-    "intent_signals": <float>,
-    "urgency_score": <float>,
-    "escalation_probability": <float>
-  }},
-  "requires_review": <boolean>
-}}"""
+
+def record_signals_tool(taxonomy, roster: List[dict]) -> dict:
+    """The tool schema: the vocabulary is an enum, so an unknown subtype is
+    rejected by the API, never parsed into the pipeline."""
+    roster_roles = sorted({p['role'] for p in roster if p.get('role')})
+    person = {'type': 'object', 'required': ['name'],
+              'properties': {'name': {'type': 'string'}, 'title': {'type': 'string'}}}
+    if roster_roles:
+        person['properties']['roster_role'] = {'type': 'string', 'enum': roster_roles}
+    return {
+        'name': TOOL_NAME,
+        'description': 'Record every customer-success signal found in the text, typed with the closed vocabulary.',
+        'input_schema': {
+            'type': 'object',
+            'required': ['signals', 'requires_review', 'is_duplicate', 'suggested_action'],
+            'properties': {
+                'signals': {'type': 'array', 'items': {
+                    'type': 'object',
+                    'required': ['subtype', 'quote', 'sentiment_score', 'urgency_score', 'escalation_probability', 'confidence'],
+                    'properties': {
+                        'subtype': {'type': 'string', 'enum': taxonomy.all_subtypes()},
+                        'quote': {'type': 'string', 'description': 'the exact words that support this signal'},
+                        'sentiment_score': {'type': 'number', 'minimum': -1, 'maximum': 1},
+                        'urgency_score': {'type': 'number', 'minimum': 0, 'maximum': 1},
+                        'escalation_probability': {'type': 'number', 'minimum': 0, 'maximum': 1},
+                        'people': {'type': 'array', 'items': person},
+                        'confidence': {'type': 'number', 'minimum': 0, 'maximum': 1},
+                    }}},
+                'is_duplicate': {'type': 'boolean'},
+                'duplicate_reason': {'type': 'string'},
+                'suggested_action': {'type': 'string', 'description': 'one sentence: the recommended CSM action, or "none"'},
+                'requires_review': {'type': 'boolean'},
+            },
+        },
+    }
 
 
 # ── daily call budget (process-local; llm_budget_controller keeps the durable ledger) ──
@@ -142,8 +182,7 @@ def _record_call(customer_id: int, account_id: int) -> None:
 
 def _recent_account_signals(account_id: int) -> List[dict]:
     """The account's latest SIGNAL nodes — what the model sees for duplicate
-    and trajectory awareness. (The old build tried a Qdrant vector store
-    first; this build has none, so the SQL path is the path.)"""
+    and trajectory awareness."""
     try:
         from models import ContextNode
         recent = (ContextNode.query.filter_by(account_id=account_id, node_type='SIGNAL')
@@ -154,51 +193,110 @@ def _recent_account_signals(account_id: int) -> List[dict]:
         return []
 
 
-def _context_blocks(similar: List[dict]) -> tuple:
+def _similar_block(similar: List[dict]) -> str:
     if not similar:
-        return '', ''
+        return ''
     lines = [f"  - [{s['subtype']}] {s['title']} (sentiment: {s['sentiment']})" for s in similar]
-    block = ("\nRECENT SIGNALS FOR THIS ACCOUNT:\n" + "\n".join(lines) +
-             "\n\nUse these to:\n  1. Detect if the new signal is a DUPLICATE of an existing one\n"
-             "  2. Understand the account's recent trajectory and context\n  3. Correlate this signal with existing patterns\n")
-    dedup = ("\nDUPLICATE CHECK: if this new signal conveys the SAME information as one above, set is_duplicate=true "
-             "and explain in duplicate_reason. Do NOT set is_duplicate for signals that are related but contain NEW information.\n")
-    return block, dedup
+    return "\nRECENT SIGNALS FOR THIS ACCOUNT:\n" + "\n".join(lines) + "\n"
 
 
-# ── enrichment ──
+# ── normalize the model's output into the shape the pipeline stores ──
 
-def enrich_signal(signal_id: str, raw_text: str, account_id: int, customer_id: int, vertical: str) -> Dict:
-    """Enrich one free-text signal. Returns a dict matching QualitativeSignal
-    columns; on any failure a partial result with requires_review=True."""
+def _clamp(v, lo, hi, default):
+    try:
+        return max(lo, min(hi, float(v)))
+    except (TypeError, ValueError):
+        return default
+
+
+def normalize_extraction(data: dict, taxonomy) -> dict:
+    """Validate + flatten a record_signals payload. Unknown subtypes are
+    dropped (the API enum should have prevented them) and counted."""
+    threshold = settings.get('llm', 'confidence_threshold')
+    signals, dropped = [], 0
+    for item in (data.get('signals') or []):
+        if not isinstance(item, dict):
+            continue
+        subtype = (item.get('subtype') or '').strip().lower()
+        role = taxonomy.signal_role(subtype)
+        if not role:
+            dropped += 1
+            continue
+        people = [{'name': p.get('name'), 'title': p.get('title'), 'roster_role': p.get('roster_role')}
+                  for p in (item.get('people') or []) if isinstance(p, dict) and p.get('name')]
+        signals.append({
+            'subtype': subtype, 'role': role, 'quote': (item.get('quote') or '')[:500],
+            'sentiment_score': _clamp(item.get('sentiment_score'), -1, 1, 0.0),
+            'urgency_score': _clamp(item.get('urgency_score'), 0, 1, 0.0),
+            'escalation_probability': _clamp(item.get('escalation_probability'), 0, 1, 0.0),
+            'people': people, 'confidence': _clamp(item.get('confidence'), 0, 1, 0.0),
+        })
+    low = any(s['confidence'] < threshold for s in signals)
+    requires_review = bool(data.get('requires_review')) or low or bool(data.get('is_duplicate')) or dropped > 0
+    first = signals[0] if signals else None
+    all_people = []
+    for s in signals:
+        for p in s['people']:
+            if not any(q['name'].lower() == p['name'].lower() for q in all_people):
+                all_people.append(p)
+    return {
+        'signals': signals,
+        'is_duplicate': bool(data.get('is_duplicate')), 'duplicate_reason': data.get('duplicate_reason') or None,
+        'suggested_action': (data.get('suggested_action') or '')[:500] or None,
+        'requires_review': requires_review, 'dropped_unknown_subtypes': dropped,
+        # flattened, column-compatible view
+        'sentiment_score': (sum(s['sentiment_score'] for s in signals) / len(signals)) if signals else 0.0,
+        'urgency_score': max((s['urgency_score'] for s in signals), default=0.0),
+        'escalation_probability': max((s['escalation_probability'] for s in signals), default=0.0),
+        'intent_signals': [s['subtype'] for s in signals],
+        'stakeholder_roles': [{'name': p['name'], 'role': p.get('title'), 'roster_role': p.get('roster_role')} for p in all_people] or None,
+        'confidence': {s['subtype']: s['confidence'] for s in signals} | ({'first': first['confidence']} if first else {}),
+    }
+
+
+# ── extraction ──
+
+def enrich_signal(signal_id: str, raw_text: str, account_id: int, customer_id: int, vertical: str,
+                  taxonomy=None, roster: Optional[List[dict]] = None) -> Dict:
+    """Extract every signal in one free-text communication. Returns the
+    normalized shape above; on any failure a partial result with
+    requires_review=True and no signals."""
+    from utils.taxonomy_loader import get_taxonomy
+    taxonomy = taxonomy or get_taxonomy(vertical)
+    if roster is None:
+        from signal_engine.pipeline import account_roster
+        roster = account_roster(customer_id, account_id)
+
     limit_error = _check_rate_limit(customer_id, account_id)
     if limit_error:
         logger.warning('enrichment rate limit: %s', limit_error)
-        return {'requires_review': True, 'confidence': {'rate_limited': True},
-                'suggested_action': f'Rate limited: {limit_error}'}
+        return {**normalize_extraction({'signals': [], 'requires_review': True}, taxonomy),
+                'suggested_action': f'Rate limited: {limit_error}', 'confidence': {'rate_limited': True}}
 
-    similar = _recent_account_signals(account_id)
-    similar_block, dedup_instruction = _context_blocks(similar)
     v_ctx = build_vertical_context(vertical)
-    prompt = ENRICHMENT_PROMPT.format(
+    system = SYSTEM_PROMPT.format(
         vertical_name=v_ctx['name'], vertical_description=v_ctx['description'],
         vertical_pillars=v_ctx['pillars'], vertical_terms=v_ctx['key_terms'],
-        similar_signals_block=similar_block, dedup_instruction=dedup_instruction,
-        intent_codes=', '.join(VALID_INTENTS), raw_text=raw_text[:settings.get('llm', 'prompt_text_chars')],
-        confidence_threshold=settings.get('llm', 'confidence_threshold'),
-    )
+        vocabulary_block=vocabulary_block(taxonomy), examples_block=examples_block(taxonomy),
+        confidence_threshold=settings.get('llm', 'confidence_threshold'))
+    similar = _recent_account_signals(account_id)
+    user = USER_PROMPT.format(roster_block=roster_block(roster), similar_signals_block=_similar_block(similar),
+                              raw_text=raw_text[:settings.get('llm', 'prompt_text_chars')])
 
     api_key = os.environ.get('ANTHROPIC_API_KEY')
     if not api_key:
         logger.warning('enrichment: ANTHROPIC_API_KEY not set — keyword stub')
-        return _stub_enrichment(raw_text)
+        return _stub_enrichment(raw_text, taxonomy)
 
     model = settings.llm_model()
     try:
         import anthropic
         client = anthropic.Anthropic(api_key=api_key)
-        response = client.messages.create(model=model, max_tokens=settings.get('llm', 'max_tokens'),
-                                          messages=[{'role': 'user', 'content': prompt}])
+        tool = record_signals_tool(taxonomy, roster)
+        response = client.messages.create(
+            model=model, max_tokens=settings.get('llm', 'max_tokens'), system=system,
+            messages=[{'role': 'user', 'content': user}],
+            tools=[tool], tool_choice={'type': 'tool', 'name': TOOL_NAME})
         try:
             from utils.llm_budget_controller import record_usage
             record_usage(customer_id=customer_id, module='signal_engine_enrichment',
@@ -208,112 +306,59 @@ def enrich_signal(signal_id: str, raw_text: str, account_id: int, customer_id: i
             logger.debug('signal_engine_enrichment: cost tracking failed: %s', cost_err)
         _record_call(customer_id, account_id)
 
-        enrichment = _validate_enrichment(json.loads(response.content[0].text.strip()))
-        enrichment['llm_model_version'] = model
-        enrichment['_similar_signal_count'] = len(similar)
-        logger.info('enrichment complete: signal=%s intents=%s urgency=%.2f review=%s context=%d duplicate=%s',
-                    signal_id, enrichment.get('intent_signals', []), enrichment.get('urgency_score', 0),
-                    enrichment.get('requires_review', False), len(similar), enrichment.get('is_duplicate', False))
-        return enrichment
-    except json.JSONDecodeError as e:
-        logger.warning('enrichment: invalid JSON from LLM for signal %s: %s', signal_id, e)
-        return {'requires_review': True, 'confidence': {'parse_error': True},
-                'suggested_action': 'LLM returned invalid JSON — manual review required', 'llm_model_version': model}
+        payload = next((b.input for b in response.content if getattr(b, 'type', '') == 'tool_use'), None)
+        if payload is None:
+            raise ValueError('model returned no tool_use block')
+        result = normalize_extraction(payload, taxonomy)
+        result['llm_model_version'] = model
+        result['_similar_signal_count'] = len(similar)
+        logger.info('extraction complete: signal=%s subtypes=%s review=%s duplicate=%s',
+                    signal_id, result['intent_signals'], result['requires_review'], result['is_duplicate'])
+        return result
     except Exception as e:
-        logger.exception('enrichment failed for signal %s: %s', signal_id, e)
-        return {'requires_review': True, 'confidence': {'error': str(e)},
-                'suggested_action': f'Enrichment error: {str(e)[:100]}'}
+        logger.exception('extraction failed for signal %s: %s', signal_id, e)
+        return {**normalize_extraction({'signals': [], 'requires_review': True}, taxonomy),
+                'suggested_action': f'Extraction error: {str(e)[:100]}', 'confidence': {'error': str(e)[:200]},
+                'llm_model_version': model}
 
 
-def _validate_enrichment(data: Dict) -> Dict:
-    """Validate and sanitize LLM enrichment output."""
-    # Clamp numeric values
-    for field in ('sentiment_score', 'relationship_sentiment', 'product_sentiment'):
-        if field in data:
-            data[field] = max(-1.0, min(1.0, float(data[field])))
+# ── stub (no API key) ──
 
-    for field in ('urgency_score', 'escalation_probability'):
-        if field in data:
-            data[field] = max(0.0, min(1.0, float(data[field])))
-
-    # Validate intent codes
-    if 'intent_signals' in data:
-        data['intent_signals'] = [i for i in data['intent_signals'] if i in VALID_INTENTS]
-
-    # Validate duplicate detection fields
-    if 'is_duplicate' not in data:
-        data['is_duplicate'] = False
-    if 'duplicate_reason' not in data:
-        data['duplicate_reason'] = None
-
-    # Check confidence threshold
-    confidence = data.get('confidence', {})
-    low_confidence = any(
-        v < settings.get('llm', 'confidence_threshold')
-        for k, v in confidence.items()
-        if isinstance(v, (int, float))
-    )
-    if low_confidence:
-        data['requires_review'] = True
-
-    # Duplicates always require review (human confirmation before discard)
-    if data.get('is_duplicate'):
-        data['requires_review'] = True
-
-    return data
+# keyword → base subtype; every subtype here must exist in taxonomy_base
+STUB_KEYWORDS = (
+    (('competitor', 'alternative', 'evaluating', 'switch'), 'competitor_mention'),
+    (('expand', 'capacity', 'growth', 'additional', 'upgrade'), 'expansion_interest'),
+    (('escalat', 'board', 'cto', 'urgent'), 'executive_escalation'),
+    (('renew', 'contract', 'subscription'), 'renewal_risk'),
+    (('frustrat', 'issue', 'problem', 'broken', 'fail'), 'product_frustration'),
+    (('feature', 'request', 'wishlist', 'need'), 'feature_request'),
+    (('champion', 'leaving', 'departed', 'new role'), 'champion_change'),
+    (('price', 'cost', 'budget', 'expensive'), 'pricing_concern'),
+    (('outage', 'downtime', 'down since', 'incident'), 'incident'),
+    (('usage dropped', 'stopped using', 'idle', 'utilization'), 'usage_decline'),
+)
+_POSITIVE_WORDS = {'positive', 'great', 'excellent', 'happy', 'confirmed', 'approved', 'love'}
+_NEGATIVE_WORDS = {'negative', 'issue', 'problem', 'frustrated', 'escalate', 'concerned', 'risk'}
 
 
-def _stub_enrichment(raw_text: str) -> Dict:
-    """Stub enrichment when no API key available.
-
-    Uses simple keyword matching for basic intent detection.
-    Always sets requires_review=True (not LLM-verified).
-    """
-    text_lower = raw_text.lower()
-
-    # Simple keyword-based intent detection
-    intents = []
-    if any(w in text_lower for w in ('competitor', 'alternative', 'evaluating', 'switch')):
-        intents.append('competitor_mention')
-    if any(w in text_lower for w in ('expand', 'capacity', 'growth', 'additional', 'upgrade')):
-        intents.append('expansion_interest')
-    if any(w in text_lower for w in ('escalat', 'board', 'cto', 'vp', 'urgent')):
-        intents.append('executive_escalation')
-    if any(w in text_lower for w in ('renew', 'contract', 'subscription')):
-        intents.append('renewal_risk')
-    if any(w in text_lower for w in ('frustrat', 'issue', 'problem', 'broken', 'fail')):
-        intents.append('product_frustration')
-    if any(w in text_lower for w in ('feature', 'request', 'wishlist', 'need')):
-        intents.append('feature_request')
-    if any(w in text_lower for w in ('champion', 'leaving', 'departed', 'new role')):
-        intents.append('champion_change')
-    if any(w in text_lower for w in ('price', 'cost', 'budget', 'expensive')):
-        intents.append('pricing_concern')
-
-    # Simple sentiment from keywords
-    positive_words = {'positive', 'great', 'excellent', 'happy', 'confirmed', 'approved', 'love'}
-    negative_words = {'negative', 'issue', 'problem', 'frustrated', 'escalate', 'concerned', 'risk'}
-    pos_count = sum(1 for w in positive_words if w in text_lower)
-    neg_count = sum(1 for w in negative_words if w in text_lower)
-    sentiment = (pos_count - neg_count) / max(pos_count + neg_count, 1)
-
-    urgency = 0.7 if 'urgent' in text_lower or 'escalat' in text_lower else 0.3
-
-    return {
-        'sentiment_score': round(sentiment, 2),
-        'relationship_sentiment': round(sentiment * 0.8, 2),
-        'product_sentiment': round(sentiment * 0.6, 2),
-        'urgency_score': urgency,
-        'escalation_probability': 0.6 if 'escalat' in text_lower else 0.1,
-        'intent_signals': intents,
-        'stakeholder_roles': [],
-        'suggested_action': 'Review signal — stub enrichment (no API key)',
-        'confidence': {
-            'sentiment_score': 0.3,
-            'intent_signals': 0.4,
-            'urgency_score': 0.3,
-            'escalation_probability': 0.3,
-        },
-        'requires_review': True,
-        'llm_model_version': 'stub_keyword_v1',
-    }
+def _stub_enrichment(raw_text: str, taxonomy=None) -> Dict:
+    """Keyword stub when no API key: same shape as the model path, always
+    requires_review (not LLM-verified)."""
+    if taxonomy is None:
+        from utils.taxonomy_loader import get_taxonomy
+        taxonomy = get_taxonomy('dc2_s')   # base vocabulary is what the stub emits; any vertical carries it
+    text_lower = (raw_text or '').lower()
+    pos = sum(1 for w in _POSITIVE_WORDS if w in text_lower)
+    neg = sum(1 for w in _NEGATIVE_WORDS if w in text_lower)
+    sentiment = round((pos - neg) / max(pos + neg, 1), 2)
+    urgency = 0.7 if ('urgent' in text_lower or 'escalat' in text_lower) else 0.3
+    signals = []
+    for words, subtype in STUB_KEYWORDS:
+        if any(w in text_lower for w in words):
+            signals.append({'subtype': subtype, 'quote': raw_text[:120], 'sentiment_score': sentiment,
+                            'urgency_score': urgency, 'escalation_probability': 0.6 if 'escalat' in text_lower else 0.1,
+                            'people': [], 'confidence': 0.4})
+    out = normalize_extraction({'signals': signals, 'requires_review': True, 'is_duplicate': False,
+                                'suggested_action': 'Review signal — keyword stub (no API key)'}, taxonomy)
+    out['llm_model_version'] = STUB_MODEL_VERSION
+    return out

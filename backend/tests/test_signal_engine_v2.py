@@ -117,11 +117,11 @@ class TestFreeTextPath:
                             source_type='email', occurred_at='2026-03-05T15:00:00Z',
                             participants=[{'name': 'Ravi Menon', 'role': 'Interim Data Lead'}])
         ev = res['evidence']
-        assert ev['basis'] == 'llm_intent' and ev['subtype'] == 'competitor_mention' and ev['role'] == 'commercial_pressure'
+        assert ev['basis'] == 'llm_extraction' and ev['subtype'] == 'competitor_mention' and ev['role'] == 'commercial_pressure'
         assert ev['person'] == 'Ravi Menon' and ev['person_unresolved'] is True
         with app.app_context():
             sig = QualitativeSignal.query.filter_by(signal_id=res['signal_id']).first()
-            assert sig.llm_model_version == 'stub_keyword_v1' and sig.requires_review is True
+            assert sig.llm_model_version == 'stub_keyword_v2' and sig.requires_review is True
             assert 'competitor_mention' in sig.intent_signals
 
     def test_no_intent_is_unclassified_not_dropped(self, tenant):
@@ -181,6 +181,48 @@ class TestWorker:
         from signal_engine.worker import SignalEnrichmentWorker
         assert SignalEnrichmentWorker(startup_delay=0).process_once() == 1
         assert SignalEnrichmentWorker(startup_delay=0).process_once() == 0
+
+
+class TestMultiSignalExtraction:
+    def test_one_transcript_many_signals_many_nodes(self, tenant, monkeypatch):
+        """v2: a communication that carries several signals writes one OBSERVED
+        node per signal (each with its own role, urgency, person), all citing
+        the same source event; the journey sees all of them."""
+        cid, aid = tenant
+        from utils.taxonomy_loader import get_taxonomy
+
+        def fake_llm(signal_id, raw_text, account_id, customer_id, vertical, taxonomy=None, roster=None):
+            from signal_engine.enrichment import normalize_extraction
+            out = normalize_extraction({'signals': [
+                {'subtype': 'integration_bug', 'quote': 'the Salesforce sync keeps dropping records', 'sentiment_score': -0.6,
+                 'urgency_score': 0.7, 'escalation_probability': 0.4, 'confidence': 0.9, 'people': []},
+                {'subtype': 'module_upsell_interest', 'quote': 'adding the analytics module for EMEA', 'sentiment_score': 0.5,
+                 'urgency_score': 0.3, 'escalation_probability': 0.0, 'confidence': 0.8,
+                 'people': [{'name': 'Elena Rossi', 'title': 'VP Infrastructure', 'roster_role': 'champion'}]},
+            ], 'requires_review': False, 'is_duplicate': False, 'suggested_action': 'Fix the sync; open the analytics-module conversation'},
+                taxonomy or get_taxonomy(vertical))
+            out['llm_model_version'] = 'fake-llm'
+            return out
+        import signal_engine.enrichment as enrichment
+        monkeypatch.setattr(enrichment, 'enrich_signal', fake_llm)   # pipeline imports it at call time
+
+        from mcp_server.cs_pulse_onboarding import submit_signal
+        res = submit_signal(cid, aid, 'The Salesforce sync keeps dropping records. Separately Elena asked about adding the analytics module for EMEA.',
+                            source_type='transcript', occurred_at='2026-03-12T10:00:00Z', consent_verified=True)
+        assert res['status'] == 'queued' and res['processed'] is True
+        with app.app_context():
+            sig = QualitativeSignal.query.filter_by(signal_id=res['signal_id']).first()
+            nodes = ContextNode.query.filter_by(source_event_id=sig.signal_id).order_by(ContextNode.node_id).all()
+            assert [n.node_subtype for n in nodes] == ['integration_bug', 'module_upsell_interest']   # saas_premium overlay words
+            assert [n.properties['role'] for n in nodes] == ['product_friction', 'expansion_intent']
+            assert nodes[0].properties['effective_urgency'] == 'high' and nodes[1].properties['effective_urgency'] == 'high'
+            assert nodes[0].title == 'the Salesforce sync keeps dropping records'                       # the quote is the evidence
+            assert nodes[1].properties['stakeholder_role'] == 'champion' and nodes[1].properties['person_unresolved'] is False
+            assert float(nodes[1].properties['sentiment_score']) > 0 and nodes[1].properties['polarity_conflict'] is False
+            assert sig.cg_node_id == nodes[0].node_id and len(sig.extractions) == 2 and sig.effective_urgency == 'high'
+            j = JourneyData.query.filter_by(customer_id=cid, account_id=aid).first().journey_json
+            march = next(s for s in j['leading_vs_trailing']['series'] if s['month'] == '2026-03-01')
+            assert march['roles'].get('product_friction') == 1 and march['roles'].get('expansion_intent') == 1
 
 
 class TestHttpSurface:

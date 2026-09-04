@@ -18,7 +18,7 @@
   },
   "llm": {
     "model": "claude-sonnet-5",
-    "max_tokens": 1024,
+    "max_tokens": 2048,
     "prompt_text_chars": 40000,
     "context_signals": 5,
     "key_terms_max": 12,

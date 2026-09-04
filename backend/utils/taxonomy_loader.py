@@ -44,6 +44,8 @@ _ALLOWED_TOP_KEYS = {
     'revenue_buckets',
     'auto_recovery_outcome_subtypes',
     'signal_roles',
+    'signal_role_definitions',
+    'signal_examples',
 }
 _BUCKET_KEYS = {'at_risk', 'lost', 'expansion', 'pipeline', 'protected'}
 
@@ -79,6 +81,15 @@ class Taxonomy:
     auto_recovery_outcome_subtypes: FrozenSet[str] = field(default_factory=frozenset)
     signal_roles: Dict[str, FrozenSet[str]] = field(default_factory=dict)
     signal_role_map: Dict[str, str] = field(default_factory=dict)  # subtype -> role
+    role_definitions: Dict[str, Dict[str, str]] = field(default_factory=dict)   # role -> {is, not}
+    examples: tuple = ()                                                        # ({text, subtypes}, ...) base + overlay
+
+    def vocabulary(self) -> Dict[str, List[str]]:
+        """role -> sorted subtypes; the closed set free text may be classified into."""
+        return {role: sorted(subs) for role, subs in sorted(self.signal_roles.items())}
+
+    def all_subtypes(self) -> List[str]:
+        return sorted(self.signal_role_map)
 
     def signal_role(self, subtype: Optional[str]) -> Optional[str]:
         """Role for a signal subtype, or None if the vocabulary doesn't know it."""
@@ -241,6 +252,21 @@ def _validate_overlay_vs_base(overlay: dict, base: dict, filename: str) -> None:
             )
 
 
+def _validate_vocab_extras(data: dict, roles: Dict[str, set], role_map: Dict[str, str], filename: str) -> None:
+    """signal_role_definitions must name real roles; signal_examples must use real subtypes."""
+    for role in (data.get('signal_role_definitions') or {}):
+        if role.startswith('_'):
+            continue
+        if role not in roles:
+            raise TaxonomyValidationError(f'{filename}: signal_role_definitions names unknown role {role!r}')
+    for i, ex in enumerate(data.get('signal_examples') or []):
+        if not isinstance(ex, dict) or 'text' not in ex or not isinstance(ex.get('subtypes'), list):
+            raise TaxonomyValidationError(f'{filename}: signal_examples[{i}] must be {{text, subtypes}}')
+        unknown = [s for s in ex['subtypes'] if s not in role_map]
+        if unknown:
+            raise TaxonomyValidationError(f'{filename}: signal_examples[{i}] uses unknown subtypes {unknown}')
+
+
 def _merge(base: dict, overlay: Optional[dict]) -> Taxonomy:
     """Return Taxonomy formed by base + overlay. Overlay is additive."""
     def _get_list(d: dict, key: str) -> list:
@@ -268,6 +294,20 @@ def _merge(base: dict, overlay: Optional[dict]) -> Taxonomy:
             if not role.startswith('_'):
                 roles.setdefault(role, set()).update(subs)
 
+    role_map = {s: role for role, subs in roles.items() for s in subs}
+    definitions = {r: d for r, d in (base.get('signal_role_definitions') or {}).items() if not r.startswith('_')}
+    examples = list(base.get('signal_examples') or [])
+    _validate_vocab_extras(base, roles, role_map, 'taxonomy_base.json')
+    if overlay:
+        for r, d in (overlay.get('signal_role_definitions') or {}).items():
+            if not r.startswith('_'):
+                definitions[r] = d
+        examples.extend(overlay.get('signal_examples') or [])
+        _validate_vocab_extras(overlay, roles, role_map, f"taxonomy_{overlay.get('vertical')}.json")
+    undefined = set(roles) - set(definitions)
+    if undefined:
+        raise TaxonomyValidationError(f'roles without a signal_role_definitions entry: {sorted(undefined)}')
+
     return Taxonomy(
         version=base['version'],
         vertical=(overlay or {}).get('vertical'),
@@ -276,7 +316,9 @@ def _merge(base: dict, overlay: Optional[dict]) -> Taxonomy:
         revenue_bucket_map={bk: frozenset(subs) for bk, subs in buckets.items()},
         auto_recovery_outcome_subtypes=frozenset(auto_recovery),
         signal_roles={role: frozenset(subs) for role, subs in roles.items()},
-        signal_role_map={s: role for role, subs in roles.items() for s in subs},
+        signal_role_map=role_map,
+        role_definitions=definitions,
+        examples=tuple(examples),
     )
 
 

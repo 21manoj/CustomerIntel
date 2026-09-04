@@ -348,17 +348,14 @@ class TestEnrichmentPipeline:
         result = _check_rate_limit(customer_id=99999, account_id=99999)
         assert result is None  # No limit exceeded
 
-    def test_valid_intents_list(self):
-        # Stale count found while porting to the new build (2026-09-01):
-        # this asserted == 10, but VALID_INTENTS has had 11 entries in the
-        # old repo too since 'positive_advocacy' was added -- the count was
-        # never updated. Confirmed pre-existing, not introduced by this
-        # port. Fixed here to match reality (11), not the stale assertion.
-        from signal_engine.enrichment import VALID_INTENTS
-        assert 'renewal_risk' in VALID_INTENTS
-        assert 'champion_change' in VALID_INTENTS
-        assert 'competitor_mention' in VALID_INTENTS
-        assert len(VALID_INTENTS) == 11
+    def test_stub_subtypes_are_taxonomy_subtypes(self):
+        # v2: the closed vocabulary is the tenant taxonomy (base + overlay); the
+        # stub's keyword map must only emit base subtypes every vertical carries.
+        from signal_engine.enrichment import STUB_KEYWORDS
+        from utils.taxonomy_loader import get_taxonomy
+        for vertical in ('dc2_s', 'saas_premium'):
+            tax = get_taxonomy(vertical)
+            assert all(tax.signal_role(sub) for _, sub in STUB_KEYWORDS)
 
 
 if __name__ == '__main__':
