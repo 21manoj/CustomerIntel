@@ -402,6 +402,22 @@ class TestReadSurfaceAndReview:
         out = review_signal(cid, sid, 'accept', node_id=n_cs, reviewer='vp@t.test')   # explicit override is allowed
         assert out['nodes'][0]['review'] == 'accepted'
 
+    def test_narrative_is_in_the_journey_and_every_cite_resolves(self, tenant):
+        cid, aid = tenant
+        from mcp_server.cs_pulse_onboarding import get_journey
+        j = get_journey(cid, aid)
+        n = j['narrative']
+        ids = {e['episode_id'] for e in j['episodes']}
+        assert n['validated'] and n['sentence_count'] > 0
+        for ch in n['chapters']:
+            for s in ch['sentences']:
+                assert s['cites'] and set(s['cites']) <= ids
+                for c in s['cites']:                                   # and each cite reaches evidence with provenance
+                    ep = next(e for e in j['episodes'] if e['episode_id'] == c)
+                    assert all(str(nid) in j['evidence'] for nid in ep['evidence_node_ids'])
+        rejected = [o for o in n['omitted'] if o['reason'] == 'rejected_evidence']
+        assert rejected and all(c.startswith('sig:') for o in rejected for c in o['cites'])     # the newsletter we rejected earlier
+
     def test_reclassify_retypes_and_rederives(self, tenant, monkeypatch):
         cid, aid = tenant
         from mcp_server.cs_pulse_onboarding import review_signal

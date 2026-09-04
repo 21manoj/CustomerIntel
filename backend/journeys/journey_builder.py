@@ -434,7 +434,7 @@ def build_journey(account, vertical: str) -> dict:
     for e in episodes:
         by_kind[e.kind] = by_kind.get(e.kind, 0) + 1
 
-    return {
+    journey = {
         'version': '3.0',
         'account_id': account.account_id,
         'account_name': account.account_name,
@@ -469,3 +469,17 @@ def build_journey(account, vertical: str) -> dict:
         'total_months': len(points),
         'total_weeks': len(points) * 4,
     }
+    from journeys.narrative import build_narrative
+    journey['narrative'] = build_narrative(journey, rejected=_rejected_evidence(account))
+    return journey
+
+
+def _rejected_evidence(account) -> List[dict]:
+    """Evidence a reviewer rejected — kept out of the journey, named in the narrative's omitted list."""
+    from models import ContextNode
+    out = []
+    for n in ContextNode.query.filter_by(account_id=account.account_id, node_type='SIGNAL', source='observed').all():
+        rv = (n.properties or {}).get('review') or {}
+        if rv.get('status') == 'rejected':
+            out.append({'node_id': n.node_id, 'subtype': n.node_subtype, 'by': rv.get('by'), 'at': rv.get('at'), 'note': rv.get('note')})
+    return out
