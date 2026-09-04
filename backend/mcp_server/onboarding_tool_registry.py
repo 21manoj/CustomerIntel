@@ -22,4 +22,7 @@ ONBOARDING_TOOLS = frozenset({
     'complete_onboarding',
     'clone_customer',
     'download_customer_csv',
+    'submit_signal',
+    'process_signals',
+    'configure_signal_engine',
 })

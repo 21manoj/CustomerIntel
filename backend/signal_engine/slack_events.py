@@ -1,401 +1,106 @@
-#!/usr/bin/env python3
 """
-QSIM Signal Engine — Slack Events Handler.
+Slack Events API → signal. Framework-agnostic: the HTTP route in
+signal_engine.http hands over the JSON, the raw body (for the signature)
+and the headers.
 
-Flask blueprint that receives Slack Events API webhooks (message.channels)
-and feeds them into the signal ingestion pipeline.
-
-Setup:
-  1. Create a Slack App at api.slack.com/apps
-  2. Enable Event Subscriptions with Request URL:
-     https://<your-domain>/api/signals/ingest/slack/events
-  3. Subscribe to bot events: message.channels, message.groups
-  4. Install app to workspace, invite bot to monitored channels
-  5. Set env vars: SLACK_SIGNING_SECRET, SLACK_BOT_TOKEN
-  6. Configure channel→account mapping in FeatureToggle.config:
-     enable_features(customer_id, ['signal_engine'])
-     then set config: {"slack_channel_map": {"C04ABC123": account_id}}
-
-Channel → Account mapping:
-  Option A: FeatureToggle config (per-customer)
-  Option B: Channel naming convention: #cs-{account_name}
-  Option C: Manual mapping via MCP tool (future)
+Setup: a Slack app subscribed to message.channels / message.groups,
+request URL https://<host>/api/signals/ingest/slack/events. Map the
+workspace and channels on the customer's signal_engine toggle:
+    {"slack_team_id": "T0…", "slack_channel_map": {"C04…": <account_id>}}
+Channels named #cs-<account-slug> resolve by convention.
 """
+from __future__ import annotations
 
 import hashlib
 import hmac
-import json
 import logging
+import os
 import time
-import uuid
 from datetime import datetime
-
-from flask import Blueprint, request, jsonify
+from typing import Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
-slack_events_api = Blueprint('slack_events_api', __name__)
 
-
-# ============================================================
-# Slack signature verification
-# ============================================================
-
-def _verify_slack_signature() -> bool:
-    """Verify Slack request signature using signing secret.
-
-    Returns True if valid or if no signing secret configured (dev mode).
-    """
-    import os
-    signing_secret = os.environ.get('SLACK_SIGNING_SECRET')
-    if not signing_secret:
-        return True  # Dev mode
-
-    timestamp = request.headers.get('X-Slack-Request-Timestamp', '')
-    signature = request.headers.get('X-Slack-Signature', '')
-
+def _verify_slack_signature(headers: Optional[dict] = None, raw_body: bytes = b'') -> bool:
+    """True if valid, or if no SLACK_SIGNING_SECRET is configured (dev)."""
+    secret = os.environ.get('SLACK_SIGNING_SECRET')
+    if not secret:
+        return True
+    headers = {k.lower(): v for k, v in (headers or {}).items()}
+    timestamp, signature = headers.get('x-slack-request-timestamp', ''), headers.get('x-slack-signature', '')
     if not timestamp or not signature:
         return False
-
-    # Reject requests older than 5 minutes (replay attack prevention)
     try:
         if abs(time.time() - int(timestamp)) > 300:
             return False
-    except (ValueError, TypeError):
+    except (TypeError, ValueError):
         return False
-
-    sig_basestring = f"v0:{timestamp}:{request.get_data(as_text=True)}"
-    computed = 'v0=' + hmac.new(
-        signing_secret.encode(),
-        sig_basestring.encode(),
-        hashlib.sha256,
-    ).hexdigest()
-
+    computed = 'v0=' + hmac.new(secret.encode(), f"v0:{timestamp}:{raw_body.decode('utf-8', errors='replace')}".encode(),
+                                hashlib.sha256).hexdigest()
     return hmac.compare_digest(computed, signature)
 
 
-# ============================================================
-# Channel → Account resolution
-# ============================================================
-
-def _resolve_account_from_channel(customer_id: int, channel_id: str, channel_name: str = None):
-    """Map Slack channel to account_id.
-
-    Resolution order:
-      1. FeatureToggle config: {"slack_channel_map": {"C04ABC": 123}}
-      2. Channel naming convention: #cs-{account_name_slug}
-      3. Returns (None, None) if no match
-
-    Returns (account_id, account_name) or (None, None).
-    """
+def _resolve_account_from_channel(customer_id: int, channel_id: str, channel_name: Optional[str] = None):
     from models import FeatureToggle, Account
-
-    # Option A: Explicit mapping in feature toggle config
-    try:
-        toggle = FeatureToggle.query.filter_by(
-            customer_id=customer_id, feature_name='signal_engine',
-        ).first()
-        if toggle and toggle.config:
-            channel_map = toggle.config.get('slack_channel_map', {})
-            mapped_id = channel_map.get(channel_id)
-            if mapped_id:
-                acct = Account.query.filter_by(
-                    customer_id=customer_id, account_id=int(mapped_id),
-                ).first()
-                if acct:
-                    return acct.account_id, acct.account_name
-    except Exception as e:
-        logger.debug("Channel map lookup failed: %s", e)
-
-    # Option B: Channel naming convention #cs-{slug}
+    toggle = FeatureToggle.query.filter_by(customer_id=customer_id, feature_name='signal_engine').first()
+    if toggle and toggle.config:
+        mapped = (toggle.config.get('slack_channel_map') or {}).get(channel_id)
+        if mapped:
+            a = Account.query.filter_by(customer_id=customer_id, account_id=int(mapped)).first()
+            if a:
+                return a.account_id, a.account_name
     if channel_name:
-        name_lower = channel_name.lower()
-        # Strip common prefixes
+        name = channel_name.lower()
         for prefix in ('cs-', 'customer-', 'acct-', 'account-'):
-            if name_lower.startswith(prefix):
-                slug = name_lower[len(prefix):]
-                accounts = Account.query.filter_by(
-                    customer_id=customer_id, account_status='active',
-                ).all()
-                for acct in accounts:
-                    acct_slug = acct.account_name.lower().replace(' ', '-').replace('_', '-')
-                    if slug == acct_slug or slug in acct_slug or acct_slug in slug:
-                        return acct.account_id, acct.account_name
+            if name.startswith(prefix):
+                slug = name[len(prefix):]
+                for a in Account.query.filter_by(customer_id=customer_id, account_status='active').all():
+                    s = a.account_name.lower().replace(' ', '-').replace('_', '-')
+                    if slug == s or slug in s or s in slug:
+                        return a.account_id, a.account_name
                 break
-
     return None, None
 
 
 def _resolve_customer_from_team(team_id: str):
-    """Map Slack team_id (workspace) to customer_id.
-
-    Looks for customers with signal_engine enabled and
-    slack_team_id in their feature toggle config.
-
-    Returns customer_id or None.
-    """
     from models import FeatureToggle
-    try:
-        toggles = FeatureToggle.query.filter_by(
-            feature_name='signal_engine', enabled=True,
-        ).all()
-        for t in toggles:
-            if t.config and t.config.get('slack_team_id') == team_id:
-                return t.customer_id
-    except Exception:
-        pass
+    for t in FeatureToggle.query.filter_by(feature_name='signal_engine', enabled=True).all():
+        if t.config and t.config.get('slack_team_id') == team_id:
+            return t.customer_id
     return None
 
 
-# ============================================================
-# Endpoint
-# ============================================================
-
-@slack_events_api.route('/api/signals/ingest/slack/events', methods=['POST'])
-def handle_slack_event():
-    """Handle Slack Events API webhook.
-
-    Handles two types of requests:
-      1. URL Verification Challenge (required by Slack during setup)
-      2. Event Callbacks (message.channels, message.groups)
-
-    POST body (challenge):
-    {
-        "type": "url_verification",
-        "challenge": "abc123...",
-        "token": "..."
-    }
-
-    POST body (event):
-    {
-        "type": "event_callback",
-        "team_id": "T0ABC123",
-        "event": {
-            "type": "message",
-            "channel": "C04ABC123",
-            "user": "U0ABC123",
-            "text": "Customer X is evaluating alternatives...",
-            "ts": "1234567890.123456"
-        }
-    }
-    """
-    import os
-    enabled = os.environ.get('FEATURE_SIGNAL_ENGINE', 'false').lower() in ('true', '1', 'yes')
-    if not enabled:
-        return jsonify({'error': 'Signal Engine disabled'}), 403
-
-    # Verify Slack signature
-    if not _verify_slack_signature():
-        return jsonify({'error': 'Invalid signature'}), 401
-
-    data = request.get_json(force=True)
-    event_type = data.get('type', '')
-
-    # Handle URL verification challenge
-    if event_type == 'url_verification':
-        challenge = data.get('challenge', '')
-        return jsonify({'challenge': challenge})
-
-    # Handle event callbacks
-    if event_type != 'event_callback':
-        return jsonify({'ok': True})  # Acknowledge unknown types
-
-    event = data.get('event', {})
-    msg_type = event.get('type', '')
-
-    # Only process message events (not reactions, joins, etc.)
-    if msg_type != 'message':
-        return jsonify({'ok': True})
-
-    # Skip bot messages, edits, and thread replies (for now)
-    if event.get('bot_id') or event.get('subtype') in ('bot_message', 'message_changed', 'message_deleted'):
-        return jsonify({'ok': True})
-
-    text = event.get('text', '').strip()
-    if not text or len(text) < 10:  # Skip very short messages
-        return jsonify({'ok': True})
-
-    channel_id = event.get('channel', '')
-    team_id = data.get('team_id', '')
-    user_id = event.get('user', '')
-    ts = event.get('ts', '')
-
-    # Resolve customer from Slack workspace
-    customer_id = _resolve_customer_from_team(team_id)
-
-    # Fallback: check query param or request header
+def handle_slack_event(data: dict, headers: Optional[dict] = None, raw_body: bytes = b'',
+                       query: Optional[dict] = None) -> Tuple[int, dict]:
+    from signal_engine.ingest_api import engine_enabled, ingest_from_payload
+    if not engine_enabled():
+        return 403, {'error': 'Signal Engine disabled'}
+    if not _verify_slack_signature(headers, raw_body):
+        return 401, {'error': 'Invalid signature'}
+    data, query = data or {}, query or {}
+    if data.get('type') == 'url_verification':
+        return 200, {'challenge': data.get('challenge', '')}
+    if data.get('type') != 'event_callback':
+        return 200, {'ok': True}
+    ev = data.get('event') or {}
+    if ev.get('type') != 'message' or ev.get('bot_id') or ev.get('subtype') in ('bot_message', 'message_changed', 'message_deleted'):
+        return 200, {'ok': True}
+    text = (ev.get('text') or '').strip()
+    if len(text) < 10:
+        return 200, {'ok': True}
+    customer_id = _resolve_customer_from_team(data.get('team_id', '')) or query.get('customer_id')
     if not customer_id:
-        customer_id = request.args.get('customer_id', type=int)
-
-    if not customer_id:
-        logger.warning(
-            "Slack event from unknown team %s — configure slack_team_id in signal_engine feature toggle",
-            team_id,
-        )
-        return jsonify({'ok': True})  # Acknowledge but don't process
-
-    # Resolve account from channel
-    try:
-        from extensions import db
-        channel_name = event.get('channel_name', '')
-        account_id, account_name = _resolve_account_from_channel(
-            customer_id, channel_id, channel_name,
-        )
-    except Exception as e:
-        logger.warning("Account resolution failed for channel %s: %s", channel_id, e)
-        account_id, account_name = None, None
-
+        logger.warning('Slack event from unknown team %s — set slack_team_id on the signal_engine toggle', data.get('team_id'))
+        return 200, {'ok': True, 'ignored': 'unknown team'}
+    account_id, account_name = _resolve_account_from_channel(int(customer_id), ev.get('channel', ''), ev.get('channel_name'))
     if not account_id:
-        logger.debug(
-            "Slack message from unmapped channel %s (team %s, customer %d)",
-            channel_id, team_id, customer_id,
-        )
-        return jsonify({'ok': True})  # Acknowledge but don't process
-
-    # Create signal
-    try:
-        from extensions import db
-        from models import QualitativeSignal
-
-        signal_id = str(uuid.uuid4())
-        signal = QualitativeSignal(
-            signal_id=signal_id,
-            customer_id=customer_id,
-            account_id=account_id,
-            signal_type='slack',
-            content=text[:2000],
-            sentiment='neutral',
-            signal_date=datetime.utcnow().date(),
-        )
-
-        for attr, val in [
-            ('source_type', 'slack'),
-            ('raw_text', text),
-            ('requires_review', False),
-            ('consent_verified', True),
-            ('composite_signal_id', signal_id),
-        ]:
-            try:
-                setattr(signal, attr, val)
-            except Exception:
-                pass
-
-        # Store Slack user as stakeholder
-        try:
-            signal.stakeholder_roles = [{'name': user_id, 'role': 'slack_user'}]
-        except Exception:
-            pass
-
-        db.session.add(signal)
-        db.session.commit()
-
-        # Wake enrichment worker
-        try:
-            from signal_engine.worker import notify_new_signal
-            notify_new_signal()
-        except Exception:
-            pass
-
-        logger.info(
-            "Slack signal ingested: id=%s channel=%s account=%s(%d) customer=%d",
-            signal_id, channel_id, account_name, account_id, customer_id,
-        )
-
-        # Slack expects 200 OK within 3 seconds
-        return jsonify({'ok': True})
-
-    except Exception as e:
-        logger.exception("Slack signal ingestion failed: %s", e)
-        return jsonify({'ok': True})  # Still return 200 to avoid Slack retries
-
-
-# ============================================================
-# Channel mapping management
-# ============================================================
-
-@slack_events_api.route('/api/signals/slack/channels', methods=['GET'])
-def list_channel_mappings():
-    """List configured Slack channel → account mappings for a customer."""
-    import os
-    enabled = os.environ.get('FEATURE_SIGNAL_ENGINE', 'false').lower() in ('true', '1', 'yes')
-    if not enabled:
-        return jsonify({'error': 'Signal Engine disabled'}), 403
-
-    customer_id = request.args.get('customer_id', type=int)
-    if not customer_id:
-        return jsonify({'error': 'customer_id required'}), 400
-
-    try:
-        from models import FeatureToggle
-        toggle = FeatureToggle.query.filter_by(
-            customer_id=customer_id, feature_name='signal_engine',
-        ).first()
-        config = toggle.config if toggle else {}
-        return jsonify({
-            'customer_id': customer_id,
-            'slack_team_id': config.get('slack_team_id'),
-            'slack_channel_map': config.get('slack_channel_map', {}),
-        })
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-
-@slack_events_api.route('/api/signals/slack/channels', methods=['POST'])
-def update_channel_mapping():
-    """Add or update a Slack channel → account mapping.
-
-    POST body:
-    {
-        "customer_id": 407,
-        "channel_id": "C04ABC123",
-        "account_id": 301,
-        "slack_team_id": "T0ABC123"  (optional, set once)
-    }
-    """
-    import os
-    enabled = os.environ.get('FEATURE_SIGNAL_ENGINE', 'false').lower() in ('true', '1', 'yes')
-    if not enabled:
-        return jsonify({'error': 'Signal Engine disabled'}), 403
-
-    data = request.get_json(force=True)
-    customer_id = data.get('customer_id')
-    channel_id = data.get('channel_id')
-    account_id = data.get('account_id')
-
-    if not all([customer_id, channel_id, account_id]):
-        return jsonify({'error': 'customer_id, channel_id, and account_id required'}), 400
-
-    try:
-        from extensions import db
-        from models import FeatureToggle
-
-        toggle = FeatureToggle.query.filter_by(
-            customer_id=customer_id, feature_name='signal_engine',
-        ).first()
-
-        if not toggle:
-            return jsonify({'error': 'Signal Engine not enabled for this customer'}), 403
-
-        config = toggle.config or {}
-        channel_map = config.get('slack_channel_map', {})
-        channel_map[channel_id] = account_id
-        config['slack_channel_map'] = channel_map
-
-        # Optionally set team_id
-        team_id = data.get('slack_team_id')
-        if team_id:
-            config['slack_team_id'] = team_id
-
-        toggle.config = config
-        db.session.commit()
-
-        return jsonify({
-            'status': 'updated',
-            'customer_id': customer_id,
-            'channel_id': channel_id,
-            'account_id': account_id,
-            'slack_channel_map': channel_map,
-        })
-
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return 200, {'ok': True, 'ignored': 'unmapped channel'}
+    ts = ev.get('ts')
+    occurred = datetime.utcfromtimestamp(float(ts)).isoformat() if ts else None
+    code, res = ingest_from_payload('slack', {
+        'account_id': account_id, 'customer_id': int(customer_id), 'raw_text': text, 'occurred_at': occurred,
+        'participant_list': [{'name': ev.get('user_name') or ev.get('user') or 'slack_user', 'role': 'slack_user'}],
+        'source_ref': f"{ev.get('channel')}:{ts}"})
+    # Slack expects 200 within 3 s regardless of what we did with it
+    return 200, {'ok': True, 'result': res, 'account_name': account_name}

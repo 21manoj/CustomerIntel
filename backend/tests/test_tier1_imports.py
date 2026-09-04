@@ -91,7 +91,7 @@ def test_signal_engine_modules_import():
         import models  # noqa: F401
         db.create_all()
         import signal_engine.models  # noqa: F401
-        from signal_engine import enrichment, fusion, urgency, collision, cleanup  # noqa: F401
+        from signal_engine import enrichment, urgency, collision, cleanup, pipeline  # noqa: F401
 
 
 if __name__ == '__main__':

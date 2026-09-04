@@ -87,13 +87,25 @@ def collect_episodes(account, taxonomy, health_rows) -> List[Episode]:
                 continue  # legacy system node, never observed evidence
             role = taxonomy.signal_role(sub)
             pol = taxonomy.role_polarity(role)
+            raw_sent = _sentiment_from_props(props, label_default, pol)
+            # Polarity reconciliation: the role is the evidence class; a
+            # sentiment that contradicts it (a "positive" usage-decline) is
+            # a data error on the row, not a recovery. The role wins and the
+            # conflict is carried on the episode — found on live tenant 415,
+            # where two such rows produced a false September recovery_watch.
+            sent, conflict = raw_sent, False
+            if pol != 0 and raw_sent is not None and ((raw_sent > 0) if pol < 0 else (raw_sent < 0)):
+                sent, conflict = label_default['negative' if pol < 0 else 'positive'], True
             eps.append(Episode(
                 episode_id=f'sig:{n.node_id}', date=n.occurred_at, kind='signal',
                 subtype=sub, role=role, polarity=pol, source='observed',
                 title=(n.title or sub or 'signal')[:200],
                 evidence_node_ids=[n.node_id],
-                sentiment=_sentiment_from_props(props, label_default, pol),
-                meta={'source_platform': n.source_platform, 'stakeholder': props.get('stakeholder_name')},
+                sentiment=sent,
+                meta={'source_platform': n.source_platform, 'stakeholder': props.get('stakeholder_name'),
+                      'stakeholder_role': props.get('stakeholder_role'),
+                      'person_unresolved': props.get('person_unresolved'),
+                      'polarity_conflict': conflict, 'raw_sentiment': raw_sent if conflict else None},
             ))
         elif n.node_type == 'DECISION':
             eps.append(Episode(

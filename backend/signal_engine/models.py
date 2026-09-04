@@ -109,6 +109,8 @@ ENRICHMENT_COLUMNS = {
     'structural_urgency': "VARCHAR(20)",          # critical/high/medium/low
     'effective_urgency': "VARCHAR(20)",            # max(structural, llm)
     'consent_verified': "BOOLEAN DEFAULT FALSE",  # Transcript consent
+    'content_hash': "VARCHAR(64)",                # v2: exact-duplicate detection
+    'occurred_at': "TIMESTAMP",                   # v2: event timestamp (signal_date is a Date)
 }
 
 

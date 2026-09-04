@@ -54,6 +54,7 @@ _BUCKET_KEYS = {'at_risk', 'lost', 'expansion', 'pipeline', 'protected'}
 NEGATIVE_SIGNAL_ROLES = frozenset({
     'champion_change', 'engagement_decline', 'usage_decline', 'escalation',
     'infra_incident', 'capacity_pressure', 'delivery_stall', 'commercial_pressure',
+    'product_friction',
 })
 POSITIVE_SIGNAL_ROLES = frozenset({
     'expansion_intent', 'expansion_realized', 'advocacy', 'recovery',

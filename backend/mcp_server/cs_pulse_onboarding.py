@@ -607,6 +607,117 @@ def trigger_wizard(customer_id: int, wizard: str) -> dict:
         }
 
 
+# ===================================================================
+# Tools: signals (signal engine v2)
+# ===================================================================
+
+@mcp.tool
+def submit_signal(customer_id: int, account_id: int, raw_text: str, source_type: str = 'manual',
+                  occurred_at: str = None, signal_type: str = None, participants: list = None,
+                  source_ref: str = None, consent_verified: bool = None, process_now: bool = True) -> dict:
+    """Record one piece of evidence for an account and, by default, turn it
+    into a journey episode immediately.
+
+    - raw_text: what happened (a note, an email, a ticket summary, a meeting
+      takeaway). Free text is classified by the LLM into a taxonomy role.
+    - signal_type: optional taxonomy subtype (e.g. 'champion_departure',
+      'usage_decline', 'expansion_interest'). When given, no LLM call is made —
+      the structured path. Unknown subtypes fall back to LLM classification.
+    - occurred_at: ISO timestamp of the EVENT (not of this call). Always pass
+      it for anything that didn't just happen — the journey is dated by it.
+    - participants: [{"name": "Lisa Park", "role": "Director of Infrastructure"}]
+      — resolved against the account's roster; unresolved people are kept and
+      flagged, never dropped.
+    - source_type: manual | email | slack | transcript | ticket | crm_activity | meeting | external
+    - Exact duplicates (same account, same text, within 7 days) are reported,
+      not stored twice.
+
+    Args:
+        customer_id: The customer ID
+        account_id: The account ID (must belong to the customer)
+        raw_text: The evidence text
+        source_type: Where it came from (default 'manual')
+        occurred_at: ISO timestamp of the event (default: now)
+        signal_type: Taxonomy subtype for the structured path (optional)
+        participants: People involved, [{name, role}] (optional)
+        source_ref: Source-system reference (ticket id, message id) (optional)
+        consent_verified: Required true for transcripts
+        process_now: Classify + write the evidence node + rebuild the journey now (default true)
+    """
+    _require_auth_if_key_present('submit_signal', customer_id)
+    _check_mcp_enabled()
+    app = _get_flask_app()
+    with app.app_context():
+        from signal_engine.pipeline import ingest, process_pending
+        try:
+            res = ingest(customer_id, account_id, source_type, raw_text, occurred_at=occurred_at,
+                         participants=participants, signal_type=signal_type, source_ref=source_ref,
+                         consent_verified=consent_verified)
+        except ValueError as e:
+            raise ToolError(str(e))
+        if res['status'] == 'queued' and process_now:
+            out = process_pending(customer_id=customer_id, limit=50)
+            mine = next((x for x in out['signals'] if x['signal_id'] == res['signal_id']), None)
+            res.update({'processed': True, 'evidence': mine, 'journeys_rebuilt': out['journeys_rebuilt']})
+        return res
+
+
+@mcp.tool
+def process_signals(customer_id: int, limit: int = 50) -> dict:
+    """Turn every pending signal for a customer into evidence (classify,
+    reconcile polarity, resolve people, write the node) and rebuild the
+    journeys of the accounts touched. The background worker does this
+    automatically; call it to force a pass (e.g. after a webhook burst or a
+    bulk ingest).
+
+    Args:
+        customer_id: The customer ID
+        limit: Max signals per pass (default 50)
+    """
+    _require_auth_if_key_present('process_signals', customer_id)
+    _check_mcp_enabled()
+    app = _get_flask_app()
+    with app.app_context():
+        from signal_engine.pipeline import process_pending
+        return process_pending(customer_id=customer_id, limit=limit)
+
+
+@mcp.tool
+def configure_signal_engine(customer_id: int, enabled: bool = True, slack_team_id: str = None,
+                            slack_channel_map: dict = None) -> dict:
+    """Enable the webhook sources (Slack, inbound email) for a customer and
+    map their Slack workspace / channels to accounts. MCP submit_signal and
+    the JSON ingest routes don't need this — they are key-authenticated.
+
+    Args:
+        customer_id: The customer ID
+        enabled: Turn the per-customer signal_engine toggle on/off
+        slack_team_id: Slack workspace id (T0…) that maps to this customer
+        slack_channel_map: {"C04…": account_id, …}
+    """
+    _require_auth_if_key_present('configure_signal_engine', customer_id)
+    _check_mcp_enabled()
+    app = _get_flask_app()
+    with app.app_context():
+        from models import Customer, FeatureToggle
+        from extensions import db
+        if not db.session.get(Customer, int(customer_id)):
+            raise ToolError(f"Customer {customer_id} not found.")
+        t = FeatureToggle.query.filter_by(customer_id=customer_id, feature_name='signal_engine').first()
+        if not t:
+            t = FeatureToggle(customer_id=customer_id, feature_name='signal_engine', enabled=enabled, config={})
+            db.session.add(t)
+        t.enabled = bool(enabled)
+        cfg = dict(t.config or {})
+        if slack_team_id is not None:
+            cfg['slack_team_id'] = slack_team_id
+        if slack_channel_map:
+            cfg['slack_channel_map'] = {str(k): int(v) for k, v in slack_channel_map.items()}
+        t.config = cfg
+        db.session.commit()
+        return {'customer_id': customer_id, 'signal_engine_enabled': t.enabled, 'config': cfg}
+
+
 def _check_kpi_dependencies(enabled_kpis=None, enabled_pillars=None):
     """Check if disabled KPIs/pillars affect downstream engines (ROI, arc classifier).
 

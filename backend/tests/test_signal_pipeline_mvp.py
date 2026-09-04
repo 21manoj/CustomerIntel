@@ -88,9 +88,9 @@ class TestEmailReceiver:
         assert self.clean_body('') == ''
         assert self.clean_body(None) == ''
 
-    def test_blueprint_exists(self):
-        from signal_engine.email_receiver import email_receiver_api
-        assert email_receiver_api.name == 'email_receiver_api'
+    def test_email_routes_registered(self):
+        from signal_engine.http import ROUTES
+        assert '/api/signals/ingest/email/parse' in ROUTES
 
 
 # ============================================================
@@ -98,9 +98,9 @@ class TestEmailReceiver:
 # ============================================================
 
 class TestSlackEvents:
-    def test_blueprint_exists(self):
-        from signal_engine.slack_events import slack_events_api
-        assert slack_events_api.name == 'slack_events_api'
+    def test_slack_routes_registered(self):
+        from signal_engine.http import ROUTES
+        assert '/api/signals/ingest/slack/events' in ROUTES
 
     def test_signature_passes_without_secret(self):
         """Dev mode: no SLACK_SIGNING_SECRET means verification passes."""

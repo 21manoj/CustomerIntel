@@ -9,6 +9,8 @@ Environment:
   DATABASE_URL          postgresql://...            (required)
   MCP_SERVER_API_KEY    super-admin Bearer key       (recommended)
   MCP_AUTH_REQUIRED     true|false (default true; onboarding tools stay frictionless)
+  SIGNAL_WORKER         true|false (default true) — background signal processing
+  FEATURE_SIGNAL_ENGINE true|false (default true) — the /api/signals/* surface
   PORT                  default 8101
   GIT_SHA / BUILD_TIME  surfaced by /health
 
@@ -131,6 +133,14 @@ def build_asgi_app(database_url: str | None = None, create_schema: bool = True):
     async def root(request):
         return JSONResponse({'server': SERVER_NAME, 'version': VERSION, 'mcp': '/mcp', 'health': '/health'})
 
+    # Signal engine v2: ingest / webhook / process / status routes beside /mcp
+    from signal_engine.http import register_signal_routes
+    register_signal_routes(mcp)
+    if create_schema:
+        from signal_engine.models import ensure_enrichment_columns
+        with app.app_context():
+            ensure_enrichment_columns(db.engine)   # additive, idempotent (content_hash, occurred_at on existing DBs)
+
     asgi = mcp.http_app(path='/mcp')
     return BearerAuthMiddleware(asgi)
 
@@ -146,6 +156,9 @@ def main():
     if os.environ.get('MCP_AUTH_REQUIRED', 'true').lower() in ('true', '1', 'yes') and not os.environ.get('MCP_SERVER_API_KEY'):
         logger.warning('MCP_SERVER_API_KEY is not set — only customer-scoped keys (create_customer) will work over HTTP')
     app = build_asgi_app()
+    if os.environ.get('SIGNAL_WORKER', 'true').lower() in ('true', '1', 'yes'):
+        from signal_engine.worker import SignalEnrichmentWorker
+        SignalEnrichmentWorker().start()
     port = int(os.environ.get('PORT', '8101'))
     logger.info('%s %s serving MCP at /mcp on 0.0.0.0:%d (sha=%s)', SERVER_NAME, VERSION, port, os.environ.get('GIT_SHA'))
     uvicorn.run(app, host='0.0.0.0', port=port, log_level=os.environ.get('LOG_LEVEL', 'info').lower())

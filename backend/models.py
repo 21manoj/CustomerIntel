@@ -417,6 +417,10 @@ class QualitativeSignal(db.Model):
     structural_urgency = db.Column(db.String(20), nullable=True)    # critical/high/medium/low
     effective_urgency = db.Column(db.String(20), nullable=True)     # max(structural, llm)
     consent_verified = db.Column(db.Boolean, default=False)         # Transcript consent
+    # Signal engine v2 (2026-09-03): exact-duplicate detection and a real timestamp
+    # (signal_date is a Date; the journey needs the moment the event happened).
+    content_hash = db.Column(db.String(64), nullable=True, index=True)
+    occurred_at = db.Column(db.DateTime, nullable=True)
 
     __table_args__ = (
         db.UniqueConstraint('customer_id', 'signal_id', name='uq_customer_signal_id'),
