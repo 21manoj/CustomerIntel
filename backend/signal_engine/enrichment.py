@@ -27,6 +27,7 @@ utils.llm_budget_controller.record_usage.
 """
 from __future__ import annotations
 
+import json
 import logging
 import os
 from datetime import datetime
@@ -209,9 +210,33 @@ def _clamp(v, lo, hi, default):
         return default
 
 
+def _coerce_payload(data) -> dict:
+    """Models sometimes return the tool payload, or its `signals` field, as a
+    JSON *string* instead of an object. Parse and unwrap before validating."""
+    if isinstance(data, str):
+        try:
+            data = json.loads(data)
+        except ValueError:
+            return {'signals': [], 'requires_review': True}
+    if not isinstance(data, dict):
+        return {'signals': [], 'requires_review': True}
+    sigs = data.get('signals')
+    if isinstance(sigs, str):
+        try:
+            parsed = json.loads(sigs)
+        except ValueError:
+            parsed = []
+        if isinstance(parsed, dict) and 'signals' in parsed:      # whole payload nested under 'signals'
+            data = {**data, **parsed}
+        else:
+            data = {**data, 'signals': parsed if isinstance(parsed, list) else []}
+    return data
+
+
 def normalize_extraction(data: dict, taxonomy) -> dict:
     """Validate + flatten a record_signals payload. Unknown subtypes are
     dropped (the API enum should have prevented them) and counted."""
+    data = _coerce_payload(data)
     threshold = settings.get('llm', 'confidence_threshold')
     signals, dropped = [], 0
     for item in (data.get('signals') or []):

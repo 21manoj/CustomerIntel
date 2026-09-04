@@ -112,3 +112,27 @@ def test_every_source_type_has_an_http_route():
     from signal_engine.pipeline import SOURCE_TYPES
     for src in SOURCE_TYPES:
         assert f'/api/signals/ingest/{src}' in ROUTES, src
+
+
+def test_normalize_accepts_stringified_payload_seen_live():
+    """Live claude-sonnet-5 run 2026-09-04: the whole payload came back as a
+    JSON string under 'signals'. Six real signals must survive that."""
+    import json
+    from signal_engine.enrichment import normalize_extraction
+    from utils.taxonomy_loader import get_taxonomy
+    inner = {'signals': [
+        {'subtype': 'champion_departure', 'quote': 'replacing Lisa Park who left last month', 'sentiment_score': -0.2,
+         'urgency_score': 0.6, 'escalation_probability': 0.5, 'confidence': 0.9,
+         'people': [{'name': 'Marcus Webb', 'title': 'VP Infrastructure'}, {'name': 'Lisa Park', 'roster_role': 'champion'}]},
+        {'subtype': 'thermal_throttling_event', 'quote': 'thermal issues on the second pod', 'sentiment_score': -0.7,
+         'urgency_score': 0.9, 'escalation_probability': 0.7, 'confidence': 1.0, 'people': []},
+        {'subtype': 'advocacy', 'quote': 'happy to be a reference', 'sentiment_score': 0.9, 'urgency_score': 0.1,
+         'escalation_probability': 0.05, 'confidence': 1.0, 'people': []},
+    ], 'requires_review': False, 'is_duplicate': False, 'suggested_action': 'Escalate the thermal plan'}
+    out = normalize_extraction({'signals': json.dumps(inner)}, get_taxonomy('dc2_s'))
+    assert [s['subtype'] for s in out['signals']] == ['champion_departure', 'thermal_throttling_event', 'advocacy']
+    assert out['suggested_action'] == 'Escalate the thermal plan' and out['requires_review'] is False
+    assert out['stakeholder_roles'][1] == {'name': 'Lisa Park', 'role': None, 'roster_role': 'champion'}
+    out2 = normalize_extraction(json.dumps(inner), get_taxonomy('dc2_s'))          # entire payload as a string
+    assert len(out2['signals']) == 3
+    assert normalize_extraction({'signals': 'not json'}, get_taxonomy('dc2_s'))['signals'] == []
