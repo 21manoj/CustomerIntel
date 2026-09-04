@@ -233,12 +233,16 @@ def _write_node(sig, item: dict, enrichment: dict, taxonomy, roster: List[dict],
 
     pol = taxonomy.role_polarity(item['role'])
     score, conflict, raw = reconcile_sentiment(pol, item.get('sentiment_score'))
-    people = list(participants)
+    own = []
     for p in (item.get('people') or []):
         nm = p.get('name')
-        if nm and not any(x['name'] and x['name'].lower() == nm.lower() for x in people):
-            people.append(resolve_person(sig.customer_id, sig.account_id, nm, p.get('title'), roster, p.get('roster_role')))
-    primary = next((p for p in people if p['resolved']), people[0] if people else None)
+        if nm and not any(x['name'] and x['name'].lower() == nm.lower() for x in own):
+            own.append(resolve_person(sig.customer_id, sig.account_id, nm, p.get('title'), roster, p.get('roster_role')))
+    people = own + [p for p in participants if not any(x['name'] and p['name'] and x['name'].lower() == p['name'].lower() for x in own)]
+    # the signal's own people come first; a roster match among them wins, an
+    # unresolved new face is still the subject if it is all the signal names
+    primary = next((p for p in own if p['resolved']), own[0] if own else
+                   next((p for p in participants if p['resolved']), participants[0] if participants else None))
     structural = classify_structural_urgency(item['role'])
     effective = resolve_effective_urgency(structural, item.get('urgency_score'), item.get('escalation_probability'))
 
@@ -304,12 +308,13 @@ def materialize(sig, enrichment: dict, taxonomy) -> list:
 
 def _apply_enrichment(sig, result: dict) -> None:
     """Copy the LLM's fields onto the signal row (urgency is set in materialize, for both paths)."""
-    for field in ('urgency_score', 'escalation_probability', 'intent_signals', 'stakeholder_roles',
+    for field in ('urgency_score', 'escalation_probability', 'intent_signals',
                   'suggested_action', 'confidence', 'requires_review', 'llm_model_version'):
         if field in result and result[field] is not None:
-            if field == 'stakeholder_roles' and sig.stakeholder_roles:
-                continue   # the source's participants beat the model's guesses
             setattr(sig, field, result[field])
+    # stakeholder_roles stays what the SOURCE declared (participants of the whole
+    # communication). People the model found belong to their own signal — they
+    # live in `extractions` and go onto that signal's node only.
 
 
 def process_pending(customer_id: Optional[int] = None, limit: int = 50, rebuild_journeys: bool = True) -> dict:

@@ -195,7 +195,8 @@ class TestMultiSignalExtraction:
             from signal_engine.enrichment import normalize_extraction
             out = normalize_extraction({'signals': [
                 {'subtype': 'integration_bug', 'quote': 'the Salesforce sync keeps dropping records', 'sentiment_score': -0.6,
-                 'urgency_score': 0.7, 'escalation_probability': 0.4, 'confidence': 0.9, 'people': []},
+                 'urgency_score': 0.7, 'escalation_probability': 0.4, 'confidence': 0.9,
+                 'people': [{'name': 'Marcus Webb', 'title': 'Ops Lead'}]},          # new face, not on the roster
                 {'subtype': 'module_upsell_interest', 'quote': 'adding the analytics module for EMEA', 'sentiment_score': 0.5,
                  'urgency_score': 0.3, 'escalation_probability': 0.0, 'confidence': 0.8,
                  'people': [{'name': 'Elena Rossi', 'title': 'VP Infrastructure', 'roster_role': 'champion'}]},
@@ -218,6 +219,8 @@ class TestMultiSignalExtraction:
             assert nodes[0].properties['effective_urgency'] == 'high' and nodes[1].properties['effective_urgency'] == 'high'
             assert nodes[0].title == 'the Salesforce sync keeps dropping records'                       # the quote is the evidence
             assert nodes[1].properties['stakeholder_role'] == 'champion' and nodes[1].properties['person_unresolved'] is False
+            assert nodes[0].properties['stakeholder_name'] == 'Marcus Webb' and nodes[0].properties['person_unresolved'] is True   # each node: its own people
+            assert sig.stakeholder_roles is None                                        # nothing declared by the source
             assert float(nodes[1].properties['sentiment_score']) > 0 and nodes[1].properties['polarity_conflict'] is False
             assert sig.cg_node_id == nodes[0].node_id and len(sig.extractions) == 2 and sig.effective_urgency == 'high'
             j = JourneyData.query.filter_by(customer_id=cid, account_id=aid).first().journey_json
