@@ -371,6 +371,37 @@ class TestReadSurfaceAndReview:
         assert not any(r['node_id'] == nid for r in get_evidence(cid, account_id=aid)['evidence'])
         assert any(r['node_id'] == nid for r in get_evidence(cid, account_id=aid, include_rejected=True)['evidence'])
 
+    def test_blanket_accept_does_not_undo_a_specific_reject(self, tenant, monkeypatch):
+        """Live finding 2026-09-04: reject node X, then accept the signal → X came back."""
+        cid, aid = tenant
+        import signal_engine.enrichment as enrichment
+        from utils.taxonomy_loader import get_taxonomy
+        from mcp_server.cs_pulse_onboarding import review_signal, submit_signal
+
+        def fake(signal_id, raw_text, account_id, customer_id, vertical, taxonomy=None, roster=None):
+            out = enrichment.normalize_extraction({'signals': [
+                {'subtype': 'dau_drop', 'quote': 'logins are down a third', 'sentiment_score': -0.5, 'urgency_score': 0.5,
+                 'escalation_probability': 0.1, 'confidence': 0.9, 'people': []},
+                {'subtype': 'case_study_consent', 'quote': 'happy to do a case study', 'sentiment_score': 0.8, 'urgency_score': 0.1,
+                 'escalation_probability': 0.0, 'confidence': 0.9, 'people': []}],
+                'requires_review': False, 'is_duplicate': False, 'suggested_action': 'x'}, taxonomy or get_taxonomy(vertical))
+            out['llm_model_version'] = 'fake-llm'
+            return out
+        monkeypatch.setattr(enrichment, 'enrich_signal', fake)
+        res = submit_signal(cid, aid, 'Logins are down a third, but they are happy to do a case study', source_type='email',
+                            occurred_at='2026-03-22T09:00:00Z')
+        sid = res['signal_id']
+        n_dau, n_cs = res['evidence']['node_ids']
+        review_signal(cid, sid, 'reject', node_id=n_cs, note='sarcasm', reviewer='csm@t.test')
+        out = review_signal(cid, sid, 'accept', reviewer='vp@t.test')
+        assert [n['node_id'] for n in out['nodes']] == [n_dau]                     # only the undecided node
+        with app.app_context():
+            assert db.session.get(ContextNode, n_cs).properties['review']['status'] == 'rejected'
+        out = review_signal(cid, sid, 'accept')                                      # idempotent: re-confirms n_dau only
+        assert [n['node_id'] for n in out['nodes']] == [n_dau]
+        out = review_signal(cid, sid, 'accept', node_id=n_cs, reviewer='vp@t.test')   # explicit override is allowed
+        assert out['nodes'][0]['review'] == 'accepted'
+
     def test_reclassify_retypes_and_rederives(self, tenant, monkeypatch):
         cid, aid = tenant
         from mcp_server.cs_pulse_onboarding import review_signal

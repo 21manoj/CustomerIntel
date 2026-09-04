@@ -90,6 +90,13 @@ def review_signal(customer_id: int, signal_id: str, decision: str, *, subtype: O
         if len(nodes) > 1:
             raise ValueError('signal has several evidence nodes — pass node_id to reclassify one of them')
 
+    if node_id is None and decision == 'accept':
+        # a blanket accept confirms what is undecided; it never silently undoes a
+        # specific reject / reclassify on one node — pass node_id to override one
+        nodes = [n for n in nodes if ((n.properties or {}).get('review') or {}).get('status') in (None, 'accepted')]
+        if not nodes:
+            raise ValueError('every node of this signal already carries a specific decision — pass node_id to change one')
+
     was_flagged = bool(sig.requires_review)
     stamp = datetime.utcnow().isoformat()
     audits, changed = [], []
