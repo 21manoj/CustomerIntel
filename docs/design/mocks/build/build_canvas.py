@@ -10,9 +10,11 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 FIX = HERE.parents[3] / 'backend' / 'tests' / 'fixtures' / 'customer415_dc2_s'
-OUT = HERE.parent / 'journey-canvas-zenith.html'
 LEADING_LIGHT = sys.argv[1] if len(sys.argv) > 1 else '#eda100'
 LEADING_DARK = sys.argv[2] if len(sys.argv) > 2 else '#c98500'
+VARIANT = sys.argv[3] if len(sys.argv) > 3 else 'health'   # 'health' (score as spine) | 'signals' (evidence as spine)
+TEMPLATE = {'health': 'canvas_template.html', 'signals': 'canvas_signals_first_template.html'}[VARIANT]
+OUT = HERE.parent / ('journey-canvas-zenith.html' if VARIANT == 'health' else 'journey-canvas-zenith-signals-first.html')
 
 j = json.load(open(HERE / 'zenith_journey.json'))
 
@@ -35,7 +37,7 @@ payload = {
     'hooks': j['counterfactual_hooks'], 'expected_path': j['expected_path'], 'features': j['features'],
     'summary': j['summary'], 'stakeholders': j['_stakeholders'], 'wizard_b': j['_wizard_b'], 'links': links,
 }
-html = (HERE / 'canvas_template.html').read_text()
+html = (HERE / TEMPLATE).read_text()
 html = (html.replace('__DATA__', json.dumps(payload, default=str))
             .replace('__LEADING_LIGHT__', LEADING_LIGHT).replace('__LEADING_DARK__', LEADING_DARK))
 OUT.write_text(html)

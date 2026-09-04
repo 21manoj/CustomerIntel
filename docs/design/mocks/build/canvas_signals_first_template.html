@@ -1,0 +1,503 @@
+<meta charset="utf-8">
+<title>Zenith Evidence Canvas</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  color-scheme:light;
+  --ground:#f5f6f3; --surface:#fcfdfb; --surface-2:#eef1ed; --surface-3:#e4e9e5;
+  --ink:#101816; --ink-2:#4d5955; --ink-3:#7f8b87; --hair:#dfe3df; --hair-2:#cfd5d1;
+  --accent:#1f5f5b; --accent-ink:#ffffff;
+  --trailing:#2a78d6; --leading:__LEADING_LIGHT__;
+  --neg:#d03b3b; --pos:#0ca30c; --neutral-mark:#7f8b87;
+  --wash-neg:rgba(208,59,59,.07); --wash-pos:rgba(12,163,12,.07); --wash-trailing:rgba(42,120,214,.08); --wash-leading:rgba(237,161,0,.14);
+  --wash-now:rgba(31,95,91,.06); --wash-window:rgba(208,59,59,.05); --wash-fan:rgba(208,59,59,.10); --wash-contested:rgba(237,161,0,.10);
+  --shadow:0 1px 0 rgba(16,24,22,.06);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --ground:#0e1312; --surface:#141a19; --surface-2:#1b2321; --surface-3:#243030;
+    --ink:#eef1ee; --ink-2:#b7c2be; --ink-3:#8a9793; --hair:#26302e; --hair-2:#33403d;
+    --accent:#7fc2bb; --accent-ink:#0e1312;
+    --trailing:#3987e5; --leading:__LEADING_DARK__;
+    --wash-neg:rgba(208,59,59,.14); --wash-pos:rgba(12,163,12,.12); --wash-trailing:rgba(57,135,229,.12); --wash-leading:rgba(201,133,0,.18);
+    --wash-now:rgba(127,194,187,.08); --wash-window:rgba(208,59,59,.08); --wash-fan:rgba(208,59,59,.18); --wash-contested:rgba(201,133,0,.14);
+    --shadow:none;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --ground:#0e1312; --surface:#141a19; --surface-2:#1b2321; --surface-3:#243030;
+  --ink:#eef1ee; --ink-2:#b7c2be; --ink-3:#8a9793; --hair:#26302e; --hair-2:#33403d;
+  --accent:#7fc2bb; --accent-ink:#0e1312;
+  --trailing:#3987e5; --leading:__LEADING_DARK__;
+  --wash-neg:rgba(208,59,59,.14); --wash-pos:rgba(12,163,12,.12); --wash-trailing:rgba(57,135,229,.12); --wash-leading:rgba(201,133,0,.18);
+  --wash-now:rgba(127,194,187,.08); --wash-window:rgba(208,59,59,.08); --wash-fan:rgba(208,59,59,.18); --wash-contested:rgba(201,133,0,.14);
+  --shadow:none;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--ground);color:var(--ink);font:15px/1.5 "IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif}
+.page{max-width:1360px;margin:0 auto;padding:28px 24px 64px}
+h1,h2,h3{font-family:"IBM Plex Serif",Georgia,serif;font-weight:500;text-wrap:balance;margin:0}
+h1{font-size:28px;line-height:1.2} h2{font-size:18px;margin-bottom:8px}
+.mono{font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace}
+.eyebrow{font:500 11px/1 "IBM Plex Mono",monospace;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+.muted{color:var(--ink-3)} .dim{color:var(--ink-2)}
+.masthead{display:flex;justify-content:space-between;align-items:flex-end;gap:24px;padding-bottom:16px;border-bottom:1px solid var(--hair-2)}
+.masthead .sub{color:var(--ink-2);margin-top:4px}
+.badge{display:inline-flex;align-items:center;gap:6px;padding:3px 8px;border:1px solid var(--hair-2);border-radius:3px;font:500 11px/1.2 "IBM Plex Mono",monospace;letter-spacing:.04em;color:var(--ink-2);background:var(--surface)}
+.badge .dot{width:8px;height:8px;border-radius:50%;display:inline-block}
+.band{display:flex;align-items:baseline;gap:12px;margin:26px 0 10px}
+.band h2{margin:0} .band .eyebrow{margin-left:auto}
+.now{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:1px;background:var(--hair);border:1px solid var(--hair)}
+.tile{background:var(--surface);padding:14px 16px;min-height:176px;display:flex;flex-direction:column;gap:6px}
+.tile .label{font-size:12px;color:var(--ink-3);display:flex;justify-content:space-between;gap:6px 8px;flex-wrap:wrap;align-items:center}
+.tile .value{font-size:30px;font-weight:600;line-height:1.05;letter-spacing:-.01em}
+.tile .value small{font-size:14px;font-weight:500;color:var(--ink-2);margin-left:4px}
+.tile .foot{font-size:12px;color:var(--ink-2);margin-top:auto;line-height:1.4}
+.tile.hero .value{font-size:40px}
+.tile.lens{background:var(--surface-2)}
+.tile svg{display:block;width:100%;height:auto;overflow:visible}
+.pill{display:inline-block;padding:2px 8px;border-radius:999px;font:500 11px/1.4 "IBM Plex Mono",monospace;letter-spacing:.03em;white-space:nowrap}
+.pill.warn{background:var(--wash-neg);color:var(--ink);border:1px solid var(--neg)}
+.pill.ok{background:var(--wash-pos);color:var(--ink);border:1px solid var(--pos)}
+.pill.info{background:var(--wash-trailing);color:var(--ink);border:1px solid var(--trailing)}
+.pill.ghost{background:var(--surface-2);color:var(--ink-2);border:1px solid var(--hair-2)}
+.chips{display:flex;flex-wrap:wrap;gap:4px}
+.mini{font:11px/1.35 "IBM Plex Mono",monospace;color:var(--ink-2)} .mini b{color:var(--ink);font-weight:500}
+.canvas{background:var(--surface);border:1px solid var(--hair);box-shadow:var(--shadow)}
+.canvas-head{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:12px 16px;border-bottom:1px solid var(--hair);flex-wrap:wrap}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--ink-2)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.key{width:18px;height:0;border-top:2px solid var(--leading);display:inline-block}
+.key.trail{border-top:1.5px dashed var(--trailing)}
+.key.asserted{border-top:1.5px solid var(--ink-2)} .key.inferred{border-top:1.5px dotted var(--ink-3)}
+.sw{width:10px;height:10px;display:inline-block}
+.scrub{display:flex;align-items:center;gap:10px;font-size:12px;color:var(--ink-2)}
+.scrub input[type=range]{width:220px;accent-color:var(--accent)}
+.scrub b{font-family:"IBM Plex Mono",monospace;font-weight:500;color:var(--ink)}
+.toggle{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--ink-2)}
+.plot{overflow-x:auto}
+svg.canvas-svg{display:block;width:100%;height:auto;font-family:"IBM Plex Sans",system-ui,sans-serif}
+.tick{font-family:"IBM Plex Mono",monospace;font-size:11px;fill:var(--ink-3)}
+.lane-label{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.06em;text-transform:uppercase;fill:var(--ink-3)}
+.hair{stroke:var(--hair);stroke-width:1} .hair2{stroke:var(--hair-2);stroke-width:1} .thresh{stroke:var(--hair-2);stroke-width:1}
+.ephase{fill:var(--surface-2)} .ephase.deterioration{fill:var(--wash-neg)} .ephase.contested{fill:var(--wash-contested)} .ephase.recovery{fill:var(--wash-pos)}
+.hphase{fill:var(--surface-3)} .hphase.deterioration{fill:var(--wash-neg)}
+.phase-label{font-family:"IBM Plex Serif",serif;font-size:12px;fill:var(--ink-2)}
+.pressure-area{fill:var(--wash-leading)}
+.leading-line{fill:none;stroke:var(--leading);stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
+.leading-proj{fill:none;stroke:var(--leading);stroke-width:2;stroke-dasharray:3 5;stroke-linecap:round}
+.trailing-line{fill:none;stroke:var(--trailing);stroke-width:1.5;stroke-dasharray:4 4;stroke-linejoin:round;opacity:.9}
+.mark{stroke:var(--surface);stroke-width:2;cursor:pointer}
+.mark.neg{fill:var(--neg)} .mark.pos{fill:var(--pos)} .mark.neu{fill:var(--neutral-mark)}
+.mark.hollow{fill:var(--surface);stroke-width:2} .mark.hollow.neg{stroke:var(--neg)} .mark.hollow.pos{stroke:var(--pos)}
+.mark.decision{fill:var(--accent);stroke:var(--surface)}
+.mark.planned{fill:var(--surface);stroke:var(--accent);stroke-dasharray:2 2}
+.mark.person{fill:var(--surface);stroke:var(--accent);stroke-width:1.5}
+.mark.person.noev{stroke:var(--ink-3);stroke-dasharray:2 2}
+.hit{fill:transparent;cursor:pointer} .hit:focus{outline:none} .hit:focus + .mark, .mark:hover{stroke:var(--ink);stroke-width:2}
+.presence{stroke:var(--hair-2);stroke-width:6;stroke-linecap:round} .presence.active{stroke:var(--accent);opacity:.55}
+.edge{fill:none;stroke-width:1;opacity:.55} .edge.about{stroke:var(--accent)} .edge.owns{stroke:var(--accent);stroke-width:1.5}
+.edge.asserted{stroke:var(--ink-2);stroke-width:1.2} .edge.inferred{stroke:var(--ink-3);stroke-dasharray:2 3}
+.edge.suspect{stroke:var(--neg);stroke-dasharray:1 3;opacity:.7}
+.chain-dim .edge:not(.hl){opacity:.08} .chain-dim .mark:not(.hl){opacity:.25} .chain-dim .edge.hl{opacity:1;stroke-width:2} .chain-dim .mark.hl{opacity:1}
+.flag{font-family:"IBM Plex Mono",monospace;font-size:11px;fill:var(--ink-2)} .flag.strong{fill:var(--ink);font-weight:500}
+.flag-line{stroke:var(--ink-2);stroke-width:1}
+.now-line{stroke:var(--accent);stroke-width:1.5} .now-label{font-family:"IBM Plex Mono",monospace;font-size:11px;fill:var(--accent);letter-spacing:.06em}
+.future{fill:var(--wash-now)} .window{fill:var(--wash-window)} .silence{fill:var(--surface-2)}
+.fan{fill:var(--wash-fan)} .fan-median{fill:none;stroke:var(--neg);stroke-width:2;stroke-dasharray:4 4;stroke-linecap:round}
+.trip{stroke:var(--ink-2);stroke-width:1;stroke-dasharray:2 3}
+.count{font-family:"IBM Plex Mono",monospace;font-size:10px;fill:var(--ink);font-weight:500;pointer-events:none}
+.dlabel{font-family:"IBM Plex Mono",monospace;font-size:11px;fill:var(--ink-2)} .dlabel.strong{fill:var(--ink);font-weight:500}
+.tip{position:fixed;z-index:10;max-width:360px;background:var(--ink);color:var(--ground);padding:8px 10px;font-size:12px;line-height:1.4;border-radius:3px;pointer-events:none;opacity:0;transition:opacity .12s}
+.tip b{display:block;font-weight:600;margin-bottom:2px} .tip .m{font-family:"IBM Plex Mono",monospace;opacity:.8}
+.grid2{display:grid;grid-template-columns:1.15fr 1fr;gap:20px;margin-top:20px}
+.card{background:var(--surface);border:1px solid var(--hair);padding:18px 20px}
+.card h2{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.story p{max-width:68ch;margin:0 0 10px;font-size:14.5px}
+.story .ch{font-family:"IBM Plex Serif",serif;font-size:13px;color:var(--ink-2);margin:12px 0 4px}
+.cite{font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--accent);vertical-align:super;margin-left:2px}
+.ledger{width:100%;border-collapse:collapse;font-size:13px}
+.ledger th,.ledger td{padding:7px 8px;border-bottom:1px solid var(--hair);vertical-align:top;text-align:left}
+.ledger th{font:500 11px/1.3 "IBM Plex Mono",monospace;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-3)}
+.ledger td.n{text-align:right;font-variant-numeric:tabular-nums;font-family:"IBM Plex Mono",monospace}
+.ledger td.basis{font-size:12px;color:var(--ink-3)}
+.honesty{margin-top:20px;display:flex;flex-wrap:wrap;gap:8px 18px;padding:12px 16px;border:1px solid var(--hair);background:var(--surface);font-size:12px;color:var(--ink-2)}
+table.index{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:8px}
+table.index th,table.index td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--hair);vertical-align:top}
+table.index th{font-weight:500;color:var(--ink-3);font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.05em;text-transform:uppercase}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums;font-family:"IBM Plex Mono",monospace}
+.notes{margin-top:24px;color:var(--ink-2);font-size:13px;max-width:78ch}
+.diff{margin-top:20px;padding:14px 16px;border-left:3px solid var(--accent);background:var(--wash-now);max-width:78ch;font-size:14px}
+@media (max-width:980px){.now{grid-template-columns:repeat(3,1fr)} .grid2{grid-template-columns:1fr}}
+@media (prefers-reduced-motion:reduce){.tip{transition:none}}
+</style>
+
+<div class="page">
+  <header class="masthead">
+    <div>
+      <div class="eyebrow">Evidence canvas · signals-first · account view</div>
+      <h1>Zenith Data Corp</h1>
+      <div class="sub" id="subtitle"></div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">
+      <span class="badge" id="origin-badge"></span>
+      <span class="badge" id="asof-badge"></span>
+    </div>
+  </header>
+
+  <div class="diff" id="diff"></div>
+
+  <div class="band"><h2>Now</h2><span class="dim">evidence first — the trailing lens is one derived score among several</span><span class="eyebrow" id="now-eyebrow"></span></div>
+  <section class="now" id="now" aria-label="Current state"></section>
+
+  <div class="band"><h2>The evidence graph, in time</h2><span class="dim">episodes are the nodes; typed edges are the story</span>
+    <div style="margin-left:auto;display:flex;gap:18px;align-items:center;flex-wrap:wrap">
+      <label class="toggle"><input type="checkbox" id="lens" checked> show trailing KPI lens</label>
+      <div class="scrub"><label for="scrub">Now:</label><input id="scrub" type="range" min="0" max="100" value="100" aria-label="Move the now line back in time"><b id="scrub-date"></b></div>
+    </div></div>
+  <section class="canvas" aria-label="Evidence timeline">
+    <div class="canvas-head"><div class="legend" id="legend"></div><span class="dim" style="font-size:12px">hover an outcome to light its chain</span></div>
+    <div class="plot"><svg class="canvas-svg" id="svg" viewBox="0 0 1320 900" role="img" aria-labelledby="svg-title"><title id="svg-title">Zenith Data Corp evidence graph — past, now, next six months</title></svg></div>
+  </section>
+
+  <div class="grid2">
+    <section class="card story" aria-label="Chains">
+      <h2>Chains <span class="eyebrow">each outcome, and the evidence that preceded it</span></h2>
+      <div id="story"></div>
+    </section>
+    <section class="card" aria-label="Signal DNA">
+      <h2>Signal DNA of this tenant <span class="eyebrow">the pattern tier — measured, not templated</span></h2>
+      <table class="ledger" id="dna"></table>
+      <h2 style="margin-top:18px">Forecast ledger <span class="eyebrow">basis · what changes it</span></h2>
+      <table class="ledger" id="ledger"></table>
+    </section>
+  </div>
+
+  <div class="honesty" id="honesty"></div>
+
+  <section class="card" style="margin-top:20px" aria-label="Episode index">
+    <h2>Episode index <span class="eyebrow">table view of every node</span></h2>
+    <div style="overflow-x:auto"><table class="index" id="index"></table></div>
+  </section>
+
+  <section class="notes">
+    <h2>What changed from the health-first canvas</h2>
+    <p>The spine is the evidence, not the score. Phases are read from the pressure of negative-role evidence in the window, so deterioration is dated from the first negative signal rather than from the month the KPI slope turned. People are nodes with typed edges — <i>about</i> (customer-side, from the signal's own stakeholder), <i>owns</i> (our side, from the action) — and a person with no evidence is shown as exactly that, never as engaged. Chains are drawn at their evidence tier: the source's asserted links solid, precedence-within-window dotted and labelled inferred, and a suspicious pattern (every outcome asserting the same first signal) flagged rather than trusted. The KPI line is a toggle. Coverage — sources, last touch, unresolved people, months without evidence — sits in the header because on a signals-first platform, silence must be distinguished from absence of logging before it can mean anything.</p>
+  </section>
+</div>
+<div class="tip" id="tip" role="status" aria-live="polite"></div>
+
+<script>
+const D = __DATA__;
+const NS = 'http://www.w3.org/2000/svg';
+const fmtUSD = v => '$' + (Math.abs(v) >= 1e6 ? (v/1e6).toFixed(v%1e6?2:1).replace(/\.0$/,'') + 'M' : (v/1e3).toFixed(0) + 'K');
+const fmtSignedUSD = v => (v < 0 ? '−' : '+') + fmtUSD(Math.abs(v));
+const dt = s => new Date(s.length === 10 ? s + 'T00:00:00' : s);
+const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const fmtD = d => `${MON[d.getMonth()]} ${d.getDate()}, ${String(d.getFullYear()).slice(2)}`;
+const fmtM = d => `${MON[d.getMonth()]} ${String(d.getFullYear()).slice(2)}`;
+const addDays = (d,n) => new Date(d.getTime() + n*864e5);
+const monthEnd = s => { const d = dt(s); return new Date(d.getFullYear(), d.getMonth()+1, 0); };
+const clean = t => t.replace(/ \(Zenith Data Corp\)/,'').replace(/ — Zenith Data Corp/,'');
+const AS_OF = dt(D.as_of.slice(0,10));
+const renewal = dt(D.account.profile.renewal_date);
+const ROLE_LABEL = {usage_decline:'Usage decline', engagement_decline:'Engagement decline', commercial_pressure:'Commercial pressure', escalation:'Escalation', infra_incident:'Infra incident', champion_change:'Champion change', recovery:'Recovery', advocacy:'Advocacy', expansion_intent:'Expansion intent', intervention:'CSM intervention', routine:'Routine', crm_flag:'CSM risk flag'};
+const ROLE_POL = {usage_decline:-1, engagement_decline:-1, commercial_pressure:-1, escalation:-1, infra_incident:-1, champion_change:-1, capacity_pressure:-1, delivery_stall:-1, recovery:1, advocacy:1, expansion_intent:1, expansion_realized:1};
+const seq = {}; D.episodes.forEach((e,i) => seq[e.episode_id] = i+1);
+const byId = Object.fromEntries(D.episodes.map(e => [e.episode_id, e]));
+
+// ── nodes: collapse duplicate source rows, keep the person, flag polarity conflicts ──
+const sigs = [];
+for (const e of D.episodes.filter(e => e.kind === 'signal')) {
+  const key = e.date.slice(0,10) + '|' + e.title; const hit = sigs.find(s => s.key === key);
+  if (hit) { hit.n++; hit.ids.push(e.episode_id); continue; }
+  const rolePol = ROLE_POL[e.role] ?? 0;
+  sigs.push({key, n:1, ids:[e.episode_id], e, pol: rolePol !== 0 ? rolePol : Math.sign(e.sentiment||0),
+             conflict: e.sentiment != null && rolePol !== 0 && Math.sign(e.sentiment) === -rolePol,
+             person: (e.meta||{}).stakeholder || null, source: (e.meta||{}).source_platform || 'unknown'});
+}
+const outcomes = D.episodes.filter(e => e.kind === 'outcome');
+const actions = D.hooks.map(h => ({...h, e: byId[h.episode_id]}));
+const roles = [...new Set(sigs.map(s => s.e.role || 'unmapped'))].sort((a,b) => (ROLE_POL[a]||0) - (ROLE_POL[b]||0) || a.localeCompare(b));
+const REALIZED = ['lost','expansion'];
+
+// ── people: roster + anyone the evidence names but the roster doesn't ──
+const ROLE_SHORT = {champion:'champion', executive_sponsor:'exec sponsor', csm:'CSM', cs_manager:'CS manager'};
+const people = D.stakeholders.map(s => ({name: s.title.split(' (')[0], role: s.node_subtype, side: ['csm','cs_manager'].includes(s.node_subtype) ? 'ours' : 'customer', roster: true}));
+for (const s of sigs) if (s.person && !people.find(p => p.name === s.person)) people.push({name: s.person, role: 'unresolved', side: 'unknown', roster: false});
+people.forEach(p => {
+  p.about = sigs.filter(s => s.person === p.name && s.e.role !== 'intervention');
+  p.owns = sigs.filter(s => s.person === p.name && s.e.role === 'intervention').concat(actions.filter(a => (a.e.meta||{}).stakeholder === p.name));
+});
+
+// ── chains: asserted (source links) + inferred (precedence within a window, role-consistent) ──
+const CHAIN_WINDOW = 120;
+function chainsFor(o) {
+  const t = dt(o.date), neg = ['lost','at_risk'].includes(o.revenue_bucket);
+  const asserted = D.links.filter(l => l.outcome_title === o.title).map(l => sigs.find(s => s.e.date.slice(0,10) === l.signal_date)).filter(Boolean);
+  const inferred = sigs.filter(s => { const d = dt(s.e.date); return d < t && (t - d)/864e5 <= CHAIN_WINDOW && (neg ? s.pol < 0 : s.pol > 0); })
+                       .filter(s => !asserted.includes(s));
+  const acts = neg ? [] : actions.filter(a => { const d = dt(a.date); return d < t && (t - d)/864e5 <= 90; });
+  return {asserted, inferred, acts};
+}
+const assertedTargets = new Set(D.links.map(l => l.signal_date));
+const assertedSuspect = assertedTargets.size === 1 && D.links.length > 1;   // every outcome asserts the same signal
+
+// ── evidence phases from pressure (negative-role count vs positive-role count in each month's window) ──
+function evidencePhases(now) {
+  const out = [];
+  for (const s of D.series) { if (monthEnd(s.month) > addDays(now,1)) break;
+    const r = s.roles || {}; let neg = 0, pos = 0;
+    for (const [k,v] of Object.entries(r)) { if ((ROLE_POL[k]||0) < 0) neg += v; else if ((ROLE_POL[k]||0) > 0) pos += v; }
+    const name = neg && pos ? 'contested' : neg ? 'deterioration' : pos ? 'recovery' : 'baseline';
+    const m = dt(s.month);
+    if (out.length && out[out.length-1].name === name) { out[out.length-1].months++; continue; }
+    out.push({name, entered_at: s.month, months: 1, trigger: null});
+  }
+  // trigger = first signal of the dominant polarity in the phase's first month
+  out.forEach(p => { const m = dt(p.entered_at), me = monthEnd(p.entered_at);
+    const want = p.name === 'deterioration' || p.name === 'contested' ? -1 : p.name === 'recovery' ? 1 : 0;
+    const first = sigs.filter(s => dt(s.e.date) >= addDays(m,-60) && dt(s.e.date) <= me && s.pol === want).sort((a,b)=>dt(a.e.date)-dt(b.e.date))[0];
+    p.trigger = first ? first.e.episode_id : null; });
+  return out;
+}
+
+// ── forecast (same prior model as the health-first canvas; basis is the pattern tier) ──
+function forecast(now) {
+  const ph = evidencePhases(now); const phaseNow = ph.length ? ph[ph.length-1].name : 'baseline';
+  const t = D.wizard_b.transitions;
+  const det = t['baseline→deterioration'];
+  const pDet = det ? det.probability : 0.5, moDet = det ? det.avg_months_before_transition : 1.5;
+  const lastSig = sigs.filter(s => dt(s.e.date) <= now).map(s => dt(s.e.date)).sort((a,b)=>b-a)[0];
+  const silent = lastSig ? addDays(lastSig, 60) : null;
+  const daysToRenewal = Math.max(0, Math.round((renewal - now)/864e5));
+  return {phaseNow, det, pDet, moDet, silent, daysToRenewal, lo: Math.round(pDet*0.10*100)/100, med: Math.round(pDet*0.55*100)/100, hi: Math.round(pDet*1.0*100)/100,
+          events: D.wizard_b.h1.events, account_months: D.wizard_b.h1.account_months, windowOpens: addDays(renewal,-90),
+          actions: (D.expected_path ? D.expected_path.typical_decisions.filter(d => d.phase_id >= 3) : []).slice(0,2)};
+}
+
+function el(tag, attrs, parent) { const n = document.createElementNS(NS, tag); for (const k in attrs) n.setAttribute(k, attrs[k]); if (parent) parent.appendChild(n); return n; }
+function text(parent, x_, y_, s, cls, attrs={}) { const t = el('text', {x:x_, y:y_, class:cls, ...attrs}, parent); t.textContent = s; return t; }
+const tip = document.getElementById('tip');
+function bindTip(node, html) {
+  const show = ev => { tip.innerHTML = html; tip.style.opacity = 1; tip.style.left = Math.min((ev.clientX ?? 0) + 14, window.innerWidth - 380) + 'px'; tip.style.top = ((ev.clientY ?? 0) + 14) + 'px'; };
+  node.addEventListener('mousemove', show); node.addEventListener('focus', () => { const r = node.getBoundingClientRect(); show({clientX:r.left, clientY:r.top}); });
+  node.addEventListener('mouseleave', () => tip.style.opacity = 0); node.addEventListener('blur', () => tip.style.opacity = 0);
+}
+
+// ── Band 2 ─────────────────────────────────────────────────────────────
+function header(now) {
+  const ser = D.series.filter(x => monthEnd(x.month) <= addDays(now,1)); const s = ser[ser.length-1] || D.series[0];
+  const F = forecast(now); const ph = evidencePhases(now);
+  const visible = sigs.filter(x => dt(x.e.date) <= now);
+  const lastTouch = visible.map(x => dt(x.e.date)).sort((a,b)=>b-a)[0];
+  const sources = {}; visible.forEach(x => sources[x.source] = (sources[x.source]||0) + x.n);
+  const unlogged = ser.filter(x => x.signal_count === 0).length;
+  const withEv = people.filter(p => p.about.some(x => dt(x.e.date) <= now) || p.owns.some(x => dt((x.e||x).date) <= now));
+  const chainStats = outcomes.filter(o => dt(o.date) <= now).map(o => chainsFor(o));
+  const nAsserted = chainStats.reduce((a,c)=>a+c.asserted.length,0), nInferred = chainStats.reduce((a,c)=>a+c.inferred.length,0);
+  const W=240, H=54, PW=206, n=D.series.length; const sx = i => 4 + i*(PW-8)/(n-1), sy = v => H-4-(v/100)*(H-8);
+  const lead = ser.map((x,i) => x.qual==null?null:[sx(i),sy(x.qual)]).filter(Boolean);
+  const pressure = ser.map((x,i) => { const r=x.roles||{}; let neg=0; for (const [k,v] of Object.entries(r)) if ((ROLE_POL[k]||0)<0) neg+=v; return [sx(i), neg]; });
+  const maxP = Math.max(1, ...pressure.map(p=>p[1]));
+  const spark = `<svg viewBox="0 0 ${W} ${H}" aria-hidden="true">
+    ${pressure.map(p=>`<rect x="${p[0]-6}" y="${H-4-(p[1]/maxP)*(H-8)*0.6}" width="12" height="${(p[1]/maxP)*(H-8)*0.6}" fill="var(--neg)" opacity=".18"/>`).join('')}
+    <path d="${lead.map((p,i)=>(i?'L':'M')+p[0]+','+p[1]).join(' ')}" class="leading-line"/>
+    ${lead.length?`<circle cx="${lead[lead.length-1][0]}" cy="${lead[lead.length-1][1]}" r="4" fill="var(--leading)" stroke="var(--surface)" stroke-width="2"/>`:''}
+    <text x="${PW+6}" y="${sy(100)+4}" class="tick">100</text><text x="${PW+6}" y="${sy(0)}" class="tick">0</text></svg>`;
+  const ksp = `<svg viewBox="0 0 ${W} 40" aria-hidden="true"><path d="${ser.map((x,i)=>(i?'L':'M')+sx(i)+','+(36-(x.kpi_only-20)/80*32)).join(' ')}" class="trailing-line"/><text x="${PW+6}" y="${36-(70-20)/80*32+4}" class="tick">70</text></svg>`;
+  const pstrip = `<svg viewBox="0 0 ${W} 22" aria-hidden="true">${(()=>{let x0=4; const total=ph.reduce((a,p)=>a+p.months,0)||1; return ph.map(p=>{const w=(PW-8)*p.months/total; const r=`<rect x="${x0}" y="4" width="${Math.max(2,w-2)}" height="12" class="ephase ${p.name}"/>${w>34?`<text x="${x0+3}" y="14" class="tick">${p.name.slice(0,5)}</text>`:''}`; x0+=w; return r;}).join('');})()}</svg>`;
+  document.getElementById('now').innerHTML = `
+    <div class="tile hero"><div class="label"><span>Evidence pressure — leading layer</span><span class="pill ${s.early_warning==='early_warning'?'warn':s.early_warning==='recovery_watch'?'ok':'info'}">${s.early_warning||'silent'}</span></div>
+      <div class="value">${s.qual==null?'—':s.qual.toFixed(1)}</div>${spark}
+      <div class="chips">${Object.entries(s.roles||{}).map(([r,c])=>`<span class="pill ${(ROLE_POL[r]||0)<0?'warn':(ROLE_POL[r]||0)>0?'ok':'ghost'}">${ROLE_LABEL[r]||r}${c>1?' ×'+c:''}</span>`).join('')}</div>
+      <div class="foot">bars = negative-role signals per month · ${ser.filter(x=>x.early_warning==='early_warning').length} early-warning months of ${ser.length}</div></div>
+    <div class="tile"><div class="label"><span>Coverage</span><span class="pill ${unlogged?'warn':'ok'}">${unlogged?unlogged+' months no evidence':'every month has evidence'}</span></div>
+      <div class="value">${visible.reduce((a,x)=>a+x.n,0)}<small>rows · ${visible.length} distinct</small></div>
+      <div class="mini"><b>sources:</b> ${Object.entries(sources).map(([k,v])=>`${k==='csv_import'?'CRM export':k} (${v})`).join(', ')}<br><b>last touch:</b> ${lastTouch?fmtD(lastTouch):'—'} · ${lastTouch?Math.round((now-lastTouch)/864e5):'—'} d ago<br><b>mapped to a role:</b> ${visible.filter(x=>x.e.role).length} of ${visible.length}<br><b>polarity conflicts:</b> ${visible.filter(x=>x.conflict).length} · <b>duplicates:</b> ${visible.filter(x=>x.n>1).length}</div>
+      <div class="foot">silence is only meaningful once coverage is known</div></div>
+    <div class="tile"><div class="label"><span>Evidence phase</span><span class="pill ghost">from pressure, not slope</span></div>
+      <div class="value" style="font-size:22px;font-family:'IBM Plex Serif',serif;font-weight:500">${F.phaseNow}</div>${pstrip}
+      <div class="mini">deterioration dated from <b>${(()=>{const d=ph.find(p=>p.name==='deterioration'); return d?fmtM(dt(d.entered_at)):'—';})()}</b> on evidence<br>vs <b>${(()=>{const d=D.phases.find(p=>p.name==='deterioration'); return d?fmtM(dt(d.entered_at)):'—';})()}</b> on the KPI slope</div>
+      <div class="foot">arc hypothesis: ${D.arc.arc_type?D.arc.arc_type.replace(/_/g,' '):D.state} · cited by ${D.arc.supporting_episode_ids.map(i=>'#'+seq[i]).join(' ')}</div></div>
+    <div class="tile"><div class="label"><span>Chains</span><span class="pill ${assertedSuspect?'warn':'ghost'}">${assertedSuspect?'asserted links suspect':'asserted + inferred'}</span></div>
+      <div class="value">${chainStats.length}<small>outcomes</small></div>
+      <div class="mini"><b>${nAsserted}</b> asserted links (source) · <b>${nInferred}</b> inferred by precedence (≤${CHAIN_WINDOW} d, role-consistent)<br>${assertedSuspect?`<span style="color:var(--neg)">every outcome asserts the same first signal (#${seq[sigs.find(s=>assertedTargets.has(s.e.date.slice(0,10))).e.episode_id]}) — ordinal binding, not evidence</span>`:''}</div>
+      <div class="foot">realized: ${outcomes.filter(o=>REALIZED.includes(o.revenue_bucket)&&dt(o.date)<=now).length} · narrative: ${chainStats.length-outcomes.filter(o=>REALIZED.includes(o.revenue_bucket)&&dt(o.date)<=now).length}</div></div>
+    <div class="tile"><div class="label"><span>Accountability</span><span class="pill ${withEv.length<people.length?'warn':'ok'}">${withEv.length} of ${people.length} with evidence</span></div>
+      <div class="chips" style="margin-top:2px">${people.map(p=>`<span class="pill ${p.roster?(withEv.includes(p)?'ok':'warn'):'info'}">${p.name.split(' ')[0]} · ${p.roster?ROLE_SHORT[p.role]||p.role:'unresolved'}</span>`).join('')}</div>
+      <div class="mini" style="margin-top:6px">${people.map(p=>`<b>${p.name}</b>: ${p.about.filter(x=>dt(x.e.date)<=now).length} about · ${p.owns.filter(x=>dt((x.e||x).date)<=now).length} owns${!p.roster?' · <span style="color:var(--trailing)">named in evidence, not on roster</span>':''}${p.roster&&!withEv.includes(p)?' · <span style="color:var(--neg)">present, no evidence</span>':''}`).join('<br>')}</div></div>
+    <div class="tile lens"><div class="label"><span>Trailing lens — KPI health</span><span class="pill ${s.kpi_only>=70?'ok':'warn'}">${s.kpi_only>=70?'healthy':s.kpi_only>=50?'at risk':'critical'}</span></div>
+      <div class="value" style="font-size:26px">${s.kpi_only.toFixed(1)}</div>${ksp}
+      <div class="mini"><b>${fmtUSD(D.account.arr)}</b> ARR · renewal in <b>${F.daysToRenewal} d</b> · window opens ${fmtD(F.windowOpens)}</div>
+      <div class="foot">one derived score among several — still the only number that feeds anything financial</div></div>`;
+  document.getElementById('now-eyebrow').textContent = `as of ${fmtD(now)}`;
+  const ed = ph.find(p=>p.name==='deterioration'), hd = D.phases.find(p=>p.name==='deterioration');
+  document.getElementById('diff').innerHTML = `<b>Same account, evidence as the spine.</b> Deterioration is dated from <b>${ed?fmtM(dt(ed.entered_at)):'—'}</b> (first negative-role evidence) instead of <b>${hd?fmtM(dt(hd.entered_at)):'—'}</b> (KPI slope) — ${ed&&hd?Math.round((dt(hd.entered_at)-dt(ed.entered_at))/864e5/30):'—'} months earlier. People are tied to what they did or what was said about them; ${people.filter(p=>!p.roster).length} person named in the evidence is missing from the roster; ${people.filter(p=>p.roster&&!withEv.includes(p)).length} on the roster have no evidence at all. Every chain is drawn at its evidence tier — and the source's own asserted links are flagged, because all four point at the same first signal.`;
+}
+
+// ── canvas ──────────────────────────────────────────────────────────────
+const W = 1320, L = 210, R = 28;
+const X0 = new Date(2025,5,15), X1 = new Date(2026,8,30);
+const x = d => L + (d - X0)/(X1 - X0) * (W - L - R);
+const PY0 = 70, PY1 = 230; const py = v => PY0 + (100 - v)/100 * (PY1 - PY0);
+const SIG_Y0 = 296, SIG_ROW = 22;
+const PEOPLE_Y0 = SIG_Y0 + roles.length*SIG_ROW + 40;
+const PROW = 26;
+const CH_Y = PEOPLE_Y0 + people.length*PROW + 44;
+const FC_Y0 = CH_Y + 104, FC_Y1 = FC_Y0 + 90; const fy = p => FC_Y1 - p*(FC_Y1-FC_Y0);
+const AX_Y = FC_Y1 + 12;
+
+function draw(now) {
+  const svg = document.getElementById('svg'); svg.innerHTML = ''; svg.setAttribute('viewBox', `0 0 ${W} ${AX_Y+30}`);
+  const g = el('g', {}, svg); const F = forecast(now); const showLens = document.getElementById('lens').checked;
+  for (let d = new Date(2025,6,1); d <= X1; d = new Date(d.getFullYear(), d.getMonth()+1, 1)) { el('line', {x1:x(d), x2:x(d), y1:PY0-8, y2:AX_Y, class:'hair'}, g); text(g, x(d)+4, AX_Y+16, fmtM(d), 'tick'); }
+  el('rect', {x:x(now), y:PY0-8, width:x(X1)-x(now), height:AX_Y-PY0+8, class:'future'}, g);
+  el('rect', {x:x(F.windowOpens), y:PY0-8, width:x(renewal)-x(F.windowOpens), height:AX_Y-PY0+8, class:'window'}, g);
+  el('line', {x1:x(renewal), x2:x(renewal), y1:PY0-8, y2:AX_Y, class:'hair2'}, g);
+  text(g, x(renewal)+4, PY0-14, 'renewal ' + fmtD(renewal), 'flag'); text(g, x(F.windowOpens)+4, PY0-14, '90-day risk window →', 'flag');
+
+  // evidence phases (primary) + health phases (thin comparison strip)
+  const ph = evidencePhases(now);
+  ph.forEach(p => { const a = dt(p.entered_at); const b = new Date(a.getFullYear(), a.getMonth()+p.months, 1); const bb = b > now ? now : b;
+    el('rect', {x:x(a), y:PY0-8, width:Math.max(0,x(bb)-x(a)), height:PY1-PY0+8, class:'ephase '+p.name}, g);
+    const lbl = p.name + (p.trigger ? '  ← ' + seq[p.trigger] : '');
+    if (x(bb)-x(a) < 110) text(g, x(bb)-6, PY0+6+(ph.indexOf(p)%2?14:0), lbl, 'phase-label', {'text-anchor':'end'}); else text(g, x(a)+6, PY0+6, lbl, 'phase-label'); });
+  text(g, 16, PY0+6, 'EVIDENCE PHASES', 'lane-label');
+  D.phases.filter(p => dt(p.entered_at) <= now).forEach(p => { const a = dt(p.entered_at); const b = p.exited_at && dt(p.exited_at) <= now ? dt(p.exited_at) : now;
+    el('rect', {x:x(a), y:PY1+4, width:Math.max(0,x(b)-x(a)), height:6, class:'hphase '+p.name}, g); });
+  text(g, 16, PY1+9, 'KPI-slope phases (old spine)', 'dlabel');
+  // pressure area + leading line
+  const ser = D.series.filter(s => monthEnd(s.month) <= addDays(now,1));
+  const pts = ser.filter(s => s.qual != null).map(s => [new Date(dt(s.month).getFullYear(), dt(s.month).getMonth(), 15), s.qual]);
+  if (pts.length) { el('path', {d:'M'+x(pts[0][0])+','+py(0)+' '+pts.map(p=>'L'+x(p[0])+','+py(p[1])).join(' ')+' L'+x(pts[pts.length-1][0])+','+py(0)+' Z', class:'pressure-area'}, g);
+    el('path', {d: pts.map((p,i)=>(i?'L':'M')+x(p[0])+','+py(p[1])).join(' '), class:'leading-line'}, g);
+    pts.forEach(p => el('circle', {cx:x(p[0]), cy:py(p[1]), r:4, class:'mark', style:'fill:var(--leading)'}, g)); }
+  [[100,''],[50,'']].forEach(([v]) => el('line', {x1:L, x2:x(X1), y1:py(v), y2:py(v), class:'thresh'}, g));
+  text(g, L-8, py(100)+4, '100', 'tick', {'text-anchor':'end'}); text(g, L-8, py(50)+4, '50', 'tick', {'text-anchor':'end'}); text(g, L-8, py(0)+4, '0', 'tick', {'text-anchor':'end'});
+  text(g, 16, PY0+30, 'behavioral composite', 'dlabel'); el('line',{x1:16,x2:34,y1:PY0+42,y2:PY0+42,class:'leading-line'},g);
+  if (showLens) { let d=''; ser.forEach((s,i)=>{ d += (i?'L':'M')+x(dt(s.month))+','+py(s.kpi_only)+' L'+x(monthEnd(s.month))+','+py(s.kpi_only)+' '; }); el('path', {d, class:'trailing-line'}, g);
+    text(g, 16, PY0+62, 'KPI lens (toggle)', 'dlabel'); el('line',{x1:16,x2:34,y1:PY0+74,y2:PY0+74,class:'trailing-line'},g);
+    if (ser.length) text(g, x(monthEnd(ser[ser.length-1].month))+6, py(ser[ser.length-1].kpi_only)+4, 'KPI '+ser[ser.length-1].kpi_only.toFixed(1), 'dlabel'); }
+  if (F.silent && pts.length) { const lp = pts[pts.length-1]; el('path', {d:`M${x(lp[0])},${py(lp[1])} L${x(F.silent)},${py(lp[1])}`, class:'leading-proj'}, g);
+    el('rect', {x:x(F.silent), y:PY0+8, width:Math.max(0,x(renewal)-x(F.silent)), height:PY1-PY0-8, class:'silence', opacity:.6}, g);
+    text(g, x(F.silent)+6, PY0+30, 'evidence goes silent ' + fmtD(F.silent), 'dlabel strong'); text(g, x(F.silent)+6, PY0+44, 'unless new signals — no curve invented', 'dlabel'); }
+  const fl = D.lvt.first_leading_warning_at; if (fl && monthEnd(fl) <= now) { const xx = x(monthEnd(fl)); el('line', {x1:xx, x2:xx, y1:PY0-2, y2:PY1+22, class:'flag-line'}, g); text(g, xx+5, PY1+22, '⚑ first early warning ' + fmtM(dt(fl)) + ' — KPI never crossed at-risk (lowest ' + Math.min(...ser.map(s=>s.kpi_only)).toFixed(1) + ')', 'flag'); }
+
+  // signals by role
+  text(g, 16, SIG_Y0-10, 'EVIDENCE BY ROLE', 'lane-label');
+  const nodePos = {};
+  roles.forEach((r,i) => { const yy = SIG_Y0 + i*SIG_ROW + 8; text(g, 16, yy+4, ROLE_LABEL[r]||r, 'dlabel'); el('line', {x1:L, x2:x(X1), y1:yy, y2:yy, class:'hair'}, g); });
+  const edgesLayer = el('g', {}, g); const marksLayer = el('g', {}, g);
+  sigs.filter(s => dt(s.e.date) <= now).forEach(s => { const r = s.e.role||'unmapped', yy = SIG_Y0 + roles.indexOf(r)*SIG_ROW + 8, xx = x(dt(s.e.date)); nodePos[s.key] = [xx,yy];
+    const cls = s.pol < 0 ? 'neg' : s.pol > 0 ? 'pos' : 'neu';
+    const hit = el('rect', {x:xx-12, y:yy-12, width:24, height:24, class:'hit', tabindex:0, role:'img', 'aria-label':s.e.title}, marksLayer);
+    let m; if (s.pol < 0) m = el('path', {d:`M${xx-6},${yy-5} L${xx+6},${yy-5} L${xx},${yy+6} Z`, class:'mark '+cls, 'data-key':s.key}, marksLayer);
+    else if (s.pol > 0) m = el('path', {d:`M${xx-6},${yy+5} L${xx+6},${yy+5} L${xx},${yy-6} Z`, class:'mark '+cls, 'data-key':s.key}, marksLayer);
+    else m = el('circle', {cx:xx, cy:yy, r:5, class:'mark '+cls, 'data-key':s.key}, marksLayer);
+    if (s.n > 1) text(g, xx+8, yy+4, '×'+s.n, 'count');
+    if (s.conflict) { el('circle', {cx:xx+7, cy:yy-7, r:4, class:'mark', style:'fill:var(--surface);stroke:var(--neg)'}, marksLayer); text(g, xx+4.6, yy-4, '!', 'count'); }
+    const html = `<b>${seq[s.e.episode_id]}. ${clean(s.e.title)}</b><span class="m">${fmtD(dt(s.e.date))} · ${ROLE_LABEL[r]||r} · about ${s.person||'—'} · source ${s.source==='csv_import'?'CRM export':s.source} · sentiment ${s.e.sentiment ?? '—'}${s.n>1?' · ×'+s.n+' identical rows':''}${s.conflict?' · <b>polarity conflict — mark follows the role</b>':''}</span>`;
+    bindTip(hit, html); bindTip(m, html); });
+
+  // people with typed edges
+  text(g, 16, PEOPLE_Y0-10, 'PEOPLE · typed edges', 'lane-label');
+  people.forEach((p,i) => { const yy = PEOPLE_Y0 + i*PROW + 6; const hasEv = p.about.some(a=>dt(a.e.date)<=now) || p.owns.some(a=>dt((a.e||a).date)<=now);
+    text(g, 16, yy+4, `${p.name} · ${p.roster?ROLE_SHORT[p.role]||p.role:'unresolved'}`, 'dlabel');
+    el('line', {x1:L+6, x2:x(now), y1:yy, y2:yy, class:'presence' + (hasEv?' active':'')}, g);
+    el('circle', {cx:L+6, cy:yy, r:5, class:'mark person' + (hasEv?'':' noev')}, g);
+    if (!hasEv && p.roster) text(g, x(now)-8, yy-10, 'present, no evidence' + (p.role==='executive_sponsor'?' — silent sponsor?':''), 'dlabel', {'text-anchor':'end'});
+    if (!p.roster) text(g, x(now)-8, yy-10, 'named in evidence, not on roster', 'dlabel', {'text-anchor':'end'});
+    p.about.filter(a=>dt(a.e.date)<=now).forEach(a => { const np = nodePos[a.key]; if (!np) return; el('path', {d:`M${np[0]},${np[1]+8} C${np[0]},${(np[1]+yy)/2} ${np[0]},${(np[1]+yy)/2} ${np[0]},${yy-4}`, class:'edge about', 'data-key':a.key}, edgesLayer); el('circle', {cx:np[0], cy:yy, r:3, style:'fill:var(--accent)', class:'mark'}, g); });
+    p.owns.filter(a=>dt((a.e||a).date)<=now).forEach(a => { const d = dt((a.e||a).date); el('path', {d:`M${x(d)-5},${yy} L${x(d)},${yy-6} L${x(d)+5},${yy} L${x(d)},${yy+6} Z`, class:'mark decision'}, g); text(g, x(d)+9, yy+4, 'owns: ' + clean((a.e||a).title).slice(0,34), 'dlabel'); }); });
+
+  // chains: outcomes + edges at evidence tier
+  text(g, 16, CH_Y-10, 'CHAINS · outcomes', 'lane-label'); el('line', {x1:L, x2:x(X1), y1:CH_Y+8, y2:CH_Y+8, class:'hair'}, g);
+  const rows = {neg:0,pos:0};
+  outcomes.filter(o => dt(o.date) <= now).forEach(o => { const xx = x(dt(o.date)); const realized = REALIZED.includes(o.revenue_bucket); const neg = ['lost','at_risk'].includes(o.revenue_bucket);
+    const k = neg?'neg':'pos'; const row = (neg?0:2) + (rows[k]++%2); const yy = CH_Y + 8 + row*20; const C = chainsFor(o); const okey = 'out:'+o.episode_id;
+    const m = neg ? el('path', {d:`M${xx-7},${yy-6} L${xx+7},${yy-6} L${xx},${yy+7} Z`, class:'mark '+(realized?'':'hollow ')+'neg', tabindex:0, 'data-key':okey}, marksLayer)
+                  : el('path', {d:`M${xx-7},${yy+6} L${xx+7},${yy+6} L${xx},${yy-7} Z`, class:'mark '+(realized?'':'hollow ')+'pos', tabindex:0, 'data-key':okey}, marksLayer);
+    text(g, xx+10, yy+4, `${fmtSignedUSD(o.revenue)} ${o.revenue_bucket.replace('_',' ')}${realized?'':' (narrative)'}`, 'dlabel');
+    const keys = [];
+    C.asserted.forEach(s => { const np = nodePos[s.key]; if (!np) return; keys.push(s.key); el('path', {d:`M${np[0]},${np[1]+8} C${np[0]},${(np[1]+yy)/2} ${xx},${(np[1]+yy)/2} ${xx},${yy-8}`, class:'edge ' + (assertedSuspect?'suspect':'asserted'), 'data-chain':okey}, edgesLayer); });
+    C.inferred.forEach(s => { const np = nodePos[s.key]; if (!np) return; keys.push(s.key); el('path', {d:`M${np[0]},${np[1]+8} C${np[0]},${(np[1]+yy)/2} ${xx},${(np[1]+yy)/2} ${xx},${yy-8}`, class:'edge inferred', 'data-chain':okey}, edgesLayer); });
+    C.acts.forEach(a => { const d = dt(a.date); const ay = PEOPLE_Y0 + people.findIndex(p=>p.name===((a.e||{}).meta||{}).stakeholder)*PROW + 6; el('path', {d:`M${x(d)},${ay+6} C${x(d)},${(ay+yy)/2} ${xx},${(ay+yy)/2} ${xx},${yy-8}`, class:'edge asserted', 'data-chain':okey}, edgesLayer); });
+    const html = `<b>${seq[o.episode_id]}. ${clean(o.title)}</b><span class="m">${fmtD(dt(o.date))} · ${o.revenue_bucket} · ${realized?'realized ARR movement':'narrative — not counted in NRR'}<br>asserted by source: ${C.asserted.map(s=>'#'+seq[s.e.episode_id]).join(' ')||'none'}${assertedSuspect?' (suspect — same signal for every outcome)':''}<br>inferred by precedence (≤${CHAIN_WINDOW} d, role-consistent): ${C.inferred.map(s=>'#'+seq[s.e.episode_id]).join(' ')||'none'}${C.acts.length?'<br>actions before it: '+C.acts.map(a=>'#'+seq[a.episode_id]).join(' '):''}</span>`;
+    bindTip(m, html);
+    const hl = on => { svg.classList.toggle('chain-dim', on); svg.querySelectorAll('[data-chain="'+okey+'"], [data-key="'+okey+'"]').forEach(n=>n.classList.toggle('hl',on)); keys.forEach(kk => svg.querySelectorAll('[data-key="'+kk+'"]').forEach(n=>n.classList.toggle('hl',on))); };
+    m.addEventListener('mouseenter', ()=>hl(true)); m.addEventListener('mouseleave', ()=>hl(false)); m.addEventListener('focus', ()=>hl(true)); m.addEventListener('blur', ()=>hl(false)); });
+  F.actions.forEach((a,i) => { const when = i===0 ? addDays(now,14) : F.windowOpens; const xx = x(when), yy = CH_Y + 8 + (i?20:0);
+    el('path', {d:`M${xx-6},${yy} L${xx},${yy-7} L${xx+6},${yy} L${xx},${yy+7} Z`, class:'mark planned'}, g); text(g, xx+10, yy+4, 'recommended: ' + (a.title.length>40?a.title.slice(0,38)+'…':a.title), 'dlabel'); });
+
+  // forecast lane
+  text(g, 16, FC_Y0-10, 'LIKELIHOOD OF A LOSS EVENT', 'lane-label'); text(g, 16, FC_Y0+6, 'pattern tier · prior', 'dlabel');
+  [0,0.5,1].forEach(p => { el('line', {x1:L, x2:x(X1), y1:fy(p), y2:fy(p), class:'hair'}, g); text(g, L-8, fy(p)+4, Math.round(p*100)+'%', 'tick', {'text-anchor':'end'}); });
+  text(g, x(X0)+8, fy(0)-6, `pattern tier: ${F.events} loss events in ${F.account_months} account-months — no H1 pattern yet`, 'dlabel');
+  const steps = 24, fp = []; for (let i=0;i<=steps;i++){ const f=i/steps, d=new Date(now.getTime()+f*(renewal-now)); const e=f*f*(3-2*f); fp.push([x(d), fy(F.lo*e), fy(F.med*e), fy(F.hi*e)]); }
+  el('path', {d: fp.map((p,i)=>(i?'L':'M')+p[0]+','+p[3]).join(' ')+' '+fp.slice().reverse().map(p=>'L'+p[0]+','+p[1]).join(' ')+' Z', class:'fan'}, g);
+  el('path', {d: fp.map((p,i)=>(i?'L':'M')+p[0]+','+p[2]).join(' '), class:'fan-median'}, g);
+  el('circle', {cx:x(renewal), cy:fy(F.med), r:4, style:'fill:var(--neg)', class:'mark'}, g);
+  text(g, x(renewal)+6, fy(F.hi)+4, Math.round(F.hi*100)+'%', 'dlabel'); text(g, x(renewal)+6, fy(F.med)+4, Math.round(F.med*100)+'% median', 'dlabel strong'); text(g, x(renewal)+6, fy(F.med)+16, '≈ '+fmtUSD(D.account.arr*F.med)+' exp. loss', 'dlabel'); text(g, x(renewal)+6, fy(F.lo)+4, Math.round(F.lo*100)+'%', 'dlabel');
+  text(g, x(now)+8, fy(1)+14, 'ARC PRIOR — not calibrated here · band deliberately wide', 'flag');
+  [[F.windowOpens,'risk window opens'],[F.silent,'evidence silent'],[renewal,'renewal decision']].forEach(([d,l],i) => { if(!d) return; el('line', {x1:x(d), x2:x(d), y1:FC_Y0-4, y2:FC_Y1, class:'trip'}, g); text(g, x(d)-4, FC_Y1-4-i*13, l, 'dlabel', {'text-anchor':'end'}); });
+  el('line', {x1:x(now), x2:x(now), y1:PY0-30, y2:AX_Y, class:'now-line'}, g);
+  text(g, x(now)+6, PY0-34, 'NOW · ' + fmtD(now) + (now < AS_OF ? ' (time-travel)' : '') + '   ·   next 6 months →', 'now-label');
+}
+
+// ── chains narration, signal DNA, ledger, honesty, index ──
+function story(now) {
+  const cite = e => `<span class="cite">[${seq[e.episode_id]}]</span>`;
+  let html = '';
+  outcomes.filter(o => dt(o.date) <= now).forEach(o => { const C = chainsFor(o); const realized = REALIZED.includes(o.revenue_bucket);
+    html += `<div class="ch">${fmtD(dt(o.date))} · ${clean(o.title)} ${fmtSignedUSD(o.revenue)}${realized?'':' (narrative, not ARR)'}${cite(o)}</div><p>`;
+    const parts = [];
+    if (C.inferred.length) parts.push(`Preceded within ${CHAIN_WINDOW} days by ${C.inferred.length} ${C.inferred[0].pol<0?'negative':'positive'}-role signal${C.inferred.length>1?'s':''} — ${[...new Set(C.inferred.map(s=>ROLE_LABEL[s.e.role]||s.e.role))].join(', ').toLowerCase()} ${C.inferred.map(s=>cite(s.e)).join('')} — about ${[...new Set(C.inferred.map(s=>s.person).filter(Boolean))].join(', ')||'no named person'} (inferred by precedence).`);
+    if (C.acts.length) parts.push(`Actions before it: ${C.acts.map(a=>clean(a.title)+cite(a)).join('; ')} — owned by ${[...new Set(C.acts.map(a=>((a.e||{}).meta||{}).stakeholder).filter(Boolean))].join(', ')||'no owner recorded'}.`);
+    if (C.asserted.length) parts.push(`The source asserts a link to ${C.asserted.map(s=>cite(s.e)).join('')}${assertedSuspect?' — the same first signal it asserts for every outcome; treated as ordinal binding, not evidence':''}.`);
+    if (!parts.length) parts.push('No evidence precedes this outcome in the window.');
+    html += parts.join(' ') + '</p>'; });
+  const conflicts = sigs.filter(s => s.conflict && dt(s.e.date) <= now);
+  if (conflicts.length) html += `<p class="dim" style="font-size:13px">Data note: ${conflicts.length} signal${conflicts.length>1?'s':''} carried a positive sentiment against a negative role ${conflicts.map(c=>cite(c.e)).join('')}; the canvas follows the role and flags the row.</p>`;
+  document.getElementById('story').innerHTML = html || '<p class="muted">No outcomes yet at this date.</p>';
+}
+function dna() {
+  const rows = D.wizard_b.rules.map(r => `<tr><td>${r.hypothesis==='H1_retention'?'loss':'expansion'}</td><td>${ROLE_LABEL[r.role]||r.role}</td><td class="n">${r.preceded_events} / ${r.of_events}</td><td class="n">${r.median_lead_days ?? '—'} d</td><td class="basis">${r.rule_semantics}</td></tr>`).join('');
+  const tr = Object.entries(D.wizard_b.transitions).map(([k,v]) => `<tr><td>${k}</td><td>—</td><td class="n">${v.count} · ${Math.round(v.probability*100)}%</td><td class="n">~${v.avg_months_before_transition} mo</td><td class="basis">triggered by ${Object.entries(v.triggers).slice(0,3).map(([t,n])=>`${(ROLE_LABEL[t]||t).toLowerCase()} ×${n}`).join(', ')}</td></tr>`).join('');
+  document.getElementById('dna').innerHTML = `<thead><tr><th>event</th><th>preceded by</th><th class="n">k / n</th><th class="n">median lead</th><th>basis</th></tr></thead><tbody>${rows||'<tr><td colspan="5" class="basis">no loss events on this tenant — no H1 pattern yet</td></tr>'}${tr}</tbody>`;
+}
+function ledger(now) {
+  const F = forecast(now); const iv = D.wizard_b.interventions[0];
+  const rows = [
+    ['now → ' + (F.silent?fmtD(F.silent):'—'), 'Evidence pressure holds, then goes silent', 'recency window (60 d) on this account\'s signals', 'any new signal'],
+    [`~${F.moDet} mo`, F.det?`${Math.round(F.pDet*100)}% chance of re-entering deterioration`:'—', F.det?`tenant transition matrix: ${F.det.count} of ${Math.round(F.det.count/F.det.probability)} segments`:'—', F.det?`a ${Object.keys(F.det.triggers)[0].replace('_',' ')} signal`:'—'],
+    [fmtD(renewal), `${Math.round(F.lo*100)}–${Math.round(F.hi*100)}% loss event (median ${Math.round(F.med*100)}%)`, `arc prior — ${F.events} loss events on tenant; pattern tier empty for H1`, 'the first loss event on this tenant'],
+    [fmtD(addDays(now,14)), F.actions.map(a=>a.title).join(' · ')||'—', `template decisions; observed: ${iv?'+'+iv.lift_pts.toFixed(1)+' pts after '+clean(iv.title):'—'} (before/after)`, 'whether taken, and by whom'],
+  ];
+  document.getElementById('ledger').innerHTML = `<thead><tr><th>when</th><th>we expect</th><th>basis</th><th>changes it</th></tr></thead><tbody>${rows.map(r=>`<tr><td class="mono" style="white-space:nowrap">${r[0]}</td><td>${r[1]}</td><td class="basis">${r[2]}</td><td class="basis">${r[3]}</td></tr>`).join('')}</tbody>`;
+}
+function honesty() {
+  const conflicts = sigs.filter(s=>s.conflict).length, dups = sigs.filter(s=>s.n>1).length;
+  const nA = D.links.length, nI = outcomes.reduce((a,o)=>a+chainsFor(o).inferred.length,0);
+  document.getElementById('honesty').innerHTML = [
+    `<span><b>Evidence:</b> ${D.wizard_b.evidence_label}</span>`,
+    `<span><b>Edges:</b> ${nA} asserted${assertedSuspect?' (suspect)':''} · ${nI} inferred by precedence · ${people.reduce((a,p)=>a+p.about.length,0)} about · ${people.reduce((a,p)=>a+p.owns.length,0)} owns</span>`,
+    `<span><b>People:</b> ${people.filter(p=>!p.roster).length} unresolved · ${people.filter(p=>p.roster&&!p.about.length&&!p.owns.length).length} on roster with no evidence</span>`,
+    `<span><b>Signals:</b> ${sigs.filter(s=>s.e.role).length} of ${sigs.length} mapped · ${conflicts} polarity conflicts · ${dups} duplicates</span>`,
+    `<span><b>Arc:</b> rule-match constant, cited by ${D.arc.supporting_episode_ids.length} episodes</span>`,
+    `<span><b>Forecast:</b> prior-only (pattern tier has no loss events)</span>`,
+    `<span><b>Generated:</b> journey v3 as of ${fmtD(AS_OF)}</span>`].join('');
+  document.getElementById('index').innerHTML = `<thead><tr><th class="n">#</th><th>date</th><th>kind</th><th>role / subtype</th><th>about / owner</th><th>title</th><th class="n">sentiment</th><th class="n">amount</th></tr></thead><tbody>${D.episodes.map(e=>`<tr><td class="n">${seq[e.episode_id]}</td><td class="mono">${e.date.slice(0,10)}</td><td>${e.kind.replace('_',' ')}</td><td>${e.role?(ROLE_LABEL[e.role]||e.role):(e.subtype||'')}</td><td>${(e.meta||{}).stakeholder||''}</td><td>${e.title}</td><td class="n">${e.sentiment ?? ''}</td><td class="n">${e.revenue!=null?fmtSignedUSD(e.revenue):''}</td></tr>`).join('')}</tbody>`;
+  document.getElementById('legend').innerHTML = `<span><i class="key"></i>behavioral composite (spine)</span><span><i class="key trail"></i>KPI lens (toggle)</span><span><i class="sw" style="background:var(--neg);clip-path:polygon(0 0,100% 0,50% 100%)"></i>negative signal</span><span><i class="sw" style="background:var(--pos);clip-path:polygon(0 100%,100% 100%,50% 0)"></i>positive signal</span><span><i class="key asserted"></i>asserted link</span><span><i class="key inferred"></i>inferred by precedence</span><span><i class="key" style="border-top:1.5px dotted var(--neg)"></i>asserted but suspect</span><span><i class="key" style="border-top:1px solid var(--accent)"></i>about / owns</span><span><i class="sw" style="border:2px solid var(--neg);width:8px;height:8px"></i>narrative outcome (hollow)</span>`;
+  document.getElementById('subtitle').textContent = `${D.account.profile.tier} · ${D.account.profile.products.map(p=>p.name).join(', ')} · ${fmtUSD(D.account.arr)} ARR`;
+  document.getElementById('origin-badge').innerHTML = `<i class="dot" style="background:var(--neg)"></i> synthetic tenant — mechanism, not evidence`;
+  document.getElementById('asof-badge').textContent = `journey as of ${fmtD(AS_OF)}`;
+}
+const scrub = document.getElementById('scrub'); const T0 = new Date(2025,7,31);
+function nowFromScrub() { const f = +scrub.value/100; return f >= 1 ? AS_OF : new Date(T0.getTime() + f*(AS_OF - T0)); }
+function render() { const now = nowFromScrub(); document.getElementById('scrub-date').textContent = fmtD(now); header(now); draw(now); story(now); ledger(now); document.documentElement.setAttribute('data-rendered','1'); }
+scrub.addEventListener('input', render); document.getElementById('lens').addEventListener('change', () => draw(nowFromScrub()));
+honesty(); dna(); render();
+</script>
