@@ -21,6 +21,7 @@
     "max_tokens": 1024,
     "prompt_text_chars": 3000,
     "context_signals": 5,
+    "key_terms_max": 12,
     "max_calls_per_customer_per_day": 200,
     "max_calls_per_account_per_day": 50,
     "confidence_threshold": 0.6
@@ -38,7 +39,11 @@
       "capacity_pressure": "medium",
       "product_friction": "medium"
     },
-    "perceived_bands": {"critical": 0.8, "high": 0.6, "medium": 0.4},
+    "perceived_bands": {
+      "critical": 0.8,
+      "high": 0.6,
+      "medium": 0.4
+    },
     "escalation_boost_threshold": 0.7
   }
 }

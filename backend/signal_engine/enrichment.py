@@ -56,7 +56,7 @@ def build_vertical_context(vertical: str) -> Dict:
             'name': vertical.replace('_', ' ').title(),
             'description': get_vertical_description(vertical) or f'{vertical} vertical (from its KPI catalog)',
             'pillars': pillar_str,
-            'key_terms': ', '.join(kpi_names[:settings.get('llm', 'context_signals') * 3]) or '(no KPIs registered)',
+            'key_terms': ', '.join(kpi_names[:settings.get('llm', 'key_terms_max')]) or '(no KPIs registered)',
         }
     except Exception as e:
         logger.warning("enrichment: could not derive vertical context for %r: %s", vertical, e)
@@ -78,7 +78,7 @@ Confidence scores reflect explicitness:
   0.5 = weakly implied
   0.0 = not determinable from the text
 
-If confidence for any field is below 0.6, set requires_review to true.
+If confidence for any field is below {confidence_threshold}, set requires_review to true.
 {dedup_instruction}
 VALID INTENT CODES (use ONLY these):
 {intent_codes}
@@ -185,6 +185,7 @@ def enrich_signal(signal_id: str, raw_text: str, account_id: int, customer_id: i
         vertical_pillars=v_ctx['pillars'], vertical_terms=v_ctx['key_terms'],
         similar_signals_block=similar_block, dedup_instruction=dedup_instruction,
         intent_codes=', '.join(VALID_INTENTS), raw_text=raw_text[:settings.get('llm', 'prompt_text_chars')],
+        confidence_threshold=settings.get('llm', 'confidence_threshold'),
     )
 
     api_key = os.environ.get('ANTHROPIC_API_KEY')
