@@ -425,6 +425,25 @@ class TestReadSurfaceAndReview:
             review_signal(cid, sid, 'maybe')
 
 
+class TestStaleJourneyRebuild:
+    def test_old_generator_version_is_rebuilt_and_health_reports_it(self, tenant):
+        cid, aid = tenant
+        from journeys.wizard_a import GENERATOR_VERSION, stale_journey_query, rebuild_stale_journeys
+        with app.app_context():
+            jd = JourneyData.query.filter_by(customer_id=cid, account_id=aid).first()
+            assert jd.generator_version == GENERATOR_VERSION and jd.journey_json['generator_version'] == GENERATOR_VERSION
+            old = dict(jd.journey_json); old.pop('live_months', None); old.pop('generator_version', None)
+            jd.journey_json = old; jd.generator_version = '3.0'
+            db.session.commit()
+            assert stale_journey_query(cid).count() == 1
+            out = rebuild_stale_journeys(cid)
+            assert out['stale'] == 1 and out['rebuilt'] == 1 and out['customers'] == {cid: 1}
+            jd = JourneyData.query.filter_by(customer_id=cid, account_id=aid).first()
+            assert jd.generator_version == GENERATOR_VERSION and 'live_months' in jd.journey_json
+            assert stale_journey_query(cid).count() == 0
+            assert rebuild_stale_journeys(cid)['stale'] == 0          # idempotent
+
+
 class TestHttpSurface:
     @pytest.fixture(scope='class')
     def client(self, tenant):
@@ -460,6 +479,8 @@ class TestHttpSurface:
 
     def test_status_and_auth(self, client, tenant):
         cid, aid = tenant
+        h = client.get('/health').json()
+        assert h['journey_generator_version'] and 'stale_journeys' in h['counts']
         s = client.get('/api/signals/status').json()
         assert s['signal_engine_enabled'] and s['capabilities']['composite_fusion'] is False and s['capabilities']['channels']['ticket']
         r = client.post('/api/signals/ingest/manual', json={'customer_id': cid, 'account_id': aid, 'raw_text': 'x' * 20})

@@ -45,6 +45,9 @@ if [ "$RUN_TESTS" = 1 ]; then
     customerintelv1-app python -m pytest tests/ -q -p no:warnings | tail -3
 fi
 
+echo "rebuilding stale journeys (generator_version behind) ..."
+$COMPOSE exec -T customerintelv1-app python scripts/rebuild_stale_journeys.py
+
 if [ "$RUN_SEED" = 1 ]; then
   echo "seeding demo tenants ..."
   $COMPOSE exec -T customerintelv1-app python scripts/seed_demo.py

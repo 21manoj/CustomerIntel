@@ -80,7 +80,7 @@ class TestHealth:
         assert r.status_code == 200
         body = r.json()
         assert body['server'] == 'CustomerIntelV1' and body['db'] is True and body['status'] == 'ok'
-        assert set(body['counts']) == {'customers', 'journeys', 'wizard_runs'}
+        assert set(body['counts']) == {'customers', 'journeys', 'stale_journeys', 'wizard_runs'}
         assert client.get('/').json()['mcp'] == '/mcp'
 
 

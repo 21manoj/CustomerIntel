@@ -21,9 +21,41 @@ from typing import Dict, Iterable, Optional, Set
 
 logger = logging.getLogger(__name__)
 
+# Bump on EVERY change to the journey JSON shape or the builder's semantics.
+# Journeys carrying an older version are rebuilt by rebuild_stale_journeys
+# (deploy step + /health 'stale_journeys' count) so the read surface never
+# serves two shapes at once.
+#   3.0  journey v3 (2026-09-02)
+#   3.1  live months, quote/confidence/requires_review/review on episodes,
+#        unreviewed weighting, generator_version inside the JSON (2026-09-04)
+GENERATOR_VERSION = '3.1'
+
+
+def stale_journey_query(customer_id: Optional[int] = None):
+    from models import JourneyData
+    q = JourneyData.query.filter((JourneyData.generator_version.is_(None)) | (JourneyData.generator_version != GENERATOR_VERSION))
+    if customer_id is not None:
+        q = q.filter(JourneyData.customer_id == int(customer_id))
+    return q
+
+
+def rebuild_stale_journeys(customer_id: Optional[int] = None) -> dict:
+    """Rebuild every journey whose generator_version is behind GENERATOR_VERSION."""
+    stale = stale_journey_query(customer_id).all()
+    by_customer: Dict[int, Set[int]] = {}
+    for jd in stale:
+        by_customer.setdefault(jd.customer_id, set()).add(jd.account_id)
+    out = {'generator_version': GENERATOR_VERSION, 'stale': len(stale), 'rebuilt': 0, 'customers': {}}
+    for cid, aids in by_customer.items():
+        res = run_wizard_a(cid, aids)
+        out['rebuilt'] += res.get('processed', 0)
+        out['customers'][cid] = res.get('processed', 0)
+    logger.info('stale journeys: %d found, %d rebuilt to %s', out['stale'], out['rebuilt'], GENERATOR_VERSION)
+    return out
+
 
 def run_wizard_a(customer_id: int, account_ids: Optional[Iterable[int]] = None) -> dict:
-    from models import Account, HealthScore, JourneyData
+    from models import Account, JourneyData
     from extensions import db
     from utils.vertical_registry import get_vertical_for_customer
     from journeys.journey_builder import build_journey
@@ -49,6 +81,7 @@ def run_wizard_a(customer_id: int, account_ids: Optional[Iterable[int]] = None) 
         except Exception as e:
             logger.error('Wizard A failed for account %s (%s): %s', acct.account_id, acct.account_name, e, exc_info=True)
             continue
+        journey['generator_version'] = GENERATOR_VERSION
         arc = journey['arc']
         acct.arc_type = arc.get('arc_type')
         acct.arc_phase = journey.get('current_phase')
@@ -60,12 +93,12 @@ def run_wizard_a(customer_id: int, account_ids: Optional[Iterable[int]] = None) 
             jd.journey_json = journey
             jd.journey_pattern = pattern
             jd.total_weeks = journey['total_weeks']
-            jd.generator_version = '3.0'
+            jd.generator_version = GENERATOR_VERSION
             jd.updated_at = datetime.utcnow()
         else:
             db.session.add(JourneyData(
                 customer_id=customer_id, account_id=acct.account_id, journey_json=journey,
-                journey_pattern=pattern, total_weeks=journey['total_weeks'], generator_version='3.0',
+                journey_pattern=pattern, total_weeks=journey['total_weeks'], generator_version=GENERATOR_VERSION,
             ))
         result['journeys_written'] += 1
 

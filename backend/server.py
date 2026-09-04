@@ -113,9 +113,11 @@ def build_asgi_app(database_url: str | None = None, create_schema: bool = True):
         try:
             with app.app_context():
                 db.session.execute(text('select 1'))
+                from journeys.wizard_a import stale_journey_query, GENERATOR_VERSION
                 counts = {
                     'customers': Customer.query.count(),
                     'journeys': JourneyData.query.count(),
+                    'stale_journeys': stale_journey_query().count(),   # behind GENERATOR_VERSION; deploy rebuilds them
                     'wizard_runs': WizardRun.query.count(),
                 }
             status, db_ok = 200, True
@@ -123,7 +125,7 @@ def build_asgi_app(database_url: str | None = None, create_schema: bool = True):
             counts, status, db_ok = {'error': str(e)[:200]}, 503, False
         return JSONResponse({
             'server': SERVER_NAME, 'version': VERSION, 'status': 'ok' if db_ok else 'degraded',
-            'db': db_ok, 'counts': counts,
+            'db': db_ok, 'counts': counts, 'journey_generator_version': GENERATOR_VERSION if db_ok else None,
             'git_sha': os.environ.get('GIT_SHA'), 'build_time': os.environ.get('BUILD_TIME'),
             'mcp_path': '/mcp', 'auth_required': os.environ.get('MCP_AUTH_REQUIRED', 'true'),
             'time': datetime.utcnow().isoformat() + 'Z',

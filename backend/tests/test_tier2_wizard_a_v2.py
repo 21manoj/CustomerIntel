@@ -138,7 +138,9 @@ class TestRunSummary:
         with app.app_context():
             rows = JourneyData.query.filter_by(customer_id=cid).all()
             assert len(rows) == 5
-            assert all(r.generator_version == '3.0' and r.journey_json['version'] == '3.0' for r in rows)
+            from journeys.wizard_a import GENERATOR_VERSION
+            assert all(r.generator_version == GENERATOR_VERSION and r.journey_json['version'] == '3.0'
+                       and r.journey_json['generator_version'] == GENERATOR_VERSION for r in rows)
 
     def test_no_synthetic_nodes_or_edges_written(self, tenant):
         cid, ids, _ = tenant
