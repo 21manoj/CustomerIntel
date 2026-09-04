@@ -289,6 +289,111 @@ class TestLiveMonthsOnTheJourney:
             assert scored[-1]['month'] == last_scored                    # scored axis untouched
 
 
+class TestReadSurfaceAndReview:
+    """G1 (evidence needs a surface) + G4 (human verification with a record)."""
+
+    def _flagged_signal(self, cid, aid, monkeypatch, text, subtype, confidence):
+        import signal_engine.enrichment as enrichment
+        from utils.taxonomy_loader import get_taxonomy
+
+        def fake(signal_id, raw_text, account_id, customer_id, vertical, taxonomy=None, roster=None):
+            out = enrichment.normalize_extraction({'signals': [
+                {'subtype': subtype, 'quote': raw_text[:40], 'sentiment_score': -0.5, 'urgency_score': 0.5,
+                 'escalation_probability': 0.1, 'confidence': confidence, 'people': []}],
+                'requires_review': confidence < 0.6, 'is_duplicate': False, 'suggested_action': 'x'}, taxonomy or get_taxonomy(vertical))
+            out['llm_model_version'] = 'fake-llm'
+            return out
+        monkeypatch.setattr(enrichment, 'enrich_signal', fake)
+        from mcp_server.cs_pulse_onboarding import submit_signal
+        return submit_signal(cid, aid, text, source_type='email', occurred_at='2026-03-18T09:00:00Z')
+
+    def test_journey_read_surface_cites_evidence(self, tenant):
+        cid, aid = tenant
+        from mcp_server.cs_pulse_onboarding import get_journey, list_journeys, get_evidence
+        j = get_journey(cid, aid)
+        assert j['account_id'] == aid and j['evidence'] and 'open_review_count' in j
+        cited = {nid for e in j['episodes'] for nid in e['evidence_node_ids']}
+        assert cited and all(str(n) in j['evidence'] for n in cited)          # every citation resolves
+        ev = next(v for v in j['evidence'].values() if v['subtype'] == 'champion_departure')
+        assert ev['role'] == 'champion_change' and ev['provenance']['source_platform'] == 'crm_activity'
+        assert ev['person']['name'] == 'Elena Rossi' and ev['provenance']['classification_basis'] == 'declared_subtype'
+        rows = list_journeys(cid)['journeys']
+        me = next(r for r in rows if r['account_id'] == aid)
+        assert me['arc_type'] and me['latest']['month'] and me['episodes'] > 0
+        byrole = get_evidence(cid, account_id=aid, role='champion_change')['evidence']
+        assert byrole and all(r['role'] == 'champion_change' for r in byrole)
+        compact = get_journey(cid, aid, compact=True)
+        assert 'episodes' not in compact and len(compact['leading_vs_trailing']['series']) <= 3
+
+    def test_unreviewed_low_confidence_counts_less_then_accept_restores(self, tenant, monkeypatch):
+        cid, aid = tenant
+        from mcp_server.cs_pulse_onboarding import get_review_queue, review_signal, get_journey
+        def march_unreviewed():
+            with app.app_context():
+                j = JourneyData.query.filter_by(account_id=aid).first().journey_json
+                return next(s for s in j['leading_vs_trailing']['series'] if s['month'] == '2026-03-01')['unreviewed_count']
+        base = march_unreviewed()            # earlier stub-path signals in this tenant are flagged too
+        res = self._flagged_signal(cid, aid, monkeypatch, 'Maybe a competitor demo? unclear from the thread', 'competitor_mention', 0.4)
+        sid = res['signal_id']
+        q = get_review_queue(cid, account_id=aid)
+        assert any(r['signal_id'] == sid for r in q['review_queue'])
+        assert march_unreviewed() == base + 1
+        with app.app_context():
+            j = JourneyData.query.filter_by(account_id=aid).first().journey_json
+            ep = next(e for e in j['episodes'] if e['evidence_node_ids'] == [res['evidence']['node_id']])
+            assert ep['meta']['requires_review'] is True and ep['meta']['review'] is None
+        out = review_signal(cid, sid, 'accept', note='confirmed with AE', reviewer='vp-cs@t.test')
+        assert out['nodes'][0]['review'] == 'accepted' and out['audit_ids'] and out['requires_review'] is False
+        assert not any(r['signal_id'] == sid for r in get_review_queue(cid, account_id=aid)['review_queue'])
+        assert march_unreviewed() == base
+        j = get_journey(cid, aid)
+        assert j['evidence'][str(res['evidence']['node_id'])]['review']['by'] == 'vp-cs@t.test'
+
+    def test_reject_hides_from_journey_but_keeps_node_and_audit(self, tenant, monkeypatch):
+        cid, aid = tenant
+        from mcp_server.cs_pulse_onboarding import review_signal, get_evidence
+        from models import SignalReview
+        res = self._flagged_signal(cid, aid, monkeypatch, 'Forwarding the newsletter about pricing changes in the market', 'pricing_concern', 0.5)
+        sid, nid = res['signal_id'], res['evidence']['node_id']
+        with app.app_context():
+            before = next(s for s in JourneyData.query.filter_by(account_id=aid).first().journey_json['leading_vs_trailing']['series']
+                          if s['month'] == '2026-03-01')['roles'].get('commercial_pressure', 0)
+        out = review_signal(cid, sid, 'reject', note='newsletter, not the customer', reviewer='csm@t.test')
+        assert out['nodes'][0]['review'] == 'rejected'
+        with app.app_context():
+            assert db.session.get(ContextNode, nid) is not None                         # kept for audit
+            j = JourneyData.query.filter_by(account_id=aid).first().journey_json
+            assert not any(nid in e['evidence_node_ids'] for e in j['episodes'])         # gone from the journey
+            after = next(s for s in j['leading_vs_trailing']['series'] if s['month'] == '2026-03-01')['roles'].get('commercial_pressure', 0)
+            assert after == before - 1
+            a = SignalReview.query.filter_by(signal_id=sid).one()
+            assert a.decision == 'reject' and a.was_flagged is True and a.reviewer == 'csm@t.test' and a.created_at
+        assert not any(r['node_id'] == nid for r in get_evidence(cid, account_id=aid)['evidence'])
+        assert any(r['node_id'] == nid for r in get_evidence(cid, account_id=aid, include_rejected=True)['evidence'])
+
+    def test_reclassify_retypes_and_rederives(self, tenant, monkeypatch):
+        cid, aid = tenant
+        from mcp_server.cs_pulse_onboarding import review_signal
+        res = self._flagged_signal(cid, aid, monkeypatch, 'They said the new dashboard is great and want it for two more teams', 'feature_request', 0.5)
+        sid, nid = res['signal_id'], res['evidence']['node_id']
+        out = review_signal(cid, sid, 'reclassify', subtype='new_team_rollout', reviewer='csm@t.test')
+        n = out['nodes'][0]
+        assert n['subtype'] == 'new_team_rollout' and n['role'] == 'expansion_intent' and n['effective_urgency'] == 'high'
+        with app.app_context():
+            node = db.session.get(ContextNode, nid)
+            assert node.properties['original_subtype'] == 'feature_request' and node.properties['classification_basis'] == 'human_reclassified'
+            assert float(node.properties['sentiment_score']) > 0          # polarity re-derived from the new role
+            j = JourneyData.query.filter_by(account_id=aid).first().journey_json
+            ep = next(e for e in j['episodes'] if e['evidence_node_ids'] == [nid])
+            assert ep['role'] == 'expansion_intent' and ep['meta']['review'] == 'reclassified'
+        import pytest
+        from fastmcp.exceptions import ToolError
+        with pytest.raises(ToolError):
+            review_signal(cid, sid, 'reclassify', subtype='not_a_subtype')
+        with pytest.raises(ToolError):
+            review_signal(cid, sid, 'maybe')
+
+
 class TestHttpSurface:
     @pytest.fixture(scope='class')
     def client(self, tenant):
@@ -303,6 +408,24 @@ class TestHttpSurface:
             c.key = key
             yield c
         os.environ['MCP_TRANSPORT'] = 'stdio'
+
+    def test_read_surface_and_review_routes(self, client, tenant):
+        cid, aid = tenant
+        from journeys.http import ROUTES as JR
+        from signal_engine.http import ROUTES as SR
+        assert '/api/journeys' in JR and '/api/signals/review' in SR and '/api/signals/review/history' in SR
+        assert client.get(f'/api/journeys?customer_id={cid}').status_code == 401
+        h = {'Authorization': f'Bearer {client.key}'}
+        rows = client.get(f'/api/journeys?customer_id={cid}', headers=h).json()['journeys']
+        assert any(r['account_id'] == aid for r in rows)
+        j = client.get(f'/api/journeys/{aid}?customer_id={cid}&compact=1', headers=h).json()
+        assert j['account_id'] == aid and j['evidence']
+        ev = client.get(f'/api/evidence?customer_id={cid}&account_id={aid}&role=champion_change', headers=h).json()
+        assert ev['count'] >= 1
+        r = client.post('/api/signals/review', headers=h, json={'customer_id': cid, 'signal_id': 'nope', 'decision': 'accept'})
+        assert r.status_code == 400
+        hist = client.get(f'/api/signals/review/history?customer_id={cid}', headers=h).json()['history']
+        assert len(hist) >= 3 and {x['decision'] for x in hist} >= {'accept', 'reject', 'reclassify'}
 
     def test_status_and_auth(self, client, tenant):
         cid, aid = tenant

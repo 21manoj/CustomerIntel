@@ -97,6 +97,26 @@ class LLMUsageLog(db.Model):
     created_at = db.Column(db.DateTime, nullable=False, server_default=db.func.now(), index=True)   # server-side: the controller INSERTs raw SQL
 
 
+class SignalReview(db.Model):
+    """Audit row for every human decision on a piece of evidence (G4: human
+    verification, with a record). One row per decision; nodes carry the
+    current state in properties['review'], this table carries the history."""
+    __tablename__ = 'signal_reviews'
+
+    id = db.Column(db.Integer, primary_key=True)
+    customer_id = db.Column(db.Integer, db.ForeignKey('customers.customer_id'), nullable=False, index=True)
+    account_id = db.Column(db.Integer, db.ForeignKey('accounts.account_id'), nullable=False, index=True)
+    signal_id = db.Column(db.String(100), nullable=False, index=True)
+    node_id = db.Column(db.Integer, nullable=True)              # the evidence node the decision applied to
+    decision = db.Column(db.String(20), nullable=False)         # accept | reject | reclassify
+    from_subtype = db.Column(db.String(100), nullable=True)
+    to_subtype = db.Column(db.String(100), nullable=True)
+    was_flagged = db.Column(db.Boolean, nullable=False, default=False)   # requires_review before the decision
+    note = db.Column(db.Text, nullable=True)
+    reviewer = db.Column(db.String(255), nullable=True)         # who (email / key name); None = unattributed
+    created_at = db.Column(db.DateTime, nullable=False, server_default=db.func.now(), index=True)
+
+
 class CustomerApiKey(db.Model):
     """Customer-scoped MCP API keys (csp_{scope}_{random}); SHA-256 hash only.
     Ported 2026-09-02 for the HTTP transport (the Tier 2A known gap)."""

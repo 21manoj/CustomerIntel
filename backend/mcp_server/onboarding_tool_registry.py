@@ -25,4 +25,9 @@ ONBOARDING_TOOLS = frozenset({
     'submit_signal',
     'process_signals',
     'configure_signal_engine',
+    'get_journey',
+    'list_journeys',
+    'get_evidence',
+    'get_review_queue',
+    'review_signal',
 })

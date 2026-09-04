@@ -136,6 +136,8 @@ def build_asgi_app(database_url: str | None = None, create_schema: bool = True):
     # Signal engine v2: ingest / webhook / process / status routes beside /mcp
     from signal_engine.http import register_signal_routes
     register_signal_routes(mcp)
+    from journeys.http import register_journey_routes
+    register_journey_routes(mcp)          # read surface: journeys + evidence
     if create_schema:
         from signal_engine.models import ensure_enrichment_columns
         with app.app_context():

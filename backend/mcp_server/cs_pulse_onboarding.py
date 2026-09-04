@@ -754,3 +754,136 @@ def _check_kpi_dependencies(enabled_kpis=None, enabled_pillars=None):
                 warnings.append(dep['warning'])
 
     return warnings
+
+
+# ===================================================================
+# Read surface (journeys + evidence) and human review
+# ===================================================================
+
+@mcp.tool
+def list_journeys(customer_id: int) -> dict:
+    """Portfolio view: one row per account — arc and state, current phase,
+    latest leading (qual) vs trailing (kpi_only) month with its early-warning
+    label and role counts, live months since the last KPI upload, last
+    evidence date, lead days, open review count. Every number here is
+    computed from cited evidence; use get_journey for the citations.
+
+    Args:
+        customer_id: The customer ID
+    """
+    _require_auth_if_key_present('list_journeys', customer_id)
+    _check_mcp_enabled()
+    app = _get_flask_app()
+    with app.app_context():
+        from journeys.read import list_journeys as _lj
+        rows = _lj(customer_id)
+        return {'customer_id': customer_id, 'accounts': len(rows), 'journeys': rows}
+
+
+@mcp.tool
+def get_journey(customer_id: int, account_id: int, compact: bool = False) -> dict:
+    """One account's journey v3 with its evidence index: arc hypothesis with
+    supporting episode ids, phases with trigger episodes, leading-vs-trailing
+    series (incl. live months after the last KPI upload), episodes, and
+    `evidence` — every cited node keyed by id with its verbatim quote, role,
+    person, provenance (source, model, basis), confidence and review state.
+    Cite evidence node ids / quotes when you summarise; never assert a claim
+    the evidence map cannot back.
+
+    Args:
+        customer_id: The customer ID
+        account_id: The account ID
+        compact: Drop episodes/phases/hooks and keep the last 3 series months (default false)
+    """
+    _require_auth_if_key_present('get_journey', customer_id)
+    _check_mcp_enabled()
+    app = _get_flask_app()
+    with app.app_context():
+        from journeys.read import get_journey as _gj
+        j = _gj(customer_id, account_id, compact=compact)
+        if j is None:
+            raise ToolError(f'no journey for account {account_id} — run process_data or trigger_wizard(customer_id, "a")')
+        return j
+
+
+@mcp.tool
+def get_evidence(customer_id: int, account_id: int = None, node_ids: list = None, role: str = None,
+                 since: str = None, until: str = None, include_rejected: bool = False, limit: int = 200) -> dict:
+    """Evidence nodes (observed signals, decisions, outcomes) with quote, role,
+    person, provenance, confidence and review state. Filter by account, node
+    ids, taxonomy role (e.g. 'commercial_pressure'), or date range. Rejected
+    evidence is hidden unless include_rejected.
+
+    Args:
+        customer_id: The customer ID
+        account_id: Restrict to one account (optional)
+        node_ids: Specific node ids, e.g. from a journey's evidence_node_ids (optional)
+        role: Taxonomy signal role (optional)
+        since: ISO date/time lower bound (optional)
+        until: ISO date/time upper bound (optional)
+        include_rejected: Include evidence a reviewer rejected (default false)
+        limit: Max rows (default 200)
+    """
+    _require_auth_if_key_present('get_evidence', customer_id)
+    _check_mcp_enabled()
+    app = _get_flask_app()
+    with app.app_context():
+        from journeys.read import get_evidence as _ge
+        rows = _ge(customer_id, account_id, node_ids, role, since, until, include_rejected=include_rejected, limit=limit)
+        return {'customer_id': customer_id, 'count': len(rows), 'evidence': rows}
+
+
+@mcp.tool
+def get_review_queue(customer_id: int, account_id: int = None, urgency: str = None, page: int = 1, per_page: int = 25) -> dict:
+    """Evidence awaiting human verification: signals the extractor flagged
+    requires_review (low confidence, possible duplicate, unknown subtype).
+    Until reviewed they count at reduced weight on the journey. Decide with
+    review_signal.
+
+    Args:
+        customer_id: The customer ID
+        account_id: Restrict to one account (optional)
+        urgency: critical | high | medium | low (optional)
+        page: Page number (default 1)
+        per_page: Rows per page (default 25)
+    """
+    _require_auth_if_key_present('get_review_queue', customer_id)
+    _check_mcp_enabled()
+    app = _get_flask_app()
+    with app.app_context():
+        from signal_engine.ingest_api import review_queue
+        code, body = review_queue(customer_id, account_id, urgency, page, per_page)
+        if code != 200:
+            raise ToolError(body.get('error', 'review queue failed'))
+        return body
+
+
+@mcp.tool
+def review_signal(customer_id: int, signal_id: str, decision: str, subtype: str = None, node_id: int = None,
+                  note: str = None, reviewer: str = None) -> dict:
+    """Record a human decision on a piece of evidence (audited, journey rebuilt):
+    - accept: the evidence stands at full weight.
+    - reject: not evidence / wrong — the node is kept for audit but excluded
+      from the journey, series and arcs.
+    - reclassify: the model picked the wrong subtype — re-type to `subtype`
+      (a taxonomy subtype); role, polarity and urgency are re-derived, the
+      original is kept. Pass node_id when the signal has several nodes.
+
+    Args:
+        customer_id: The customer ID
+        signal_id: The signal id (from get_review_queue / get_evidence provenance.source_event_id)
+        decision: accept | reject | reclassify
+        subtype: New taxonomy subtype (reclassify only)
+        node_id: One evidence node of the signal (optional)
+        note: Why (optional, stored)
+        reviewer: Who (email or name; optional, stored)
+    """
+    _require_auth_if_key_present('review_signal', customer_id)
+    _check_mcp_enabled()
+    app = _get_flask_app()
+    with app.app_context():
+        from signal_engine.review import review_signal as _rs
+        try:
+            return _rs(customer_id, signal_id, decision, subtype=subtype, node_id=node_id, note=note, reviewer=reviewer)
+        except ValueError as e:
+            raise ToolError(str(e))

@@ -7,7 +7,9 @@ CustomerIntelV1 server beside /mcp (server.register_signal_routes).
   POST /api/signals/ingest/email/parse            SendGrid Inbound Parse (signature + customer toggle)
   POST /api/signals/ingest/slack/events           Slack Events API (signature + customer toggle)
   POST /api/signals/process                       run the pipeline now, Bearer key
-  GET  /api/signals/review-queue?customer_id=…    Bearer key
+  GET  /api/signals/review-queue?customer_id=…    Bearer key (read)
+  POST /api/signals/review                        {signal_id, decision, subtype?, node_id?, note?, reviewer?}, Bearer key
+  GET  /api/signals/review/history?customer_id=…  Bearer key (read)
   GET  /api/signals/status
 
 Auth for the JSON routes: the same Bearer keys as MCP — the server key,
@@ -25,8 +27,8 @@ from starlette.responses import JSONResponse
 logger = logging.getLogger(__name__)
 
 
-def _authorize(customer_id) -> tuple:
-    """(ok, error_body). Server key → ok. Customer key → must match customer and carry write scope."""
+def _authorize(customer_id, scope: str = 'write') -> tuple:
+    """(ok, error_body). Server key → ok. Customer key → must match customer and carry `scope`."""
     from mcp_server.auth import extract_api_key, validate_server_key, validate_customer_key, check_scope, MCP_AUTH_REQUIRED
     raw = extract_api_key()
     if not raw:
@@ -38,8 +40,8 @@ def _authorize(customer_id) -> tuple:
         return False, {'error': 'Invalid or expired API key'}
     if customer_id is not None and int(rec.customer_id) != int(customer_id):
         return False, {'error': f'API key does not have access to customer {customer_id}'}
-    if not check_scope(rec, 'write'):
-        return False, {'error': 'API key lacks write scope'}
+    if not check_scope(rec, scope):
+        return False, {'error': f'API key lacks {scope} scope'}
     return True, None
 
 
@@ -126,12 +128,38 @@ def register_signal_routes(mcp) -> None:
     async def review(request):
         q = request.query_params
         cid = q.get('customer_id')
-        ok, err = _with_app(lambda: _authorize(cid))
+        ok, err = _with_app(lambda: _authorize(cid, 'read'))
         if not ok:
             return JSONResponse(err, status_code=401)
         code, body = _with_app(lambda: review_queue(int(cid) if cid else None, q.get('account_id'), q.get('urgency'),
                                                     int(q.get('page', 1)), int(q.get('per_page', 25))))
         return JSONResponse(body, status_code=code)
+
+    @mcp.custom_route('/api/signals/review', methods=['POST'], name='signals_review')
+    async def review_post(request):
+        data = await _json(request)
+        cid = data.get('customer_id')
+        ok, err = _with_app(lambda: _authorize(cid))
+        if not ok:
+            return JSONResponse(err, status_code=401)
+        from signal_engine.review import review_signal
+        try:
+            res = _with_app(lambda: review_signal(int(cid), data.get('signal_id'), data.get('decision'),
+                                                  subtype=data.get('subtype'), node_id=data.get('node_id'),
+                                                  note=data.get('note'), reviewer=data.get('reviewer')))
+        except ValueError as e:
+            return JSONResponse({'error': str(e)}, status_code=400)
+        return JSONResponse(res)
+
+    @mcp.custom_route('/api/signals/review/history', methods=['GET'], name='signals_review_history')
+    async def review_hist(request):
+        q = request.query_params
+        cid = q.get('customer_id')
+        ok, err = _with_app(lambda: _authorize(cid, 'read'))
+        if not ok:
+            return JSONResponse(err, status_code=401)
+        from signal_engine.review import review_history
+        return JSONResponse({'history': _with_app(lambda: review_history(int(cid), q.get('account_id'), q.get('signal_id')))})
 
     @mcp.custom_route('/api/signals/status', methods=['GET'], name='signals_status')
     async def status(request):
@@ -143,5 +171,6 @@ ROUTES = (
     '/api/signals/ingest/transcript', '/api/signals/ingest/ticket', '/api/signals/ingest/crm_activity',
     '/api/signals/ingest/meeting', '/api/signals/ingest/external',
     '/api/signals/ingest/transcript/upload', '/api/signals/ingest/email/parse', '/api/signals/ingest/slack/events',
-    '/api/signals/process', '/api/signals/review-queue', '/api/signals/status',
+    '/api/signals/process', '/api/signals/review-queue', '/api/signals/review', '/api/signals/review/history',
+    '/api/signals/status',
 )

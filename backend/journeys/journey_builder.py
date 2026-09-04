@@ -82,6 +82,9 @@ def collect_episodes(account, taxonomy, health_rows) -> List[Episode]:
     for n in nodes:
         props = n.properties or {}
         sub = (n.node_subtype or '').strip().lower() or None
+        review = (props.get('review') or {}).get('status')
+        if review == 'rejected':
+            continue  # a human said this is not evidence; the node stays for audit, the journey ignores it
         if n.node_type == 'SIGNAL':
             if sub == 'arc_detection':
                 continue  # legacy system node, never observed evidence
@@ -105,7 +108,9 @@ def collect_episodes(account, taxonomy, health_rows) -> List[Episode]:
                 meta={'source_platform': n.source_platform, 'stakeholder': props.get('stakeholder_name'),
                       'stakeholder_role': props.get('stakeholder_role'),
                       'person_unresolved': props.get('person_unresolved'),
-                      'polarity_conflict': conflict, 'raw_sentiment': raw_sent if conflict else None},
+                      'polarity_conflict': conflict, 'raw_sentiment': raw_sent if conflict else None,
+                      'quote': props.get('quote'), 'confidence': props.get('confidence'),
+                      'requires_review': bool(props.get('requires_review')), 'review': review},
             ))
         elif n.node_type == 'DECISION':
             eps.append(Episode(
@@ -277,12 +282,13 @@ def leading_series(points: List[tuple], kpi_only: Dict[date, float], episodes: L
     window = timedelta(days=li['signal_window_days'])
     lam = li['decay_lambda_per_day']
     warn = li['divergence_warning_pts']
+    unreviewed_w = li['unreviewed_low_confidence_weight']
     at_risk = ht.at_risk_min()
 
     behavioral = [
         e for e in episodes
-        if e.kind == 'signal' and e.sentiment is not None and e.role not in LEADING_EXCLUDED_ROLES
-    ]
+        if e.kind == 'signal' and e.sentiment is not None and e.role and e.role not in LEADING_EXCLUDED_ROLES
+    ]   # e.role: an unclassified signal (no evidence class) is visible on the journey but never scored
     series = []
     first_leading = first_trailing = None
     for m, score in points:
@@ -291,9 +297,13 @@ def leading_series(points: List[tuple], kpi_only: Dict[date, float], episodes: L
         n = 0
         contributors = []
         roles: Dict[str, int] = {}
+        unreviewed = 0
         for e in behavioral:
             if end - window < e.date <= end:
                 w = math.exp(-lam * (end - e.date).days)
+                if e.meta.get('requires_review') and not e.meta.get('review'):
+                    w *= unreviewed_w        # low-confidence, not yet verified: counts, but less
+                    unreviewed += 1
                 h = (e.sentiment + 1.0) * 50.0
                 num += w * h
                 den += w
@@ -321,7 +331,7 @@ def leading_series(points: List[tuple], kpi_only: Dict[date, float], episodes: L
         series.append({
             'month': m.isoformat(), 'kpi_only': round(trailing, 2) if trailing is not None else None, 'qual': qual,
             'divergence': div, 'early_warning': label, 'signal_count': n, 'live': trailing is None,
-            'contributing_episode_ids': contributors, 'roles': roles,
+            'unreviewed_count': unreviewed, 'contributing_episode_ids': contributors, 'roles': roles,
         })
     lead_days = (first_trailing - first_leading).days if first_leading and first_trailing else None
     return {
