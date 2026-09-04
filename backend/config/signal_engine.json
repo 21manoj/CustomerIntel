@@ -17,9 +17,9 @@
     "error_backoff_seconds": 300
   },
   "llm": {
-    "model": "claude-sonnet-4-6",
+    "model": "claude-sonnet-5",
     "max_tokens": 1024,
-    "prompt_text_chars": 3000,
+    "prompt_text_chars": 40000,
     "context_signals": 5,
     "key_terms_max": 12,
     "max_calls_per_customer_per_day": 200,
@@ -27,7 +27,7 @@
     "confidence_threshold": 0.6
   },
   "urgency": {
-    "_doc": "structural_by_role: floor per taxonomy signal role (keys must be signal_roles in taxonomy_base.json). perceived_bands: LLM urgency_score → level. Effective = max(structural, perceived), escalation_probability ≥ boost_threshold lifts perceived one level.",
+    "_doc": "structural_by_role: floor per taxonomy signal role (keys must be signal_roles in taxonomy_base.json). perceived_bands: LLM urgency_score → level. Effective = max(structural, perceived), escalation_probability ≥ boost_threshold lifts perceived one level. Floors cover risk AND opportunity: expansion_intent is high because a stalled expansion is lost revenue, not just a missed nicety.",
     "structural_by_role": {
       "escalation": "critical",
       "champion_change": "critical",
@@ -37,7 +37,8 @@
       "usage_decline": "medium",
       "engagement_decline": "medium",
       "capacity_pressure": "medium",
-      "product_friction": "medium"
+      "product_friction": "medium",
+      "expansion_intent": "high"
     },
     "perceived_bands": {
       "critical": 0.8,
