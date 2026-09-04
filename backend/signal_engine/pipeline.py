@@ -326,8 +326,8 @@ def process_pending(customer_id: Optional[int] = None, limit: int = 50, rebuild_
     if customer_id is not None:
         q = q.filter(QualitativeSignal.customer_id == int(customer_id))
     sigs = q.order_by(QualitativeSignal.id).limit(limit).all()
-    out = {'processed': 0, 'structured': 0, 'enriched': 0, 'unclassified': 0, 'nodes_written': 0,
-           'accounts': set(), 'signals': []}
+    out = {'processed': 0, 'structured': 0, 'enriched': 0, 'unclassified': 0, 'nodes_written': 0, 'errors': 0,
+           'accounts': set(), 'signals': [], 'error_signals': []}
     taxonomies: Dict[str, object] = {}
     for sig in sigs:
         try:
@@ -343,6 +343,13 @@ def process_pending(customer_id: Optional[int] = None, limit: int = 50, rebuild_
                     enrichment = enrich_signal(signal_id=sig.signal_id, raw_text=sig.raw_text or sig.content or '',
                                                account_id=sig.account_id, customer_id=sig.customer_id, vertical=vertical,
                                                taxonomy=tax, roster=account_roster(sig.customer_id, sig.account_id))
+                    if enrichment.get('error'):
+                        # not evidence — leave it queued for the next pass, say why
+                        out['errors'] += 1
+                        out['error_signals'].append({'signal_id': sig.signal_id, 'error': enrichment['error']})
+                        sig.suggested_action = enrichment.get('suggested_action')
+                        db.session.commit()
+                        continue
                     _apply_enrichment(sig, enrichment)
                     out['enriched'] += 1
                 else:

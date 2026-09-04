@@ -140,7 +140,8 @@ class TestApiKeyService:
             got = validate_api_key(full)
             assert got and got.id == rec.id and got.last_used_at is not None
             assert check_scope(got, 'read') and not check_scope(got, 'write')
-            assert validate_api_key(full[:-1] + 'x') is None
+            wrong = full[:-1] + ('0' if full[-1] != '0' else '1')     # guaranteed different (1-in-64 flake when it was always 'x')
+            assert validate_api_key(wrong) is None
             assert [k['id'] for k in list_api_keys(c.customer_id)] == [rec.id]
             assert revoke_api_key(rec.id) is True
             assert validate_api_key(full) is None

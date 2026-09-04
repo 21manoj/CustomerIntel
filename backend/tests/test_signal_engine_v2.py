@@ -225,6 +225,42 @@ class TestMultiSignalExtraction:
             assert march['roles'].get('product_friction') == 1 and march['roles'].get('expansion_intent') == 1
 
 
+class TestExtractionFailureIsNotEvidence:
+    def test_error_leaves_signal_queued_then_retry_succeeds(self, tenant, monkeypatch):
+        cid, aid = tenant
+        import signal_engine.enrichment as enrichment
+        from signal_engine.pipeline import process_pending, ingest
+        from utils.taxonomy_loader import get_taxonomy
+
+        def broken(signal_id, raw_text, account_id, customer_id, vertical, taxonomy=None, roster=None):
+            out = enrichment.normalize_extraction({'signals': [], 'requires_review': True}, taxonomy or get_taxonomy(vertical))
+            out['error'] = "No module named 'anthropic'"
+            return out
+        monkeypatch.setattr(enrichment, 'enrich_signal', broken)
+        with app.app_context():
+            res = ingest(cid, aid, 'manual', 'Procurement wants to true-down the seats at renewal.', occurred_at='2026-04-02T09:00:00Z')
+            sid = res['signal_id']
+            out = process_pending(customer_id=cid)
+            assert out['errors'] == 1 and out['processed'] == 0 and out['error_signals'][0]['signal_id'] == sid
+            sig = QualitativeSignal.query.filter_by(signal_id=sid).first()
+            assert sig.cg_node_id is None and sig.intent_signals is None          # still queued, no node
+            assert ContextNode.query.filter_by(source_event_id=sid).count() == 0
+
+        def fixed(signal_id, raw_text, account_id, customer_id, vertical, taxonomy=None, roster=None):
+            out = enrichment.normalize_extraction({'signals': [{'subtype': 'seat_reduction_request', 'quote': 'true-down the seats',
+                                                                 'sentiment_score': -0.5, 'urgency_score': 0.6, 'escalation_probability': 0.2,
+                                                                 'confidence': 0.9}], 'requires_review': False, 'is_duplicate': False,
+                                                    'suggested_action': 'x'}, taxonomy or get_taxonomy(vertical))
+            out['llm_model_version'] = 'fake-llm'
+            return out
+        monkeypatch.setattr(enrichment, 'enrich_signal', fixed)
+        with app.app_context():
+            out = process_pending(customer_id=cid)
+            assert out['errors'] == 0 and out['processed'] == 1
+            n = ContextNode.query.filter_by(source_event_id=sid).one()
+            assert n.node_subtype == 'seat_reduction_request' and n.properties['role'] == 'commercial_pressure'
+
+
 class TestHttpSurface:
     @pytest.fixture(scope='class')
     def client(self, tenant):

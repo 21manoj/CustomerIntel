@@ -87,7 +87,7 @@ class SignalEnrichmentWorker:
         app = get_flask_app()
         with app.app_context():
             res = process_pending(limit=self._batch_size)
-            if res['processed']:
-                logger.info('Signal worker: processed %d (structured %d, enriched %d, unclassified %d) — journeys rebuilt %d',
-                            res['processed'], res['structured'], res['enriched'], res['unclassified'], res['journeys_rebuilt'])
+            if res['processed'] or res['errors']:
+                logger.info('Signal worker: processed %d (structured %d, enriched %d, unclassified %d, errors %d) — journeys rebuilt %d',
+                            res['processed'], res['structured'], res['enriched'], res['unclassified'], res['errors'], res['journeys_rebuilt'])
             return res['processed']

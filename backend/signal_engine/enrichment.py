@@ -271,7 +271,7 @@ def enrich_signal(signal_id: str, raw_text: str, account_id: int, customer_id: i
     if limit_error:
         logger.warning('enrichment rate limit: %s', limit_error)
         return {**normalize_extraction({'signals': [], 'requires_review': True}, taxonomy),
-                'suggested_action': f'Rate limited: {limit_error}', 'confidence': {'rate_limited': True}}
+                'error': limit_error, 'suggested_action': f'Rate limited: {limit_error}', 'confidence': {'rate_limited': True}}
 
     v_ctx = build_vertical_context(vertical)
     system = SYSTEM_PROMPT.format(
@@ -316,10 +316,12 @@ def enrich_signal(signal_id: str, raw_text: str, account_id: int, customer_id: i
                     signal_id, result['intent_signals'], result['requires_review'], result['is_duplicate'])
         return result
     except Exception as e:
+        # A failed extraction is not evidence: the pipeline leaves the signal
+        # queued (no node, intent_signals stays NULL) and the worker retries.
         logger.exception('extraction failed for signal %s: %s', signal_id, e)
         return {**normalize_extraction({'signals': [], 'requires_review': True}, taxonomy),
-                'suggested_action': f'Extraction error: {str(e)[:100]}', 'confidence': {'error': str(e)[:200]},
-                'llm_model_version': model}
+                'error': str(e)[:200], 'suggested_action': f'Extraction error: {str(e)[:100]}',
+                'confidence': {'error': str(e)[:200]}, 'llm_model_version': model}
 
 
 # ── stub (no API key) ──
