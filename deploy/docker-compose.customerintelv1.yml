@@ -57,6 +57,10 @@ services:
       MCP_SERVER_API_KEY: ${MCP_SERVER_API_KEY:?set in .env}
       PORT: "8101"
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      # Signal engine LLM extraction — without the key free text falls to the keyword stub (requires_review)
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      SIGNAL_ENRICHMENT_MODEL: ${SIGNAL_ENRICHMENT_MODEL:-}
+      SIGNAL_WORKER: ${SIGNAL_WORKER:-true}
     ports:
       - "127.0.0.1:8101:8101"
     deploy:
