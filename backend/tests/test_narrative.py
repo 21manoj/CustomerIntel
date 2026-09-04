@@ -71,11 +71,12 @@ def test_content_of_key_sentences():
     assert 'From July 2025 Acme Data was in baseline on the numbers (77.5)' in text
     assert 'never crossed the at-risk line' in text
     assert 'champion declined last two qbr invitations (lisa park)' in text.lower()
+    assert 'renewal at risk ($960,000 at_risk)' in text                       # 'Renewal at Risk' fully lowered
     assert 'health moved from healthy to at_risk (68.7)' in text
     assert 'renewal at risk ($960,000 at_risk)' in text.lower()
     assert 'New CSM assigned on 8 March 2026; health averaged 59.66 in the 3 months before and stood at 71.25 after, with churn risk averted ($1,920,000 protected) within 90 days.' in text
     assert 'No KPI upload has arrived since March 2026' in text
-    assert 'On 2 September 2026 meeting recorded replacing Lisa Park who left last month, raised by Lisa Park (champion).' in text
+    assert 'On 2 September 2026 a meeting note recorded replacing Lisa Park who left last month.' in text   # name already in the quote
     assert 'The arc hypothesis is exec_sponsor_change (confidence 0.85, rule match constant), supported by 1 cited episode.' in text
 
 
@@ -111,3 +112,15 @@ def test_steady_journey_without_evidence_says_nothing_and_says_why():
     n = build_narrative(j)
     assert n['sentence_count'] == 0
     assert any(o['template'] == 'arc_statement' and 'steady' in (o.get('note') or '') for o in n['omitted'])
+
+
+def test_one_quote_two_subtypes_is_said_once_citing_both():
+    j = _journey()
+    j['episodes'] += [
+        _ep(20, '2026-09-02T16:00:00', 'signal', 'budget_pressure', 'commercial_pressure', 'x', quote='he asked the CFO to hold the PO', who='Marcus Webb'),
+        _ep(21, '2026-09-02T16:00:00', 'signal', 'expansion_stall', 'delivery_stall', 'x', quote='he asked the CFO to hold the PO', who='Marcus Webb'),
+    ]
+    n = build_narrative(j)
+    live = next(ch for ch in n['chapters'] if ch['phase'] == 'live')
+    s = next(s for s in live['sentences'] if 'hold the PO' in s['text'])
+    assert s['text'].count('hold the PO') == 1 and {'sig:20', 'sig:21'} <= set(s['cites'])

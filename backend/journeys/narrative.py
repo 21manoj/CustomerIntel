@@ -23,6 +23,10 @@ GENERATOR = 'template_v1'
 CITATION_RULE = 'every sentence cites >=1 episode_id present in this journey; uncited sentences are dropped'
 RENEWAL_OUTCOME_WINDOW_DAYS = 60
 
+_SOURCE_NAME = {'meeting': 'a meeting note', 'email': 'an email', 'slack': 'a Slack message', 'transcript': 'a call transcript',
+                'ticket': 'a ticket', 'crm_activity': 'a CRM activity', 'manual': 'a CSM note', 'external': 'an external source',
+                'csv_import': 'the CSV upload', 'load_driver': 'the replay'}
+
 _ROLE_VERB = {
     'champion_change': 'a champion change', 'engagement_decline': 'engagement falling off',
     'usage_decline': 'usage declining', 'escalation': 'an escalation', 'infra_incident': 'an incident',
@@ -61,7 +65,9 @@ def _lc(s: str) -> str:
     if not s:
         return s
     words = s.split(' ')
-    if len(words) >= 2 and all(w[:1].isupper() for w in words if w and w[0].isalpha()):
+    caps = [w for w in words if w and w[0].isalpha() and w[:1].isupper()]
+    small = {'at', 'of', 'to', 'in', 'on', 'for', 'and', 'or', 'the', 'a', 'an', 'with'}
+    if len(words) >= 2 and len(caps) >= 2 and all(w[:1].isupper() or w.lower() in small for w in words if w and w[0].isalpha()):
         return ' '.join(w if _is_acronym(w) else w.lower() for w in words)
     return s if _is_acronym(words[0]) else s[:1].lower() + s[1:]
 
@@ -74,9 +80,9 @@ def _strip_suffix(s: str) -> str:
     return s.strip().rstrip('.')
 
 
-def _person(meta: dict) -> str:
+def _person(meta: dict, text: str = '') -> str:
     who = meta.get('stakeholder')
-    if not who:
+    if not who or who.lower() in (text or '').lower():
         return ''
     role = meta.get('stakeholder_role')
     if role:
@@ -88,8 +94,8 @@ def _phrase(ep: dict) -> str:
     """The evidence in words: the quote when there is one, else the title."""
     meta = ep.get('meta') or {}
     if ep['kind'] == 'signal':
-        text = meta.get('quote') or ep.get('title') or ep.get('subtype') or 'a signal'
-        return _lc(_strip_suffix(text)) + _person(meta)
+        text = _strip_suffix(meta.get('quote') or ep.get('title') or ep.get('subtype') or 'a signal')
+        return _lc(text) + _person(meta, text)
     if ep['kind'] == 'outcome':
         rev = ep.get('revenue')
         amt = f" (${abs(rev):,.0f} {ep.get('revenue_bucket') or ''})".rstrip() if rev is not None else ''
@@ -104,7 +110,8 @@ def _phrase(ep: dict) -> str:
 
 
 def _dup_key(e: dict) -> tuple:
-    return (e['date'][:10], e['kind'], e.get('subtype'), (e.get('meta') or {}).get('quote') or e.get('title'))
+    # the same words on the same day are one piece of evidence, whatever subtypes were read into them
+    return (e['date'][:10], e['kind'], ((e.get('meta') or {}).get('quote') or e.get('title') or '').strip().lower())
 
 
 def _collapse(eps: List[dict]) -> List[List[dict]]:
@@ -283,7 +290,7 @@ def build_narrative(journey: dict, rejected: Optional[List[dict]] = None) -> dic
             by_day.setdefault(e['date'][:10], []).append(e)
         for day, eps in by_day.items():
             groups = _collapse(eps)
-            src = (eps[0].get('meta') or {}).get('source_platform') or 'a note'
+            src = _SOURCE_NAME.get((eps[0].get('meta') or {}).get('source_platform') or '', 'a note')
             parts = [_phrase(g[0]) for g in groups]
             cites = [e['episode_id'] for g in groups for e in g]
             sentences.append({'text': f"On {_day(day)} {src} recorded {_join(parts)}.", 'cites': cites, 'template': 'live_evidence_cluster'})
