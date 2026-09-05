@@ -92,6 +92,7 @@ WRITE_TOOLS = {
     'declare_data_origin',
     'import_communications',
     'configure_column_map',
+    'delete_customer',
 }
 
 

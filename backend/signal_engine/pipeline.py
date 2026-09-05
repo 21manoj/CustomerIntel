@@ -489,16 +489,17 @@ def import_communications(customer_id: int, communications: list, process_now: b
         except ValueError as e:
             out['rejected'].append({'index': i, 'error': str(e)})
             continue
-        ref = item.get('source_ref') or item.get('ref')
+        refs = [str(x) for x in (item.get('ref'), item.get('source_ref')) if x]     # the caller's ref AND the source system's
         if r['status'] == 'queued':
             out['queued'] += 1
             out['signal_ids'].append(r['signal_id'])
-            if ref:
-                out['by_ref'][str(ref)] = r['signal_id']
+            for ref in refs:
+                out['by_ref'][ref] = r['signal_id']
         else:
             out['duplicates'] += 1
-            if ref and r.get('duplicate_of'):
-                out['by_ref'][str(ref)] = r['duplicate_of']
+            if r.get('duplicate_of'):
+                for ref in refs:
+                    out['by_ref'][ref] = r['duplicate_of']
     if process_now and out['queued']:
         totals = {'processed': 0, 'nodes_written': 0, 'unclassified': 0, 'errors': 0, 'journeys_rebuilt': 0}
         while True:

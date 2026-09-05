@@ -1147,3 +1147,70 @@ def get_column_map(customer_id: int) -> dict:
         files = ['account_details.csv', 'kpi_measurements.csv', 'enhanced_qualitative_signals.csv', 'outcomes.csv']
         return {'customer_id': customer_id, 'column_map': (cc.column_map if cc else None) or {},
                 'accepted_columns': {f: sorted(known_columns(f)) for f in files}}
+
+
+# ===================================================================
+# Tenant removal (admin) — server key only, explicit confirmation, audited
+# ===================================================================
+
+@mcp.tool
+def delete_customer(customer_id: int, confirm_domain: str, reason: str) -> dict:
+    """Remove a tenant and everything it owns (accounts, KPI rows, health scores,
+    signals, evidence nodes and edges, journeys, uploads, runs, reviews, keys,
+    users, config, toggles). Irreversible. Requires the SERVER key and the
+    tenant's domain typed back as confirmation; the deletion and its reason
+    are the last audit rows for that customer.
+
+    Args:
+        customer_id: The customer ID
+        confirm_domain: The tenant's domain, exactly (refuses otherwise)
+        reason: Why (stored in the audit log)
+    """
+    _require_auth_if_key_present('delete_customer', customer_id)
+    _check_mcp_enabled()
+    from mcp_server.auth import extract_api_key, validate_server_key, MCP_AUTH_REQUIRED
+    raw = extract_api_key()
+    if os.environ.get('MCP_TRANSPORT', 'stdio') == 'http' and MCP_AUTH_REQUIRED and not (raw and validate_server_key(raw)):
+        raise ToolError('delete_customer requires the server key')
+    if not (reason or '').strip():
+        raise ToolError('reason is required')
+    app = _get_flask_app()
+    with app.app_context():
+        from extensions import db
+        from models import (Customer, CustomerConfig, User, Account, KPIMeasurement, HealthScore, QualitativeSignal,
+                            ContextNode, ContextEdge, JourneyData, CsvUpload, CsvUploadStaging, ProcessRun, SignalReview,
+                            WizardRun, CustomerApiKey, FeatureToggle)
+        from mcp_server import audit as _audit
+        c = db.session.get(Customer, int(customer_id))
+        if not c:
+            raise ToolError(f'Customer {customer_id} not found.')
+        if (confirm_domain or '').strip().lower() != (c.domain or '').lower():
+            raise ToolError(f"confirm_domain must equal the tenant's domain ({c.domain!r})")
+        acct_ids = [a.account_id for a in Account.query.filter_by(customer_id=c.customer_id).all()]
+        counts = {}
+        def _del(model, q):
+            n = q.delete(synchronize_session=False)
+            counts[model.__tablename__] = counts.get(model.__tablename__, 0) + int(n or 0)
+        _del(ContextEdge, ContextEdge.query.filter_by(customer_id=c.customer_id))
+        _del(ContextNode, ContextNode.query.filter_by(customer_id=c.customer_id))
+        _del(JourneyData, JourneyData.query.filter_by(customer_id=c.customer_id))
+        _del(SignalReview, SignalReview.query.filter_by(customer_id=c.customer_id))
+        _del(QualitativeSignal, QualitativeSignal.query.filter_by(customer_id=c.customer_id))
+        if acct_ids:
+            _del(HealthScore, HealthScore.query.filter(HealthScore.account_id.in_(acct_ids)))
+            _del(KPIMeasurement, KPIMeasurement.query.filter(KPIMeasurement.account_id.in_(acct_ids)))
+        _del(WizardRun, WizardRun.query.filter_by(customer_id=c.customer_id))
+        _del(ProcessRun, ProcessRun.query.filter_by(customer_id=c.customer_id))
+        _del(CsvUploadStaging, CsvUploadStaging.query.filter_by(customer_id=c.customer_id))
+        _del(CsvUpload, CsvUpload.query.filter_by(customer_id=c.customer_id))
+        _del(FeatureToggle, FeatureToggle.query.filter_by(customer_id=c.customer_id))
+        _del(CustomerApiKey, CustomerApiKey.query.filter_by(customer_id=c.customer_id))
+        _del(Account, Account.query.filter_by(customer_id=c.customer_id))
+        _del(User, User.query.filter_by(customer_id=c.customer_id))
+        _del(CustomerConfig, CustomerConfig.query.filter_by(customer_id=c.customer_id))
+        name, domain = c.customer_name, c.domain
+        db.session.delete(c)
+        db.session.commit()
+        _audit.record('mcp', 'delete_customer', customer_id, key_kind='server' if raw else 'local', outcome='allowed',
+                      detail=f'{name} ({domain}) deleted: {reason.strip()[:200]} — rows {counts}')
+        return {'customer_id': customer_id, 'customer_name': name, 'domain': domain, 'deleted_rows': counts, 'reason': reason.strip()}

@@ -214,3 +214,41 @@ def test_outcomes_csv_is_the_same_lane_as_log_outcome(tenant):
     assert 'outcomes_loaded_0' in out2['steps_completed'], out2['steps_completed']        # source_ref idempotency
     with app.app_context():
         assert ContextNode.query.filter_by(account_id=aid, node_type='OUTCOME').count() >= 3
+
+
+def test_import_by_ref_maps_both_the_callers_ref_and_the_source_ref(tenant):
+    cid, aid, _ = tenant
+    from mcp_server.cs_pulse_onboarding import import_communications
+    out = import_communications(cid, [{'ref': 'nw_comm_9', 'source_ref': 'crm:evt:9', 'source_account_id': 'ACC-NW', 'source_type': 'email',
+                                       'text': 'Budget review scheduled for next quarter, all vendors in scope', 'occurred_at': '2026-03-30T09:00:00Z'}],
+                                process_now=False)
+    assert out['queued'] == 1 and out['by_ref']['nw_comm_9'] == out['by_ref']['crm:evt:9'] == out['signal_ids'][0]
+
+
+def test_delete_customer_requires_confirmation_and_removes_everything():
+    from fastmcp.exceptions import ToolError
+    from mcp_server.cs_pulse_onboarding import create_customer, delete_customer
+    from models import Customer, Account, JourneyData, ContextNode, QualitativeSignal
+    from mcp_server import audit
+    with app.app_context():
+        tag = uuid.uuid4().hex[:8]
+        res = create_customer(name=f'Gone {tag}', domain=f'gone-{tag}.test', vertical='saas_premium',
+                              admin_email=f'g_{tag}@t.test', admin_name='G', data_origin='synthetic_test')
+        cid = res['customer_id']
+        a = Account(customer_id=cid, account_name='Bye Co', revenue=1, vertical='saas_premium', external_account_id='BYE')
+        db.session.add(a); db.session.commit()
+        aid = a.account_id
+    from mcp_server.cs_pulse_onboarding import submit_signal
+    submit_signal(cid, aid, 'A note', source_type='manual', signal_type='routine_review', occurred_at='2026-03-01T09:00:00Z')
+    with pytest.raises(ToolError, match='confirm_domain'):
+        delete_customer(cid, 'wrong.test', 'cleanup')
+    with pytest.raises(ToolError, match='reason'):
+        delete_customer(cid, f'gone-{tag}.test', '')
+    out = delete_customer(cid, f'gone-{tag}.test', 'test cleanup')
+    assert out['deleted_rows']['accounts'] == 1 and out['deleted_rows']['qualitative_signals'] == 1 and out['deleted_rows']['journey_data'] == 1
+    with app.app_context():
+        assert db.session.get(Customer, cid) is None
+        assert Account.query.filter_by(customer_id=cid).count() == 0 and ContextNode.query.filter_by(customer_id=cid).count() == 0
+        assert JourneyData.query.filter_by(customer_id=cid).count() == 0 and QualitativeSignal.query.filter_by(customer_id=cid).count() == 0
+        rows = audit.query(cid, tool='delete_customer')
+        assert rows and 'test cleanup' in rows[0]['detail']

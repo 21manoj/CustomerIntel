@@ -47,6 +47,7 @@ KEYED_TOOLS = frozenset({
     'import_communications',
     'configure_column_map',
     'get_column_map',
+    'delete_customer',
 })
 
 ALL_TOOLS = ONBOARDING_TOOLS | KEYED_TOOLS

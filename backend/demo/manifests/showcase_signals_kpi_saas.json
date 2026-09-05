@@ -140,9 +140,9 @@
    "health": {
     "shape": "dip_recover",
     "start": 80,
-    "dip": 48,
+    "dip": 36,
     "dip_day": -60,
-    "end": 64,
+    "end": 62,
     "noise": 1.5
    },
    "crm_flag_day": -88,
