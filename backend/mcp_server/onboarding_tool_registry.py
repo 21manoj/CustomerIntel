@@ -30,4 +30,5 @@ ONBOARDING_TOOLS = frozenset({
     'get_evidence',
     'get_review_queue',
     'review_signal',
+    'ask',
 })

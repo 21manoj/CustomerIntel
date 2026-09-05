@@ -1,0 +1,26 @@
+{
+  "_doc": "Ask AI over the journey contract (P10) — every number the answer engine uses lives here. Loaded by ask_ai/settings.py. Env ASK_AI_MODEL overrides llm.model at runtime (ops); everything else changes here.",
+  "llm": {
+    "model": "claude-opus-5",
+    "max_tokens": 4096,
+    "module": "ask_ai"
+  },
+  "context": {
+    "_doc": "Character budget for what the model is shown. Blocks are added in priority order (question scope → narrative → journey summary → episodes newest-first → evidence index → portfolio rows) and the first block that would overflow the budget is cut; only ids actually shown to the model are citable.",
+    "max_chars": 24000,
+    "quote_chars": 240,
+    "series_months": 12,
+    "portfolio_max_rows": 60,
+    "role_evidence_limit": 25
+  },
+  "answer": {
+    "max_sentences": 8,
+    "stub_max_sentences": 4,
+    "stub_confidence": 0.5,
+    "stub_min_keyword_chars": 4
+  },
+  "scope": {
+    "_doc": "Without an account_id the question is read for scope: an account name from the portfolio in the text selects that account; otherwise these phrases (or no match at all) mean portfolio.",
+    "portfolio_phrases": ["portfolio", "which accounts", "all accounts", "across accounts", "how many accounts", "every account", "top accounts", "most at risk", "at-risk accounts", "book of business"]
+  }
+}
