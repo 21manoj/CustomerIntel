@@ -228,57 +228,55 @@
       "outcomes.csv": {
         "required_columns": [
           "source_account_id",
-          "outcome_date",
-          "title",
+          "occurred_at",
           "outcome_type",
-          "revenue_value"
+          "revenue"
+        ],
+        "recommended_columns": [
+          "title",
+          "source_ref",
+          "decided_by",
+          "note",
+          "linked_signal_refs",
+          "source_platform",
+          "use_case"
         ],
         "optional_columns": [
+          "related_decision_id",
+          "outcome_date",
+          "revenue_value",
           "outcome_id",
           "evidence",
-          "confidence",
-          "related_decision_id",
           "linked_signal_id",
-          "source_platform"
+          "outcome_name",
+          "confidence"
         ],
-        "enums": {
-          "outcome_type": {
-            "_description": "Comprehensive outcome taxonomy grouped by revenue direction.",
-            "protected": [
-              "renewal_secured",
-              "renewal_confirmed",
-              "churn_averted",
-              "revenue_protected",
-              "escalation_resolved"
-            ],
-            "growth": [
-              "expansion_closed",
-              "expansion_approved",
-              "expansion_opportunity",
-              "revenue_growth",
-              "new_logo"
-            ],
-            "at_risk": [
-              "revenue_at_risk",
-              "renewal_uncertainty",
-              "renewal_risk",
-              "engagement_decline",
-              "capacity_constraint",
-              "partner_friction"
-            ],
-            "lost": [
-              "churn_lost",
-              "contraction"
-            ],
-            "operational": [
-              "playbook_outcome",
-              "partial_recovery",
-              "recovery_milestone"
-            ]
-          }
+        "aliases": {
+          "occurred_at": [
+            "outcome_date"
+          ],
+          "revenue": [
+            "revenue_value",
+            "revenue_impact",
+            "amount"
+          ],
+          "source_ref": [
+            "outcome_id"
+          ],
+          "note": [
+            "evidence"
+          ],
+          "linked_signal_refs": [
+            "linked_signal_id"
+          ],
+          "title": [
+            "outcome_name"
+          ]
         },
-        "db_table": "context_nodes (node_type=OUTCOME)",
-        "note": "8 outcome_type values for Beta. revenue_value is the dollar impact (positive for growth, negative for loss)."
+        "outcome_type_vocabulary": "the tenant taxonomy's revenue_buckets (protected | expansion | pipeline | at_risk | lost) — validated at upload against them (warning); a row with an unknown type is still stored, with no direction, and is listed on the review surface",
+        "revenue_sign": "revenue is a MAGNITUDE; the bucket gives the sign (lost / at_risk are stored negative). A signed value is accepted; when its sign disagrees with the bucket the row is normalised and warned.",
+        "db_table": "context_nodes (node_type=OUTCOME) via journeys.outcomes.log_outcome — the same lane as the log_outcome tool",
+        "note": "The decision record the measurement chain hangs on: renewal, contraction, churn, expansion, refresh. occurred_at is the DECISION date. source_ref = the order form / opportunity / invoice id (re-uploads are 'exists', not copies). linked_signal_refs: one or several signal refs separated by ';' (their source_ref, our signal id, or node id) — LED_TO edges; left blank when nobody knows, Hindsight derives the association. Installed-base types: refresh_won, repeat_order, maintenance_renewed, attach, refresh_lost, support_lapsed, decommissioned, refresh_at_risk. 'confidence' is accepted and ignored (the unearned-confidence clamp decides)."
       }
     },
     "auto_generated": {

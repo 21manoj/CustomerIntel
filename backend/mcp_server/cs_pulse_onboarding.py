@@ -939,7 +939,7 @@ def review_signal(customer_id: int, signal_id: str, decision: str, subtype: str 
 @mcp.tool
 def log_outcome(customer_id: int, account_id: int, outcome_type: str, occurred_at: str, revenue: float = None,
                 note: str = None, linked_signal_ids: list = None, decided_by: str = None, source_type: str = 'manual',
-                source_ref: str = None) -> dict:
+                source_ref: str = None, title: str = None, use_case: str = None) -> dict:
     """Record a decision on an account: renewal secured, churn lost,
     contraction, expansion closed, refresh won… This is the outcome record
     that Hindsight measures against (realized NRR, lead-time backtest) and
@@ -976,7 +976,7 @@ def log_outcome(customer_id: int, account_id: int, outcome_type: str, occurred_a
         from journeys.outcomes import log_outcome as _lo
         try:
             return _lo(customer_id, account_id, outcome_type, occurred_at, revenue=revenue, note=note,
-                       linked_signal_ids=linked_signal_ids, decided_by=decided_by, source_type=source_type, source_ref=source_ref)
+                       linked_signal_ids=linked_signal_ids, decided_by=decided_by, source_type=source_type, source_ref=source_ref, title=title, use_case=use_case)
         except ValueError as e:
             raise ToolError(str(e))
 

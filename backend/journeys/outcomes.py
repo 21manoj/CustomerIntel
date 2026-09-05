@@ -26,6 +26,7 @@ from typing import List, Optional
 logger = logging.getLogger(__name__)
 
 LOGGED_BY = 'log_outcome'
+CSV_LINKED_BY = 'process_data.linked_signal_id'      # utils.csv_ingest.LINKED_SIGNAL_CREATED_BY — invariants + tests know this name
 
 
 def _parse_when(value) -> datetime:
@@ -56,12 +57,17 @@ def _find_signal_nodes(customer_id: int, account_id: int, refs: List[str]) -> di
 def log_outcome(customer_id: int, account_id: int, outcome_type: str, occurred_at, *, revenue=None,
                 note: Optional[str] = None, linked_signal_ids: Optional[List[str]] = None,
                 decided_by: Optional[str] = None, source_type: str = 'manual', source_ref: Optional[str] = None,
-                rebuild: bool = True) -> dict:
+                rebuild: bool = True, title: Optional[str] = None, use_case: Optional[str] = None,
+                origin_platform: Optional[str] = None, allow_unknown_type: bool = False) -> dict:
+    """One lane for every outcome: the MCP tool, the HTTP route and the CSV loader all end here.
+    `allow_unknown_type` (CSV lane): store a type outside the buckets with no direction rather than reject the row."""
     from extensions import db
     from models import Account, ContextNode, ContextEdge
     from utils.taxonomy_loader import get_taxonomy
     from utils.vertical_registry import get_vertical_for_customer
     from utils.context_graph_invariants import clamp_unearned_confidence
+    from utils.provenance import UNKNOWN as EVIDENCE_TIER_UNKNOWN
+    from utils.edge_factory import CSV_IMPORT_DERIVATION
 
     acct = db.session.get(Account, int(account_id))
     if not acct or int(acct.customer_id) != int(customer_id):
@@ -69,7 +75,7 @@ def log_outcome(customer_id: int, account_id: int, outcome_type: str, occurred_a
     outcome_type = (outcome_type or '').strip().lower()
     taxonomy = get_taxonomy(get_vertical_for_customer(customer_id))
     bucket = taxonomy.revenue_bucket(outcome_type)
-    if not bucket:
+    if not bucket and not allow_unknown_type:
         allowed = {b: sorted(s) for b, s in taxonomy.revenue_bucket_map.items()}
         raise ValueError(f'{outcome_type!r} is not an outcome type in this tenant\'s vocabulary; allowed: {allowed}')
     when = _parse_when(occurred_at)
@@ -77,8 +83,21 @@ def log_outcome(customer_id: int, account_id: int, outcome_type: str, occurred_a
         rev = float(revenue) if revenue not in (None, '') else None
     except (TypeError, ValueError):
         raise ValueError('revenue must be a number')
-    if rev is not None and bucket in ('lost', 'at_risk') and rev > 0:
-        rev = -rev                                # a loss is recorded as negative movement, whichever sign the caller used
+    # revenue is a magnitude; the bucket gives the sign. A signed value whose sign disagrees is normalised and noted.
+    sign_disagreement = False
+    if rev is not None and bucket:
+        negative = bucket in ('lost', 'at_risk')
+        if (negative and rev > 0) or (not negative and rev < 0):
+            sign_disagreement = rev < 0 and not negative           # a negative number for a positive bucket is the real disagreement
+        rev = -abs(rev) if negative else abs(rev)
+
+    # idempotent on the source system's reference when one is given
+    if source_ref:
+        prior = ContextNode.query.filter_by(customer_id=customer_id, account_id=acct.account_id, node_type='OUTCOME',
+                                            source_ref=str(source_ref)).first()
+        if prior:
+            return {'status': 'exists', 'node_id': prior.node_id, 'account_id': acct.account_id, 'outcome_type': prior.node_subtype,
+                    'bucket': bucket, 'occurred_at': prior.occurred_at.isoformat(), 'matched_on': 'source_ref'}
 
     # idempotent on the decision itself
     for n in ContextNode.query.filter_by(customer_id=customer_id, account_id=acct.account_id, node_type='OUTCOME',
@@ -94,11 +113,16 @@ def log_outcome(customer_id: int, account_id: int, outcome_type: str, occurred_a
         'evidence': (note or '').strip() or (f'logged by {decided_by}' if decided_by else ''),
         'decided_by': decided_by, 'logged_via': LOGGED_BY, 'bucket': bucket, 'evidence_tier': 'observed',
         'linked_signal_ids': [str(x) for x in (linked_signal_ids or [])], 'logged_at': datetime.utcnow().isoformat(),
+        'use_case': use_case, 'origin_platform': origin_platform, 'sign_normalised': sign_disagreement,
+        'unknown_type': not bucket,
     }
-    conf, props, tier, clamped = clamp_unearned_confidence('OUTCOME', source_type, source_ref, 1.0, props, 1)
+    # The CSV lane keeps the invariant the old loader had: only the row's own 'evidence' earns full confidence;
+    # a bare id column is not evidence. A tool caller's source_ref (an order form named by a person) is.
+    clamp_ref = None if source_type == 'csv_import' else source_ref
+    conf, props, tier, clamped = clamp_unearned_confidence('OUTCOME', source_type, clamp_ref, 1.0, props, 1)
     node = ContextNode(
         customer_id=customer_id, account_id=acct.account_id, node_type='OUTCOME', node_subtype=outcome_type,
-        source='observed', title=f'{label[:1].upper()}{label[1:]} — {acct.account_name}',
+        source='observed', title=(title or '').strip()[:200] or f'{label[:1].upper()}{label[1:]} — {acct.account_name}',
         revenue_impact=rev, revenue_impact_type=outcome_type, properties=props, tier=tier, confidence=conf,
         occurred_at=when, source_platform=source_type, source_event_id=f'outcome:{uuid.uuid4().hex[:12]}',
         source_ref=source_ref,
@@ -115,9 +139,12 @@ def log_outcome(customer_id: int, account_id: int, outcome_type: str, occurred_a
             continue
         db.session.add(ContextEdge(
             customer_id=customer_id, from_node_id=sn.node_id, to_node_id=node.node_id, edge_type='LED_TO',
-            weight=1.0, confidence=1.0, source_platform=source_type, created_by=LOGGED_BY,
-            properties={'evidence': f'linked by {decided_by or "the logger"} when the outcome was recorded',
-                        'evidence_tier': 'observed', 'derivation': 'human_linked'},
+            weight=1.0, confidence=1.0, source_platform=source_type,
+            created_by=(CSV_LINKED_BY if source_type == 'csv_import' else LOGGED_BY),   # the CSV lane keeps its audited creator name
+            properties=({'evidence': f'linked_signal_id={ref}', 'evidence_tier': EVIDENCE_TIER_UNKNOWN, 'derivation': CSV_IMPORT_DERIVATION}
+                        if source_type == 'csv_import' else
+                        {'evidence': f'linked by {decided_by or "the logger"} when the outcome was recorded',
+                         'evidence_tier': 'observed', 'derivation': 'human_linked'}),
         ))
         linked.append(sn.node_id)
     db.session.commit()

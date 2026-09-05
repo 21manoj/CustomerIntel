@@ -181,3 +181,36 @@ def test_account_details_use_cases_and_installed_base_fields(tenant):
     assert j['account']['use_cases'][0]['name'] == 'DR failover' and j['account']['refresh_date']
     from signal_engine.enrichment import use_cases_block
     assert 'DR failover' in use_cases_block(j['account']['use_cases']) and use_cases_block([]) == '(none declared)'
+
+
+def test_outcomes_csv_is_the_same_lane_as_log_outcome(tenant):
+    """Aliases from the old file, revenue as magnitude with the bucket's sign, unknown type warned and
+    stored without direction, several linked refs, installed-base types in buckets, re-upload → no copies."""
+    cid, aid, _ = tenant
+    from mcp_server.cs_pulse_onboarding import upload_csv, process_data
+    from models import ContextEdge
+    csv_text = (
+        "source_account_id,outcome_date,outcome_type,title,revenue_value,evidence,linked_signal_id,decided_by,outcome_id,use_case\n"
+        "ACC-NW,2026-04-30,contraction,Renewal at 60% of seats,560000,Order form 2026-04-30,crm:evt:1;GS-1,ae@t.test,SO-1,Analytics rollout\n"   # positive given → stored negative
+        "ACC-NW,2026-05-15,refresh_won,Refresh order,-120000,,,ae@t.test,SO-2,\n"                                                     # negative given for a positive bucket → normalised + flagged
+        "ACC-NW,2026-05-20,some_new_type,Something else,10,,,,SO-3,\n"                                                              # unknown → warned, stored, no direction
+    )
+    r = upload_csv(cid, 'outcomes.csv', csv_text)
+    assert r['status'] == 'success' and any('some_new_type (1)' in w for w in (r.get('warnings') or [])), r.get('warnings')
+    out = process_data(cid)
+    assert 'outcomes_loaded_3' in out['steps_completed'] and 'outcome_edges_loaded_2' in out['steps_completed'], out['steps_completed']
+    with app.app_context():
+        outs = {n.source_ref: n for n in ContextNode.query.filter_by(account_id=aid, node_type='OUTCOME').all() if n.source_ref}
+        c = outs['SO-1']
+        assert float(c.revenue_impact) == -560000.0 and c.properties['bucket'] == 'lost' and c.properties['use_case'] == 'Analytics rollout'
+        assert c.properties['decided_by'] == 'ae@t.test' and c.title == 'Renewal at 60% of seats' and c.properties['sign_normalised'] is False
+        assert ContextEdge.query.filter_by(to_node_id=c.node_id, edge_type='LED_TO').count() == 2
+        w = outs['SO-2']
+        assert float(w.revenue_impact) == 120000.0 and w.properties['bucket'] == 'expansion' and w.properties['sign_normalised'] is True
+        u = outs['SO-3']
+        assert u.properties['unknown_type'] is True and u.properties['bucket'] is None
+    r2 = upload_csv(cid, 'outcomes.csv', csv_text)
+    out2 = process_data(cid)
+    assert 'outcomes_loaded_0' in out2['steps_completed'], out2['steps_completed']        # source_ref idempotency
+    with app.app_context():
+        assert ContextNode.query.filter_by(account_id=aid, node_type='OUTCOME').count() >= 3

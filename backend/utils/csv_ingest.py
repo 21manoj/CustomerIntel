@@ -526,101 +526,50 @@ def load_stakeholders(customer_id: int, rows: list[dict], resolve: Callable) -> 
 
 
 def load_outcomes(customer_id: int, rows: list[dict], resolve: Callable) -> tuple[int, int]:
-    """OUTCOME nodes (I3'-clamped) + LED_TO edges from linked_signal_id (item 37a).
-    Returns (nodes_added, edges_added).
+    """outcomes.csv is the structured lane INTO journeys.outcomes.log_outcome — the same
+    lane as the log_outcome tool (2026-09-05). Per row: revenue as a magnitude with the
+    bucket giving the sign, the source system's ref for idempotency, several linked
+    signal refs (';'), decided_by / note / use_case. An outcome_type outside the
+    tenant's buckets is stored with no direction (warned at upload), never dropped.
+    Rows without a source_ref dedup on (account, title, revenue, type, day).
+    Returns (nodes_added, edges_added)."""
+    from models import ContextNode
+    from journeys.outcomes import log_outcome
 
-    Constructs ContextNode directly rather than via upsert_node(): the
-    source_event_id here is degenerate ('outcome:<type>', shared across
-    same-type rows), so upsert_node's dedup on that key would silently
-    overwrite distinct outcomes. Dedup is on (account, title, revenue,
-    type) instead, and the I3' clamp upsert_node would have applied is
-    applied directly.
-    """
-    from models import ContextNode, ContextEdge
-    from extensions import db
-    from utils.context_graph_invariants import clamp_unearned_confidence
-    from utils.provenance import UNKNOWN as EVIDENCE_TIER_UNKNOWN
-    from utils.edge_factory import CSV_IMPORT_DERIVATION
-
-    def _key(acct_id, title, rev, otype):
-        return (acct_id, title, ('%.2f' % float(rev)) if rev is not None else 'None', otype)
+    def _key(acct_id, title, rev, otype, day):
+        return (acct_id, (title or '').strip(), ('%.2f' % abs(float(rev))) if rev is not None else 'None', otype, day)
 
     existing = {
-        _key(n.account_id, n.title, n.revenue_impact, n.revenue_impact_type)
+        _key(n.account_id, n.title, n.revenue_impact, n.revenue_impact_type, n.occurred_at.date() if n.occurred_at else None)
         for n in ContextNode.query.filter_by(customer_id=customer_id, node_type='OUTCOME').all()
     }
-
-    pending_edges: list[tuple] = []
-    nodes_added = 0
+    nodes_added = edges_added = 0
     for row in rows:
         acct_id = resolve(row)
         if not acct_id:
             continue
-        rev = num(row, 'revenue_value', 'revenue_impact')
-        outcome_type = cell(row, 'outcome_type', default='revenue')
+        otype = (cell(row, 'outcome_type') or 'revenue').strip().lower()
+        rev = num(row, 'revenue', 'revenue_value', 'revenue_impact', 'amount')
         title = cell(row, 'title', 'outcome_name')
-        key = _key(acct_id, title, rev, outcome_type)
-        if key in existing:
+        when_dt = when(row, 'occurred_at', 'outcome_date', default=datetime.utcnow())
+        source_ref = cell(row, 'source_ref', 'outcome_id') or None
+        if not source_ref and _key(acct_id, title, rev, otype, when_dt.date()) in existing:
             continue
-        existing.add(key)
-
-        source_platform = cell(row, 'source_platform', default='csv_import')
-        props = {'evidence': cell(row, 'evidence'), 'confidence': cell(row, 'confidence')}
-        conf, props, tier, _clamped = clamp_unearned_confidence(
-            node_type='OUTCOME',
-            source_platform=source_platform,
-            source_ref=None,
-            confidence=1.0,
-            properties=props,
-            tier=1,
-        )
-        node = ContextNode(
-            customer_id=customer_id, account_id=acct_id,
-            node_type='OUTCOME', node_subtype=outcome_type,
-            source='observed',
-            title=title,
-            revenue_impact=rev, revenue_impact_type=outcome_type,
-            properties=props, tier=tier, confidence=conf,
-            occurred_at=when(row, 'outcome_date', default=datetime.utcnow()),
-            source_platform=source_platform,
-            source_event_id=f'outcome:{outcome_type}',
-        )
-        db.session.add(node)
+        refs = [r.strip() for r in (cell(row, 'linked_signal_refs', 'linked_signal_id') or '').replace(',', ';').split(';') if r.strip()]
+        try:
+            res = log_outcome(customer_id, acct_id, otype, when_dt, revenue=rev, note=cell(row, 'note', 'evidence') or None,
+                              linked_signal_ids=refs or None, decided_by=cell(row, 'decided_by') or None,
+                              source_type='csv_import', source_ref=source_ref, rebuild=False, title=title or None,
+                              use_case=cell(row, 'use_case') or None, origin_platform=cell(row, 'source_platform') or None,
+                              allow_unknown_type=True)
+        except ValueError as e:
+            logger.warning('outcome row skipped (%s / %s): %s', acct_id, otype, e)
+            continue
+        if res.get('status') == 'exists':
+            continue
+        existing.add(_key(acct_id, title, rev, otype, when_dt.date()))
         nodes_added += 1
-        linked = cell(row, 'linked_signal_id')
-        if linked:
-            pending_edges.append((node, acct_id, linked))
-    db.session.flush()
-
-    edges_added = 0
-    if pending_edges:
-        sig_lookup = {}
-        for n in ContextNode.query.filter(
-                ContextNode.customer_id == customer_id,
-                ContextNode.node_type == 'SIGNAL',
-                ContextNode.account_id.in_({a for _, a, _ in pending_edges})).all():
-            props = n.properties or {}
-            for ref in (n.source_event_id, n.source_ref, props.get('signal_ref'), props.get('signal_id')):
-                if ref:
-                    sig_lookup.setdefault((n.account_id, str(ref)), n.node_id)
-        for node, acct_id, linked in pending_edges:
-            from_id = sig_lookup.get((acct_id, linked))
-            if not from_id or not node.node_id:
-                continue
-            db.session.add(ContextEdge(
-                customer_id=customer_id,
-                from_node_id=from_id, to_node_id=node.node_id,
-                edge_type='LED_TO', weight=1.0, confidence=1.0,
-                source_platform='csv_import', created_by=LINKED_SIGNAL_CREATED_BY,
-                properties={
-                    'evidence': f'linked_signal_id={linked}',
-                    'evidence_tier': EVIDENCE_TIER_UNKNOWN,
-                    'derivation': CSV_IMPORT_DERIVATION,
-                },
-            ))
-            edges_added += 1
-        if edges_added:
-            db.session.flush()
+        edges_added += len(res.get('linked_signal_node_ids') or [])
     return nodes_added, edges_added
 
 

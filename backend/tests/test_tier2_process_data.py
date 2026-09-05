@@ -276,7 +276,7 @@ class TestCanonicalRegistration:
             assert float(with_evidence.confidence) == 1.0
             assert with_evidence.tier == 1
             assert float(no_evidence.revenue_impact) == -4100000.0
-            assert no_evidence.source_event_id == 'outcome:revenue_at_risk'
+            assert no_evidence.source_event_id.startswith('outcome:')
 
             edges = ContextEdge.query.filter_by(
                 customer_id=customer_id, created_by='process_data.linked_signal_id').all()

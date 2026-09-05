@@ -17,17 +17,23 @@
       "engagement_decline",
       "partial_recovery",
       "capacity_constraint",
-      "partner_friction"
+      "partner_friction",
+      "refresh_at_risk"
     ],
     "lost": [
       "churn_lost",
-      "contraction"
+      "contraction",
+      "refresh_lost",
+      "support_lapsed",
+      "decommissioned"
     ],
     "expansion": [
       "expansion_closed",
       "new_logo",
       "revenue_expanded",
-      "revenue_growth"
+      "revenue_growth",
+      "refresh_won",
+      "repeat_order"
     ],
     "pipeline": [
       "expansion_approved",
@@ -37,7 +43,9 @@
       "revenue_protected",
       "churn_averted",
       "renewal_secured",
-      "escalation_resolved"
+      "escalation_resolved",
+      "maintenance_renewed",
+      "attach"
     ]
   },
   "auto_recovery_outcome_subtypes": [
