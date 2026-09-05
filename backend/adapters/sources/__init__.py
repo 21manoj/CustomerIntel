@@ -67,25 +67,26 @@ def import_from_source(customer_id: int, source: str, content: str, process_now:
         out['items_preview'] = items[: int(settings.get('sources', 'preview_rows'))]
         return out
     existing = _existing_refs(customer_id, [it['source_ref'] for it in items if it.get('source_ref')])
-    fresh = []
-    for it in items:
+    fresh = []                                   # (index among the parsed items, item)
+    for i, it in enumerate(items):
         ref = it.get('source_ref')
         if ref and ref in existing:
             out['already_imported'] += 1
             out['by_ref'][ref] = existing[ref]
         else:
-            fresh.append(it)
+            fresh.append((i, it))
     batch = int(settings.get('sources', 'import_batch'))
     for start in range(0, len(fresh), batch):
         chunk = fresh[start:start + batch]
-        res = import_communications(int(customer_id), chunk, process_now=False)
+        res = import_communications(int(customer_id), [it for _, it in chunk], process_now=False)
         out['queued'] += res['queued']
         out['duplicates'] += res['duplicates']
         out['signal_ids'].extend(res['signal_ids'])
         out['by_ref'].update(res['by_ref'])
         for k in ('unknown_accounts', 'rejected'):
-            for e in res[k]:
-                out[k].append({**e, 'row': chunk[e['index']]['_row'], 'index': start + e['index']})
+            for e in res[k]:                      # index = position among the parsed items, row = the export's data row
+                idx, item = chunk[e['index']]
+                out[k].append({**e, 'index': idx, 'row': item['_row']})
     if process_now and out['queued']:
         totals = {'processed': 0, 'nodes_written': 0, 'unclassified': 0, 'errors': 0, 'journeys_rebuilt': 0}
         while True:
