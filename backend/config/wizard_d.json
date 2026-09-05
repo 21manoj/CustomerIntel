@@ -1,0 +1,62 @@
+{
+  "_doc": "Wizard D — Foresight (docs/design/wizard-d-foresight.md). Every number the forecast uses lives here; wizards/wizard_d_settings.py raises on a missing key and never invents a default. Probabilities are per account over horizon_days. `verticals` blocks override the same-named keys for one vertical — every block is empty today because no vertical has a measured base rate; a measured one goes there, never in code.",
+  "horizon_days": 365,
+  "interval_level": 0.9,
+  "run_in_process_data": true,
+  "p_floor": 0.02,
+  "p_ceiling": 0.98,
+  "calibration": {
+    "_doc": "basis flips from 'prior' to 'calibrated' only when the tenant has at least min_labels labelled decisions with at least min_per_class of each class. A label is a group of terminal outcomes (taxonomy buckets lost / protected / expansion) on one account within label_window_days of each other: any 'lost' → 0, else 1. Its stratum is the health band and leading label of the journey series month before the decision (point-in-time). prior_strength is the pseudo-count the account's own prior carries into the Beta update; a stratum below min_per_stratum labels uses the pooled counts and says so.",
+    "min_labels": 30,
+    "min_per_class": 5,
+    "min_per_stratum": 8,
+    "prior_strength": 10,
+    "label_window_days": 45,
+    "terminal_positive_buckets": ["protected", "expansion"],
+    "terminal_negative_buckets": ["lost"]
+  },
+  "prior": {
+    "_doc": "p_retain = clamp(base_retention_at_decision × health_band × leading_label × arc × phase × intervention). When no decision point (renewal / refresh / contract end) falls inside the horizon, the question is mid-term contraction: p_retain = 1 − midterm_loss_hazard × the same factors' shortfall. Factor values are template judgements (every one ≤ ~1.1 and ≥ ~0.5) — a prior, labelled as such on every block.",
+    "base_retention_at_decision": 0.85,
+    "midterm_loss_hazard": 0.06,
+    "health_band_factor": {"healthy": 1.0, "at_risk": 0.82, "critical": 0.6, "none": 0.95},
+    "leading_label_factor": {"early_warning": 0.8, "recovery_watch": 1.05, "aligned": 1.0, "leading_only_negative": 0.85, "leading_only_positive": 1.05, "leading_only_neutral": 1.0, "none": 1.0},
+    "arc_factor": {
+      "silent_churn": 0.75, "competitive_displacement": 0.75, "exec_sponsor_change": 0.8, "crisis_recovery": 0.85,
+      "stalled_deployment": 0.8, "land_and_expand": 1.05, "expansion_champion": 1.08, "seasonal_surge": 1.0,
+      "steady": 1.03, "unclassified": 0.95
+    },
+    "phase_factor": {"baseline": 1.0, "deterioration": 0.9, "intervention": 0.85, "resolution": 1.05, "none": 1.0},
+    "intervention_in_flight_factor": 1.05,
+    "verticals": {}
+  },
+  "expansion": {
+    "_doc": "p_expand over the horizon. expansion_intent_role_factor applies when an expansion_intent or expansion_realized role signal sits in the 90-day feature window. size_share_of_arr is the expected uplift given an expansion — one share, not a distribution (design §6).",
+    "base_p_expand": 0.12,
+    "arc_factor": {
+      "silent_churn": 0.4, "competitive_displacement": 0.6, "exec_sponsor_change": 0.6, "crisis_recovery": 0.8,
+      "stalled_deployment": 0.5, "land_and_expand": 2.0, "expansion_champion": 2.5, "seasonal_surge": 1.5,
+      "steady": 1.0, "unclassified": 0.8
+    },
+    "health_band_factor": {"healthy": 1.0, "at_risk": 0.6, "critical": 0.3, "none": 0.9},
+    "expansion_intent_role_factor": 1.8,
+    "size_share_of_arr": 0.15,
+    "verticals": {}
+  },
+  "loss": {
+    "_doc": "Expected share of ARR lost when the account is not retained. The story-arc template's arr_at_risk_peak / arr_start is used when the account has an arc with a template (basis 'story_arc_template'); otherwise default_severity (basis 'config_default').",
+    "default_severity": 0.6,
+    "verticals": {}
+  },
+  "interval": {
+    "_doc": "Prior-basis interval on p_retain and p_expand: ± half_width_p, widened by thin_evidence_extra when the account has fewer than thin_evidence_below_episodes episodes and by no_kpi_layer_extra when there is no KPI layer. Semantics 'template_range' — a declared range, not a sampling interval. Calibrated-basis intervals are Beta credible intervals at interval_level.",
+    "half_width_p": 0.15,
+    "thin_evidence_extra": 0.05,
+    "thin_evidence_below_episodes": 3,
+    "no_kpi_layer_extra": 0.05
+  },
+  "portfolio": {
+    "_doc": "Per-account half-widths become σ at interval_level. 'independent' propagates sqrt(Σσ²) (headline); 'correlated' sums the bounds (worst case). Both are always reported; headline_assumption picks which one the tile shows first.",
+    "headline_assumption": "independent"
+  }
+}

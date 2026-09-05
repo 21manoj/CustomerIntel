@@ -1180,7 +1180,7 @@ def delete_customer(customer_id: int, confirm_domain: str, reason: str) -> dict:
         from extensions import db
         from models import (Customer, CustomerConfig, User, Account, KPIMeasurement, HealthScore, QualitativeSignal,
                             ContextNode, ContextEdge, JourneyData, CsvUpload, CsvUploadStaging, ProcessRun, SignalReview,
-                            WizardRun, CustomerApiKey, FeatureToggle, Intervention)
+                            WizardRun, CustomerApiKey, FeatureToggle, Intervention, ForecastRun, AccountForecast)
         from mcp_server import audit as _audit
         c = db.session.get(Customer, int(customer_id))
         if not c:
@@ -1193,6 +1193,8 @@ def delete_customer(customer_id: int, confirm_domain: str, reason: str) -> dict:
             n = q.delete(synchronize_session=False)
             counts[model.__tablename__] = counts.get(model.__tablename__, 0) + int(n or 0)
         _del(Intervention, Intervention.query.filter_by(customer_id=c.customer_id))
+        _del(AccountForecast, AccountForecast.query.filter_by(customer_id=c.customer_id))
+        _del(ForecastRun, ForecastRun.query.filter_by(customer_id=c.customer_id))
         _del(ContextEdge, ContextEdge.query.filter_by(customer_id=c.customer_id))
         _del(ContextNode, ContextNode.query.filter_by(customer_id=c.customer_id))
         _del(JourneyData, JourneyData.query.filter_by(customer_id=c.customer_id))

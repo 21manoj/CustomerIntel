@@ -804,3 +804,59 @@ class Intervention(db.Model):
         db.UniqueConstraint('account_id', 'playbook_id', 'trigger_key', name='uq_intervention_trigger'),
         db.Index('idx_intervention_customer_state', 'customer_id', 'state'),
     )
+
+
+class ForecastRun(db.Model):
+    """One Wizard D (Foresight) run for a tenant — docs/design/wizard-d-foresight.md §4.
+    Immutable history: every run is a new row; readers (get_forecast, the
+    journey embed) take the latest. `labels` holds the label counts the
+    calibration gate saw; `portfolio` the revenue-weighted roll-up with its
+    propagated ranges; `config_snapshot` the wizard_d.json values used."""
+    __tablename__ = 'forecast_runs'
+    id = db.Column(db.Integer, primary_key=True)
+    run_id = db.Column(db.String(50), unique=True, nullable=False, index=True)
+    customer_id = db.Column(db.Integer, db.ForeignKey('customers.customer_id'), nullable=False, index=True)
+    vertical = db.Column(db.String(50), nullable=True)
+    generator_version = db.Column(db.String(20), nullable=False)
+    horizon_days = db.Column(db.Integer, nullable=False)
+    as_of = db.Column(db.DateTime, nullable=False)                    # the latest journey as_of among the accounts forecast
+    basis_counts = db.Column(db.JSON, nullable=False, default=dict)   # {'prior': n, 'calibrated': n}
+    labels = db.Column(db.JSON, nullable=False, default=dict)         # {n, positive, negative, needed, per_class_needed, by_stratum}
+    portfolio = db.Column(db.JSON, nullable=False, default=dict)
+    config_snapshot = db.Column(db.JSON, nullable=False, default=dict)
+    accounts = db.Column(db.Integer, nullable=False, default=0)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, index=True)
+    created_by = db.Column(db.String(100), nullable=True)
+
+
+class AccountForecast(db.Model):
+    """One account's forecast inside a ForecastRun — the block Wizard A embeds
+    as journey_json['forecast']. The scalar columns are the read surface's
+    sort/filter keys; `forecast_json` is the whole block (drivers, template,
+    citations, interval semantics)."""
+    __tablename__ = 'account_forecasts'
+    id = db.Column(db.Integer, primary_key=True)
+    run_id = db.Column(db.String(50), db.ForeignKey('forecast_runs.run_id', ondelete='CASCADE'), nullable=False, index=True)
+    customer_id = db.Column(db.Integer, db.ForeignKey('customers.customer_id'), nullable=False, index=True)
+    account_id = db.Column(db.Integer, db.ForeignKey('accounts.account_id'), nullable=False, index=True)
+    as_of = db.Column(db.DateTime, nullable=False)                    # the journey's as_of the forecast was read from
+    basis = db.Column(db.String(12), nullable=False, index=True)      # prior | calibrated
+    p_retain = db.Column(db.Numeric(5, 4), nullable=False)
+    p_retain_low = db.Column(db.Numeric(5, 4), nullable=False)
+    p_retain_high = db.Column(db.Numeric(5, 4), nullable=False)
+    p_expand = db.Column(db.Numeric(5, 4), nullable=False)
+    p_expand_low = db.Column(db.Numeric(5, 4), nullable=False)
+    p_expand_high = db.Column(db.Numeric(5, 4), nullable=False)
+    arr = db.Column(db.Numeric(15, 2), nullable=False)
+    expected_arr_end = db.Column(db.Numeric(15, 2), nullable=False)
+    expected_arr_low = db.Column(db.Numeric(15, 2), nullable=False)
+    expected_arr_high = db.Column(db.Numeric(15, 2), nullable=False)
+    decision_point_at = db.Column(db.Date, nullable=True)             # renewal / refresh / contract end inside the horizon, when known
+    stratum = db.Column(db.String(40), nullable=True)
+    n_labels = db.Column(db.Integer, nullable=False, default=0)
+    forecast_json = db.Column(db.JSON, nullable=False)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    __table_args__ = (
+        db.UniqueConstraint('run_id', 'account_id', name='uq_account_forecast_run'),
+    )
