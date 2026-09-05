@@ -22,7 +22,7 @@ import uuid
 from datetime import datetime
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-os.environ.setdefault('MCP_TRANSPORT', 'stdio')          # in-process tool calls: the local, trusted path
+os.environ['MCP_TRANSPORT'] = 'stdio'          # in-process tool calls are the local, trusted path (the container exports http for the server)
 
 ACCOUNTS = (
     "source_account_id,account_name,industry,region,arr,csm_name,csm_email,csm_manager,executive_sponsor,"

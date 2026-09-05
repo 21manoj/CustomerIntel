@@ -69,7 +69,7 @@ def test_content_of_key_sentences():
     n = build_narrative(_journey())
     text = ' '.join(s['text'] for ch in n['chapters'] for s in ch['sentences'])
     assert 'From July 2025 Acme Data was in baseline on the numbers (77.5)' in text
-    assert 'never crossed the at-risk line' in text
+    assert 'never fell into the critical band' in text
     assert 'champion declined last two qbr invitations (lisa park)' in text.lower()
     assert 'renewal at risk ($960,000 at_risk)' in text                       # 'Renewal at Risk' fully lowered
     assert 'health moved from healthy to at_risk (68.7)' in text

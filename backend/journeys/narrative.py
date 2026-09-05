@@ -69,6 +69,9 @@ def _lc(s: str) -> str:
     small = {'at', 'of', 'to', 'in', 'on', 'for', 'and', 'or', 'the', 'a', 'an', 'with'}
     if len(words) >= 2 and len(caps) >= 2 and all(w[:1].isupper() or w.lower() in small for w in words if w and w[0].isalpha()):
         return ' '.join(w if _is_acronym(w) else w.lower() for w in words)
+    # a sentence that opens with a person's name ("Elena Rossi accepted…") keeps its capital
+    if len(words) >= 3 and words[0][:1].isupper() and words[1][:1].isupper() and not words[2][:1].isupper():
+        return s
     return s if _is_acronym(words[0]) else s[:1].lower() + s[1:]
 
 
@@ -163,7 +166,7 @@ def _t_first_warning(lvt: dict, by_id: Dict[str, dict]) -> Optional[Tuple[str, L
     if trailing and lvt.get('lead_days') is not None:
         tail = f"the KPI score crossed at-risk in {_month(trailing)}, {lvt['lead_days']} days later"
     else:
-        tail = "the KPI score never crossed the at-risk line, so on the numbers alone this account would not have been flagged"
+        tail = "the KPI score never fell into the critical band, which is the trailing layer's own warning line"
     return f"The leading layer first flagged early_warning in {_month(first)}; {tail}.", cites
 
 
@@ -245,9 +248,9 @@ def build_narrative(journey: dict, rejected: Optional[List[dict]] = None) -> dic
     for ci, ch in enumerate(_chapters_for(journey, episodes)):
         sentences: List[dict] = []
 
-        def add(res, template):
+        def add(res, template, why=None):
             if res is None:
-                omitted.append({'reason': 'no_citation', 'template': template})
+                omitted.append({'reason': 'no_citation', 'template': template, 'note': why or 'nothing in the journey to cite'})
                 return
             text, cites = res
             sentences.append({'text': text, 'cites': list(dict.fromkeys(cites)), 'template': template})
@@ -258,7 +261,8 @@ def build_narrative(journey: dict, rejected: Optional[List[dict]] = None) -> dic
                 # a phase opened by an intervention is told with its before/after, not a plain opener
                 add(_t_intervention(next(h for h in hooks if h.get('episode_id') == trig_id), by_id), 'intervention_before_after')
             else:
-                add(_t_phase_open(ch['_phase'], by_id, account, first=(ci == 0), episodes=episodes), 'phase_open_with_trigger')
+                add(_t_phase_open(ch['_phase'], by_id, account, first=(ci == 0), episodes=episodes), 'phase_open_with_trigger',
+                    why=None if trig_id else f"phase '{ch['_phase']['name']}' from {ch['_phase']['entered_at'][:10]} has no trigger episode (no evidence before it)")
         if ci == 0:
             add(_t_first_warning(lvt, by_id), 'first_warning_gap')
 
