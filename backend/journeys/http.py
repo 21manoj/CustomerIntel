@@ -89,4 +89,20 @@ def register_journey_routes(mcp) -> None:
         return JSONResponse({'outcome_types': _with_app(lambda: outcome_vocabulary(int(cid)))})
 
 
-ROUTES = ('/api/journeys', '/api/journeys/{account_id}', '/api/evidence', '/api/outcomes', '/api/outcomes/vocabulary')
+    @mcp.custom_route('/api/audit', methods=['GET'], name='audit_log')
+    async def audit_log(request):
+        """Tool-call audit log. Server key: any tenant; customer key: its own tenant only."""
+        from mcp_server.auth import extract_api_key, validate_server_key
+        q = request.query_params
+        cid = q.get('customer_id')
+        is_server = _with_app(lambda: validate_server_key(extract_api_key() or ''))
+        if not is_server:
+            ok, err = _with_app(lambda: _authorize(cid, 'read'))
+            if not ok or not cid:
+                return JSONResponse(err or {'error': 'customer_id is required'}, status_code=401)
+        from mcp_server import audit
+        rows = _with_app(lambda: audit.query(cid, q.get('tool'), q.get('outcome'), int(q.get('limit', 100))))
+        return JSONResponse({'audit': rows, 'count': len(rows)})
+
+
+ROUTES = ('/api/journeys', '/api/journeys/{account_id}', '/api/evidence', '/api/outcomes', '/api/outcomes/vocabulary', '/api/audit')

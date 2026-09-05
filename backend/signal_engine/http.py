@@ -27,22 +27,41 @@ from starlette.responses import JSONResponse
 logger = logging.getLogger(__name__)
 
 
-def _authorize(customer_id, scope: str = 'write') -> tuple:
-    """(ok, error_body). Server key → ok. Customer key → must match customer and carry `scope`."""
+def _authorize(customer_id, scope: str = 'write', route: str = None) -> tuple:
+    """(ok, error_body). Server key → ok. Customer key → must match customer and carry `scope`.
+    Every decision is written to the tool audit log."""
     from mcp_server.auth import extract_api_key, validate_server_key, validate_customer_key, check_scope, MCP_AUTH_REQUIRED
+    from mcp_server import audit
+    route = route or _route_name()
     raw = extract_api_key()
     if not raw:
-        return (not MCP_AUTH_REQUIRED), {'error': 'Bearer API key required'}
+        ok = not MCP_AUTH_REQUIRED
+        audit.record('http', route, customer_id, key_kind='none', outcome='allowed' if ok else 'denied', detail=None if ok else 'no key')
+        return ok, {'error': 'Bearer API key required'}
     if validate_server_key(raw):
+        audit.record('http', route, customer_id, key_kind='server', outcome='allowed')
         return True, None
     rec = validate_customer_key(raw)
     if not rec:
+        audit.record('http', route, customer_id, key_kind='none', outcome='denied', detail='invalid or expired key')
         return False, {'error': 'Invalid or expired API key'}
     if customer_id is not None and int(rec.customer_id) != int(customer_id):
+        audit.record('http', route, customer_id, key_kind='customer', key_record=rec, outcome='denied', detail=f'key scoped to customer {rec.customer_id}')
         return False, {'error': f'API key does not have access to customer {customer_id}'}
     if not check_scope(rec, scope):
+        audit.record('http', route, customer_id, key_kind='customer', key_record=rec, outcome='denied', detail=f'lacks {scope} scope')
         return False, {'error': f'API key lacks {scope} scope'}
+    audit.record('http', route, customer_id, key_kind='customer', key_record=rec, outcome='allowed')
     return True, None
+
+
+def _route_name() -> str:
+    """The calling route handler's name (best effort, for the audit row)."""
+    import inspect
+    for f in inspect.stack()[2:6]:
+        if f.function not in ('_authorize', '<lambda>', '_with_app'):
+            return f.function
+    return 'http'
 
 
 def _with_app(fn):

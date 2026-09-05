@@ -537,6 +537,13 @@ class TestHttpSurface:
         r = client.post('/api/outcomes', headers=h, json={'customer_id': cid, 'account_id': aid, 'outcome_type': 'nope', 'occurred_at': '2026-08-01'})
         assert r.status_code == 400 and 'allowed' in r.json()['error']
         assert client.post('/api/outcomes', json={'customer_id': cid, 'account_id': aid, 'outcome_type': 'churn_lost', 'occurred_at': '2026-08-01'}).status_code == 401
+        # audit log: every entry point decision is a row; query-string keys are off by default
+        rows = client.get('/api/audit?limit=200', headers=h).json()['audit']
+        assert any(r['surface'] == 'http' and r['outcome'] == 'denied' and r['key_kind'] == 'none' for r in rows)   # the 401s above
+        assert any(r['surface'] == 'http' and r['outcome'] == 'allowed' and r['key_kind'] == 'server' for r in rows)
+        assert any(r['surface'] == 'mcp' and r['tool'] == 'submit_signal' for r in rows)                            # in-process tool calls too
+        assert client.get('/api/audit').status_code == 401
+        assert client.get(f'/api/journeys?customer_id={cid}&api_key={client.key}').status_code == 401              # MCP_ALLOW_QUERY_KEY unset
         hist = client.get(f'/api/signals/review/history?customer_id={cid}', headers=h).json()['history']
         assert len(hist) >= 3 and {x['decision'] for x in hist} >= {'accept', 'reject', 'reclassify'}
 

@@ -9,6 +9,7 @@ Environment:
   DATABASE_URL          postgresql://...            (required)
   MCP_SERVER_API_KEY    super-admin Bearer key       (recommended)
   MCP_AUTH_REQUIRED     true|false (default true; onboarding tools stay frictionless)
+  MCP_ALLOW_QUERY_KEY   true|false (default false) — accept ?api_key= for single-URL connectors; keys in URLs reach access logs
   SIGNAL_WORKER         true|false (default true) — background signal processing
   FEATURE_SIGNAL_ENGINE true|false (default true) — the /api/signals/* surface
   PORT                  default 8101
@@ -32,13 +33,14 @@ from urllib.parse import parse_qs
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 logger = logging.getLogger('customerintel.server')
+ALLOW_QUERY_KEY = os.environ.get('MCP_ALLOW_QUERY_KEY', 'false').lower() in ('true', '1', 'yes')
 VERSION = '0.1.0'
 SERVER_NAME = 'CustomerIntelV1'
 
 
 class BearerAuthMiddleware:
-    """Puts the request's Bearer token (or ?api_key= — convenience for
-    single-URL connectors, demo keys only) into the contextvars that
+    """Puts the request's Bearer token (or ?api_key= when MCP_ALLOW_QUERY_KEY
+    is set — single-URL connectors, demo keys only) into the contextvars that
     mcp_server.auth reads, keyed by mcp-session-id for async propagation,
     plus the caller IP for api_key_service's rate limiting."""
 
@@ -61,13 +63,16 @@ class BearerAuthMiddleware:
                 _session_api_keys[session_id] = token
         elif session_id and session_id in _session_api_keys:
             token = _session_api_keys[session_id]
-        if not token:
+        if not token and ALLOW_QUERY_KEY:
+            # Off by default: a key in the URL lands in Caddy/uvicorn access logs and browser history.
             qs = scope.get('query_string', b'').decode()
             if qs:
                 p = parse_qs(qs)
                 token = (p.get('api_key', [''])[0] or p.get('token', [''])[0]).strip()
-                if token and session_id:
-                    _session_api_keys[session_id] = token
+                if token:
+                    logger.warning('API key accepted from the query string (MCP_ALLOW_QUERY_KEY=true) for %s', scope.get('path'))
+                    if session_id:
+                        _session_api_keys[session_id] = token
         fwd = headers.get(b'x-forwarded-for', b'').decode()
         client = scope.get('client') or ('unknown', 0)
         ip = (fwd.split(',')[0].strip() if fwd else client[0]) or 'unknown'

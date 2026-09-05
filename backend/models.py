@@ -97,6 +97,27 @@ class LLMUsageLog(db.Model):
     created_at = db.Column(db.DateTime, nullable=False, server_default=db.func.now(), index=True)   # server-side: the controller INSERTs raw SQL
 
 
+class ToolAuditLog(db.Model):
+    """One row per authenticated entry point hit — MCP tool or HTTP route —
+    with who (key), for which tenant, and whether it was allowed. The
+    control-plane record a SOC2 reviewer asks for first. Append-only;
+    written best-effort by mcp_server.audit.record (never blocks a call)."""
+    __tablename__ = 'tool_audit_log'
+
+    id = db.Column(db.Integer, primary_key=True)
+    at = db.Column(db.DateTime, nullable=False, server_default=db.func.now(), index=True)
+    transport = db.Column(db.String(10), nullable=False)             # http | stdio
+    surface = db.Column(db.String(10), nullable=False)               # mcp | http
+    tool = db.Column(db.String(80), nullable=False, index=True)      # tool name or route name
+    customer_id = db.Column(db.Integer, nullable=True, index=True)   # the tenant the call named (no FK: denied calls may name a bad one)
+    key_kind = db.Column(db.String(10), nullable=False)              # server | customer | none | local
+    key_id = db.Column(db.Integer, nullable=True)                    # CustomerApiKey.id when key_kind = customer
+    key_prefix = db.Column(db.String(12), nullable=True)
+    caller_ip = db.Column(db.String(64), nullable=True)
+    outcome = db.Column(db.String(10), nullable=False, index=True)   # allowed | denied
+    detail = db.Column(db.String(255), nullable=True)                # why denied
+
+
 class SignalReview(db.Model):
     """Audit row for every human decision on a piece of evidence (G4: human
     verification, with a record). One row per decision; nodes carry the

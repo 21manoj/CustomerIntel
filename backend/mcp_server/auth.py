@@ -115,22 +115,27 @@ def require_auth_if_key_present(tool_name: str, customer_id: int = None):
         ToolError if a key IS present but fails validation.
     """
     from fastmcp.exceptions import ToolError
+    from mcp_server import audit
 
     # Non-HTTP transports (stdio, SSE, etc.) are trusted — local process.
     transport = os.environ.get("MCP_TRANSPORT", "stdio")
     if transport != "http":
+        audit.record('mcp', tool_name, customer_id, key_kind='local', outcome='allowed')
         return None
 
     raw_key = extract_api_key()
     if not raw_key:
+        audit.record('mcp', tool_name, customer_id, key_kind='none', outcome='allowed', detail='frictionless onboarding')
         return None  # No key → prospect flow, allow (frictionless behavior)
 
     key_record = validate_customer_key(raw_key)
 
     if not key_record and validate_server_key(raw_key):
+        audit.record('mcp', tool_name, customer_id, key_kind='server', outcome='allowed')
         return None  # Server key = super-admin, allow everything
 
     if not key_record:
+        audit.record('mcp', tool_name, customer_id, key_kind='none', outcome='denied', detail='invalid or expired key')
         raise ToolError(
             "Invalid or expired API key provided. "
             "Onboarding tools don't require a key — remove the Authorization "
@@ -138,6 +143,8 @@ def require_auth_if_key_present(tool_name: str, customer_id: int = None):
         )
 
     if customer_id is not None and key_record.customer_id != int(customer_id):
+        audit.record('mcp', tool_name, customer_id, key_kind='customer', key_record=key_record, outcome='denied',
+                     detail=f'key scoped to customer {key_record.customer_id}')
         raise ToolError(
             f"API key does not have access to customer {customer_id}. "
             f"This key is scoped to a different customer."
@@ -145,11 +152,13 @@ def require_auth_if_key_present(tool_name: str, customer_id: int = None):
 
     if is_write_tool(tool_name):
         if not check_scope(key_record, 'write'):
+            audit.record('mcp', tool_name, customer_id, key_kind='customer', key_record=key_record, outcome='denied', detail='lacks write scope')
             raise ToolError(
                 f"API key lacks required 'write' scope for tool '{tool_name}'. "
                 f"Current scopes: {key_record.scopes}."
             )
 
+    audit.record('mcp', tool_name, customer_id, key_kind='customer', key_record=key_record, outcome='allowed')
     return key_record
 
 
