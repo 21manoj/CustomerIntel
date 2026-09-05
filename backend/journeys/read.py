@@ -137,6 +137,19 @@ def list_journeys(customer_id: int) -> List[dict]:
             'first_leading_warning_at': (jj.get('leading_vs_trailing') or {}).get('first_leading_warning_at'),
             'lead_days': (jj.get('leading_vs_trailing') or {}).get('lead_days'),
             'episodes': len(jj.get('episodes') or []), 'open_review_count': open_by_acct.get(a.account_id, 0),
+            'forecast': _forecast_row(jj.get('forecast')),
             'updated_at': j.updated_at.isoformat() if j.updated_at else None,
         })
     return out
+
+
+def _forecast_row(fc: Optional[dict]) -> Optional[dict]:
+    """The Foresight block reduced to the portfolio row: basis, label counts, retention with its range, expected ARR."""
+    if not fc or fc.get('status') != 'forecast':
+        return {'status': (fc or {}).get('status') or 'not_run'}
+    ret, rev, labels = fc.get('retention') or {}, fc.get('revenue') or {}, fc.get('labels') or {}
+    return {'status': 'forecast', 'basis': fc.get('basis'), 'labels': {'n': labels.get('n'), 'needed': labels.get('needed')},
+            'p_retain': ret.get('p'), 'p_retain_low': ret.get('low'), 'p_retain_high': ret.get('high'),
+            'p_expand': (fc.get('expansion') or {}).get('p'), 'expected_arr_end': rev.get('expected_arr_end'),
+            'expected_arr_low': rev.get('low'), 'expected_arr_high': rev.get('high'), 'horizon_days': fc.get('horizon_days'),
+            'decision_point': (fc.get('decision_point') or {}).get('at'), 'stale': fc.get('stale'), 'run_id': fc.get('run_id')}

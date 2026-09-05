@@ -246,6 +246,38 @@ def _t_arc(arc: dict, by_id: Dict[str, dict]) -> Optional[Tuple[str, List[str]]]
     return None
 
 
+def _pct(x) -> str:
+    return f"{100.0 * float(x):.0f}%"
+
+
+def _t_forecast(journey: dict, by_id: Dict[str, dict]) -> Optional[Tuple[str, List[str]]]:
+    """Foresight in one sentence: the basis and the label counts, the retention and expansion
+    probabilities with their ranges, and the expected ARR against today's — citing the
+    episodes the forecast rests on (arc support, latest series contributors, the last
+    health move, interventions in flight, the renewal milestone)."""
+    fc = journey.get('forecast') or {}
+    if fc.get('status') != 'forecast':
+        return None
+    cites = [c for c in fc.get('cites', []) if c in by_id]
+    if not cites:
+        return None
+    labels, ret, exp, rev = fc.get('labels') or {}, fc.get('retention') or {}, fc.get('expansion') or {}, fc.get('revenue') or {}
+    if fc.get('basis') == 'calibrated' and labels.get('stratum_used') == 'own':
+        basis = f"calibrated on {labels.get('stratum_n')} of {labels.get('n')} labelled decisions in its own stratum {labels.get('stratum')}"
+    elif fc.get('basis') == 'calibrated':
+        basis = f"calibrated on all {labels.get('n')} labelled decisions, pooled — stratum {labels.get('stratum')} has {labels.get('stratum_n')}"
+    else:
+        basis = f"prior basis — {labels.get('n', 0)} of {labels.get('needed')} labelled decisions needed to calibrate"
+    dp = fc.get('decision_point') or {}
+    when = (f"at the {dp.get('kind', 'decision').replace('_', ' ')} on {_day(dp['at'] + 'T00:00:00')}" if dp.get('inside_horizon') and dp.get('at')
+            else f"over the next {fc.get('horizon_days')} days")
+    stale = ' (stale: evidence has arrived since this forecast)' if fc.get('stale') else ''
+    text = (f"Foresight ({basis}) puts retention at {_pct(ret.get('p'))} (range {_pct(ret.get('low'))}–{_pct(ret.get('high'))}) "
+            f"and expansion at {_pct(exp.get('p'))} {when}, expected ARR ${rev.get('expected_arr_end', 0):,.0f} "
+            f"(range ${rev.get('low', 0):,.0f}–${rev.get('high', 0):,.0f}) against ${rev.get('arr', 0):,.0f} today{stale}.")
+    return text, cites
+
+
 # ── assembly ────────────────────────────────────────────────────────────
 
 def _chapters_for(journey: dict, episodes: List[dict]) -> List[dict]:
@@ -362,6 +394,16 @@ def build_narrative(journey: dict, rejected: Optional[List[dict]] = None) -> dic
     elif (journey.get('arc') or {}).get('state') in ('steady', 'unclassified'):
         omitted.append({'reason': 'no_citation', 'template': 'arc_statement',
                         'note': f"state {journey['arc']['state']}: {journey['arc'].get('reason') or 'no rule satisfied'}"})
+
+    # the forecast, after the arc: the forward reading of the evidence above
+    res = _t_forecast(journey, by_id)
+    if res:
+        chapters[-1]['sentences'].append({'text': res[0], 'cites': res[1], 'template': 'forecast_statement'})
+    elif (journey.get('forecast') or {}).get('status') == 'forecast':
+        omitted.append({'reason': 'no_citation', 'template': 'forecast_statement',
+                        'note': 'a forecast exists but rests on no episode in this journey; sentence not written'})
+    elif journey.get('forecast'):
+        omitted.append({'reason': 'no_forecast', 'template': 'forecast_statement', 'note': journey['forecast'].get('note') or 'no Foresight run'})
 
     # things the story could not say
     renewal = next((e for e in journey.get('episodes', []) if e.get('kind') == 'renewal'), None)

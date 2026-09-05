@@ -13,6 +13,7 @@ Present:
   calculate_health_scores         (Stage 2 — Tier 2A-4, ORM rewrite)
   backfill_product_adoption       (Stage 2b)
   run_wizard_a_step               (Stage 3 — Tier 2A-5, Wizard A v2: journeys/)
+  run_wizard_d_step               (Stage 3c — Wizard D Foresight: wizards/wizard_d_foresight.py)
   link_stakeholders_to_decisions  (item 38 — after Wizard A; now links only
                                    OBSERVED decisions, since v2 writes no
                                    synthetic DECISION nodes)
@@ -376,6 +377,32 @@ def run_wizard_b_step(customer_id: int):
                 f"{h1['events']}_h1_events_{len(res['early_warning_rules'])}_rules"), dur
     except Exception as e:
         logger.warning('Wizard B step failed (non-fatal): %s', e, exc_info=True)
+        from extensions import db
+        db.session.rollback()
+        return None, round(time.time() - t0, 2)
+
+
+# ═══════════════════════════════════════════════════════════════
+# Stage 3c: Wizard D — Foresight (auto after Wizard B; config run_in_process_data)
+# ═══════════════════════════════════════════════════════════════
+
+def run_wizard_d_step(customer_id: int):
+    """Returns (step, duration_s). Non-fatal; off via wizard_d.json run_in_process_data."""
+    t0 = time.time()
+    try:
+        from wizards import wizard_d_settings
+        if not wizard_d_settings.get('run_in_process_data'):
+            return None, round(time.time() - t0, 2)
+        from wizards.wizard_d_foresight import run_wizard_d
+        res = run_wizard_d(customer_id, created_by='process_data')
+        dur = round(time.time() - t0, 2)
+        if res.get('status') != 'completed':
+            return None, dur
+        bc = res['basis_counts']
+        return (f"wizard_d_{res['accounts']}_forecasts_{bc.get('prior', 0)}_prior_{bc.get('calibrated', 0)}_calibrated_"
+                f"{res['labels']['n']}_of_{res['labels']['needed']}_labels"), dur
+    except Exception as e:
+        logger.warning('Wizard D step failed (non-fatal): %s', e, exc_info=True)
         from extensions import db
         db.session.rollback()
         return None, round(time.time() - t0, 2)
