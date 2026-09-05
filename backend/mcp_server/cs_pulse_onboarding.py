@@ -1203,6 +1203,15 @@ def delete_customer(customer_id: int, confirm_domain: str, reason: str) -> dict:
         _del(ProcessRun, ProcessRun.query.filter_by(customer_id=c.customer_id))
         _del(CsvUploadStaging, CsvUploadStaging.query.filter_by(customer_id=c.customer_id))
         _del(CsvUpload, CsvUpload.query.filter_by(customer_id=c.customer_id))
+        # the LLM spend ledger references the tenant: its totals go into the audit detail, then the rows go
+        from sqlalchemy import text as _text, func as _func
+        usage_totals = dict(db.session.execute(_text(
+            'select count(*), coalesce(sum(tokens_in),0), coalesce(sum(tokens_out),0) from llm_usage_log where customer_id=:cid'),
+            {'cid': c.customer_id}).first()._mapping) if db.session.execute(_text(
+            "select 1 from information_schema.tables where table_name='llm_usage_log'")).first() else {}
+        if usage_totals:
+            n = db.session.execute(_text('delete from llm_usage_log where customer_id=:cid'), {'cid': c.customer_id}).rowcount
+            counts['llm_usage_log'] = int(n or 0)
         _del(FeatureToggle, FeatureToggle.query.filter_by(customer_id=c.customer_id))
         _del(CustomerApiKey, CustomerApiKey.query.filter_by(customer_id=c.customer_id))
         _del(Account, Account.query.filter_by(customer_id=c.customer_id))
@@ -1212,5 +1221,5 @@ def delete_customer(customer_id: int, confirm_domain: str, reason: str) -> dict:
         db.session.delete(c)
         db.session.commit()
         _audit.record('mcp', 'delete_customer', customer_id, key_kind='server' if raw else 'local', outcome='allowed',
-                      detail=f'{name} ({domain}) deleted: {reason.strip()[:200]} — rows {counts}')
+                      detail=f'{name} ({domain}) deleted: {reason.strip()[:200]} — rows {counts} — llm usage {usage_totals}')
         return {'customer_id': customer_id, 'customer_name': name, 'domain': domain, 'deleted_rows': counts, 'reason': reason.strip()}
