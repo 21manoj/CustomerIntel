@@ -4,35 +4,85 @@
   "playbooks": [
     {
       "id": "escalation_clinical_response",
-      "label": "Escalation — clinical-ops response",
-      "trigger": {"roles": ["escalation", "infra_incident"], "urgency_floor": "high"},
+      "label": "Escalation: clinical-ops response",
+      "trigger": {
+        "roles": [
+          "escalation",
+          "infra_incident"
+        ],
+        "urgency_floor": "high"
+      },
       "action_class": "escalate",
       "approval": "human",
-      "expected_outcome": {"types": ["escalation_resolved", "churn_averted", "churn_lost"], "window_days": 60}
+      "expected_outcome": {
+        "types": [
+          "escalation_resolved",
+          "churn_averted",
+          "churn_lost"
+        ],
+        "window_days": 60
+      }
     },
     {
       "id": "rollout_stall_recovery",
-      "label": "Rollout stall — implementation recovery",
-      "trigger": {"roles": ["delivery_stall"], "urgency_floor": "high"},
+      "label": "Rollout stall: implementation recovery",
+      "trigger": {
+        "roles": [
+          "delivery_stall"
+        ],
+        "urgency_floor": "high"
+      },
       "action_class": "schedule",
       "approval": "human",
-      "expected_outcome": {"types": ["revenue_protected", "renewal_secured", "contraction"], "window_days": 120}
+      "expected_outcome": {
+        "types": [
+          "revenue_protected",
+          "renewal_secured",
+          "contraction"
+        ],
+        "window_days": 120
+      }
     },
     {
       "id": "commercial_pressure_save",
-      "label": "Commercial pressure — renewal save",
-      "trigger": {"roles": ["commercial_pressure"], "urgency_floor": "high", "renewal_within_days": 180},
+      "label": "Commercial pressure: renewal save",
+      "trigger": {
+        "roles": [
+          "commercial_pressure"
+        ],
+        "urgency_floor": "high",
+        "renewal_within_days": 180
+      },
       "action_class": "schedule",
       "approval": "human",
-      "expected_outcome": {"types": ["renewal_secured", "revenue_protected", "contraction", "churn_lost"], "window_days": 120}
+      "expected_outcome": {
+        "types": [
+          "renewal_secured",
+          "revenue_protected",
+          "contraction",
+          "churn_lost"
+        ],
+        "window_days": 120
+      }
     },
     {
       "id": "expansion_intent_handoff",
-      "label": "Expansion intent — sales handoff",
-      "trigger": {"roles": ["expansion_intent"], "urgency_floor": "medium"},
+      "label": "Expansion intent: sales handoff",
+      "trigger": {
+        "roles": [
+          "expansion_intent"
+        ],
+        "urgency_floor": "medium"
+      },
       "action_class": "notify",
       "approval": "auto",
-      "expected_outcome": {"types": ["expansion_closed", "expansion_opportunity"], "window_days": 90}
+      "expected_outcome": {
+        "types": [
+          "expansion_closed",
+          "expansion_opportunity"
+        ],
+        "window_days": 90
+      }
     }
   ]
 }

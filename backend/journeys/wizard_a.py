@@ -31,7 +31,8 @@ logger = logging.getLogger(__name__)
 #   3.2  narrative block — cited prose, template_v1 (2026-09-04)
 #   3.3  data_coverage, evidence phases, evidence-only arc predicates (2026-09-05)
 #   3.4  INTERVENTION episodes (kind 'intervention') from the playbook governance layer (2026-09-05)
-GENERATOR_VERSION = '3.4'
+#   3.5  intervention sentence: outcomes without a revenue figure are not '$0'; playbook labels readable (2026-09-05)
+GENERATOR_VERSION = '3.5'
 
 
 def stale_journey_query(customer_id: Optional[int] = None):

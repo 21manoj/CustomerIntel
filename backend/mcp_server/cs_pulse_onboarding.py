@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import os
 from datetime import datetime
+from typing import Optional
 """
 CS Pulse MCP — Onboarding Tools (frictionless auth).
 
@@ -1353,7 +1354,7 @@ def approve_intervention(customer_id: int, intervention_id: int, note: str = Non
 
 @mcp.tool
 def report_intervention(customer_id: int, intervention_id: int, state: str, note: str = None,
-                        outcome_type: str = None, outcome_date: str = None, revenue: float = None) -> dict:
+                        outcome_type: str = None, outcome_date: str = None, revenue: Optional[float] = None) -> dict:
     """What the external workflow calls back with. state: 'started'
     (informational), 'done', 'failed', or 'cancelled' (also how a person
     declines a proposal). An outcome, if given, is logged through

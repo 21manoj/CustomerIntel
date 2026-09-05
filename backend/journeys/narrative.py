@@ -215,8 +215,10 @@ def _t_intervention(hook: dict, by_id: Dict[str, dict]) -> Optional[Tuple[str, L
     outs = [o for o in hook.get('outcomes_after', []) if o.get('episode_id') in by_id]
     if outs:
         cites.extend(o['episode_id'] for o in outs)
-        text += ", with " + _join([f"{_lc(_strip_suffix(by_id[o['episode_id']].get('title') or o.get('bucket', 'an outcome')))} "
-                                   f"(${abs(o.get('revenue') or 0):,.0f} {o.get('bucket', '')})".strip() for o in outs]) + " within 90 days"
+        def _amt(o):      # an outcome without a revenue figure is said without one, never as $0
+            return f" (${abs(o['revenue']):,.0f} {o.get('bucket', '')})".rstrip() if o.get('revenue') is not None else (f" ({o['bucket']})" if o.get('bucket') else '')
+        text += ", with " + _join([f"{_lc(_strip_suffix(by_id[o['episode_id']].get('title') or o.get('bucket', 'an outcome')))}{_amt(o)}"
+                                   for o in outs]) + " within 90 days"
     return text + '.', cites
 
 

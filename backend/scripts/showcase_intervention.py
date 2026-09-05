@@ -95,7 +95,7 @@ async def run(args) -> dict:
         say(f"6 report_intervention started → started_at={st['started_at']}")
         kw = {'state': args.report, 'note': args.report_note}
         if args.outcome_type:
-            kw.update({'outcome_type': args.outcome_type, 'outcome_date': args.outcome_date, 'revenue': args.revenue})
+            kw.update({k: v for k, v in (('outcome_type', args.outcome_type), ('outcome_date', args.outcome_date), ('revenue', args.revenue)) if v is not None})
         rp = await call('report_intervention', customer_id=cid, intervention_id=target['intervention_id'], **kw)
         say(f"7 report_intervention {args.report} → state={rp['state']} closed_state={rp['closed_state']} outcome={rp.get('outcome')}")
         li2 = await call('list_interventions', customer_id=cid)
