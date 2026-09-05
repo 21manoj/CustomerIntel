@@ -887,3 +887,48 @@ def review_signal(customer_id: int, signal_id: str, decision: str, subtype: str 
             return _rs(customer_id, signal_id, decision, subtype=subtype, node_id=node_id, note=note, reviewer=reviewer)
         except ValueError as e:
             raise ToolError(str(e))
+
+
+@mcp.tool
+def log_outcome(customer_id: int, account_id: int, outcome_type: str, occurred_at: str, revenue: float = None,
+                note: str = None, linked_signal_ids: list = None, decided_by: str = None, source_type: str = 'manual',
+                source_ref: str = None) -> dict:
+    """Record a decision on an account: renewal secured, churn lost,
+    contraction, expansion closed, refresh won… This is the outcome record
+    that Hindsight measures against (realized NRR, lead-time backtest) and
+    that the journey narrative cites; without it a passed renewal reads
+    "no outcome recorded".
+
+    - outcome_type: a revenue-vocabulary subtype from the tenant taxonomy
+      (e.g. renewal_secured, churn_lost, contraction, expansion_closed,
+      revenue_protected). Unknown types are rejected with the allowed list.
+    - occurred_at: ISO date of the DECISION (signature, cancellation notice,
+      PO), not of this call.
+    - revenue: the movement in currency; losses may be given positive, they
+      are stored negative.
+    - linked_signal_ids: the signals that preceded it (signal ids, source refs
+      or node ids) — become LED_TO edges the backtest and canvas read.
+    - Logging the same decision twice returns 'exists'.
+
+    Args:
+        customer_id: The customer ID
+        account_id: The account ID
+        outcome_type: Taxonomy outcome subtype
+        occurred_at: ISO decision date
+        revenue: Revenue movement (optional)
+        note: Why / evidence (optional, stored)
+        linked_signal_ids: Preceding signals to link (optional)
+        decided_by: Who recorded the decision (optional)
+        source_type: manual | crm_activity | external (default manual)
+        source_ref: Reference in the source system (contract id, opportunity id) (optional)
+    """
+    _require_auth_if_key_present('log_outcome', customer_id)
+    _check_mcp_enabled()
+    app = _get_flask_app()
+    with app.app_context():
+        from journeys.outcomes import log_outcome as _lo
+        try:
+            return _lo(customer_id, account_id, outcome_type, occurred_at, revenue=revenue, note=note,
+                       linked_signal_ids=linked_signal_ids, decided_by=decided_by, source_type=source_type, source_ref=source_ref)
+        except ValueError as e:
+            raise ToolError(str(e))

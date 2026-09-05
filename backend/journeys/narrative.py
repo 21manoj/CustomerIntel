@@ -194,11 +194,11 @@ def _t_intervention(hook: dict, by_id: Dict[str, dict]) -> Optional[Tuple[str, L
     return text + '.', cites
 
 
-def _t_live_notice(journey: dict, live_signals: List[dict]) -> Optional[Tuple[str, List[str]]]:
-    if not journey.get('live_months') or not live_signals:
+def _t_live_notice(journey: dict, live_eps: List[dict]) -> Optional[Tuple[str, List[str]]]:
+    if not journey.get('live_months') or not live_eps:
         return None
     return (f"No KPI upload has arrived since {_month(journey.get('last_scored_month'))}; what follows is live evidence only.",
-            [live_signals[0]['episode_id']])
+            [live_eps[0]['episode_id']])
 
 
 def _t_arc(arc: dict, by_id: Dict[str, dict]) -> Optional[Tuple[str, List[str]]]:
@@ -239,7 +239,7 @@ def build_narrative(journey: dict, rejected: Optional[List[dict]] = None) -> dic
     hook_ids = {h.get('episode_id') for h in hooks}
     hook_outcome_ids = {o.get('episode_id') for h in hooks for o in h.get('outcomes_after', [])}
     live_from = _d(journey['live_months'][0]) if journey.get('live_months') else None
-    live_signals = [e for e in episodes if e['kind'] == 'signal' and live_from and _d(e['date']) >= live_from]
+    live_eps = [e for e in episodes if live_from and _d(e['date']) >= live_from]      # every kind: signals, outcomes, decisions
 
     chapters, omitted = [], []
     for ci, ch in enumerate(_chapters_for(journey, episodes)):
@@ -279,21 +279,25 @@ def build_narrative(journey: dict, rejected: Optional[List[dict]] = None) -> dic
 
         chapters.append({'phase': ch['phase'], 'from': ch['from'], 'to': ch['to'], 'sentences': sentences})
 
-    # live evidence after the last scored month — its own closing chapter
-    if live_signals:
+    # evidence after the last scored month — its own closing chapter
+    if live_eps:
         sentences = []
-        res = _t_live_notice(journey, live_signals)
+        res = _t_live_notice(journey, live_eps)
         if res:
             sentences.append({'text': res[0], 'cites': res[1], 'template': 'live_months_notice'})
         by_day: 'OrderedDict[str, List[dict]]' = OrderedDict()
-        for e in live_signals:
+        for e in live_eps:
             by_day.setdefault(e['date'][:10], []).append(e)
         for day, eps in by_day.items():
             groups = _collapse(eps)
-            src = _SOURCE_NAME.get((eps[0].get('meta') or {}).get('source_platform') or '', 'a note')
             parts = [_phrase(g[0]) for g in groups]
             cites = [e['episode_id'] for g in groups for e in g]
-            sentences.append({'text': f"On {_day(day)} {src} recorded {_join(parts)}.", 'cites': cites, 'template': 'live_evidence_cluster'})
+            if all(e['kind'] == 'signal' for e in eps):
+                src = _SOURCE_NAME.get((eps[0].get('meta') or {}).get('source_platform') or '', 'a note')
+                text = f"On {_day(day)} {src} recorded {_join(parts)}."
+            else:
+                text = f"On {_day(day)}, {_join(parts)}."
+            sentences.append({'text': text, 'cites': cites, 'template': 'live_evidence_cluster'})
         chapters.append({'phase': 'live', 'from': journey['live_months'][0], 'to': None, 'sentences': sentences})
 
     # the arc, last, so it reads as the conclusion of the evidence above

@@ -460,6 +460,47 @@ class TestStaleJourneyRebuild:
             assert rebuild_stale_journeys(cid)['stale'] == 0          # idempotent
 
 
+class TestOutcomeLogging:
+    def test_log_outcome_links_signals_rebuilds_journey_and_closes_the_renewal_gap(self, tenant):
+        cid, aid = tenant
+        from mcp_server.cs_pulse_onboarding import log_outcome, get_journey, get_evidence
+        from models import ContextEdge
+        j = get_journey(cid, aid)                      # (this tenant's as_of is still spring 2026, so its Aug renewal has not 'passed' here)
+        champion_node = next(v for v in j['evidence'].values() if v['subtype'] == 'champion_departure')
+        res = log_outcome(cid, aid, 'renewal_secured', '2026-08-03', revenue=1_800_000, note='Signed 12-month renewal at flat ARR',
+                          linked_signal_ids=[champion_node['provenance']['signal_id']], decided_by='ae@t.test', source_ref='SO-2211')
+        assert res['status'] == 'logged' and res['bucket'] == 'protected' and res['evidence_clamped'] is False
+        assert res['linked_signal_node_ids'] == [champion_node['node_id']] and res['unresolved_signal_refs'] == []
+        with app.app_context():
+            n = db.session.get(ContextNode, res['node_id'])
+            assert n.node_type == 'OUTCOME' and n.source == 'observed' and n.tier == 1 and float(n.confidence) == 1.0
+            assert n.properties['decided_by'] == 'ae@t.test' and n.source_ref == 'SO-2211' and n.source_event_id.startswith('outcome:')
+            e = ContextEdge.query.filter_by(to_node_id=n.node_id, edge_type='LED_TO').one()
+            assert e.from_node_id == champion_node['node_id'] and e.created_by == 'log_outcome'
+        j = get_journey(cid, aid)
+        assert not any(o.get('template') == 'renewal_outcome' for o in j['narrative']['omitted'])
+        ep = next(e for e in j['episodes'] if e['kind'] == 'outcome' and e['subtype'] == 'renewal_secured')
+        assert ep['revenue'] == 1_800_000 and ep['revenue_bucket'] == 'protected'
+        assert any('renewal secured' in s['text'].lower() for ch in j['narrative']['chapters'] for s in ch['sentences'])
+        assert any(v['subtype'] == 'renewal_secured' for v in get_evidence(cid, account_id=aid)['evidence'])
+        # idempotent, loss sign, vocabulary
+        assert log_outcome(cid, aid, 'renewal_secured', '2026-08-03', revenue=1_800_000)['status'] == 'exists'
+        loss = log_outcome(cid, aid, 'contraction', '2026-08-20', revenue=200_000, decided_by='ae@t.test')
+        assert loss['revenue'] == -200_000 and loss['bucket'] == 'lost'
+        import pytest
+        from fastmcp.exceptions import ToolError
+        with pytest.raises(ToolError):
+            log_outcome(cid, aid, 'made_up_outcome', '2026-08-03')
+        with pytest.raises(ToolError):
+            log_outcome(cid, aid, 'churn_lost', '')
+
+    def test_outcome_without_note_or_decider_is_clamped(self, tenant):
+        cid, aid = tenant
+        from mcp_server.cs_pulse_onboarding import log_outcome
+        res = log_outcome(cid, aid, 'expansion_opportunity', '2026-09-01', revenue=50_000)
+        assert res['evidence_clamped'] is True and res['confidence'] <= 0.3         # unearned claim, honestly marked
+
+
 class TestHttpSurface:
     @pytest.fixture(scope='class')
     def client(self, tenant):
@@ -490,6 +531,12 @@ class TestHttpSurface:
         assert ev['count'] >= 1
         r = client.post('/api/signals/review', headers=h, json={'customer_id': cid, 'signal_id': 'nope', 'decision': 'accept'})
         assert r.status_code == 400
+        assert '/api/outcomes' in JR
+        v = client.get(f'/api/outcomes/vocabulary?customer_id={cid}', headers=h).json()['outcome_types']
+        assert 'renewal_secured' in v['protected'] and 'churn_lost' in v['lost']
+        r = client.post('/api/outcomes', headers=h, json={'customer_id': cid, 'account_id': aid, 'outcome_type': 'nope', 'occurred_at': '2026-08-01'})
+        assert r.status_code == 400 and 'allowed' in r.json()['error']
+        assert client.post('/api/outcomes', json={'customer_id': cid, 'account_id': aid, 'outcome_type': 'churn_lost', 'occurred_at': '2026-08-01'}).status_code == 401
         hist = client.get(f'/api/signals/review/history?customer_id={cid}', headers=h).json()['history']
         assert len(hist) >= 3 and {x['decision'] for x in hist} >= {'accept', 'reject', 'reclassify'}
 
