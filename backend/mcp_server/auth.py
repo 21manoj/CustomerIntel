@@ -83,6 +83,12 @@ WRITE_TOOLS = {
     'trigger_wizard',
     'complete_onboarding',
     'validate_csv',
+    # keyed tools that change state
+    'submit_signal',
+    'process_signals',
+    'configure_signal_engine',
+    'review_signal',
+    'log_outcome',
 }
 
 
@@ -125,8 +131,15 @@ def require_auth_if_key_present(tool_name: str, customer_id: int = None):
 
     raw_key = extract_api_key()
     if not raw_key:
-        audit.record('mcp', tool_name, customer_id, key_kind='none', outcome='allowed', detail='frictionless onboarding')
-        return None  # No key → prospect flow, allow (frictionless behavior)
+        if is_onboarding_tool(tool_name) or not MCP_AUTH_REQUIRED:
+            audit.record('mcp', tool_name, customer_id, key_kind='none', outcome='allowed', detail='frictionless onboarding')
+            return None  # No key → prospect flow, allow (frictionless behavior)
+        audit.record('mcp', tool_name, customer_id, key_kind='none', outcome='denied', detail='key required')
+        raise ToolError(
+            f"Tool '{tool_name}' requires an API key over HTTP: send 'Authorization: Bearer <key>' "
+            f"(the server key, or a customer key for customer {customer_id}). "
+            f"Only the onboarding tools are frictionless."
+        )
 
     key_record = validate_customer_key(raw_key)
 
@@ -149,6 +162,10 @@ def require_auth_if_key_present(tool_name: str, customer_id: int = None):
             f"API key does not have access to customer {customer_id}. "
             f"This key is scoped to a different customer."
         )
+
+    if not is_onboarding_tool(tool_name) and not check_scope(key_record, 'read'):
+        audit.record('mcp', tool_name, customer_id, key_kind='customer', key_record=key_record, outcome='denied', detail='lacks read scope')
+        raise ToolError(f"API key lacks 'read' scope for tool '{tool_name}'.")
 
     if is_write_tool(tool_name):
         if not check_scope(key_record, 'write'):

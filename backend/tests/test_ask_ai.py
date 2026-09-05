@@ -345,19 +345,29 @@ class TestSurface:
         assert client.post('/api/ask', headers=h, json={'customer_id': cid, 'question': 'x', 'account_id': 999999}).status_code == 404
         assert client.post('/api/ask', headers=h, json={'customer_id': cid, 'question': 'x', 'account_id': aid, 'as_of': 'nope'}).status_code == 400
 
-    def test_mcp_tool_registered_and_frictionless(self, tenant):
+    def test_mcp_tool_registered_and_keyed(self, tenant, monkeypatch):
         from mcp_server.cs_pulse_mcp_server import mcp
-        from mcp_server.onboarding_tool_registry import ONBOARDING_TOOLS
-        assert 'ask' in ONBOARDING_TOOLS
+        from mcp_server.onboarding_tool_registry import KEYED_TOOLS, ONBOARDING_TOOLS
+        assert 'ask' in KEYED_TOOLS and 'ask' not in ONBOARDING_TOOLS      # a key is required over HTTP
         tool = asyncio.run(mcp.get_tool('ask'))
         assert tool is not None and 'question' in tool.parameters['properties']
         cid, aid, *_ = tenant
         from mcp_server.cs_pulse_onboarding import ask as ask_tool
-        res = ask_tool(cid, 'what happened with the champion?', account_id=aid)
-        assert res['model'] == STUB_MODEL and res['sentences']
         from fastmcp.exceptions import ToolError
-        with pytest.raises(ToolError):
-            ask_tool(cid, 'x', account_id=999999)
+        import mcp_server.auth as auth
+        monkeypatch.setenv('MCP_TRANSPORT', 'http')
+        monkeypatch.setattr(auth, 'MCP_AUTH_REQUIRED', True)
+        monkeypatch.setattr(auth, 'MCP_SERVER_API_KEY', 'srv-test-key')
+        with pytest.raises(ToolError, match='requires an API key'):
+            ask_tool(cid, 'what happened with the champion?', account_id=aid)          # anonymous over HTTP: denied
+        tok = auth._current_api_key_var.set('srv-test-key')
+        try:
+            res = ask_tool(cid, 'what happened with the champion?', account_id=aid)
+            assert res['model'] == STUB_MODEL and res['sentences']
+            with pytest.raises(ToolError):
+                ask_tool(cid, 'x', account_id=999999)
+        finally:
+            auth._current_api_key_var.reset(tok)
 
 
 if __name__ == '__main__':

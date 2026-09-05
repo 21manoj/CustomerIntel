@@ -576,7 +576,12 @@ class TestHttpSurface:
         r = client.post('/api/signals/ingest/email/parse', data=form)
         assert r.status_code == 403                                                  # toggle off
         from mcp_server.cs_pulse_onboarding import configure_signal_engine
-        configure_signal_engine(cid, enabled=True)
+        import mcp_server.auth as auth
+        tok = auth._current_api_key_var.set(client.key)          # keyed tool: the server key, as an operator would
+        try:
+            configure_signal_engine(cid, enabled=True)
+        finally:
+            auth._current_api_key_var.reset(tok)
         r = client.post('/api/signals/ingest/email/parse', data=form)
         assert r.status_code == 202, r.text
         body = r.json()
