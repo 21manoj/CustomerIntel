@@ -19,7 +19,8 @@ if str(BACKEND) not in sys.path:
 TEST_DB = os.environ.get('DATABASE_URL', 'postgresql://manojgupta@localhost:5432/customerintel_test')
 if 'test' not in TEST_DB.rsplit('/', 1)[-1].lower():
     raise RuntimeError('refusing non-test database')
-MIG_DB = TEST_DB.rsplit('/', 1)[0] + '/customerintel_migrations_test'
+MIG_NAME = TEST_DB.rsplit('/', 1)[-1].split('?', 1)[0] + '_migrations'     # per test DB, so parallel suites never share it
+MIG_DB = TEST_DB.rsplit('/', 1)[0] + '/' + MIG_NAME
 
 
 def _diff(engine):
@@ -36,13 +37,13 @@ def scratch():
     """A separate, empty database for the migration paths (the shared test DB is create_all'd by every other module)."""
     admin = create_engine(TEST_DB, isolation_level='AUTOCOMMIT')
     with admin.connect() as conn:
-        conn.execute(text('DROP DATABASE IF EXISTS customerintel_migrations_test'))
-        conn.execute(text('CREATE DATABASE customerintel_migrations_test'))
+        conn.execute(text(f'DROP DATABASE IF EXISTS {MIG_NAME}'))
+        conn.execute(text(f'CREATE DATABASE {MIG_NAME}'))
     eng = create_engine(MIG_DB)
     yield eng
     eng.dispose()
     with admin.connect() as conn:
-        conn.execute(text('DROP DATABASE IF EXISTS customerintel_migrations_test WITH (FORCE)'))
+        conn.execute(text(f'DROP DATABASE IF EXISTS {MIG_NAME} WITH (FORCE)'))
 
 
 def _wipe(engine):
