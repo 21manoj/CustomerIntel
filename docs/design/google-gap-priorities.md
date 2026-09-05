@@ -4,6 +4,8 @@
 
 ---
 
+> **Status 2026-09-04 (later):** the two "already underway" items shipped, and so did: outcome logging, Ask AI over the contract, Generator v2 + first real extraction scorecard (`backend/evals/labelled/`), the tool-call audit log (`GET /api/audit`), and query-string keys off by default (part of gap 7/8 here). The superseding, platform-wide list is `governance-pass-platform-2026-09.md`.
+
 ## 0. The frame
 
 Google wrote its four areas for a law firm filing a brief. Our buyer is a CRO / CFO / VP CS who has to believe an early warning, and an IT reviewer who has to let customer emails reach us. Each gap is judged on one question: **does it make "what happened, who, how early, how sure — with the evidence attached" more defensible in a sale, or cheaper to prove later?** Anything that only makes us resemble Gemini Enterprise is dropped.
