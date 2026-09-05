@@ -417,3 +417,75 @@ def process_pending(customer_id: Optional[int] = None, limit: int = 50, rebuild_
                 db.session.rollback()
     out['accounts'] = sorted(out['accounts'])
     return out
+
+
+# ── bulk import ─────────────────────────────────────────────────────────
+
+IMPORT_BATCH_MAX = 500
+
+
+def resolve_account_ref(customer_id: int, item: dict):
+    """external id → account id → name (case-insensitive); None when nothing matches."""
+    from models import Account
+    q = Account.query.filter_by(customer_id=int(customer_id))
+    ext = item.get('source_account_id') or item.get('external_account_id')
+    if ext:
+        a = q.filter_by(external_account_id=str(ext)).first()
+        if a:
+            return a
+    if item.get('account_id'):
+        a = q.filter_by(account_id=int(item['account_id'])).first()
+        if a:
+            return a
+    name = item.get('account_name')
+    if name:
+        a = q.filter(Account.account_name.ilike(str(name))).first()
+        if a:
+            return a
+    return None
+
+
+def import_communications(customer_id: int, communications: list, process_now: bool = True) -> dict:
+    """The bulk lane for raw communications (a customer's export, the
+    generator's communications.jsonl): every item goes through ingest();
+    duplicates and unknown accounts are reported, not dropped."""
+    if not isinstance(communications, list):
+        raise ValueError('communications must be a list')
+    if len(communications) > IMPORT_BATCH_MAX:
+        raise ValueError(f'at most {IMPORT_BATCH_MAX} communications per call (got {len(communications)})')
+    out = {'received': len(communications), 'queued': 0, 'duplicates': 0, 'unknown_accounts': [], 'rejected': [], 'signal_ids': [], 'by_ref': {}}
+    for i, item in enumerate(communications):
+        if not isinstance(item, dict):
+            out['rejected'].append({'index': i, 'error': 'not an object'})
+            continue
+        acct = resolve_account_ref(customer_id, item)
+        if acct is None:
+            out['unknown_accounts'].append({'index': i, 'ref': item.get('source_account_id') or item.get('account_id') or item.get('account_name')})
+            continue
+        try:
+            r = ingest(customer_id, acct.account_id, item.get('source_type') or 'manual', item.get('text') or item.get('raw_text') or '',
+                       occurred_at=item.get('occurred_at'), participants=item.get('participants'), signal_type=item.get('signal_type'),
+                       source_ref=item.get('source_ref') or item.get('ref'), consent_verified=item.get('consent_verified'))
+        except ValueError as e:
+            out['rejected'].append({'index': i, 'error': str(e)})
+            continue
+        ref = item.get('source_ref') or item.get('ref')
+        if r['status'] == 'queued':
+            out['queued'] += 1
+            out['signal_ids'].append(r['signal_id'])
+            if ref:
+                out['by_ref'][str(ref)] = r['signal_id']
+        else:
+            out['duplicates'] += 1
+            if ref and r.get('duplicate_of'):
+                out['by_ref'][str(ref)] = r['duplicate_of']
+    if process_now and out['queued']:
+        totals = {'processed': 0, 'nodes_written': 0, 'unclassified': 0, 'errors': 0, 'journeys_rebuilt': 0}
+        while True:
+            res = process_pending(customer_id=customer_id, limit=200, rebuild_journeys=True)
+            for k in totals:
+                totals[k] += res.get(k, 0)
+            if not res['processed']:
+                break
+        out['processed'] = totals
+    return out

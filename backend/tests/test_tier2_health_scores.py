@@ -72,7 +72,7 @@ KPI_CSV = (
 def _new_customer(prefix: str, vertical: str = 'datacenter_v1') -> int:
     from mcp_server.cs_pulse_onboarding import create_customer
     tag = uuid.uuid4().hex[:8]
-    return create_customer(
+    return create_customer(data_origin='synthetic_test', 
         name=f'{prefix} {tag}', domain=f'{prefix}-{tag}.test', vertical=vertical,
         admin_email=f'{prefix}_{tag}@t.test', admin_name='A',
     )['customer_id']

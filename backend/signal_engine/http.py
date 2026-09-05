@@ -132,6 +132,26 @@ def register_signal_routes(mcp) -> None:
         code, body = _with_app(lambda: handle_slack_event(data, dict(request.headers), raw, dict(request.query_params)))
         return JSONResponse(body, status_code=code)
 
+    @mcp.custom_route('/api/signals/import', methods=['POST'], name='signals_import')
+    async def bulk_import(request):
+        """JSON {customer_id, communications:[…], process_now?} or a JSON-lines body with ?customer_id=."""
+        ctype = request.headers.get('content-type', '')
+        raw = await request.body()
+        if 'json' in ctype and not ctype.startswith('application/x-ndjson'):
+            data = json.loads(raw or b'{}')
+            cid, items, now = data.get('customer_id'), data.get('communications') or [], data.get('process_now', True)
+        else:
+            cid, now = request.query_params.get('customer_id'), request.query_params.get('process_now', '1') in ('1', 'true')
+            items = [json.loads(line) for line in raw.decode('utf-8', errors='replace').splitlines() if line.strip()]
+        ok, err = _with_app(lambda: _authorize(cid))
+        if not ok:
+            return JSONResponse(err, status_code=401)
+        from signal_engine.pipeline import import_communications
+        try:
+            return JSONResponse(_with_app(lambda: import_communications(int(cid), items, process_now=bool(now))))
+        except ValueError as e:
+            return JSONResponse({'error': str(e)}, status_code=400)
+
     @mcp.custom_route('/api/signals/process', methods=['POST'], name='signals_process')
     async def process(request):
         data = await _json(request)
@@ -190,6 +210,6 @@ ROUTES = (
     '/api/signals/ingest/transcript', '/api/signals/ingest/ticket', '/api/signals/ingest/crm_activity',
     '/api/signals/ingest/meeting', '/api/signals/ingest/external', '/api/signals/ingest/csv_import',
     '/api/signals/ingest/transcript/upload', '/api/signals/ingest/email/parse', '/api/signals/ingest/slack/events',
-    '/api/signals/process', '/api/signals/review-queue', '/api/signals/review', '/api/signals/review/history',
+    '/api/signals/import', '/api/signals/process', '/api/signals/review-queue', '/api/signals/review', '/api/signals/review/history',
     '/api/signals/status',
 )

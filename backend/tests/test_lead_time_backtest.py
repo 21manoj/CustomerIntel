@@ -79,7 +79,7 @@ def report():
         db.create_all()
         from mcp_server.cs_pulse_onboarding import create_customer
         tag = uuid.uuid4().hex[:8]
-        cid = create_customer(name=f'Backtest {tag}', domain=f'bt-{tag}.test', vertical='saas_premium',
+        cid = create_customer(data_origin='real', name=f'Backtest {tag}', domain=f'bt-{tag}.test', vertical='saas_premium',
                               admin_email=f'bt_{tag}@t.test', admin_name='B')['customer_id']
         _account(cid, 'Churner', [80, 78, 70, 60, 55, 45],
                  [(datetime(2026, 2, 10), 'usage_decline', -0.8)],
@@ -138,16 +138,16 @@ def test_refutation_check_runs_when_enough_events(report):
     assert not short['checks']['false_alarms_per_100']['pass']
 
 
-def test_measured_label_requires_null_origin_and_assertion(report):
+def test_measured_label_requires_real_origin_and_assertion(report):
     cid, _ = report
     with app.app_context():
         from evals.lead_time_backtest import run_backtest
         assert run_backtest(cid, assert_real=True)['evidence_label'] == 'measured'
         c = db.session.get(Customer, cid)
-        c.data_origin = 'synthetic_eval_profile'
+        c.data_origin = 'synthetic_demo'
         db.session.commit()
         assert run_backtest(cid, assert_real=True)['evidence_label'] != 'measured'
-        c.data_origin = None
+        c.data_origin = 'real'
         db.session.commit()
 
 

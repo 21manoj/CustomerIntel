@@ -89,6 +89,8 @@ WRITE_TOOLS = {
     'configure_signal_engine',
     'review_signal',
     'log_outcome',
+    'declare_data_origin',
+    'import_communications',
 }
 
 

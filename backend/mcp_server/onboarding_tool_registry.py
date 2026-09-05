@@ -43,6 +43,8 @@ KEYED_TOOLS = frozenset({
     'review_signal',
     'log_outcome',
     'ask',
+    'declare_data_origin',
+    'import_communications',
 })
 
 ALL_TOOLS = ONBOARDING_TOOLS | KEYED_TOOLS

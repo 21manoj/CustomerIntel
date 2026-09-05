@@ -22,7 +22,7 @@ Implements the pre-registered protocol in docs/design/wizard-a-assessment.md
   recall ≥ 0.70, false alarms ≤ 5 / 100 account-months):
   'supported' / 'refuted' / 'insufficient_data' (fewer than `min_events`).
 
-  Evidence label: 'measured' ONLY when the tenant's data_origin is NULL
+  Evidence label: 'measured' ONLY when the tenant's data_origin is 'real'
   AND the caller asserts the data is real (`assert_real=True` /
   `--real`). Everything else is 'synthetic_or_unverified — not evidence':
   the load-driver derives signals from story phases, so a lead time on a
@@ -213,7 +213,7 @@ def run_backtest(customer_id: int, *, horizon_days: int = 180, min_events: int =
     if not journeys:
         raise ValueError(f'No journeys for customer {customer_id} — run process_data / Wizard A first.')
     data_origin = getattr(customer, 'data_origin', None)
-    measured = assert_real and data_origin is None
+    measured = assert_real and data_origin == 'real'      # declared real at creation (or by declare_data_origin, audited)
     label = 'measured' if measured else 'synthetic_or_unverified — not evidence'
     at_risk_min, healthy_min = ht.at_risk_min(), ht.healthy_min()
 

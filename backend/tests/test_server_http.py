@@ -80,7 +80,7 @@ class TestHealth:
         assert r.status_code == 200
         body = r.json()
         assert body['server'] == 'CustomerIntelV1' and body['db'] is True and body['status'] == 'ok'
-        assert set(body['counts']) == {'customers', 'journeys', 'stale_journeys', 'wizard_runs'}
+        assert set(body['counts']) == {'customers', 'customers_by_data_origin', 'journeys', 'stale_journeys', 'wizard_runs'}
         assert client.get('/').json()['mcp'] == '/mcp'
 
 
@@ -96,7 +96,7 @@ class TestMcpOverHttp:
         sid = _session(client, key=None)
         r, res = _rpc(client, 'tools/call', {'name': 'create_customer', 'arguments': {
             'name': 'Frictionless Co', 'domain': f'friction-{uuid.uuid4().hex[:6]}.test', 'vertical': 'saas_premium',
-            'admin_email': f'f_{uuid.uuid4().hex[:6]}@t.test', 'admin_name': 'F'}}, id_=3, session=sid, key=None)
+            'admin_email': f'f_{uuid.uuid4().hex[:6]}@t.test', 'admin_name': 'F', 'data_origin': 'synthetic_test'}}, id_=3, session=sid, key=None)
         assert r.status_code == 200, r.text
         assert not res['result'].get('isError'), res
         text = res['result']['content'][0]['text']
@@ -106,7 +106,7 @@ class TestMcpOverHttp:
         sid = _session(client, key=None)
         r, res = _rpc(client, 'tools/call', {'name': 'create_customer', 'arguments': {
             'name': 'Scoped Co', 'domain': f'scoped-{uuid.uuid4().hex[:6]}.test', 'vertical': 'saas_premium',
-            'admin_email': f's_{uuid.uuid4().hex[:6]}@t.test', 'admin_name': 'S'}}, id_=4, session=sid, key=None)
+            'admin_email': f's_{uuid.uuid4().hex[:6]}@t.test', 'admin_name': 'S', 'data_origin': 'synthetic_test'}}, id_=4, session=sid, key=None)
         created = json.loads(res['result']['content'][0]['text'])
         key, cid = created['api_key'], created['customer_id']
         assert key.startswith('csp_write_')

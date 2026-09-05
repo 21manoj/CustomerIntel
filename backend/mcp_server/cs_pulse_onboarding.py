@@ -113,6 +113,7 @@ def create_customer(
     vertical: str,
     admin_email: str,
     admin_name: str,
+    data_origin: str,
     tier: str = None,
 ) -> dict:
     """Create a new customer with admin user and auto-generated API key.
@@ -139,6 +140,10 @@ def create_customer(
         vertical: Vertical slug (e.g. 'datacenter_v1')
         admin_email: Admin user email
         admin_name: Admin user display name
+        data_origin: REQUIRED. Where this tenant's data comes from — 'real' (a customer's
+            own data) or 'synthetic_demo' / 'synthetic_replay' / 'synthetic_test'. Disclosed
+            on every surface; only 'real' earns a 'measured' label. Changing it later is an
+            audited action (declare_data_origin).
         tier: Optional KPI tier for SaaS verticals. Options:
             'saas_starter_9' — 9 KPIs, 4 pillars, 1-hour onboarding (default for SaaS)
             'saas_predictive_11' — 11 KPIs, behavioral signals, requires product analytics
@@ -147,6 +152,11 @@ def create_customer(
     """
     _require_auth_if_key_present('create_customer', None)
     _check_mcp_enabled()
+    from utils.data_origin import validate as _validate_origin, disclosure as _disclosure
+    try:
+        data_origin = _validate_origin(data_origin)
+    except ValueError as e:
+        raise ToolError(str(e))
     app = _get_flask_app()
 
     with app.app_context():
@@ -179,6 +189,7 @@ def create_customer(
             email=admin_email,
             domain=domain,
             vertical=vertical,
+            data_origin=data_origin,
         )
         if customer_uuid:
             customer.uuid = customer_uuid
@@ -263,7 +274,11 @@ def create_customer(
             'created_at': customer.created_at.isoformat() if customer.created_at else None,
             'admin_user_id': user.user_id,
             'admin_email': admin_email,
+            'data_origin': data_origin,
+            'disclosure': _disclosure(data_origin),
         }
+        from mcp_server import audit as _audit
+        _audit.record('mcp', 'create_customer', customer_id, key_kind='n/a', outcome='allowed', detail=f'data_origin={data_origin}')
 
         if full_key:
             result['api_key'] = full_key
@@ -807,9 +822,9 @@ def list_journeys(customer_id: int) -> dict:
     _check_mcp_enabled()
     app = _get_flask_app()
     with app.app_context():
-        from journeys.read import list_journeys as _lj
+        from journeys.read import list_journeys as _lj, origin_block
         rows = _lj(customer_id)
-        return {'customer_id': customer_id, 'accounts': len(rows), 'journeys': rows}
+        return {'customer_id': customer_id, **origin_block(customer_id), 'accounts': len(rows), 'journeys': rows}
 
 
 @mcp.tool
@@ -995,4 +1010,74 @@ def ask(customer_id: int, question: str, account_id: int = None, as_of: str = No
         try:
             return _ask(customer_id, question, account_id=account_id, as_of=as_of)
         except (LookupError, ValueError) as e:
+            raise ToolError(str(e))
+
+
+# ===================================================================
+# Data origin (disclosure) + bulk communications import
+# ===================================================================
+
+@mcp.tool
+def declare_data_origin(customer_id: int, data_origin: str, reason: str) -> dict:
+    """Change a tenant's declared data origin ('real' | 'synthetic_demo' |
+    'synthetic_replay' | 'synthetic_test'). Audited with the reason; the
+    disclosure on every surface changes immediately. Use it when a tenant
+    that started as a demo begins receiving its own data — never to hide
+    where data came from.
+
+    Args:
+        customer_id: The customer ID
+        data_origin: The new origin
+        reason: Why (stored in the audit log)
+    """
+    _require_auth_if_key_present('declare_data_origin', customer_id)
+    _check_mcp_enabled()
+    from utils.data_origin import validate as _validate_origin, block as _block
+    try:
+        new = _validate_origin(data_origin)
+    except ValueError as e:
+        raise ToolError(str(e))
+    if not (reason or '').strip():
+        raise ToolError('reason is required')
+    app = _get_flask_app()
+    with app.app_context():
+        from models import Customer
+        from extensions import db
+        from mcp_server import audit as _audit
+        c = db.session.get(Customer, int(customer_id))
+        if not c:
+            raise ToolError(f'Customer {customer_id} not found.')
+        old = c.data_origin
+        c.data_origin = new
+        db.session.commit()
+        _audit.record('mcp', 'declare_data_origin', customer_id, key_kind='n/a', outcome='allowed',
+                      detail=f'{old} -> {new}: {reason.strip()[:200]}')
+        return {'customer_id': customer_id, 'previous': old, **_block(c), 'reason': reason.strip()}
+
+
+@mcp.tool
+def import_communications(customer_id: int, communications: list, process_now: bool = True) -> dict:
+    """Bulk-import raw communications (the file a customer or the generator
+    exports: one object per communication) through the signal engine — the
+    same path as submit_signal, in batches.
+
+    Each item: {"source_account_id" | "account_id" | "account_name", "source_type",
+    "text", "occurred_at", "participants": [{"name","role"}]?, "source_ref"?,
+    "signal_type"? (a taxonomy subtype for the structured path), "consent_verified"?}.
+    Accounts are resolved by external id, then id, then name. Exact duplicates
+    are reported, unknown accounts are listed, nothing is dropped silently.
+
+    Args:
+        customer_id: The customer ID
+        communications: List of communication objects (≤ 500 per call)
+        process_now: Classify + write evidence + rebuild journeys now (default true)
+    """
+    _require_auth_if_key_present('import_communications', customer_id)
+    _check_mcp_enabled()
+    app = _get_flask_app()
+    with app.app_context():
+        from signal_engine.pipeline import import_communications as _imp
+        try:
+            return _imp(int(customer_id), communications, process_now=process_now)
+        except ValueError as e:
             raise ToolError(str(e))

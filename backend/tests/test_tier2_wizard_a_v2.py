@@ -86,7 +86,7 @@ def tenant():
         db.create_all()
         from mcp_server.cs_pulse_onboarding import create_customer
         tag = uuid.uuid4().hex[:8]
-        cid = create_customer(name=f'WizardA {tag}', domain=f'wa-{tag}.test', vertical='datacenter_v1',
+        cid = create_customer(data_origin='synthetic_test', name=f'WizardA {tag}', domain=f'wa-{tag}.test', vertical='datacenter_v1',
                               admin_email=f'wa_{tag}@t.test', admin_name='A')['customer_id']
         ids = {}
         for name, (series, signals, extras) in ARCHETYPES.items():

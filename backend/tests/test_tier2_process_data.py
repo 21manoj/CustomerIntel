@@ -136,7 +136,7 @@ def customer_id():
         db.create_all()
         from mcp_server.cs_pulse_onboarding import create_customer
         tag = uuid.uuid4().hex[:8]
-        res = create_customer(
+        res = create_customer(data_origin='synthetic_test', 
             name=f'Process Test {tag}', domain=f'process-{tag}.test',
             vertical='datacenter_v1',
             admin_email=f'admin_{tag}@process.test', admin_name='Admin',
@@ -451,7 +451,7 @@ class TestFailureKeepsStaging:
         from utils import csv_ingest
         with app.app_context():
             tag = uuid.uuid4().hex[:8]
-            cid = create_customer(
+            cid = create_customer(data_origin='synthetic_test', 
                 name=f'Fail {tag}', domain=f'fail-{tag}.test', vertical='datacenter_v1',
                 admin_email=f'fail_{tag}@t.test', admin_name='A',
             )['customer_id']

@@ -55,7 +55,7 @@ def tenant():
         db.create_all()
         from mcp_server.cs_pulse_onboarding import create_customer, upload_csv, process_data
         tag = uuid.uuid4().hex[:8]
-        cid = create_customer(name=f'Prov {tag}', domain=f'prov-{tag}.test', vertical='datacenter_v1',
+        cid = create_customer(data_origin='synthetic_test', name=f'Prov {tag}', domain=f'prov-{tag}.test', vertical='datacenter_v1',
                               admin_email=f'p_{tag}@t.test', admin_name='P')['customer_id']
         u1 = upload_csv(cid, 'account_details.csv', ACCOUNTS)
         u2 = upload_csv(cid, 'kpi_measurements.csv', KPIS)

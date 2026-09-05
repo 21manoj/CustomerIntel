@@ -57,7 +57,7 @@ def tenant():
         db.create_all()
         from mcp_server.cs_pulse_onboarding import create_customer, submit_signal
         tag = uuid.uuid4().hex[:8]
-        cid = create_customer(name=f'AskAI {tag}', domain=f'askai-{tag}.test', vertical='saas_premium',
+        cid = create_customer(data_origin='synthetic_test', name=f'AskAI {tag}', domain=f'askai-{tag}.test', vertical='saas_premium',
                               admin_email=f'ask_{tag}@t.test', admin_name='A')['customer_id']
         a = Account(customer_id=cid, account_name='Northwind Analytics', revenue=1_800_000, vertical='saas_premium',
                     external_account_id='northwind.com',
@@ -119,7 +119,7 @@ class TestValidator:
             res = ask(cid, 'why did the champion leave?', account_id=aid)
         assert res['scope'] == 'account' and res['model'] == 'fake-model' and res['generator'] == GENERATOR
         assert [s['cites'] for s in res['sentences']] == [[good]]
-        assert res['answer'].startswith('The champion left')
+        assert res['answer'].endswith('The champion left in February 2026, recorded from a CRM activity.') and res['answer'].startswith('[Test fixture] ')
         assert {u['reason'] for u in res['unsupported']} == {'unresolved_citation', 'no_citation'}
         ghost = next(u for u in res['unsupported'] if u['reason'] == 'unresolved_citation')
         assert ghost['unresolved'] == ['sig:999999']

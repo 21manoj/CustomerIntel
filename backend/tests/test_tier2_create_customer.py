@@ -2,7 +2,7 @@
 Tier 2A-1 checkpoint: create_customer and its private helpers.
 
 Real DB execution, not an import check: creates a customer end-to-end via
-create_customer() and asserts on the actual rows written (Customer, User,
+create_customer(data_origin='synthetic_test', ) and asserts on the actual rows written (Customer, User,
 CustomerConfig, FeatureToggle), including the SaaS-tier KPI/pillar-weight
 side effects and the duplicate-domain/email guards.
 """
@@ -29,7 +29,7 @@ def _make_app():
 
 app = _make_app()
 
-# create_customer() opens its own app context via _get_flask_app() (a
+# create_customer(data_origin='synthetic_test', ) opens its own app context via _get_flask_app() (a
 # module-level singleton in mcp_server/common.py) — point that singleton
 # at this same test app/DB rather than letting it build its own from
 # DATABASE_URL a second time.
@@ -71,7 +71,7 @@ class TestCreateCustomerBasics:
     def test_creates_customer_admin_user_config(self):
         from mcp_server.cs_pulse_onboarding import create_customer
         domain = _unique_domain()
-        result = create_customer(
+        result = create_customer(data_origin='synthetic_test', 
             name='Acme DC Co', domain=domain, vertical='datacenter_v1',
             admin_email=f'admin_{uuid.uuid4().hex[:8]}@{domain}',
             admin_name='Admin Person',
@@ -101,7 +101,7 @@ class TestCreateCustomerBasics:
     def test_all_seven_feature_toggles_created(self):
         from mcp_server.cs_pulse_onboarding import create_customer
         domain = _unique_domain()
-        result = create_customer(
+        result = create_customer(data_origin='synthetic_test', 
             name='Feature Toggle Co', domain=domain, vertical='datacenter_v1',
             admin_email=f'admin_{uuid.uuid4().hex[:8]}@{domain}',
             admin_name='Admin Person',
@@ -121,12 +121,12 @@ class TestCreateCustomerBasics:
     def test_duplicate_domain_rejected(self):
         from mcp_server.cs_pulse_onboarding import create_customer
         domain = _unique_domain()
-        create_customer(
+        create_customer(data_origin='synthetic_test', 
             name='First Co', domain=domain, vertical='datacenter_v1',
             admin_email=f'admin1_{uuid.uuid4().hex[:8]}@{domain}', admin_name='A',
         )
         with pytest.raises(ToolError):
-            create_customer(
+            create_customer(data_origin='synthetic_test', 
                 name='Second Co', domain=domain, vertical='datacenter_v1',
                 admin_email=f'admin2_{uuid.uuid4().hex[:8]}@{domain}', admin_name='B',
             )
@@ -134,12 +134,12 @@ class TestCreateCustomerBasics:
     def test_duplicate_admin_email_rejected(self):
         from mcp_server.cs_pulse_onboarding import create_customer
         email = f'dup_{uuid.uuid4().hex[:8]}@test.com'
-        create_customer(
+        create_customer(data_origin='synthetic_test', 
             name='Third Co', domain=_unique_domain(), vertical='datacenter_v1',
             admin_email=email, admin_name='A',
         )
         with pytest.raises(ToolError):
-            create_customer(
+            create_customer(data_origin='synthetic_test', 
                 name='Fourth Co', domain=_unique_domain(), vertical='datacenter_v1',
                 admin_email=email, admin_name='B',
             )
@@ -149,7 +149,7 @@ class TestSaasKpiTier:
     def test_default_tier_applied_for_saas_premium(self):
         from mcp_server.cs_pulse_onboarding import create_customer
         domain = _unique_domain()
-        result = create_customer(
+        result = create_customer(data_origin='synthetic_test', 
             name='SaaS Default Co', domain=domain, vertical='saas_premium',
             admin_email=f'admin_{uuid.uuid4().hex[:8]}@{domain}', admin_name='Admin',
         )
@@ -166,7 +166,7 @@ class TestSaasKpiTier:
     def test_explicit_full_tier_clears_restriction(self):
         from mcp_server.cs_pulse_onboarding import create_customer
         domain = _unique_domain()
-        result = create_customer(
+        result = create_customer(data_origin='synthetic_test', 
             name='SaaS Full Co', domain=domain, vertical='saas_premium',
             admin_email=f'admin_{uuid.uuid4().hex[:8]}@{domain}', admin_name='Admin',
             tier='saas_full_43',

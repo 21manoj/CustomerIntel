@@ -163,7 +163,7 @@ class TestTriggerWizard:
         from mcp_server.cs_pulse_onboarding import create_customer, trigger_wizard
         with app.app_context():
             tag = uuid.uuid4().hex[:6]
-            cid = create_customer(name=f'Tiny {tag}', domain=f'tiny-{tag}.test', vertical='saas_premium',
+            cid = create_customer(data_origin='synthetic_test', name=f'Tiny {tag}', domain=f'tiny-{tag}.test', vertical='saas_premium',
                                   admin_email=f'tiny_{tag}@t.test', admin_name='T')['customer_id']
         out = trigger_wizard(cid, 'b')
         assert out['status'] == 'completed' and out['result_summary']['status'] == 'skipped'

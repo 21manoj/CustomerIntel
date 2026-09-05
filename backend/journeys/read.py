@@ -13,6 +13,14 @@ from datetime import datetime
 from typing import Iterable, List, Optional
 
 
+def origin_block(customer_id: int) -> dict:
+    """{data_origin, label, synthetic, disclosure} for a tenant — on every read surface."""
+    from extensions import db
+    from models import Customer
+    from utils.data_origin import block
+    return block(db.session.get(Customer, int(customer_id)))
+
+
 def evidence_view(n) -> dict:
     """One evidence node as the surface shows it: the quote, its typing, who,
     where it came from, how sure, and any human decision on it."""
@@ -76,6 +84,7 @@ def get_journey(customer_id: int, account_id: int, compact: bool = False) -> Opt
     open_review = QualitativeSignal.query.filter_by(account_id=int(account_id), requires_review=True).count()
     journey['evidence'] = evidence
     journey['open_review_count'] = open_review
+    journey.update(origin_block(customer_id))
     journey['generated_at'] = j.updated_at.isoformat() if j.updated_at else None
     if compact:
         for k in ('episodes', 'phases', 'counterfactual_hooks', 'expected_path', 'features'):

@@ -66,7 +66,7 @@ def loaded():
         db.create_all()
         from mcp_server.cs_pulse_onboarding import create_customer, upload_csv, process_data
         tag = uuid.uuid4().hex[:8]
-        cid = create_customer(
+        cid = create_customer(data_origin='synthetic_test', 
             name=f'Parity 359 {tag}', domain=f'parity359-{tag}.test', vertical='datacenter_v1',
             admin_email=f'parity359_{tag}@t.test', admin_name='Parity',
         )['customer_id']

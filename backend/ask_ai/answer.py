@@ -513,9 +513,14 @@ def ask(customer_id: int, question: str, account_id: Optional[int] = None, as_of
         confidence = max(0.0, min(1.0, float(payload.get('confidence'))))
     except (TypeError, ValueError):
         confidence = None
+    from journeys.read import origin_block
+    origin = origin_block(customer_id)
+    answer = ' '.join(s['text'] for s in sentences)
+    if origin['synthetic']:
+        answer = f"[{origin['label']}] " + answer            # disclosure travels with the answer, not beside it
     return {
-        'question': question, 'scope': scope, 'scope_detail': meta,
-        'answer': ' '.join(s['text'] for s in sentences),
+        'question': question, 'scope': scope, 'scope_detail': meta, **origin,
+        'answer': answer,
         'sentences': sentences,
         'citations': {c: ctx.citable[c] for c in cited_ids},
         'unsupported': unsupported,

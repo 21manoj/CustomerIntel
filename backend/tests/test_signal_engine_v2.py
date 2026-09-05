@@ -53,7 +53,7 @@ def tenant():
         db.create_all()
         from mcp_server.cs_pulse_onboarding import create_customer
         tag = uuid.uuid4().hex[:8]
-        cid = create_customer(name=f'SigV2 {tag}', domain=f'sigv2-{tag}.test', vertical='saas_premium',
+        cid = create_customer(data_origin='synthetic_test', name=f'SigV2 {tag}', domain=f'sigv2-{tag}.test', vertical='saas_premium',
                               admin_email=f'sv2_{tag}@t.test', admin_name='S')['customer_id']
         a = Account(customer_id=cid, account_name='Northwind Analytics', revenue=1_800_000, vertical='saas_premium',
                     external_account_id='northwind.com',

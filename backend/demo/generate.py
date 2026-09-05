@@ -294,19 +294,13 @@ def generate(manifest: dict) -> Dict[str, str]:
 # ═══════════════════════════════════════════════════════════════════════
 
 def _create_tenant(manifest: dict, tag: str) -> int:
-    from models import Customer
-    from extensions import db
     from mcp_server.cs_pulse_onboarding import create_customer
     res = create_customer(
         name=f"{manifest['customer_name']} {tag}".strip(), domain=f"{manifest['domain_prefix']}-{tag}.demo",
         vertical=manifest['vertical'], admin_email=f"admin-{tag}@{manifest['domain_prefix']}.demo",
-        admin_name='Demo Admin',
+        admin_name='Demo Admin', data_origin=DATA_ORIGIN,        # declared at creation, disclosed everywhere
     )
-    cid = res['customer_id']
-    c = db.session.get(Customer, cid)
-    c.data_origin = DATA_ORIGIN
-    db.session.commit()
-    return cid
+    return res['customer_id']
 
 
 def _upload(cid: int, files: Dict[str, str]) -> None:

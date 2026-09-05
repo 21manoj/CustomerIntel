@@ -63,7 +63,7 @@ def main():
         if Customer.query.filter_by(domain=REPLAY['domain']).first():
             print(f"skip 415 replay: {REPLAY['domain']} exists")
         else:
-            cid = create_customer(name=REPLAY['name'], domain=REPLAY['domain'], vertical=REPLAY['vertical'],
+            cid = create_customer(data_origin='synthetic_replay', name=REPLAY['name'], domain=REPLAY['domain'], vertical=REPLAY['vertical'],
                                   admin_email=f"admin@{REPLAY['domain']}", admin_name='Replay Admin')['customer_id']
             c = db.session.get(Customer, cid)
             c.data_origin = REPLAY['data_origin']

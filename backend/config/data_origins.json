@@ -1,0 +1,25 @@
+{
+  "_doc": "Every tenant declares where its data comes from at creation (create_customer data_origin=…) and the platform discloses it on every surface (portfolio, journey, Ask AI, /health, backtest). Only 'real' earns a 'measured' label. Changing it later is an audited action (declare_data_origin).",
+  "origins": {
+    "real": {
+      "label": "Customer data",
+      "synthetic": false,
+      "disclosure": "Real customer data. Results are measurements of this tenant's own history."
+    },
+    "synthetic_demo": {
+      "label": "Synthetic demo data",
+      "synthetic": true,
+      "disclosure": "SYNTHETIC DEMO DATA: this tenant was generated from a manifest to show the mechanism. Lead times, scores and outcomes are authored, not observed. Nothing here is a measurement of a real customer."
+    },
+    "synthetic_replay": {
+      "label": "Replay of historical data",
+      "synthetic": true,
+      "disclosure": "REPLAY: this tenant re-plays exported historical data through the current pipeline for parity checks. Treat every number as a replay, not a live measurement."
+    },
+    "synthetic_test": {
+      "label": "Test fixture",
+      "synthetic": true,
+      "disclosure": "TEST FIXTURE: created by an automated test."
+    }
+  }
+}

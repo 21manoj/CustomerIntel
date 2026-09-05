@@ -27,7 +27,8 @@ def register_journey_routes(mcp) -> None:
             return JSONResponse(err, status_code=401)
         if not cid:
             return JSONResponse({'error': 'customer_id is required'}, status_code=400)
-        return JSONResponse({'journeys': _with_app(lambda: list_journeys(int(cid)))})
+        from journeys.read import origin_block
+        return JSONResponse(_with_app(lambda: {**origin_block(int(cid)), 'journeys': list_journeys(int(cid))}))
 
     @mcp.custom_route('/api/journeys/{account_id:int}', methods=['GET'], name='journeys_get')
     async def journeys_get(request):

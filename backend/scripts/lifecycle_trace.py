@@ -153,13 +153,10 @@ def main():
                                                  log_outcome, get_journey, get_review_queue, ask, list_journeys)
 
     def _create():
-        r = create_customer(name=f'{args.name} {tag}', domain=f'trace-{tag}.demo', vertical=args.vertical,
-                            admin_email=f'trace_{tag}@demo.test', admin_name='Trace')
-        from models import Customer
-        from extensions import db
-        c = db.session.get(Customer, r['customer_id']); c.data_origin = 'synthetic_demo'; db.session.commit()
-        return r
-    r = L.step('create the tenant', f"create_customer(name='{args.name} {tag}', domain='trace-{tag}.demo', vertical='{args.vertical}', …)  # + data_origin='synthetic_demo'", _create)
+        return create_customer(name=f'{args.name} {tag}', domain=f'trace-{tag}.demo', vertical=args.vertical,
+                               admin_email=f'trace_{tag}@demo.test', admin_name='Trace', data_origin='synthetic_demo')
+    r = L.step('create the tenant — the data origin is declared here and disclosed on every surface',
+               f"create_customer(name='{args.name} {tag}', domain='trace-{tag}.demo', vertical='{args.vertical}', data_origin='synthetic_demo', …)", _create)
     cid = r['customer_id']
     L.write(f"\n→ customer_id={cid}")
 
