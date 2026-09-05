@@ -1,9 +1,16 @@
 """
-Seed CustomerIntelV1 with the three protocol-shaped demo tenants and a
-replay of live customer 415. Idempotent: a tenant whose domain already
-exists is skipped.
+Seed CustomerIntelV1 with the protocol-shaped demo tenants and a replay of
+live customer 415. Idempotent: a tenant whose domain already exists is
+skipped.
 
-    DATABASE_URL=... python scripts/seed_demo.py
+    DATABASE_URL=... [DEMO_EXTRACTOR=auto|model|stub|oracle] python scripts/seed_demo.py
+
+v2 manifests submit their communications through the signal engine.
+DEMO_EXTRACTOR picks what classifies them (demo/oracle.py): 'auto' (default:
+the model when ANTHROPIC_API_KEY is set, else the oracle — the manifest's
+labels played back so the narratives seed without a key; not a model
+result, and the scorecard says so), 'model', 'stub' (the keyword floor),
+'oracle'. The 415 replay is real data and stays on the CSV path untouched.
 """
 from __future__ import annotations
 
@@ -44,12 +51,14 @@ def main():
                 continue
             m = dict(m, domain_prefix=m['domain_prefix'])
             files = generate(m)
-            reg = register(m, files, name_suffix='')
+            reg = register(m, files, name_suffix='', extractor=os.environ.get('DEMO_EXTRACTOR', 'auto'))
             c = db.session.get(Customer, reg['customer_id'])
             c.domain = domain
             db.session.commit()
+            sc = reg.get('scorecard')
             print(f"registered {m['manifest_id']} → customer {reg['customer_id']} {reg['status']} "
-                  f"coverage={reg['wizard_a']['coverage'] if reg.get('wizard_a') else None}")
+                  f"coverage={reg['wizard_a']['coverage'] if reg.get('wizard_a') else None}"
+                  + (f" extraction[{sc['model_version']}] hit_rate={sc['hit_rate']} unclassified={sc['unclassified']}" if sc else ''))
 
         if Customer.query.filter_by(domain=REPLAY['domain']).first():
             print(f"skip 415 replay: {REPLAY['domain']} exists")

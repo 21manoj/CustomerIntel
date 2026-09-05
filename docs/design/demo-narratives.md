@@ -118,3 +118,40 @@ Constructed tenants have to look like real portfolios, or the buyer's first ques
 Each tenant also carries a live twin (an open story the harness reports as *open*, not a false alarm), a false-alarm account, and an `unclassified` account. Numbers are month-end-dated (the conservative availability rule), which is why a T−104 onset reads as 78 days.
 
 Not yet built: the demo *surfaces* (the Hindsight table, the evidence drill-down, the expected-path overlay, the honesty banner) — those are UI, and the new build has no UI or deployed server yet.
+
+---
+
+## 7. Generator v2 — communications through the engine (2026-09-04)
+
+*Decision (product owner): signals are first-class. The generator no longer writes typed behavioral rows to `enhanced_qualitative_signals.csv`; it authors **communications** — raw text with a source, a time, the people on it — and submits them through the signal engine (`signal_engine.pipeline.ingest` → `process_pending`). The evidence the journey sees is whatever the engine extracted. Code: `demo/manifest_v2.py` (schema + validation), `demo/generate.py` (`register_v2`, `emit_outcomes` seam), `demo/oracle.py`, `demo/scorecard.py`.*
+
+### What a v2 manifest declares
+
+Per account, `communications: [{day, source_type, text, participants:[{name,title}], source_ref?, expected_subtypes:[…], expected_sentiment?}]`. Every expected subtype must exist in the vertical's taxonomy (base + overlay); validation at load fails loudly on an unknown subtype, an unknown source type, unsorted days, a communication with no named participant, duplicate text on one account (the engine would dedup it silently), a v1 event key, or a KPI-layer account without a health curve. The three scenario manifests (§3) were converted by turning each typed signal into a realistic communication with the same day, people and sentiment, labelled with the old type — so the tables in §3 and §6 still hold. Where a text plainly carries a second signal (Stellar's Series C email also reports the utilization ramp), it is labelled with both; same role, same date, same composite.
+
+What stays on CSV: accounts (roster), KPIs, the CSM's own risk flag (`signal_type='csm_risk_flag'`, structured path — declared, never extracted), and for now outcomes. Order of a run: the CSVs are staged and ingested (no scoring), the communications go through the engine, Wizard A builds evidence-only journeys, then outcomes enter through `emit_outcomes()` and **one** `process_data` scores the KPI layer, rebuilds the journeys over all the evidence and runs Wizard B once — evidence lands before the pipeline, as it would for a real tenant. `emit_outcomes()` today rewrites each event's link from the manifest's communication ref to the engine's signal id and stages `outcomes.csv`; when the outcome-logging MCP tool lands that body becomes one call per event and nothing else changes. `"kpis": "none"` makes a signals-only tenant (P1); with no events it never needs `process_data` at all.
+
+### Three extractors, one scorecard
+
+`--extractor auto|model|stub|oracle` (seed_demo: `DEMO_EXTRACTOR`; `auto`, the default, is the model with an API key and the oracle without — so a keyless seed, and the Tier 2B tests that register these manifests, still tell the §3 stories). After processing, every communication's extracted subtypes (the OBSERVED SIGNAL nodes it produced) are compared with its labels: per communication exact / partial / miss, per role precision / recall, subtype-level P/R, unclassified and still-pending counts — written to `demo/out/<tenant>_scorecard.json` beside `<tenant>_labelled.jsonl` (text, source, labels, extraction, `model_version`): the seed of the labelled extraction eval set. The scorecard is labelled with the `model_version` that answered. The oracle plays the manifest's own labels back through the engine — 100% by construction, **not a model result**, and the file says so; it exists so the narratives can be seeded and the journey/backtest path tested without a key.
+
+### What the keyword stub reads (no API key) — reported as the floor it is
+
+| Manifest | Communications | Exact | Unclassified | Subtype P / R | Role-level notes |
+|---|---|---|---|---|---|
+| A — Silent displacement (dc) | 28 | 0 | 6 | 0.00 / 0.00 (fp 33, fn 28) | usage_decline R 0.75, routine R 0.89, commercial_pressure R 0.33; the stub emits base subtypes (`competitor_mention`, `usage_decline`), never the datacenter overlay words |
+| B — Expansion intent (dc) | 28 | 0 | 13 | 0.00 / 0.00 (fp 23, fn 30) | |
+| C — Champion departure (saas) | 28 | 0 | 11 | 0.00 / 0.00 (fp 26, fn 29) | |
+| D — Signals-only (saas, P1) | 31 | 2 | 16 | 0.06 / 0.03 (fp 16, fn 29) | one of the two exact hits is the labelled "carries no signal" note |
+
+Under the oracle all four score 1.0 / 1.0 and the §6 lead times reproduce exactly (A 78/50/14 d, B 68 d, C 83/—/40 d). Under the real model the numbers are whatever they are; the scorecard is the place they show up, per tenant, per run.
+
+### Signals-only tenant (D) — what builds, what doesn't
+
+Six accounts, 31 communications, no KPI rows, no health scores. The journey builds from evidence alone with the current builder: every month is a live month (`kpi_only` null, label `leading_only`), the leading series carries the composite and role counts, `first_leading_warning_at` is set. Halcyon Health (champion departure → procurement review → seat reduction) classifies as `exec_sponsor_change` through that rule's health-free variant (`needs_or_roles: engagement_decline`). The other five stay `unclassified` even when the evidence is complete: Orchard Retail's expansion story has every expansion-intent and advocacy role but `expansion_champion` / `land_and_expand` require `very_healthy` / `healthy`, which a tenant with no health layer can never satisfy — the open half of P1 (`journeys/arc_classifier.py` RULES). Not patched here.
+
+Also found, not patched (outside this change): `evals/lead_time_backtest._warning_months` does `s['kpi_only'] < at_risk_min` on every month; a live month has `kpi_only=None`, so the backtest raises `TypeError` on a signals-only tenant (and would on any tenant whose evidence runs past its last scored month). `tests/test_demo_v2.py` carries the xfail.
+
+### Tests
+
+`tests/test_demo_manifests.py` (oracle: narratives, engine path, outcome links, D's journeys), `tests/test_demo_v2.py` (validation, v1 still loads and registers on the CSV path, monkeypatched extractor → 100%, stub → misses reported honestly, the evals gap). The customer-415 replay in `scripts/seed_demo.py` is real data and stays on the CSV path untouched.

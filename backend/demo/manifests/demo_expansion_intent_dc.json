@@ -1,4 +1,5 @@
 {
+  "version": 2,
   "manifest_id": "demo_expansion_intent_dc",
   "scenario": "B — Expansion intent the CRM couldn't see (datacenter_v1, H2 growth)",
   "narrative": "They were going to ask for more capacity in April. We knew in January. docs/design/demo-narratives.md §3B",
@@ -16,21 +17,31 @@
       "champion": "Riya Patel", "champion_title": "VP Infrastructure", "executive_sponsor": "Noah Brooks", "renewal_day": 200,
       "role": "featured",
       "health": {"shape": "ramp", "start": 78, "end": 90, "noise": 1.5},
-      "signals": [
-        {"day": -72, "type": "funding_raised", "sentiment": 0.6, "stakeholder": "Noah Brooks", "title": "CTO",
-         "content": "Series C announced; utilization ramp 71% → 88% over four weeks"},
-        {"day": -60, "type": "reservation_expansion_interest", "sentiment": 0.7, "stakeholder": "Riya Patel", "title": "VP Infrastructure",
-         "content": "Customer engineer asks about H100 reservation windows in a support thread"},
-        {"day": -48, "type": "silicon_refresh_interest", "sentiment": 0.6, "stakeholder": "Riya Patel", "title": "VP Infrastructure",
-         "content": "Asked for B200 availability and pricing"},
-        {"day": -46, "type": "executive_engagement", "sentiment": 0.7, "stakeholder": "Noah Brooks", "title": "CTO",
-         "content": "CTO joined the monthly review"},
-        {"day": -30, "type": "utilization_ramp", "sentiment": 0.6, "stakeholder": "Riya Patel", "title": "VP Infrastructure",
-         "content": "Sustained >90% reserved utilization; burst overflow twice"}
+      "communications": [
+        {"day": -72, "source_type": "email", "source_ref": "email:stellar:series-c",
+         "participants": [{"name": "Noah Brooks", "title": "CTO"}],
+         "text": "Wanted you to hear it from me first — we closed our Series C this morning. The plan is to roughly double the training program over the next two quarters; you'll already have seen utilization climb from about 71% to 88% over the last four weeks as the new team ramps.",
+         "expected_subtypes": ["funding_raised", "utilization_ramp"], "expected_sentiment": 0.6},
+        {"day": -60, "source_type": "ticket", "source_ref": "ticket:5170",
+         "participants": [{"name": "Riya Patel", "title": "VP Infrastructure"}],
+         "text": "Quick question from our side: what reservation windows are available for additional H100 capacity in the same region? We're planning the next training cycle and want to understand lead times before we commit internally.",
+         "expected_subtypes": ["reservation_expansion_interest"], "expected_sentiment": 0.7},
+        {"day": -48, "source_type": "email", "source_ref": "email:stellar:b200",
+         "participants": [{"name": "Riya Patel", "title": "VP Infrastructure"}],
+         "text": "Can you send B200 availability and pricing for the reserved tier? We're modelling whether the next cluster should be on the newer silicon or stay on H100.",
+         "expected_subtypes": ["silicon_refresh_interest"], "expected_sentiment": 0.6},
+        {"day": -46, "source_type": "meeting", "source_ref": "meeting:stellar:monthly",
+         "participants": [{"name": "Noah Brooks", "title": "CTO"}, {"name": "Riya Patel", "title": "VP Infrastructure"}],
+         "text": "Noah joined the monthly review for the first time and stayed for the full session; he said the platform is now on the executive roadmap for the training buildout and asked to be included going forward.",
+         "expected_subtypes": ["executive_engagement"], "expected_sentiment": 0.7},
+        {"day": -30, "source_type": "slack", "source_ref": "slack:C0STELLAR:1739000001",
+         "participants": [{"name": "Riya Patel", "title": "VP Infrastructure"}],
+         "text": "We've been sustained above 90% on the reserved cluster for two weeks now and had to burst into on-demand twice — the team is starting to queue jobs.",
+         "expected_subtypes": ["utilization_ramp", "burst_overflow"], "expected_sentiment": 0.6}
       ],
       "events": [
         {"day": 0, "type": "expansion_closed", "amount": 900000, "title": "+$900K reserved capacity expansion booked — Stellar Inference",
-         "evidence": "Order form dated 2026-04-10; AE opportunity created 2026-03-21 after customer email", "linked_signal_index": 1}
+         "evidence": "Order form dated 2026-04-10; AE opportunity created 2026-03-21 after customer email", "linked_communication_index": 1}
       ]
     },
     {
@@ -38,13 +49,19 @@
       "champion": "Oscar Nilsson", "champion_title": "Head of Platform", "renewal_day": 240,
       "role": "featured_live",
       "health": {"shape": "ramp", "start": 80, "end": 88, "noise": 1.5},
-      "signals": [
-        {"day": -50, "type": "utilization_ramp", "sentiment": 0.5, "stakeholder": "Oscar Nilsson", "title": "Head of Platform",
-         "content": "Utilization 74% → 86% over three weeks"},
-        {"day": -36, "type": "reservation_expansion_interest", "sentiment": 0.65, "stakeholder": "Oscar Nilsson", "title": "Head of Platform",
-         "content": "Asked about extending the reservation to a second zone"},
-        {"day": -21, "type": "champion_advocacy", "sentiment": 0.7, "stakeholder": "Oscar Nilsson", "title": "Head of Platform",
-         "content": "Presented internal results crediting the platform"}
+      "communications": [
+        {"day": -50, "source_type": "slack", "source_ref": "slack:C0ZENITH:1739100001",
+         "participants": [{"name": "Oscar Nilsson", "title": "Head of Platform"}],
+         "text": "FYI utilization on our reservation went from 74% to 86% over the last three weeks as the new fine-tuning pipeline came online.",
+         "expected_subtypes": ["utilization_ramp"], "expected_sentiment": 0.5},
+        {"day": -36, "source_type": "email", "source_ref": "email:zenith:second-zone",
+         "participants": [{"name": "Oscar Nilsson", "title": "Head of Platform"}],
+         "text": "Is it possible to extend our reservation into a second availability zone? We'd like redundancy for the production inference path, ideally on the same commercial terms.",
+         "expected_subtypes": ["reservation_expansion_interest"], "expected_sentiment": 0.65},
+        {"day": -21, "source_type": "meeting", "source_ref": "meeting:zenith:all-hands-debrief",
+         "participants": [{"name": "Oscar Nilsson", "title": "Head of Platform"}],
+         "text": "Oscar presented the internal results deck at their platform all-hands and credited the platform for the throughput gains; he shared the slides with us afterwards and offered to present them to other customers.",
+         "expected_subtypes": ["champion_advocacy"], "expected_sentiment": 0.7}
       ],
       "events": []
     },
@@ -53,11 +70,15 @@
       "renewal_day": 300,
       "role": "watch_not_warned",
       "health": {"shape": "ramp", "start": 79, "end": 84, "noise": 1.5},
-      "signals": [
-        {"day": -45, "type": "utilization_ramp", "sentiment": 0.4, "stakeholder": "Mia Torres", "title": "Platform Lead",
-         "content": "Utilization up 9 points; no capacity conversation initiated"},
-        {"day": -30, "type": "routine_review", "sentiment": 0.1, "stakeholder": "Mia Torres", "title": "Platform Lead",
-         "content": "Routine review; no expansion topics raised"}
+      "communications": [
+        {"day": -45, "source_type": "slack", "source_ref": "slack:C0VECTOR:1739200001",
+         "participants": [{"name": "Mia Torres", "title": "Platform Lead"}],
+         "text": "Utilization is up about nine points this quarter — the perception team moved their training runs over. No plans beyond that for now.",
+         "expected_subtypes": ["utilization_ramp"], "expected_sentiment": 0.4},
+        {"day": -30, "source_type": "meeting", "source_ref": "meeting:vector:monthly",
+         "participants": [{"name": "Mia Torres", "title": "Platform Lead"}],
+         "text": "Routine monthly review with Mia: walked through the usage report and the roadmap; no expansion topics raised on either side.",
+         "expected_subtypes": ["routine_review"], "expected_sentiment": 0.1}
       ],
       "events": []
     },
@@ -66,11 +87,15 @@
       "renewal_day": 100,
       "role": "false_alarm",
       "health": {"shape": "flat", "start": 82, "noise": 1.5},
-      "signals": [
-        {"day": -70, "type": "reservation_expansion_interest", "sentiment": 0.6, "stakeholder": "Wei Zhang", "title": "Director of Engineering",
-         "content": "Asked about a larger reservation for a pilot"},
-        {"day": -40, "type": "routine_review", "sentiment": 0.0, "stakeholder": "Wei Zhang", "title": "Director of Engineering",
-         "content": "Pilot deferred to next fiscal year"}
+      "communications": [
+        {"day": -70, "source_type": "email", "source_ref": "email:cirrus:pilot-scope",
+         "participants": [{"name": "Wei Zhang", "title": "Director of Engineering"}],
+         "text": "We're scoping a pilot for a new recommendation model and might need a larger reservation for it — could you outline what a step-up to 32 GPUs would look like commercially?",
+         "expected_subtypes": ["reservation_expansion_interest"], "expected_sentiment": 0.6},
+        {"day": -40, "source_type": "meeting", "source_ref": "meeting:cirrus:monthly",
+         "participants": [{"name": "Wei Zhang", "title": "Director of Engineering"}],
+         "text": "Routine review with Wei: the recommendation-model pilot has been deferred to next fiscal year; current usage unchanged and no other topics.",
+         "expected_subtypes": ["routine_review"], "expected_sentiment": 0.0}
       ],
       "events": []
     }
