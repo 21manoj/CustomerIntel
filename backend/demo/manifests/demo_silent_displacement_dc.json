@@ -1,4 +1,5 @@
 {
+  "version": 2,
   "manifest_id": "demo_silent_displacement_dc",
   "scenario": "A — Silent displacement (datacenter_v1, H1 retention)",
   "narrative": "They didn't complain. They just started moving workloads. docs/design/demo-narratives.md §3A",
@@ -9,235 +10,102 @@
   "default_csm": "Sarah Rivera",
   "csm_manager": "Sam Rivera",
   "seed": 4101,
-  "timeline": {
-    "t0": "2026-04-20",
-    "history_days": 270,
-    "future_days": 10,
-    "kpi_cadence_days": 7
-  },
+  "timeline": {"t0": "2026-04-20", "history_days": 270, "future_days": 10, "kpi_cadence_days": 7},
   "accounts": [
     {
-      "source_account_id": "MERIDIAN",
-      "name": "Meridian AI",
-      "arr": 4100000,
-      "industry": "AI/ML",
-      "region": "North America",
-      "champion": "Priya Sharma",
-      "champion_title": "Head of ML Infra",
-      "executive_sponsor": "Dana Wu",
-      "renewal_day": 95,
+      "source_account_id": "MERIDIAN", "name": "Meridian AI", "arr": 4100000, "industry": "AI/ML", "region": "North America",
+      "champion": "Priya Sharma", "champion_title": "Head of ML Infra", "executive_sponsor": "Dana Wu", "renewal_day": 95,
       "role": "featured",
-      "health": {
-        "shape": "decline",
-        "start": 81,
-        "end": 44,
-        "trailing_cross_day": -48,
-        "noise": 1.5
-      },
-      "signals": [
-        {
-          "day": -104,
-          "type": "reserved_cluster_idle",
-          "sentiment": -0.45,
-          "stakeholder": "Priya Sharma",
-          "title": "Head of ML Infra",
-          "content": "Reserved cluster idle share rose from 12% to 31% over three weeks"
-        },
-        {
-          "day": -96,
-          "type": "engagement_gap",
-          "sentiment": -0.4,
-          "stakeholder": "Priya Sharma",
-          "title": "Head of ML Infra",
-          "content": "QBR postponed by the customer; champion login cadence halved"
-        },
-        {
-          "day": -88,
-          "type": "multicloud_diversification",
-          "sentiment": -0.6,
-          "stakeholder": "Marcus Lee",
-          "title": "Platform Engineer",
-          "content": "Ticket #4412 mentions validating a second provider for training jobs"
-        },
-        {
-          "day": -80,
-          "type": "commitment_ramp_miss",
-          "sentiment": -0.65,
-          "stakeholder": "Priya Sharma",
-          "title": "Head of ML Infra",
-          "content": "Consumed 68% of committed capacity vs 85% plan"
-        },
-        {
-          "day": -22,
-          "type": "spot_price_pressure",
-          "sentiment": -0.5,
-          "stakeholder": "Dana Wu",
-          "title": "VP Engineering",
-          "content": "Email cites competitor spot pricing; asks for a pricing review"
-        }
+      "health": {"shape": "decline", "start": 81, "end": 44, "trailing_cross_day": -48, "noise": 1.5},
+      "communications": [
+        {"day": -104, "source_type": "slack", "source_ref": "slack:C0MERIDIAN:1737000001",
+         "participants": [{"name": "Priya Sharma", "title": "Head of ML Infra"}],
+         "text": "Heads up — our reserved H100 cluster has been sitting mostly idle for the last three weeks; idle share went from about 12% to 31%. We paused two training runs while the team re-plans the Q2 schedule, so don't be surprised by the utilization numbers this month.",
+         "expected_subtypes": ["reserved_cluster_idle"], "expected_sentiment": -0.45},
+        {"day": -96, "source_type": "email", "source_ref": "email:meridian:qbr-postpone",
+         "participants": [{"name": "Priya Sharma", "title": "Head of ML Infra"}],
+         "text": "Apologies, we need to push the QBR out again — the team is heads-down on a roadmap reset and I can't get the right people in the room this month. I'll come back with new dates once things settle; I have not been in the console much myself lately for the same reason.",
+         "expected_subtypes": ["engagement_gap"], "expected_sentiment": -0.4},
+        {"day": -88, "source_type": "ticket", "source_ref": "ticket:4412",
+         "participants": [{"name": "Marcus Lee", "title": "Platform Engineer"}],
+         "text": "Ticket #4412: We are validating a second provider for a subset of our training jobs and need our checkpoint format exported in a portable layout. Can you confirm whether the object store supports S3-compatible bulk export without egress throttling? We want to run the same workload on both environments for a few weeks.",
+         "expected_subtypes": ["multicloud_diversification"], "expected_sentiment": -0.6},
+        {"day": -80, "source_type": "meeting", "source_ref": "meeting:meridian:capacity-checkin",
+         "participants": [{"name": "Priya Sharma", "title": "Head of ML Infra"}, {"name": "Sarah Rivera", "title": "CSM"}],
+         "text": "Capacity check-in with Priya: they have consumed 68% of committed capacity against an 85% plan for the quarter and she does not expect to make up the shortfall. She asked whether the commitment schedule could be revisited before renewal.",
+         "expected_subtypes": ["commitment_ramp_miss"], "expected_sentiment": -0.65},
+        {"day": -22, "source_type": "email", "source_ref": "email:meridian:pricing-review",
+         "participants": [{"name": "Dana Wu", "title": "VP Engineering"}],
+         "text": "We've been looking at what spot H100 capacity goes for elsewhere and the delta to our reserved rate is hard to justify to finance right now. Before we go into renewal I'd like a pricing review — specifically whether the reserved rate can move closer to current market spot pricing.",
+         "expected_subtypes": ["spot_price_pressure"], "expected_sentiment": -0.5}
       ],
       "crm_flag_day": -14,
       "events": [
-        {
-          "day": 0,
-          "type": "contraction",
-          "amount": -1400000,
-          "title": "Renewal signed at -$1.4M (contraction) — Meridian AI",
-          "evidence": "Renewal order form dated 2026-04-20; committed capacity reduced from $4.1M to $2.7M",
-          "linked_signal_index": 3
-        }
+        {"day": 0, "type": "contraction", "amount": -1400000, "title": "Renewal signed at -$1.4M (contraction) — Meridian AI",
+         "evidence": "Renewal order form dated 2026-04-20; committed capacity reduced from $4.1M to $2.7M", "linked_communication_index": 3}
       ]
     },
     {
-      "source_account_id": "HELIX",
-      "name": "Helix Compute",
-      "arr": 2900000,
-      "industry": "AI/ML",
-      "region": "North America",
-      "champion": "Jordan Ali",
-      "champion_title": "Director of Platform",
-      "renewal_day": 60,
+      "source_account_id": "HELIX", "name": "Helix Compute", "arr": 2900000, "industry": "AI/ML", "region": "North America",
+      "champion": "Jordan Ali", "champion_title": "Director of Platform", "renewal_day": 60,
       "role": "featured_live",
-      "health": {
-        "shape": "decline",
-        "start": 79,
-        "end": 62,
-        "trailing_cross_day": 25,
-        "noise": 1.5
-      },
-      "signals": [
-        {
-          "day": -70,
-          "type": "reserved_cluster_idle",
-          "sentiment": -0.4,
-          "stakeholder": "Jordan Ali",
-          "title": "Director of Platform",
-          "content": "Reserved cluster idle share up to 27%"
-        },
-        {
-          "day": -58,
-          "type": "engagement_gap",
-          "sentiment": -0.35,
-          "stakeholder": "Jordan Ali",
-          "title": "Director of Platform",
-          "content": "Weekly sync skipped twice; no response on capacity planning thread"
-        },
-        {
-          "day": -40,
-          "type": "multicloud_diversification",
-          "sentiment": -0.55,
-          "stakeholder": "Sam Ortiz",
-          "title": "ML Engineer",
-          "content": "Support thread references benchmarking jobs on another provider"
-        }
+      "health": {"shape": "decline", "start": 79, "end": 62, "trailing_cross_day": 25, "noise": 1.5},
+      "communications": [
+        {"day": -70, "source_type": "slack", "source_ref": "slack:C0HELIX:1738000001",
+         "participants": [{"name": "Jordan Ali", "title": "Director of Platform"}],
+         "text": "FYI the reserved cluster idle share is up to 27% this month — we scaled the inference fleet back after the launch crunch. Nothing to act on yet, just flagging that the number will look odd on your side.",
+         "expected_subtypes": ["reserved_cluster_idle"], "expected_sentiment": -0.4},
+        {"day": -58, "source_type": "crm_activity", "source_ref": "crm:helix:sync-skipped",
+         "participants": [{"name": "Jordan Ali", "title": "Director of Platform"}],
+         "text": "Weekly sync skipped twice in a row by the customer; Jordan has not responded on the capacity-planning thread since the 3rd and declined the reschedule.",
+         "expected_subtypes": ["engagement_gap"], "expected_sentiment": -0.35},
+        {"day": -40, "source_type": "ticket", "source_ref": "ticket:4601",
+         "participants": [{"name": "Sam Ortiz", "title": "ML Engineer"}],
+         "text": "We're benchmarking the same training job on another provider's cluster this month and want the comparison to be apples to apples. Can you share the exact interconnect topology and NCCL settings you use for our 64-GPU reservation?",
+         "expected_subtypes": ["multicloud_diversification"], "expected_sentiment": -0.55}
       ],
       "events": []
     },
     {
-      "source_account_id": "QUANTUM",
-      "name": "Quantum Labs",
-      "arr": 3300000,
-      "industry": "Research",
-      "region": "EMEA",
-      "champion": "Lena Fischer",
-      "champion_title": "Head of Research Computing",
-      "renewal_day": 210,
+      "source_account_id": "QUANTUM", "name": "Quantum Labs", "arr": 3300000, "industry": "Research", "region": "EMEA",
+      "champion": "Lena Fischer", "champion_title": "Head of Research Computing", "renewal_day": 210,
       "role": "false_alarm",
-      "health": {
-        "shape": "dip_recover",
-        "start": 84,
-        "dip": 72,
-        "dip_day": -45,
-        "end": 85,
-        "noise": 1.5
-      },
-      "signals": [
-        {
-          "day": -60,
-          "type": "reserved_cluster_idle",
-          "sentiment": -0.5,
-          "stakeholder": "Lena Fischer",
-          "title": "Head of Research Computing",
-          "content": "Idle share spike to 34% during batch-job migration"
-        },
-        {
-          "day": -38,
-          "type": "kpi_recovery",
-          "sentiment": 0.5,
-          "stakeholder": "Lena Fischer",
-          "title": "Head of Research Computing",
-          "content": "Migration complete; utilization back above plan"
-        },
-        {
-          "day": -20,
-          "type": "advocacy",
-          "sentiment": 0.7,
-          "stakeholder": "Lena Fischer",
-          "title": "Head of Research Computing",
-          "content": "Agreed to a reference call"
-        }
+      "health": {"shape": "dip_recover", "start": 84, "dip": 72, "dip_day": -45, "end": 85, "noise": 1.5},
+      "communications": [
+        {"day": -60, "source_type": "email", "source_ref": "email:quantum:idle-spike",
+         "participants": [{"name": "Lena Fischer", "title": "Head of Research Computing"}],
+         "text": "Idle share on the reserved cluster spiked to 34% this week — we are midway through migrating the batch-job scheduler and most queued jobs are held until it's done. Expect this to persist for two to three weeks.",
+         "expected_subtypes": ["reserved_cluster_idle"], "expected_sentiment": -0.5},
+        {"day": -38, "source_type": "email", "source_ref": "email:quantum:migration-done",
+         "participants": [{"name": "Lena Fischer", "title": "Head of Research Computing"}],
+         "text": "Migration is complete and the queue drained over the weekend; utilization is back above plan and the new scheduler is doing what we hoped.",
+         "expected_subtypes": ["kpi_recovery"], "expected_sentiment": 0.5},
+        {"day": -20, "source_type": "meeting", "source_ref": "meeting:quantum:monthly",
+         "participants": [{"name": "Lena Fischer", "title": "Head of Research Computing"}],
+         "text": "Lena agreed to take a reference call with a prospective research-computing customer and said she would be glad to talk through the migration experience.",
+         "expected_subtypes": ["advocacy"], "expected_sentiment": 0.7}
       ],
       "events": []
     },
     {
-      "source_account_id": "ORION",
-      "name": "Orion Models",
-      "arr": 1800000,
-      "industry": "AI/ML",
-      "region": "APAC",
+      "source_account_id": "ORION", "name": "Orion Models", "arr": 1800000, "industry": "AI/ML", "region": "APAC",
       "renewal_day": 150,
       "role": "unclassified",
-      "health": {
-        "shape": "decline",
-        "start": 76,
-        "end": 57,
-        "trailing_cross_day": 40,
-        "noise": 1.8
-      },
-      "signals": [
-        {
-          "day": -40,
-          "type": "routine_review",
-          "sentiment": 0.0,
-          "stakeholder": "Ken Tanaka",
-          "title": "Platform Lead",
-          "content": "Routine review; no concerns raised"
-        }
+      "health": {"shape": "decline", "start": 76, "end": 57, "trailing_cross_day": 40, "noise": 1.8},
+      "communications": [
+        {"day": -40, "source_type": "meeting", "source_ref": "meeting:orion:monthly",
+         "participants": [{"name": "Ken Tanaka", "title": "Platform Lead"}],
+         "text": "Routine monthly review with Ken: ran through the utilization dashboard and the open tickets; nothing flagged, no concerns raised on either side.",
+         "expected_subtypes": ["routine_review"], "expected_sentiment": 0.0}
       ],
       "events": []
     }
   ],
   "background": {
-    "names": [
-      "Apex Compute",
-      "Cirrus AI",
-      "Nova Foundry",
-      "Pacific Dataworks",
-      "Stellar Inference",
-      "Titan Hyperscale Labs",
-      "Vector Dynamics",
-      "Zenith Training"
-    ],
-    "health_range": [
-      74,
-      88
-    ],
-    "arr_choices": [
-      1200000,
-      2400000,
-      3600000,
-      5100000
-    ],
-    "industries": [
-      "AI/ML",
-      "Telecommunications",
-      "Research",
-      "Media"
-    ],
-    "regions": [
-      "North America",
-      "EMEA",
-      "APAC"
-    ]
+    "names": ["Apex Compute", "Cirrus AI", "Nova Foundry", "Pacific Dataworks", "Stellar Inference", "Titan Hyperscale Labs", "Vector Dynamics", "Zenith Training"],
+    "health_range": [74, 88],
+    "arr_choices": [1200000, 2400000, 3600000, 5100000],
+    "industries": ["AI/ML", "Telecommunications", "Research", "Media"],
+    "regions": ["North America", "EMEA", "APAC"]
   }
 }

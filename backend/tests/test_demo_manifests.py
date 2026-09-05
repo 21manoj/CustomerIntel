@@ -1,13 +1,20 @@
 """
-Acceptance for the three protocol-shaped demo manifests
+Acceptance for the protocol-shaped demo manifests
 (docs/design/demo-narratives.md): each generates schema-valid CSVs,
-registers through the real MCP tools stamped synthetic, and the harness
-reads the constructed story back — featured lead times, the CRM flag as
+registers through the real MCP tools stamped synthetic — v2 manifests
+submit their communications through the signal engine — and the harness
+reads the constructed story back: featured lead times, the CRM flag as
 comparator, the false-alarm account counted, the unclassified account
 unclassified — and never labels any of it "measured".
+
+Extraction here is the ORACLE (the manifest's labels played back through
+the engine, demo/oracle.py): the narratives are about the journey and the
+backtest, not about the model. What a real extractor reads out of the
+same texts is tests/test_demo_v2.py's scorecard, reported as-is.
 """
 import csv
 import io
+import json
 import os
 import sys
 import uuid
@@ -16,6 +23,9 @@ from pathlib import Path
 import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+os.environ.pop('ANTHROPIC_API_KEY', None)
+os.environ['FEATURE_SIGNAL_ENGINE'] = 'true'
 
 from flask import Flask
 from extensions import db
@@ -33,8 +43,10 @@ app = _make_app()
 import mcp_server.common as _common
 _common._flask_app = app
 
-from models import Customer, Account, JourneyData, HealthScore
-from demo.generate import generate, register, load_manifest, health_to_kpi_value, MANIFESTS_DIR
+from models import Customer, Account, JourneyData, HealthScore, QualitativeSignal, ContextNode
+from demo.generate import generate, register, load_manifest, health_to_kpi_value, expand_accounts, MANIFESTS_DIR
+from demo.manifest_v2 import is_v2, signals_only, plan_communications
+from demo.oracle import ORACLE_MODEL_VERSION
 
 MANIFESTS = sorted(MANIFESTS_DIR.glob('demo_*.json'))
 
@@ -47,19 +59,25 @@ def _assert_isolated_test_db(uri):
 
 
 @pytest.fixture(scope='module')
-def registered():
+def registered(tmp_path_factory):
     _assert_isolated_test_db(app.config['SQLALCHEMY_DATABASE_URI'])
     out = {}
+    out_dir = tmp_path_factory.mktemp('demo_out')
     with app.app_context():
         db.create_all()
         from evals.lead_time_backtest import run_backtest, format_report
         for path in MANIFESTS:
             m = load_manifest(path)
             files = generate(m)
-            reg = register(m, files, name_suffix=uuid.uuid4().hex[:6])
+            reg = register(m, files, name_suffix=uuid.uuid4().hex[:6], extractor='oracle', out_dir=out_dir)
             assert reg['status'] == 'success', reg
-            rep = run_backtest(reg['customer_id'], min_events=1)
-            print(f"\n### {m['manifest_id']}\n" + format_report(rep))
+            rep = None
+            if not signals_only(m):
+                # evals/lead_time_backtest._warning_months compares kpi_only < at_risk on every
+                # month; a signals-only tenant has only live months (kpi_only None) → TypeError.
+                # Known gap in evals/, not patched here (see test_demo_v2 / demo-narratives §7).
+                rep = run_backtest(reg['customer_id'], min_events=1)
+                print(f"\n### {m['manifest_id']}\n" + format_report(rep))
             out[m['manifest_id']] = (m, files, reg, rep)
         yield out
         db.session.remove()
@@ -88,17 +106,26 @@ class TestGeneration:
         m = load_manifest(path)
         files = generate(m)
         assert generate(m) == files                                   # seeded
-        assert set(files) == {'account_details.csv', 'kpi_measurements.csv', 'enhanced_qualitative_signals.csv', 'outcomes.csv'}
+        assert is_v2(m)                                               # all shipped manifests are v2 now
+        expected = {'account_details.csv', 'outcomes.csv'}
+        if not signals_only(m):
+            expected.add('kpi_measurements.csv')
+        if any(a.get('crm_flag_day') is not None for a in m['accounts']):
+            expected.add('enhanced_qualitative_signals.csv')
+        assert set(files) == expected, set(files)
         for ft, content in files.items():
             r = _upload_csv_impl(0, ft, content, dry_run=True)
             assert r.valid, (ft, r.errors)
             assert not any('Unknown columns' in w for w in r.warnings), (ft, r.warnings)
         accts = _rows(files['account_details.csv'])
-        assert len(accts) == len(m['accounts']) + len(m['background']['names'])
+        assert len(accts) == len(m['accounts']) + len((m.get('background') or {}).get('names', []))
         outs = _rows(files['outcomes.csv'])
-        assert all(o['linked_signal_id'] for o in outs)               # every event links to its signal
-        sigs = _rows(files['enhanced_qualitative_signals.csv'])
-        assert all(s['signal_ref'] == s['signal_id'] for s in sigs)
+        assert all(o['linked_signal_id'].endswith('_comm_' + o['linked_signal_id'].rsplit('_', 1)[-1]) for o in outs)
+        # v2: no behavioral signal rows on the CSV — only the CSM's declared flag
+        if 'enhanced_qualitative_signals.csv' in files:
+            assert {s['signal_type'] for s in _rows(files['enhanced_qualitative_signals.csv'])} == {'csm_risk_flag'}
+        comms = plan_communications(m, expand_accounts(m))
+        assert comms and all(c['expected_subtypes'] is not None and c['participants'] for c in comms)
 
 
 class TestRegisteredTenants:
@@ -106,8 +133,60 @@ class TestRegisteredTenants:
         with app.app_context():
             for mid, (m, files, reg, rep) in registered.items():
                 assert db.session.get(Customer, reg['customer_id']).data_origin == 'synthetic_demo'
-                assert rep['evidence_label'] != 'measured'
-                assert rep['data_origin'] == 'synthetic_demo'
+                if rep is not None:
+                    assert rep['evidence_label'] != 'measured'
+                    assert rep['data_origin'] == 'synthetic_demo'
+
+    def test_communications_went_through_the_engine_not_the_csv(self, registered):
+        """Every behavioral signal on a v2 tenant is a QualitativeSignal the
+        pipeline ingested (source_type set, dated by the event) with an
+        OBSERVED SIGNAL node; the only CSV-born signal is the CSM flag."""
+        with app.app_context():
+            for mid, (m, files, reg, rep) in registered.items():
+                cid = reg['customer_id']
+                comms = plan_communications(m, expand_accounts(m))
+                engine_sigs = QualitativeSignal.query.filter(QualitativeSignal.customer_id == cid,
+                                                             QualitativeSignal.source_type.isnot(None)).all()
+                assert len(engine_sigs) == len(comms), mid
+                assert all(s.cg_node_id is not None and s.occurred_at is not None for s in engine_sigs)
+                assert all(s.llm_model_version == ORACLE_MODEL_VERSION for s in engine_sigs)
+                csv_sigs = QualitativeSignal.query.filter(QualitativeSignal.customer_id == cid,
+                                                          QualitativeSignal.source_type.is_(None)).all()
+                assert {s.signal_type for s in csv_sigs} <= {'csm_risk_flag'}, mid
+                nodes = ContextNode.query.filter_by(customer_id=cid, node_type='SIGNAL').all()
+                assert all(n.source == 'observed' for n in nodes)
+                by_event = {n.source_event_id for n in nodes}
+                assert {s.signal_id for s in engine_sigs} <= by_event
+
+    def test_scorecard_is_perfect_under_the_oracle_and_says_so(self, registered):
+        for mid, (m, files, reg, rep) in registered.items():
+            sc = reg['scorecard']
+            comms = plan_communications(m, expand_accounts(m))
+            assert sc['communications'] == len(comms) and sc['exact'] == len(comms) and sc['miss'] == 0, mid
+            assert sc['hit_rate'] == 1.0 and sc['subtype']['precision'] == 1.0 and sc['subtype']['recall'] == 1.0
+            assert sc['pending'] == 0 and sc['duplicates'] == 0 and not sc['errors']
+            assert sc['model_version'] == ORACLE_MODEL_VERSION and 'not a model result' in sc['label']
+            assert all(v['precision'] == 1.0 and v['recall'] == 1.0 for v in sc['roles'].values())
+            paths = reg['outputs']
+            assert Path(paths['scorecard']).exists() and Path(paths['labelled']).exists()
+            lines = [json.loads(l) for l in Path(paths['labelled']).read_text().splitlines()]
+            assert len(lines) == len(comms)
+            assert all(l['text'] and l['source_type'] and l['model_version'] == ORACLE_MODEL_VERSION
+                       and l['extracted_subtypes'] == l['expected_subtypes'] for l in lines)
+
+    def test_outcomes_link_to_the_engine_signal(self, registered):
+        """emit_outcomes rewrote the manifest ref to the engine's signal id:
+        the LED_TO edge goes from the ingested communication's node."""
+        with app.app_context():
+            from models import ContextEdge
+            for mid, (m, files, reg, rep) in registered.items():
+                cid = reg['customer_id']
+                n_events = sum(len(a.get('events', [])) for a in m['accounts'])
+                edges = ContextEdge.query.filter_by(customer_id=cid, edge_type='LED_TO').all()
+                assert len(edges) == n_events, (mid, len(edges), n_events)
+                for e in edges:
+                    src = db.session.get(ContextNode, e.from_node_id)
+                    assert src.node_type == 'SIGNAL' and src.source_platform in ('email', 'slack', 'ticket', 'meeting', 'crm_activity', 'transcript', 'manual')
 
     def test_scenario_a_silent_displacement(self, registered):
         m, files, reg, rep = registered['demo_silent_displacement_dc']
@@ -163,9 +242,46 @@ class TestRegisteredTenants:
             hooks = j['counterfactual_hooks']
             assert any('exec sponsor rebuild' in h['title'] for h in hooks)
             assert j['expected_path']['arc_type'] == 'exec_sponsor_change'
+            # the champion episode is the ingested communication, person resolved against the roster
+            eps = [e for e in j['episodes'] if e['kind'] == 'signal' and e['role'] == 'champion_change']
+            assert eps and eps[0]['meta']['stakeholder'] == 'Elena Rossi'
             # Blue Harbor's internal champion move recovered without intervention → on record as
             # a false alarm (or still open, if too little data follows it)
             assert h1['leading']['false_alarm_months'] + h1['leading']['censored_warning_months'] >= 1
+
+    def test_scenario_d_signals_only_builds_journeys_from_evidence_alone(self, registered):
+        """P1: no KPI rows, no health scores — every month is live, kpi_only is
+        None throughout, the leading series carries the composite, and the
+        champion-departure story classifies through the health-free rule."""
+        m, files, reg, rep = registered['demo_signals_only_saas']
+        assert reg['signals_only'] and rep is None
+        with app.app_context():
+            cid = reg['customer_id']
+            aids = [a.account_id for a in Account.query.filter_by(customer_id=cid).all()]
+            assert len(aids) == 6
+            assert HealthScore.query.filter(HealthScore.account_id.in_(aids)).count() == 0
+            journeys = {jd.journey_json['account_name']: jd.journey_json
+                        for jd in JourneyData.query.filter_by(customer_id=cid).all()}
+            assert len(journeys) == 6
+            for name, j in journeys.items():
+                series = j['leading_vs_trailing']['series']
+                assert series, name
+                assert all(s['kpi_only'] is None and s['live'] for s in series), name
+                assert all(s['early_warning'] in ('leading_only', None) for s in series)
+                assert any(s['qual'] is not None for s in series), name
+                assert j['summary']['months_scored'] == 0 and j['live_months']
+            halcyon = journeys['Halcyon Health']
+            assert halcyon['arc']['arc_type'] == 'exec_sponsor_change'
+            assert halcyon['leading_vs_trailing']['first_leading_warning_at'] is not None
+            assert all(s['qual'] is not None and s['qual'] < 50 for s in halcyon['leading_vs_trailing']['series'])
+            # the expansion story is evidence-complete but the expansion arcs need a health predicate
+            # (very_healthy / healthy) that a signals-only tenant cannot satisfy — P1's open half
+            orchard = journeys['Orchard Retail']
+            roles = set()
+            for s in orchard['leading_vs_trailing']['series']:
+                roles |= set(s['roles'])
+            assert {'expansion_intent', 'advocacy'} <= roles and orchard['state'] == 'unclassified'
+            assert reg['wizard_a']['coverage']['unclassified'] >= 4
 
 
 if __name__ == '__main__':
