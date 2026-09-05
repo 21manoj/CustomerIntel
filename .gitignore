@@ -6,3 +6,6 @@ __pycache__/
 
 # deploy secrets
 deploy/.env
+
+# agent worktrees (never commit)
+.claude/worktrees/
