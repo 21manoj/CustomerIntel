@@ -238,7 +238,7 @@ def normalize_extraction(data: dict, taxonomy) -> dict:
     dropped (the API enum should have prevented them) and counted."""
     data = _coerce_payload(data)
     threshold = settings.get('llm', 'confidence_threshold')
-    signals, dropped = [], 0
+    signals, dropped, merged = [], 0, 0
     for item in (data.get('signals') or []):
         if not isinstance(item, dict):
             continue
@@ -249,6 +249,18 @@ def normalize_extraction(data: dict, taxonomy) -> dict:
             continue
         people = [{'name': p.get('name'), 'title': p.get('title'), 'roster_role': p.get('roster_role')}
                   for p in (item.get('people') or []) if isinstance(p, dict) and p.get('name')]
+        twin = next((s for s in signals if s['subtype'] == subtype), None)
+        if twin is not None:
+            # the same subtype twice in one communication is one signal: keep the first,
+            # take the stronger confidence / urgency, and any extra people (first real scorecard: 21 fp, most of them this)
+            twin['confidence'] = max(twin['confidence'], _clamp(item.get('confidence'), 0, 1, 0.0))
+            twin['urgency_score'] = max(twin['urgency_score'], _clamp(item.get('urgency_score'), 0, 1, 0.0))
+            twin['escalation_probability'] = max(twin['escalation_probability'], _clamp(item.get('escalation_probability'), 0, 1, 0.0))
+            for p in people:
+                if not any(q['name'].lower() == p['name'].lower() for q in twin['people']):
+                    twin['people'].append(p)
+            merged += 1
+            continue
         signals.append({
             'subtype': subtype, 'role': role, 'quote': (item.get('quote') or '')[:500],
             'sentiment_score': _clamp(item.get('sentiment_score'), -1, 1, 0.0),
@@ -268,7 +280,7 @@ def normalize_extraction(data: dict, taxonomy) -> dict:
         'signals': signals,
         'is_duplicate': bool(data.get('is_duplicate')), 'duplicate_reason': data.get('duplicate_reason') or None,
         'suggested_action': (data.get('suggested_action') or '')[:500] or None,
-        'requires_review': requires_review, 'dropped_unknown_subtypes': dropped,
+        'requires_review': requires_review, 'dropped_unknown_subtypes': dropped, 'merged_duplicate_subtypes': merged,
         # flattened, column-compatible view
         'sentiment_score': (sum(s['sentiment_score'] for s in signals) / len(signals)) if signals else 0.0,
         'urgency_score': max((s['urgency_score'] for s in signals), default=0.0),

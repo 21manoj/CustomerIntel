@@ -136,3 +136,20 @@ def test_normalize_accepts_stringified_payload_seen_live():
     out2 = normalize_extraction(json.dumps(inner), get_taxonomy('dc2_s'))          # entire payload as a string
     assert len(out2['signals']) == 3
     assert normalize_extraction({'signals': 'not json'}, get_taxonomy('dc2_s'))['signals'] == []
+
+
+def test_same_subtype_twice_in_one_text_is_one_signal():
+    """First real scorecard (signals-only SaaS, claude-sonnet-5): most false positives were the
+    same subtype emitted twice for one communication."""
+    from signal_engine.enrichment import normalize_extraction
+    from utils.taxonomy_loader import get_taxonomy
+    out = normalize_extraction({'signals': [
+        {'subtype': 'playbook_executed', 'quote': 'playbook executed', 'sentiment_score': 0.1, 'urgency_score': 0.2,
+         'escalation_probability': 0.0, 'confidence': 0.6, 'people': [{'name': 'Owen Hart', 'title': 'COO'}]},
+        {'subtype': 'playbook_executed', 'quote': 'met Owen Hart', 'sentiment_score': 0.2, 'urgency_score': 0.5,
+         'escalation_probability': 0.1, 'confidence': 0.9, 'people': [{'name': 'Maya Johnson', 'title': 'CSM'}]},
+    ], 'requires_review': False, 'is_duplicate': False, 'suggested_action': 'x'}, get_taxonomy('saas_premium'))
+    assert [s['subtype'] for s in out['signals']] == ['playbook_executed'] and out['merged_duplicate_subtypes'] == 1
+    s = out['signals'][0]
+    assert s['confidence'] == 0.9 and s['urgency_score'] == 0.5 and {p['name'] for p in s['people']} == {'Owen Hart', 'Maya Johnson'}
+    assert out['intent_signals'] == ['playbook_executed']
