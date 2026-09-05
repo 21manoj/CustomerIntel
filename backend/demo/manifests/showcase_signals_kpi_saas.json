@@ -1,0 +1,330 @@
+{
+ "version": 2,
+ "vertical": "saas_premium",
+ "default_product": "Workflow Cloud",
+ "default_csm": "Maya Johnson",
+ "csm_manager": "Chris Park",
+ "timeline": {
+  "t0": "2026-09-01",
+  "history_days": 120,
+  "future_days": 0,
+  "kpi_cadence_days": 7
+ },
+ "manifest_id": "showcase_signals_kpi_saas",
+ "scenario": "Showcase 2 — signals + KPI tenant (3 accounts): the same three stories with a monthly KPI layer that crosses after the evidence",
+ "narrative": "Same stories, both layers. Full disclosure: synthetic_demo.",
+ "customer_name": "Atlas Analytics (showcase, signals+KPI)",
+ "domain_prefix": "atlas-showcase",
+ "seed": 5102,
+ "accounts": [
+  {
+   "source_account_id": "NORTHSTAR",
+   "name": "Northstar Mutual",
+   "arr": 1200000,
+   "industry": "Insurance",
+   "region": "North America",
+   "champion": "Dana Whitfield",
+   "champion_title": "VP Claims Operations",
+   "executive_sponsor": "Lena Ortiz",
+   "renewal_day": 20,
+   "role": "featured",
+   "use_cases": [
+    {
+     "name": "Claims intake automation",
+     "product": "Workflow Cloud",
+     "status": "live"
+    },
+    {
+     "name": "Agent workflow analytics",
+     "status": "planned",
+     "target_date": "2026-12-31"
+    }
+   ],
+   "communications": [
+    {
+     "day": -110,
+     "source_type": "crm_activity",
+     "text": "CRM contact update: Dana Whitfield (VP Claims Operations), the executive who sponsored our rollout, has left Northstar Mutual for a competitor; her deputy Raj Iyer is covering the relationship but has not been named owner.",
+     "expected_subtypes": [
+      "champion_departure"
+     ],
+     "expected_sentiment": -0.7,
+     "source_ref": "crm:northstar:contact-4471",
+     "participants": [
+      {
+       "name": "Dana Whitfield",
+       "title": "VP Claims Operations"
+      }
+     ]
+    },
+    {
+     "day": -95,
+     "source_type": "email",
+     "text": "Following up a third time on the Q3 business review — Raj's team declined the two proposed slots and has not offered another. The claims intake dashboards have not been opened in three weeks according to their own admin.",
+     "expected_subtypes": [
+      "engagement_gap",
+      "usage_decline"
+     ],
+     "expected_sentiment": -0.5,
+     "source_ref": "mail:northstar:9921",
+     "participants": [
+      {
+       "name": "Raj Iyer",
+       "title": "Director, Claims Ops"
+      }
+     ]
+    },
+    {
+     "day": -70,
+     "source_type": "crm_activity",
+     "text": "Account plan updated: executive sponsor rebuild started. Maya Johnson (CSM) and our VP CS met Raj Iyer and the COO, Lena Ortiz; Lena agreed to sponsor the claims automation program and named Raj as the day-to-day owner.",
+     "expected_subtypes": [
+      "csm_intervention"
+     ],
+     "expected_sentiment": 0.2,
+     "source_ref": "crm:northstar:activity-4502",
+     "participants": [
+      {
+       "name": "Lena Ortiz",
+       "title": "COO"
+      },
+      {
+       "name": "Raj Iyer",
+       "title": "Director, Claims Ops"
+      }
+     ]
+    },
+    {
+     "day": -40,
+     "source_type": "manual",
+     "text": "Raj reports the intake queue has been stable for three straight weeks and the night-shift adjusters are back on the workflow instead of the spreadsheet; he asked for a refresher session for two new hires.",
+     "expected_subtypes": [
+      "kpi_stabilized"
+     ],
+     "expected_sentiment": 0.4,
+     "participants": [
+      {
+       "name": "Raj Iyer",
+       "title": "Director, Claims Ops"
+      }
+     ]
+    },
+    {
+     "day": -12,
+     "source_type": "email",
+     "text": "Procurement confirmed the renewal will go ahead but at fewer seats — they are consolidating two regional teams — and asked for the analytics add-on to be quoted separately for next fiscal year.",
+     "expected_subtypes": [
+      "seat_reduction_request",
+      "module_upsell_interest"
+     ],
+     "expected_sentiment": -0.1,
+     "source_ref": "mail:northstar:10310",
+     "participants": [
+      {
+       "name": "Raj Iyer",
+       "title": "Director, Claims Ops"
+      }
+     ]
+    }
+   ],
+   "events": [
+    {
+     "day": -5,
+     "type": "contraction",
+     "amount": -120000,
+     "title": "Renewal secured at fewer seats — Northstar Mutual",
+     "evidence": "Renewal order form 2026-08-27; seats reduced from 400 to 320; analytics add-on deferred to FY27",
+     "linked_communication_index": 0
+    }
+   ],
+   "health": {
+    "shape": "dip_recover",
+    "start": 80,
+    "dip": 48,
+    "dip_day": -60,
+    "end": 64,
+    "noise": 1.5
+   },
+   "crm_flag_day": -88,
+   "attributes": {
+    "segment": "mid-market",
+    "crm_owner": "ae-north@vendor.test"
+   }
+  },
+  {
+   "source_account_id": "GREENFIELD",
+   "name": "Greenfield Retail",
+   "arr": 900000,
+   "industry": "Retail",
+   "region": "North America",
+   "champion": "Priya Shah",
+   "champion_title": "Head of Store Operations",
+   "executive_sponsor": "Omar Bassett",
+   "renewal_day": 110,
+   "role": "featured",
+   "use_cases": [
+    {
+     "name": "Store operations approvals",
+     "product": "Workflow Cloud",
+     "status": "live"
+    },
+    {
+     "name": "Merchandising planning",
+     "status": "planned",
+     "target_date": "2026-11-15"
+    }
+   ],
+   "communications": [
+    {
+     "day": -80,
+     "source_type": "meeting",
+     "text": "QBR notes: Priya Shah walked us through the store-ops rollout results — 140 store managers live, weekly approvals volume up 3x. She asked what it would take to extend the workflow tool to the merchandising planners in Q4.",
+     "expected_subtypes": [
+      "rapid_adoption",
+      "expansion_discussion"
+     ],
+     "expected_sentiment": 0.6,
+     "source_ref": "cal:greenfield:qbr-0619",
+     "participants": [
+      {
+       "name": "Priya Shah",
+       "title": "Head of Store Operations"
+      }
+     ]
+    },
+    {
+     "day": -60,
+     "source_type": "slack",
+     "text": "Priya presented our rollout at their ops all-hands as the reference example for 'tools that stuck'; the regional VPs asked her for the playbook.",
+     "expected_subtypes": [
+      "champion_advocacy"
+     ],
+     "expected_sentiment": 0.7,
+     "source_ref": "slack:greenfield:C04:1719",
+     "participants": [
+      {
+       "name": "Priya Shah",
+       "title": "Head of Store Operations"
+      }
+     ]
+    },
+    {
+     "day": -30,
+     "source_type": "ticket",
+     "text": "Ticket #7788 from Greenfield procurement: please quote 150 additional seats for merchandising, co-termed with the current agreement, plus the analytics module for the planning team.",
+     "expected_subtypes": [
+      "seat_expansion_interest",
+      "module_upsell_interest"
+     ],
+     "expected_sentiment": 0.5,
+     "source_ref": "ZD-7788",
+     "participants": [
+      {
+       "name": "Marcus Doyle",
+       "title": "Procurement Lead"
+      }
+     ]
+    },
+    {
+     "day": -10,
+     "source_type": "email",
+     "text": "Marketing is happy for us to publish a case study on the store-ops rollout; Priya will be the named reference and can take two reference calls a quarter.",
+     "expected_subtypes": [
+      "case_study_consent",
+      "reference_call_agreed"
+     ],
+     "expected_sentiment": 0.7,
+     "source_ref": "mail:greenfield:2201",
+     "participants": [
+      {
+       "name": "Priya Shah",
+       "title": "Head of Store Operations"
+      }
+     ]
+    }
+   ],
+   "events": [
+    {
+     "day": -3,
+     "type": "expansion_closed",
+     "amount": 180000,
+     "title": "+150 seats and analytics module booked — Greenfield Retail",
+     "evidence": "Order form 2026-08-29; 150 seats co-termed, analytics module for planning",
+     "linked_communication_index": 2
+    }
+   ],
+   "health": {
+    "shape": "ramp",
+    "start": 72,
+    "end": 86,
+    "noise": 1.2
+   },
+   "attributes": {
+    "segment": "enterprise",
+    "stores": 640
+   }
+  },
+  {
+   "source_account_id": "HARBOR",
+   "name": "Harbor Bank",
+   "arr": 600000,
+   "industry": "Banking",
+   "region": "North America",
+   "champion": "Tom Alvarez",
+   "champion_title": "IT Manager",
+   "executive_sponsor": "",
+   "renewal_day": 200,
+   "role": "featured",
+   "use_cases": [
+    {
+     "name": "Change-request approvals",
+     "product": "Workflow Cloud",
+     "status": "live"
+    }
+   ],
+   "communications": [
+    {
+     "day": -75,
+     "source_type": "crm_activity",
+     "text": "Monthly check-in with Tom Alvarez: nothing to report, the team is heads-down on their core-banking migration; our tool is used as before.",
+     "expected_subtypes": [
+      "routine_review"
+     ],
+     "expected_sentiment": 0.1,
+     "source_ref": "crm:harbor:activity-310",
+     "participants": [
+      {
+       "name": "Tom Alvarez",
+       "title": "IT Manager"
+      }
+     ]
+    },
+    {
+     "day": -20,
+     "source_type": "crm_activity",
+     "text": "Monthly check-in: Tom asked for the SSO documentation link; no issues raised.",
+     "expected_subtypes": [
+      "routine_review"
+     ],
+     "expected_sentiment": 0.1,
+     "source_ref": "crm:harbor:activity-341",
+     "participants": [
+      {
+       "name": "Tom Alvarez",
+       "title": "IT Manager"
+      }
+     ]
+    }
+   ],
+   "events": [],
+   "health": {
+    "shape": "flat",
+    "start": 78,
+    "noise": 1.0
+   },
+   "attributes": {
+    "segment": "mid-market"
+   }
+  }
+ ]
+}
