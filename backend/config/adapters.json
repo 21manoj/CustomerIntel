@@ -1,0 +1,75 @@
+{
+  "_doc": "Adapters around the playbook contract (docs/design/adapters.md). Every number the receiver, the Slack notifier and the source adapters use lives here; nothing in adapters/ carries its own. Secrets are never here: CI_RECEIVER_SECRET / CI_PLATFORM_KEY (env or CLI) for the receiver, the tenant overlay for the Slack URL.",
+  "version": "1.0",
+  "receiver": {
+    "default_host": "0.0.0.0",
+    "default_port": 8210,
+    "timestamp_tolerance_seconds": 300,
+    "max_body_bytes": 262144,
+    "log_path_default": "ci_receiver_events.jsonl",
+    "policy": {
+      "modes": ["auto_done", "manual"],
+      "default": "auto_done",
+      "auto_done_after_seconds": 60,
+      "done_note": "closed by the reference receiver (policy auto_done)",
+      "started_note": "acknowledged by the reference receiver"
+    },
+    "callback": {
+      "timeout_seconds": 10,
+      "initial_delay_seconds": 0.5,
+      "retries": 4,
+      "retry_delay_seconds": 1.0
+    },
+    "env": {
+      "secret": "CI_RECEIVER_SECRET",
+      "platform_url": "CI_PLATFORM_URL",
+      "platform_key": "CI_PLATFORM_KEY",
+      "customer_id": "CI_CUSTOMER_ID",
+      "policy": "CI_RECEIVER_POLICY",
+      "auto_done_after_seconds": "CI_RECEIVER_AUTO_DONE_AFTER_SECONDS",
+      "log_path": "CI_RECEIVER_LOG",
+      "port": "CI_RECEIVER_PORT"
+    }
+  },
+  "slack": {
+    "action_classes": ["notify"],
+    "allowed_hosts": ["hooks.slack.com"],
+    "timeout_seconds": 5,
+    "quote_chars": 200,
+    "user_agent": "CustomerIntelV1-slack-notify/1.0"
+  },
+  "sources": {
+    "max_rows": 5000,
+    "max_content_bytes": 5242880,
+    "gainsight_timeline": {
+      "_doc": "Gainsight Timeline activity export (CSV). columns: our field -> the export's header names, matched case- and space-insensitively, first hit wins. activity_type_map: Gainsight 'Activity Type' -> signal_engine source_type; anything else -> default_source_type.",
+      "source_ref_prefix": "gainsight:timeline:",
+      "text_chars": 4000,
+      "columns": {
+        "activity_id": ["Activity ID", "Activity Id", "GSID", "Id", "ID"],
+        "activity_type": ["Activity Type", "Type"],
+        "subject": ["Subject", "Title"],
+        "notes": ["Notes", "Note", "Description", "Body", "Activity Notes"],
+        "activity_date": ["Activity Date", "Activity Timestamp", "Date", "Created Date"],
+        "company_id": ["Company ID", "Company GSID", "Account ID", "Account GSID", "GS Company ID"],
+        "company_name": ["Company Name", "Company", "Account Name", "Account"],
+        "author": ["Author", "Author Name", "Created By", "Owner"],
+        "internal_attendees": ["Internal Attendees", "Internal Attendee"],
+        "external_attendees": ["External Attendees", "External Attendee", "Attendees"]
+      },
+      "attendee_separators": [";", ","],
+      "activity_type_map": {
+        "email": "email",
+        "call": "meeting",
+        "meeting": "meeting",
+        "update": "crm_activity",
+        "milestone": "crm_activity",
+        "note": "crm_activity",
+        "internal note": "crm_activity"
+      },
+      "default_source_type": "crm_activity",
+      "author_title": "Gainsight author",
+      "attendee_title": "attendee"
+    }
+  }
+}
