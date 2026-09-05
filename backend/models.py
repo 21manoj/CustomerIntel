@@ -97,6 +97,51 @@ class LLMUsageLog(db.Model):
     created_at = db.Column(db.DateTime, nullable=False, server_default=db.func.now(), index=True)   # server-side: the controller INSERTs raw SQL
 
 
+class CsvUpload(db.Model):
+    """One row per upload_csv call (G2: ingest lineage). The staging table keeps
+    only the latest content per file type; this table keeps the record of
+    every upload — hash, size, who, validation warnings, and which
+    process_data run consumed it. KPI rows and health scores point back here."""
+    __tablename__ = 'csv_uploads'
+
+    id = db.Column(db.Integer, primary_key=True)
+    customer_id = db.Column(db.Integer, db.ForeignKey('customers.customer_id'), nullable=False, index=True)
+    file_type = db.Column(db.String(100), nullable=False)
+    sha256 = db.Column(db.String(64), nullable=False, index=True)
+    row_count = db.Column(db.Integer, nullable=False, default=0)
+    byte_count = db.Column(db.Integer, nullable=False, default=0)
+    validation = db.Column(db.JSON, nullable=True)                 # warnings at upload time
+    key_kind = db.Column(db.String(10), nullable=True)             # server | customer | none | local
+    key_id = db.Column(db.Integer, nullable=True)
+    uploaded_at = db.Column(db.DateTime, nullable=False, server_default=db.func.now(), index=True)
+    consumed_at = db.Column(db.DateTime, nullable=True)
+    process_run_id = db.Column(db.Integer, nullable=True)
+
+
+class ProcessRun(db.Model):
+    """One row per process_data run (G2/G1): what ran, on which uploads, what it
+    wrote, what failed, how long — the record behind every health score row
+    that names it."""
+    __tablename__ = 'process_runs'
+
+    id = db.Column(db.Integer, primary_key=True)
+    run_id = db.Column(db.String(40), nullable=False, unique=True, index=True)
+    customer_id = db.Column(db.Integer, db.ForeignKey('customers.customer_id'), nullable=False, index=True)
+    vertical = db.Column(db.String(50), nullable=True)
+    mode = db.Column(db.String(20), nullable=False)
+    status = db.Column(db.String(20), nullable=False, default='running')   # running | success | partial | failed
+    steps = db.Column(db.JSON, nullable=True)
+    errors = db.Column(db.JSON, nullable=True)
+    timings = db.Column(db.JSON, nullable=True)
+    counts = db.Column(db.JSON, nullable=True)                     # accounts, kpi_measurements, health_written, health_reopened, kpi_rows_skipped_blank …
+    upload_ids = db.Column(db.JSON, nullable=True)                 # CsvUpload ids consumed by this run
+    key_kind = db.Column(db.String(10), nullable=True)
+    key_id = db.Column(db.Integer, nullable=True)
+    generator_version = db.Column(db.String(20), nullable=True)   # journeys.wizard_a.GENERATOR_VERSION at the time
+    started_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, index=True)
+    finished_at = db.Column(db.DateTime, nullable=True)
+
+
 class ToolAuditLog(db.Model):
     """One row per authenticated entry point hit — MCP tool or HTTP route —
     with who (key), for which tenant, and whether it was allowed. The
@@ -528,6 +573,7 @@ class KPIMeasurement(db.Model):
     value = db.Column(db.Numeric(10, 2), nullable=False)
     target = db.Column(db.Numeric(10, 2))
     pillar = db.Column(db.String(10), index=True)
+    upload_id = db.Column(db.Integer, nullable=True, index=True)   # lineage: the CsvUpload this row came from (NULL for pre-lineage rows)
     weight = db.Column(db.Numeric(5, 4))
     status = db.Column(db.String(20))
     measured_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
@@ -572,6 +618,7 @@ class CsvUploadStaging(db.Model):
     file_type = db.Column(db.String(100), nullable=False)  # canonical filename, e.g. 'accounts.csv'
     csv_content = db.Column(db.Text, nullable=False)
     row_count = db.Column(db.Integer, default=0)
+    upload_id = db.Column(db.Integer, nullable=True)                # lineage: the CsvUpload row this staging content came from
     uploaded_at = db.Column(db.DateTime, server_default=db.func.now())
     updated_at = db.Column(db.DateTime, server_default=db.func.now(), onupdate=db.func.now())
 
@@ -658,7 +705,18 @@ class HealthScore(db.Model):
     early_warning = db.Column(db.String(24))        # 'early_warning' | 'recovery_watch' | 'aligned'
 
     contributing_pillars = db.Column(db.JSON)  # {"P1": 80, "P2": 92, ...}
-    pillar_weights = db.Column(db.JSON)        # {"P1": 0.15, "P2": 0.20, ...}
+    pillar_weights = db.Column(db.JSON)        # {"P1": 0.15, "P2": 0.20, ...} — the weights actually applied (written since 2026-09-05)
+
+    # Provenance (G1: a score must cite what it was computed from) — 2026-09-05
+    kpi_weights = db.Column(db.JSON)           # {kpi_code: weight_l1 used}
+    kpi_codes_used = db.Column(db.JSON)        # codes that entered the score
+    kpi_codes_dropped = db.Column(db.JSON)     # codes present in the inputs but not in the catalog / disabled pillar
+    weight_source = db.Column(db.String(24))   # lifecycle | customer_config | catalog
+    catalog_version = db.Column(db.String(20))
+    taxonomy_version = db.Column(db.String(20))
+    scorer_version = db.Column(db.String(20))
+    input_upload_id = db.Column(db.Integer)    # newest CsvUpload among the KPI rows of this month (NULL for pre-lineage rows)
+    process_run_id = db.Column(db.Integer)     # ProcessRun that wrote / last rewrote this row
 
     calculated_at = db.Column(db.DateTime, default=datetime.utcnow)
 

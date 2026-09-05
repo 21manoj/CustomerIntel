@@ -112,6 +112,9 @@ def score_kpi(value: float, kpi_def: dict) -> float:
     return max(0.0, min(100.0, score))
 
 
+SCORER_VERSION = '2.0'   # 2.0: returns what it used (weights, codes) — 2026-09-05
+
+
 def score_account_health(
     kpi_values: dict,
     kpi_catalog: dict,
@@ -119,6 +122,18 @@ def score_account_health(
     pillar_weight_overrides: dict = None,
     enabled_pillars: set = None,
 ) -> tuple:
+    """(overall_health, pillar_averages) — see score_account_health_explained for the full record."""
+    r = score_account_health_explained(kpi_values, kpi_catalog, pillar_catalog, pillar_weight_overrides, enabled_pillars)
+    return r['health'], r['pillars']
+
+
+def score_account_health_explained(
+    kpi_values: dict,
+    kpi_catalog: dict,
+    pillar_catalog: dict,
+    pillar_weight_overrides: dict = None,
+    enabled_pillars: set = None,
+) -> dict:
     """
     Calculate account health from KPI values using any catalog.
 
@@ -140,19 +155,23 @@ def score_account_health(
     """
     # L1: Score each KPI and accumulate per-pillar weighted sums
     pillar_scores = {}
+    kpi_scores, kpi_weights, used, dropped = {}, {}, [], []
 
     for kpi_code, value in kpi_values.items():
         if kpi_code not in kpi_catalog:
+            dropped.append(kpi_code)
             continue
 
         kpi_def = kpi_catalog[kpi_code]
         pillar = kpi_def.get('pillar', kpi_def.get('l1_category'))
 
         if not pillar:
+            dropped.append(kpi_code)
             continue
 
         # Skip disabled pillars
         if enabled_pillars is not None and pillar not in enabled_pillars:
+            dropped.append(kpi_code)
             continue
 
         if pillar not in pillar_scores:
@@ -168,6 +187,9 @@ def score_account_health(
 
         pillar_scores[pillar]['weighted_sum'] += score * l1_weight
         pillar_scores[pillar]['total_weight'] += l1_weight
+        kpi_scores[kpi_code] = round(score, 2)
+        kpi_weights[kpi_code] = l1_weight
+        used.append(kpi_code)
 
     # L2: Pillar weighted averages
     pillar_averages = {}
@@ -181,6 +203,7 @@ def score_account_health(
     # L3: Overall health from pillar scores
     overall_health = 0.0
     total_weight = 0.0
+    pillar_weights_used = {}
 
     for pillar, score in pillar_averages.items():
         # Priority: override weights → catalog weight_l2 → equal weight
@@ -188,6 +211,7 @@ def score_account_health(
             weight = float(pillar_weight_overrides[pillar])
         else:
             weight = pillar_catalog.get(pillar, {}).get('weight_l2', 0.2)
+        pillar_weights_used[pillar] = weight
         overall_health += score * weight
         total_weight += weight
 
@@ -196,7 +220,13 @@ def score_account_health(
 
     overall_health = max(0.0, min(100.0, overall_health))
 
-    return overall_health, pillar_averages
+    return {
+        'health': overall_health, 'pillars': pillar_averages,
+        'kpi_scores': kpi_scores, 'kpi_weights': kpi_weights,
+        'pillar_weights': pillar_weights_used,             # normalised by total_weight at use; stored as applied
+        'kpi_codes_used': sorted(used), 'kpi_codes_dropped': sorted(dropped),
+        'scorer_version': SCORER_VERSION,
+    }
 
 
 def load_catalog_from_json(json_path: str, expected_vertical: str = None) -> tuple:

@@ -100,9 +100,10 @@ def _make_generic_calculator(vertical: str, customer_id: int = None):
         raise
 
     logger.info(f"Using generic scorer for vertical '{vertical}' ({len(kpi_catalog)} KPIs)")
+    vertical_name = vertical
 
     def calculate_kpi_health(kpi_values, customer_id=None, vertical=None,
-                             pillar_weight_overrides=None):
+                             pillar_weight_overrides=None, explain=False):
         """Generic health calculator using JSON catalog.
 
         `pillar_weight_overrides` (explicit, e.g. a lifecycle-stage profile
@@ -113,8 +114,10 @@ def _make_generic_calculator(vertical: str, customer_id: int = None):
         stage weights were never applied for any customer. Accepted here.
         """
         enabled_pillars = None
+        weight_source = 'catalog'
         if pillar_weight_overrides:
             enabled_pillars = set(pillar_weight_overrides.keys())
+            weight_source = 'lifecycle'
         elif customer_id is not None:
             try:
                 from models import CustomerConfig as CC
@@ -122,16 +125,25 @@ def _make_generic_calculator(vertical: str, customer_id: int = None):
                 if cc and cc.pillar_weights:
                     pillar_weight_overrides = cc.pillar_weights
                     enabled_pillars = set(cc.pillar_weights.keys())
+                    weight_source = 'customer_config'
             except Exception:
                 pass
 
-        return score_account_health(
+        from utils.generic_scorer import score_account_health_explained
+        r = score_account_health_explained(
             kpi_values=kpi_values,
             kpi_catalog=kpi_catalog,
             pillar_catalog=pillar_catalog,
             pillar_weight_overrides=pillar_weight_overrides,
             enabled_pillars=enabled_pillars,
         )
+        if explain:
+            from utils.vertical_registry import get_catalog_version
+            r['weight_source'] = weight_source
+            r['catalog_version'] = get_catalog_version(vertical_name)
+            r['vertical'] = vertical_name
+            return r
+        return r['health'], r['pillars']
 
     return calculate_kpi_health
 

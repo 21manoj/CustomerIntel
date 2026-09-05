@@ -149,8 +149,10 @@ def build_asgi_app(database_url: str | None = None, create_schema: bool = True):
     register_ask_routes(mcp)              # POST /api/ask — Ask AI over the journey contract (P10)
     if create_schema:
         from signal_engine.models import ensure_enrichment_columns
+        from utils.schema_additive import ensure_additive_columns
         with app.app_context():
             ensure_enrichment_columns(db.engine)   # additive, idempotent (content_hash, occurred_at on existing DBs)
+            ensure_additive_columns(db.engine)     # lineage / provenance columns on existing tables
 
     asgi = mcp.http_app(path='/mcp')
     return BearerAuthMiddleware(asgi)

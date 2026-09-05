@@ -197,6 +197,7 @@ class UploadResult:
     errors: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
     message: str = ''
+    upload_id: int | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {k: v for k, v in asdict(self).items() if v or isinstance(v, (bool, int))}
@@ -213,6 +214,8 @@ def _upload_csv_impl(
     *,
     dry_run: bool = False,
     strict_validation: bool = True,
+    key_kind: str | None = None,
+    key_id: int | None = None,
 ) -> UploadResult:
     """
     Canonical CSV upload implementation — validates and stages to
@@ -307,7 +310,7 @@ def _upload_csv_impl(
         )
 
     # ── 4. Stage to DB ──
-    return _upload_to_staging(customer_id, info, csv_content, rows, warnings=warnings)
+    return _upload_to_staging(customer_id, info, csv_content, rows, warnings=warnings, key_kind=key_kind, key_id=key_id)
 
 
 def _upload_to_staging(
@@ -317,9 +320,13 @@ def _upload_to_staging(
     rows: list,
     *,
     warnings: list[str] | None = None,
+    key_kind: str | None = None,
+    key_id: int | None = None,
 ) -> UploadResult:
-    """Upsert CSV content into CsvUploadStaging, keyed by (customer_id, file_type)."""
-    from models import Customer, CsvUploadStaging
+    """Upsert CSV content into CsvUploadStaging, keyed by (customer_id, file_type),
+    and record the upload itself in CsvUpload (lineage: hash, size, who, warnings)."""
+    import hashlib
+    from models import Customer, CsvUploadStaging, CsvUpload
     from extensions import db
 
     customer = db.session.get(Customer, int(customer_id))
@@ -338,15 +345,24 @@ def _upload_to_staging(
     ).first()
     byte_count = len(csv_content.encode('utf-8'))
 
+    upload = CsvUpload(
+        customer_id=customer_id, file_type=info.canonical_filename,
+        sha256=hashlib.sha256(csv_content.encode('utf-8')).hexdigest(), row_count=len(rows), byte_count=byte_count,
+        validation={'warnings': list(warnings or [])}, key_kind=key_kind, key_id=key_id,
+    )
+    db.session.add(upload)
+    db.session.flush()
     if staged:
         staged.csv_content = csv_content
         staged.row_count = len(rows)
+        staged.upload_id = upload.id
     else:
         staged = CsvUploadStaging(
             customer_id=customer_id,
             file_type=info.canonical_filename,
             csv_content=csv_content,
             row_count=len(rows),
+            upload_id=upload.id,
         )
         db.session.add(staged)
     db.session.commit()
@@ -364,6 +380,7 @@ def _upload_to_staging(
         row_count=len(rows),
         bytes_written=byte_count,
         warnings=warnings or [],
+        upload_id=upload.id,
         message=(
             f"Staged {info.canonical_filename} ({byte_count} bytes, {len(rows)} rows). "
             f"Use process_data() to ingest into the database."

@@ -102,6 +102,17 @@ def get_vertical_description(vertical: str) -> Optional[str]:
         return json.load(f).get('description') or None
 
 
+def get_catalog_version(vertical: str) -> Optional[str]:
+    """The catalog's own 'version' (None when it has none) — stamped on every health score."""
+    import json
+    path = _find_json_catalog_path(normalize_vertical(vertical))
+    if not path:
+        return None
+    with open(path, encoding='utf-8') as f:
+        v = json.load(f).get('version')
+    return str(v) if v is not None else None
+
+
 def get_pillar_roles(vertical: str) -> Dict[str, str]:
     """Get the role_name -> pillar_code map for a vertical.
 

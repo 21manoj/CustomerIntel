@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+import os
+from datetime import datetime
 """
 CS Pulse MCP — Onboarding Tools (frictionless auth).
 
@@ -309,17 +311,20 @@ def upload_csv(customer_id: int, file_type: str, csv_content: str, dry_run: bool
         csv_content: The raw CSV content as a string
         dry_run: If True, validate only — do not persist. Returns validation result.
     """
-    _require_auth_if_key_present('upload_csv', customer_id)
+    key_record = _require_auth_if_key_present('upload_csv', customer_id)
     _check_mcp_enabled()
 
     app = _get_flask_app()
     with app.app_context():
         from utils.csv_upload import _upload_csv_impl
+        from mcp_server.auth import extract_api_key
+        key_kind = 'customer' if key_record else ('server' if extract_api_key() else ('local' if os.environ.get('MCP_TRANSPORT', 'stdio') != 'http' else 'none'))
         result = _upload_csv_impl(
             customer_id=customer_id,
             file_type=file_type,
             csv_content=csv_content,
             dry_run=dry_run,
+            key_kind=key_kind, key_id=getattr(key_record, 'id', None),
         )
 
         if result.status == 'error' or (result.status == 'validation_error' and not dry_run):
@@ -392,6 +397,22 @@ def _process_data_impl(customer_id: int, mode: str = 'auto') -> dict:
 
         steps, errors, timings = [], [], {}
 
+        # The run record (G2): every health row written below names it.
+        from models import ProcessRun
+        from journeys.wizard_a import GENERATOR_VERSION
+        from mcp_server.auth import extract_api_key, validate_customer_key
+        import uuid as _uuid
+        _key = extract_api_key()
+        _rec = validate_customer_key(_key) if _key else None
+        run = ProcessRun(run_id=f'pd_{_uuid.uuid4().hex[:16]}', customer_id=customer_id, vertical=vertical, mode=mode,
+                         status='running', generator_version=GENERATOR_VERSION,
+                         key_kind=('customer' if _rec else 'server' if _key else ('local' if os.environ.get('MCP_TRANSPORT', 'stdio') != 'http' else 'none')),
+                         key_id=getattr(_rec, 'id', None))
+        db.session.add(run)
+        db.session.commit()
+        run_db_id = run.id
+        counts: dict = {}
+
         accounts = Account.query.filter_by(customer_id=customer_id).all()
         acct_ids = [a.account_id for a in accounts]
         kpi_count = (
@@ -408,11 +429,14 @@ def _process_data_impl(customer_id: int, mode: str = 'auto') -> dict:
             )
 
         files_processed = None
+        upload_ids: list = []
         if has_staged:
-            ingest = ingest_staged_csvs(customer_id, vertical)
+            ingest = ingest_staged_csvs(customer_id, vertical, process_run_id=run_db_id)
             steps.extend(ingest.steps)
             errors.extend(ingest.errors)
             timings.update(ingest.timings)
+            counts.update(ingest.counts)
+            upload_ids = ingest.upload_ids
             files_processed = ingest.files
             accounts = Account.query.filter_by(customer_id=customer_id).all()
             acct_ids = [a.account_id for a in accounts]
@@ -426,10 +450,12 @@ def _process_data_impl(customer_id: int, mode: str = 'auto') -> dict:
 
         # Stage 2: health scores (immutable — only new months in 'auto')
         health_step, changed_account_ids, health_timings = calculate_health_scores(
-            customer_id, accounts, mode=mode,
+            customer_id, accounts, mode=mode, process_run_id=run_db_id,
         )
         if health_step:
             steps.append(health_step)
+        else:
+            errors.append('health_scores: stage failed (see log) — no rows written')
         timings.update(health_timings)
         # Stage 2 event publish (HEALTH_SCORES_UPDATED) — deferred with its
         # subscribers; see process_data_pipeline's module docstring.
@@ -468,6 +494,11 @@ def _process_data_impl(customer_id: int, mode: str = 'auto') -> dict:
         status = 'success' if steps and not errors else 'partial' if steps else 'failed'
         duration = round(time.time() - _t0, 1)
         timings['total'] = duration
+        counts.update({'accounts': len(accounts), 'kpi_measurements': kpi_count, 'changed_accounts': len(changed_account_ids)})
+        run = db.session.get(ProcessRun, run_db_id)
+        run.status, run.steps, run.errors, run.timings, run.counts, run.upload_ids = status, steps, errors, timings, counts, upload_ids
+        run.finished_at = datetime.utcnow()
+        db.session.commit()
 
         import logging
         logging.getLogger(__name__).info(
@@ -478,6 +509,7 @@ def _process_data_impl(customer_id: int, mode: str = 'auto') -> dict:
         return {
             'scope': 'customer',
             'customer_id': customer_id,
+            'run_id': run.run_id,
             'status': status,
             'mode': mode,
             'vertical': vertical,

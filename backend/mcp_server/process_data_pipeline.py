@@ -39,6 +39,9 @@ logger = logging.getLogger(__name__)
 
 _HEALTH_UPSERT_COLUMNS = (
     'health_score', 'kpi_only_score', 'health_status', 'contributing_pillars', 'calculated_at',
+    # provenance (2026-09-05): what the score was computed from
+    'pillar_weights', 'kpi_weights', 'kpi_codes_used', 'kpi_codes_dropped', 'weight_source',
+    'catalog_version', 'taxonomy_version', 'scorer_version', 'input_upload_id', 'process_run_id',
 )
 
 
@@ -46,6 +49,7 @@ def calculate_health_scores(
     customer_id: int,
     acct_list: list,
     mode: str = 'auto',
+    process_run_id: Optional[int] = None,
 ) -> Tuple[Optional[str], Set[int], Dict[str, float]]:
     """Score every unscored (account, month) pair from KPIMeasurement.
 
@@ -73,9 +77,13 @@ def calculate_health_scores(
     (see utils/vertical_health.calculate_kpi_health). `written` counts
     rows actually inserted/updated, not rows attempted.
 
-    Still not written (no source for it yet): pillar_weights (the scorer
-    doesn't expose the weights it used) and trend (no writer in the old
-    repo either).
+    Provenance (2026-09-05): every row records the pillar and KPI weights
+    actually applied, the KPI codes used and dropped, where the weights came
+    from (lifecycle / customer_config / catalog), the catalog, taxonomy and
+    scorer versions, the newest upload among its inputs, and the run that
+    wrote it. A scorer that cannot be built fails the stage (no 0.0 rows);
+    a month whose calculation raises is counted in the step, not skipped
+    silently. trend is still unwritten (no writer in the old repo either).
 
     Returns (step, changed_account_ids, timings).
     """
@@ -94,8 +102,11 @@ def calculate_health_scores(
         return None, changed, timings
 
     try:
-        calculate_fn, _, _ = get_health_functions(customer_id)
+        calculate_fn, _, _ = get_health_functions(customer_id)          # raises when no scorer — never a silent 0.0
         acct_by_id = {a.account_id: a for a in acct_list}
+        from utils.taxonomy_loader import get_taxonomy
+        from utils.vertical_registry import get_vertical_for_customer
+        taxonomy_version = get_taxonomy(get_vertical_for_customer(customer_id)).version
 
         cc = CustomerConfig.query.filter_by(customer_id=customer_id).first()
         lifecycle = cc.lifecycle_stage_weights if cc and cc.lifecycle_stage_weights else None
@@ -120,6 +131,7 @@ def calculate_health_scores(
         }
 
         groups: Dict[tuple, Dict[str, list]] = defaultdict(lambda: defaultdict(list))
+        input_upload: Dict[tuple, Optional[int]] = {}
         skipped_immutable = 0
         for k in kpis:
             month = (k.measured_at.date() if k.measured_at else date.today()).replace(day=1)
@@ -128,6 +140,8 @@ def calculate_health_scores(
                 skipped_immutable += 1
                 continue
             groups[key][k.kpi_code].append(float(k.value))
+            if k.upload_id and (input_upload.get(key) is None or k.upload_id > input_upload[key]):
+                input_upload[key] = k.upload_id
         timings['kpi_grouping'] = round(time.time() - t0, 2)
         if skipped_immutable or reopened:
             logger.info(
@@ -137,6 +151,7 @@ def calculate_health_scores(
 
         now = datetime.utcnow()
         rows = []
+        calc_failed = 0
         for (aid, month), kpi_groups in groups.items():
             kpi_vals = {code: sum(v) / len(v) for code, v in kpi_groups.items()}
             pillar_overrides = None
@@ -144,12 +159,14 @@ def calculate_health_scores(
                 stage = resolve_account_stage(acct_by_id[aid], month, lifecycle)
                 pillar_overrides, _kpi_overrides = get_stage_weights(stage)
             try:
-                health, pillars = calculate_fn(
-                    kpi_vals, customer_id=customer_id, pillar_weight_overrides=pillar_overrides,
+                r = calculate_fn(
+                    kpi_vals, customer_id=customer_id, pillar_weight_overrides=pillar_overrides, explain=True,
                 )
             except Exception as calc_err:
+                calc_failed += 1
                 logger.warning('Health score calc failed for account %s month %s: %s', aid, month, calc_err)
                 continue
+            health, pillars = r['health'], r['pillars']
             score = round(health, 2)
             rows.append({
                 'account_id': aid,
@@ -158,6 +175,16 @@ def calculate_health_scores(
                 'kpi_only_score': score,
                 'health_status': ht.classify(health),
                 'contributing_pillars': {k: round(v, 2) for k, v in pillars.items()} if pillars else None,
+                'pillar_weights': {k: round(float(v), 4) for k, v in r['pillar_weights'].items()},
+                'kpi_weights': {k: round(float(v), 4) for k, v in r['kpi_weights'].items()},
+                'kpi_codes_used': r['kpi_codes_used'],
+                'kpi_codes_dropped': r['kpi_codes_dropped'],
+                'weight_source': r['weight_source'],
+                'catalog_version': r.get('catalog_version'),
+                'taxonomy_version': taxonomy_version,
+                'scorer_version': r['scorer_version'],
+                'input_upload_id': input_upload.get((aid, month)),
+                'process_run_id': process_run_id,
                 'calculated_at': now,
             })
         timings['health_calc'] = round(time.time() - t0, 2)
@@ -187,6 +214,8 @@ def calculate_health_scores(
         step = f'health_scores_{mode}_{written}_written'
         if reopened:
             step += f'_{len(reopened)}_reopened'
+        if calc_failed:
+            step += f'_{calc_failed}_failed'
         return step, changed, timings
     except Exception as e:
         logger.error('Health score calculation failed: %s', e, exc_info=True)

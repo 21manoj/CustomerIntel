@@ -326,20 +326,28 @@ def extract_stakeholders_from_profiles(customer_id: int) -> int:
     return count
 
 
-def load_kpis(rows: list[dict], resolve: Callable) -> int:
-    """Bulk INSERT ... ON CONFLICT DO NOTHING on (account_id, kpi_code, measured_at)."""
+def load_kpis(rows: list[dict], resolve: Callable, upload_id: Optional[int] = None) -> tuple[int, int]:
+    """Bulk INSERT ... ON CONFLICT DO NOTHING on (account_id, kpi_code, measured_at).
+    Returns (inserted, skipped_blank). A blank value is a MISSING measurement,
+    not zero — it is skipped and counted (it used to become 0.0 and drag the
+    score). Every row is stamped with the CsvUpload it came from."""
     from sqlalchemy.dialects.postgresql import insert as pg_insert
     from models import KPIMeasurement
     from extensions import db
 
     seen = set()
     values = []
+    skipped_blank = 0
     now = datetime.utcnow()
     for row in rows:
         acct_id = resolve(row)
         code = cell(row, 'kpi_code', 'kpi_id')
         measured = when(row, 'measured_at', 'date')
         if not acct_id or not code or not measured:
+            continue
+        value = num(row, 'value')
+        if value is None:
+            skipped_blank += 1
             continue
         key = (acct_id, code, measured)
         if key in seen:
@@ -348,7 +356,8 @@ def load_kpis(rows: list[dict], resolve: Callable) -> int:
         values.append({
             'account_id': acct_id,
             'kpi_code': code,
-            'value': num(row, 'value', default=0.0),
+            'value': value,
+            'upload_id': upload_id,
             'target': num(row, 'target'),
             'pillar': cell(row, 'pillar') or None,
             'weight': num(row, 'weight'),
@@ -357,12 +366,12 @@ def load_kpis(rows: list[dict], resolve: Callable) -> int:
             'created_at': now,
         })
     if not values:
-        return 0
+        return 0, skipped_blank
     stmt = pg_insert(KPIMeasurement.__table__).values(values).on_conflict_do_nothing(
         index_elements=['account_id', 'kpi_code', 'measured_at'],
     )
     res = db.session.execute(stmt)
-    return res.rowcount if res.rowcount is not None else len(values)
+    return (res.rowcount if res.rowcount is not None else len(values)), skipped_blank
 
 
 def load_signals(customer_id: int, rows: list[dict], resolve: Callable) -> tuple[int, int]:
@@ -865,6 +874,8 @@ class IngestResult:
     errors: list[str] = field(default_factory=list)
     timings: dict = field(default_factory=dict)
     consumed: bool = False
+    upload_ids: list = field(default_factory=list)
+    counts: dict = field(default_factory=dict)
 
 
 def staged_files(customer_id: int) -> dict[str, str]:
@@ -876,7 +887,13 @@ def staged_files(customer_id: int) -> dict[str, str]:
     }
 
 
-def ingest_staged_csvs(customer_id: int, vertical: str) -> IngestResult:
+def staged_upload_ids(customer_id: int) -> dict[str, Optional[int]]:
+    """{canonical file_type: CsvUpload id} — the lineage of what is staged."""
+    from models import CsvUploadStaging
+    return {s.file_type: s.upload_id for s in CsvUploadStaging.query.filter_by(customer_id=customer_id).all()}
+
+
+def ingest_staged_csvs(customer_id: int, vertical: str, process_run_id: Optional[int] = None) -> IngestResult:
     """Load every staged CSV for a customer into the ORM.
 
     Phase 1 (regular model): accounts → stakeholder extraction → KPIs
@@ -900,6 +917,8 @@ def ingest_staged_csvs(customer_id: int, vertical: str) -> IngestResult:
         return result
 
     rows = {ft: parse_rows(content) for ft, content in files.items()}
+    upload_ids = staged_upload_ids(customer_id)
+    result.upload_ids = sorted({u for u in upload_ids.values() if u})
     account_file = next((f for f in ACCOUNT_FILES if f in rows), None)
     account_rows = rows.get(account_file, []) if account_file else []
 
@@ -917,8 +936,9 @@ def ingest_staged_csvs(customer_id: int, vertical: str) -> IngestResult:
         resolve = AccountResolver(customer_id, account_rows)
 
         if 'kpi_measurements.csv' in rows:
-            n = load_kpis(rows['kpi_measurements.csv'], resolve)
-            result.steps.append(f'kpis_loaded_{n}')
+            n, blank = load_kpis(rows['kpi_measurements.csv'], resolve, upload_id=upload_ids.get('kpi_measurements.csv'))
+            result.steps.append(f'kpis_loaded_{n}' + (f'_blank_skipped_{blank}' if blank else ''))
+            result.counts['kpi_rows_skipped_blank'] = blank
             db.session.commit()
 
         if 'enhanced_qualitative_signals.csv' in rows:
@@ -966,6 +986,12 @@ def ingest_staged_csvs(customer_id: int, vertical: str) -> IngestResult:
     result.timings['cg_load'] = round(time.time() - t0, 2)
 
     if not result.errors:
+        # the upload record outlives the staging content: mark it consumed by this run, then clear staging
+        from models import CsvUpload
+        now = datetime.utcnow()
+        for u in CsvUpload.query.filter(CsvUpload.id.in_(result.upload_ids)).all() if result.upload_ids else []:
+            u.consumed_at = now
+            u.process_run_id = process_run_id
         CsvUploadStaging.query.filter_by(customer_id=customer_id).delete(synchronize_session='fetch')
         db.session.commit()
         result.consumed = True

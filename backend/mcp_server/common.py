@@ -221,14 +221,14 @@ def get_health_functions(customer_id: int):
     from utils.vertical_health import get_health_calculator, get_trailing_kpi_values_func
     from utils.vertical_health import get_precalculated_scores as vpc
 
+    # No silent fallback: a scorer that cannot be built must fail the run, not
+    # write 0.0 for every account (the old _noop_calculate did exactly that).
     try:
         calc = get_health_calculator(customer_id)
         trailing = get_trailing_kpi_values_func(customer_id)
         return calc, trailing, vpc
-    except Exception:
-        def _noop_calculate(kpi_values, customer_id=None):
-            return 0.0, {}
-        return _noop_calculate, get_trailing_kpi_values_generic, get_precalculated_scores
+    except Exception as e:
+        raise RuntimeError(f'health scorer unavailable for customer {customer_id}: {e}') from e
 
 
 def get_kpi_definitions(vertical: str) -> dict:
