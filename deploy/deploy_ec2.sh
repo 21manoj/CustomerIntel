@@ -26,7 +26,11 @@ if docker ps --format '{{.Names}}' | grep -q '^customerintelv1-postgres$'; then
   bash deploy/backup_db.sh
 fi
 CRON_LINE="15 3 * * * /bin/bash $HOME/CustomerIntel/deploy/backup_db.sh >> $HOME/backups/customerintelv1/cron.log 2>&1"
-( crontab -l 2>/dev/null | grep -v 'deploy/backup_db.sh'; echo "$CRON_LINE" ) | crontab -
+if command -v crontab >/dev/null 2>&1; then
+  ( crontab -l 2>/dev/null | grep -v 'deploy/backup_db.sh'; echo "$CRON_LINE" ) | crontab -
+else
+  echo "WARNING: no crontab on this host — daily backup NOT scheduled (Amazon Linux 2023: sudo dnf -y install cronie && sudo systemctl enable --now crond, then redeploy)"
+fi
 
 $COMPOSE up -d --build
 
