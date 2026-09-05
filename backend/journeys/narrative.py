@@ -312,11 +312,11 @@ def build_narrative(journey: dict, rejected: Optional[List[dict]] = None) -> dic
         for e in ch['episodes']:
             if e['episode_id'] in used or e['episode_id'] in hook_outcome_ids:
                 continue
+            if live_from and _d(e['date']) >= live_from:
+                continue   # told below, under the live notice (interventions included — once, not here and there)
             if e['episode_id'] in hook_ids:
                 add(_t_intervention(next(h for h in hooks if h.get('episode_id') == e['episode_id']), by_id), 'intervention_before_after')
                 continue
-            if live_from and _d(e['date']) >= live_from:
-                continue   # told below, under the live notice
             by_month.setdefault(_month(e['date']), []).append(e)
         for mk, eps in by_month.items():
             add(_t_month_events(mk, _collapse(eps)), 'month_events')
@@ -329,8 +329,19 @@ def build_narrative(journey: dict, rejected: Optional[List[dict]] = None) -> dic
         res = _t_live_notice(journey, live_eps)
         if res:
             sentences.append({'text': res[0], 'cites': res[1], 'template': 'live_months_notice'})
+        # an intervention in a live month is told with its before/after, its linked outcomes cited there, not again in a day cluster
+        told = set()
+        for e in live_eps:
+            if e['episode_id'] in hook_ids:
+                h = next(hh for hh in hooks if hh.get('episode_id') == e['episode_id'])
+                res = _t_intervention(h, by_id)
+                if res:
+                    sentences.append({'text': res[0], 'cites': list(dict.fromkeys(res[1])), 'template': 'intervention_before_after'})
+                    told.update(res[1])
         by_day: 'OrderedDict[str, List[dict]]' = OrderedDict()
         for e in live_eps:
+            if e['episode_id'] in told:
+                continue
             by_day.setdefault(e['date'][:10], []).append(e)
         for day, eps in by_day.items():
             groups = _collapse(eps)
