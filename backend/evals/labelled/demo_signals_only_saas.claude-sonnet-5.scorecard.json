@@ -1,0 +1,811 @@
+{
+ "manifest_id": "demo_signals_only_saas",
+ "vertical": "saas_premium",
+ "model_version": "claude-sonnet-5",
+ "generated_at": "2026-09-05T00:47:35.643130",
+ "label": "model extraction",
+ "communications": 31,
+ "exact": 16,
+ "partial": 13,
+ "miss": 2,
+ "hit_rate": 0.516,
+ "unclassified": 1,
+ "duplicates": 0,
+ "pending": 0,
+ "errors": [],
+ "subtype": {
+  "tp": 28,
+  "fp": 21,
+  "fn": 2,
+  "precision": 0.571,
+  "recall": 0.933,
+  "f1": 0.709
+ },
+ "roles": {
+  "advocacy": {
+   "tp": 4,
+   "fp": 1,
+   "fn": 0,
+   "precision": 0.8,
+   "recall": 1.0,
+   "f1": 0.889
+  },
+  "capacity_pressure": {
+   "tp": 0,
+   "fp": 1,
+   "fn": 0,
+   "precision": 0.0,
+   "recall": null,
+   "f1": null
+  },
+  "champion_change": {
+   "tp": 1,
+   "fp": 1,
+   "fn": 0,
+   "precision": 0.5,
+   "recall": 1.0,
+   "f1": 0.667
+  },
+  "commercial_pressure": {
+   "tp": 2,
+   "fp": 0,
+   "fn": 0,
+   "precision": 1.0,
+   "recall": 1.0,
+   "f1": 1.0
+  },
+  "delivery_stall": {
+   "tp": 1,
+   "fp": 2,
+   "fn": 0,
+   "precision": 0.333,
+   "recall": 1.0,
+   "f1": 0.5
+  },
+  "engagement_decline": {
+   "tp": 3,
+   "fp": 0,
+   "fn": 0,
+   "precision": 1.0,
+   "recall": 1.0,
+   "f1": 1.0
+  },
+  "escalation": {
+   "tp": 3,
+   "fp": 0,
+   "fn": 0,
+   "precision": 1.0,
+   "recall": 1.0,
+   "f1": 1.0
+  },
+  "expansion_intent": {
+   "tp": 5,
+   "fp": 0,
+   "fn": 0,
+   "precision": 1.0,
+   "recall": 1.0,
+   "f1": 1.0
+  },
+  "infra_incident": {
+   "tp": 0,
+   "fp": 1,
+   "fn": 0,
+   "precision": 0.0,
+   "recall": null,
+   "f1": null
+  },
+  "intervention": {
+   "tp": 1,
+   "fp": 0,
+   "fn": 0,
+   "precision": 1.0,
+   "recall": 1.0,
+   "f1": 1.0
+  },
+  "product_friction": {
+   "tp": 3,
+   "fp": 2,
+   "fn": 0,
+   "precision": 0.6,
+   "recall": 1.0,
+   "f1": 0.75
+  },
+  "recovery": {
+   "tp": 1,
+   "fp": 0,
+   "fn": 0,
+   "precision": 1.0,
+   "recall": 1.0,
+   "f1": 1.0
+  },
+  "routine": {
+   "tp": 5,
+   "fp": 1,
+   "fn": 0,
+   "precision": 0.833,
+   "recall": 1.0,
+   "f1": 0.909
+  },
+  "usage_decline": {
+   "tp": 1,
+   "fp": 0,
+   "fn": 0,
+   "precision": 1.0,
+   "recall": 1.0,
+   "f1": 1.0
+  }
+ },
+ "per_communication": [
+  {
+   "ref": "halcyon_comm_1",
+   "account": "Halcyon Health",
+   "day": -95,
+   "source_type": "crm_activity",
+   "signal_id": "c3e6ec85-3e0a-4358-9308-1a0d0994bfe3",
+   "status": "queued",
+   "expected": [
+    "champion_departure"
+   ],
+   "extracted": [
+    "champion_departure",
+    "champion_loss",
+    "executive_departure"
+   ],
+   "verdict": "partial",
+   "expected_roles": [
+    "champion_change"
+   ],
+   "extracted_roles": [
+    "champion_change"
+   ]
+  },
+  {
+   "ref": "halcyon_comm_2",
+   "account": "Halcyon Health",
+   "day": -88,
+   "source_type": "email",
+   "signal_id": "1ad375b1-a6de-4478-824d-788d5750b06d",
+   "status": "queued",
+   "expected": [
+    "engagement_decline"
+   ],
+   "extracted": [
+    "engagement_decline"
+   ],
+   "verdict": "exact",
+   "expected_roles": [
+    "engagement_decline"
+   ],
+   "extracted_roles": [
+    "engagement_decline"
+   ]
+  },
+  {
+   "ref": "halcyon_comm_3",
+   "account": "Halcyon Health",
+   "day": -80,
+   "source_type": "crm_activity",
+   "signal_id": "696e2715-2f04-451a-a6ad-e64b501461c9",
+   "status": "queued",
+   "expected": [
+    "qbr_no_show"
+   ],
+   "extracted": [
+    "community_silence",
+    "qbr_no_show"
+   ],
+   "verdict": "partial",
+   "expected_roles": [
+    "engagement_decline"
+   ],
+   "extracted_roles": [
+    "engagement_decline"
+   ]
+  },
+  {
+   "ref": "halcyon_comm_4",
+   "account": "Halcyon Health",
+   "day": -70,
+   "source_type": "slack",
+   "signal_id": "2da6a7cf-25e3-4daf-9c49-9ca53bfd61e6",
+   "status": "queued",
+   "expected": [
+    "seat_underutilization"
+   ],
+   "extracted": [
+    "module_abandonment",
+    "seat_underutilization"
+   ],
+   "verdict": "partial",
+   "expected_roles": [
+    "usage_decline"
+   ],
+   "extracted_roles": [
+    "usage_decline"
+   ]
+  },
+  {
+   "ref": "halcyon_comm_5",
+   "account": "Halcyon Health",
+   "day": -62,
+   "source_type": "ticket",
+   "signal_id": "c213b66d-ae33-428c-872c-301217f51cd4",
+   "status": "queued",
+   "expected": [
+    "support_spike"
+   ],
+   "extracted": [
+    "support_spike",
+    "workflow_friction"
+   ],
+   "verdict": "partial",
+   "expected_roles": [
+    "escalation"
+   ],
+   "extracted_roles": [
+    "escalation",
+    "product_friction"
+   ]
+  },
+  {
+   "ref": "halcyon_comm_6",
+   "account": "Halcyon Health",
+   "day": -58,
+   "source_type": "slack",
+   "signal_id": "125b0801-ed4d-4141-8006-1855525594b6",
+   "status": "queued",
+   "expected": [
+    "training_dropoff"
+   ],
+   "extracted": [
+    "champion_disengagement",
+    "onboarding_stalled",
+    "training_dropoff"
+   ],
+   "verdict": "partial",
+   "expected_roles": [
+    "engagement_decline"
+   ],
+   "extracted_roles": [
+    "champion_change",
+    "delivery_stall",
+    "engagement_decline"
+   ]
+  },
+  {
+   "ref": "halcyon_comm_7",
+   "account": "Halcyon Health",
+   "day": -50,
+   "source_type": "crm_activity",
+   "signal_id": "67fcc586-401b-468c-83c1-3d031cbaf3f1",
+   "status": "queued",
+   "expected": [
+    "csm_intervention"
+   ],
+   "extracted": [
+    "playbook_executed",
+    "routine_review"
+   ],
+   "verdict": "miss",
+   "expected_roles": [
+    "intervention"
+   ],
+   "extracted_roles": [
+    "intervention",
+    "routine"
+   ]
+  },
+  {
+   "ref": "halcyon_comm_8",
+   "account": "Halcyon Health",
+   "day": -40,
+   "source_type": "email",
+   "signal_id": "1d8409cf-3c31-488e-85aa-b260e3889bda",
+   "status": "queued",
+   "expected": [
+    "procurement_review"
+   ],
+   "extracted": [
+    "pricing_concern",
+    "procurement_review"
+   ],
+   "verdict": "partial",
+   "expected_roles": [
+    "commercial_pressure"
+   ],
+   "extracted_roles": [
+    "commercial_pressure"
+   ]
+  },
+  {
+   "ref": "halcyon_comm_9",
+   "account": "Halcyon Health",
+   "day": -30,
+   "source_type": "email",
+   "signal_id": "fdd9ecc8-5308-4581-9a4f-f6d8c2c2a3d6",
+   "status": "queued",
+   "expected": [
+    "seat_reduction_request"
+   ],
+   "extracted": [
+    "seat_reduction_request"
+   ],
+   "verdict": "exact",
+   "expected_roles": [
+    "commercial_pressure"
+   ],
+   "extracted_roles": [
+    "commercial_pressure"
+   ]
+  },
+  {
+   "ref": "orchard_comm_1",
+   "account": "Orchard Retail",
+   "day": -75,
+   "source_type": "email",
+   "signal_id": "88e34619-8eb8-4772-bdd8-c868e3295cb8",
+   "status": "queued",
+   "expected": [
+    "new_team_rollout"
+   ],
+   "extracted": [
+    "new_team_rollout"
+   ],
+   "verdict": "exact",
+   "expected_roles": [
+    "expansion_intent"
+   ],
+   "extracted_roles": [
+    "expansion_intent"
+   ]
+  },
+  {
+   "ref": "orchard_comm_2",
+   "account": "Orchard Retail",
+   "day": -66,
+   "source_type": "slack",
+   "signal_id": "7efdafed-9b8a-45e3-be8a-be3db53c0c2d",
+   "status": "queued",
+   "expected": [
+    "feature_adoption"
+   ],
+   "extracted": [
+    "rapid_adoption"
+   ],
+   "verdict": "miss",
+   "expected_roles": [
+    "expansion_intent"
+   ],
+   "extracted_roles": [
+    "expansion_intent"
+   ]
+  },
+  {
+   "ref": "orchard_comm_3",
+   "account": "Orchard Retail",
+   "day": -58,
+   "source_type": "meeting",
+   "signal_id": "ecde91bf-cc6f-4374-bcfc-0c9976523383",
+   "status": "queued",
+   "expected": [
+    "module_upsell_interest"
+   ],
+   "extracted": [
+    "module_upsell_interest"
+   ],
+   "verdict": "exact",
+   "expected_roles": [
+    "expansion_intent"
+   ],
+   "extracted_roles": [
+    "expansion_intent"
+   ]
+  },
+  {
+   "ref": "orchard_comm_4",
+   "account": "Orchard Retail",
+   "day": -52,
+   "source_type": "slack",
+   "signal_id": "f615c4fc-9e29-4887-b644-5544fff959e2",
+   "status": "queued",
+   "expected": [
+    "usage_spike"
+   ],
+   "extracted": [
+    "capacity_warning",
+    "usage_spike"
+   ],
+   "verdict": "partial",
+   "expected_roles": [
+    "expansion_intent"
+   ],
+   "extracted_roles": [
+    "capacity_pressure",
+    "expansion_intent"
+   ]
+  },
+  {
+   "ref": "orchard_comm_5",
+   "account": "Orchard Retail",
+   "day": -45,
+   "source_type": "meeting",
+   "signal_id": "987ff245-fbc4-4c0c-b832-3cd78de66ad5",
+   "status": "queued",
+   "expected": [
+    "executive_engagement"
+   ],
+   "extracted": [
+    "executive_engagement"
+   ],
+   "verdict": "exact",
+   "expected_roles": [
+    "advocacy"
+   ],
+   "extracted_roles": [
+    "advocacy"
+   ]
+  },
+  {
+   "ref": "orchard_comm_6",
+   "account": "Orchard Retail",
+   "day": -35,
+   "source_type": "email",
+   "signal_id": "70cd9685-c14b-4b70-9b60-9982e88a5848",
+   "status": "queued",
+   "expected": [
+    "seat_expansion_interest"
+   ],
+   "extracted": [
+    "seat_expansion_interest"
+   ],
+   "verdict": "exact",
+   "expected_roles": [
+    "expansion_intent"
+   ],
+   "extracted_roles": [
+    "expansion_intent"
+   ]
+  },
+  {
+   "ref": "orchard_comm_7",
+   "account": "Orchard Retail",
+   "day": -20,
+   "source_type": "email",
+   "signal_id": "ad1e1dd8-5785-4c3c-8340-eaeea9daeceb",
+   "status": "queued",
+   "expected": [
+    "case_study_consent"
+   ],
+   "extracted": [
+    "case_study_consent"
+   ],
+   "verdict": "exact",
+   "expected_roles": [
+    "advocacy"
+   ],
+   "extracted_roles": [
+    "advocacy"
+   ]
+  },
+  {
+   "ref": "pine_comm_1",
+   "account": "Pine Street Bank",
+   "day": -60,
+   "source_type": "ticket",
+   "signal_id": "3f51204a-02aa-4f84-a107-ec74488f6f97",
+   "status": "queued",
+   "expected": [
+    "performance_complaint"
+   ],
+   "extracted": [
+    "performance_complaint",
+    "performance_degradation"
+   ],
+   "verdict": "partial",
+   "expected_roles": [
+    "product_friction"
+   ],
+   "extracted_roles": [
+    "infra_incident",
+    "product_friction"
+   ]
+  },
+  {
+   "ref": "pine_comm_2",
+   "account": "Pine Street Bank",
+   "day": -52,
+   "source_type": "slack",
+   "signal_id": "f1575cdb-46ba-42d8-a9fa-35411a0eadc5",
+   "status": "queued",
+   "expected": [
+    "workflow_friction"
+   ],
+   "extracted": [
+    "workflow_friction"
+   ],
+   "verdict": "exact",
+   "expected_roles": [
+    "product_friction"
+   ],
+   "extracted_roles": [
+    "product_friction"
+   ]
+  },
+  {
+   "ref": "pine_comm_3",
+   "account": "Pine Street Bank",
+   "day": -48,
+   "source_type": "ticket",
+   "signal_id": "e3073ba5-47d0-4d8b-be46-49e134ce0a29",
+   "status": "queued",
+   "expected": [
+    "support_ticket"
+   ],
+   "extracted": [
+    "support_ticket"
+   ],
+   "verdict": "exact",
+   "expected_roles": [
+    "routine"
+   ],
+   "extracted_roles": [
+    "routine"
+   ]
+  },
+  {
+   "ref": "pine_comm_4",
+   "account": "Pine Street Bank",
+   "day": -40,
+   "source_type": "email",
+   "signal_id": "a71df0e2-8e53-4624-a3c6-10a698574a28",
+   "status": "queued",
+   "expected": [
+    "recovery_milestone"
+   ],
+   "extracted": [
+    "advocacy",
+    "kpi_recovery",
+    "positive_advocacy",
+    "recovery_milestone"
+   ],
+   "verdict": "partial",
+   "expected_roles": [
+    "recovery"
+   ],
+   "extracted_roles": [
+    "advocacy",
+    "recovery"
+   ]
+  },
+  {
+   "ref": "pine_comm_5",
+   "account": "Pine Street Bank",
+   "day": -22,
+   "source_type": "email",
+   "signal_id": "35722296-db76-42f3-ae14-6458864f40a4",
+   "status": "queued",
+   "expected": [
+    "review_site_rating"
+   ],
+   "extracted": [
+    "review_site_rating"
+   ],
+   "verdict": "exact",
+   "expected_roles": [
+    "advocacy"
+   ],
+   "extracted_roles": [
+    "advocacy"
+   ]
+  },
+  {
+   "ref": "summit_comm_1",
+   "account": "Summit Logistics",
+   "day": -70,
+   "source_type": "meeting",
+   "signal_id": "a853c878-7a9b-47c5-9d38-89d5c05e6e65",
+   "status": "queued",
+   "expected": [
+    "routine_review"
+   ],
+   "extracted": [
+    "routine_review"
+   ],
+   "verdict": "exact",
+   "expected_roles": [
+    "routine"
+   ],
+   "extracted_roles": [
+    "routine"
+   ]
+  },
+  {
+   "ref": "summit_comm_2",
+   "account": "Summit Logistics",
+   "day": -50,
+   "source_type": "email",
+   "signal_id": "9ab25767-7ee0-4751-babd-258d55adf402",
+   "status": "queued",
+   "expected": [
+    "nps_increase"
+   ],
+   "extracted": [
+    "nps_increase"
+   ],
+   "verdict": "exact",
+   "expected_roles": [
+    "advocacy"
+   ],
+   "extracted_roles": [
+    "advocacy"
+   ]
+  },
+  {
+   "ref": "summit_comm_3",
+   "account": "Summit Logistics",
+   "day": -35,
+   "source_type": "meeting",
+   "signal_id": "44769aab-85d2-4a32-88f3-cba0d962afcd",
+   "status": "queued",
+   "expected": [
+    "routine_review"
+   ],
+   "extracted": [
+    "routine_review"
+   ],
+   "verdict": "exact",
+   "expected_roles": [
+    "routine"
+   ],
+   "extracted_roles": [
+    "routine"
+   ]
+  },
+  {
+   "ref": "summit_comm_4",
+   "account": "Summit Logistics",
+   "day": -12,
+   "source_type": "email",
+   "signal_id": "bdd94e6a-d226-4ad6-b591-e767871ca72a",
+   "status": "queued",
+   "expected": [],
+   "extracted": [],
+   "verdict": "exact",
+   "expected_roles": [],
+   "extracted_roles": []
+  },
+  {
+   "ref": "cedar_comm_1",
+   "account": "Cedar Insurance",
+   "day": -30,
+   "source_type": "ticket",
+   "signal_id": "036aa1a4-5e4e-48b0-8fc6-f883d5ebda33",
+   "status": "queued",
+   "expected": [
+    "integration_bug"
+   ],
+   "extracted": [
+    "integration_bug",
+    "workflow_friction"
+   ],
+   "verdict": "partial",
+   "expected_roles": [
+    "product_friction"
+   ],
+   "extracted_roles": [
+    "product_friction"
+   ]
+  },
+  {
+   "ref": "cedar_comm_2",
+   "account": "Cedar Insurance",
+   "day": -24,
+   "source_type": "ticket",
+   "signal_id": "0b0c1693-5d5b-4b8d-b6a9-f6f6d91a5476",
+   "status": "queued",
+   "expected": [
+    "support_escalation"
+   ],
+   "extracted": [
+    "escalation",
+    "support_escalation",
+    "workflow_friction"
+   ],
+   "verdict": "partial",
+   "expected_roles": [
+    "escalation"
+   ],
+   "extracted_roles": [
+    "escalation",
+    "product_friction"
+   ]
+  },
+  {
+   "ref": "cedar_comm_3",
+   "account": "Cedar Insurance",
+   "day": -18,
+   "source_type": "slack",
+   "signal_id": "5f248caa-80d7-4674-b152-f542a56f03ac",
+   "status": "queued",
+   "expected": [
+    "integration_blocked"
+   ],
+   "extracted": [
+    "deployment_blocked",
+    "integration_blocked"
+   ],
+   "verdict": "partial",
+   "expected_roles": [
+    "delivery_stall"
+   ],
+   "extracted_roles": [
+    "delivery_stall"
+   ]
+  },
+  {
+   "ref": "cedar_comm_4",
+   "account": "Cedar Insurance",
+   "day": -8,
+   "source_type": "email",
+   "signal_id": "f9822b87-7a51-4665-9ff9-2cbaed762f9b",
+   "status": "queued",
+   "expected": [
+    "executive_escalation"
+   ],
+   "extracted": [
+    "executive_escalation",
+    "expansion_stall"
+   ],
+   "verdict": "partial",
+   "expected_roles": [
+    "escalation"
+   ],
+   "extracted_roles": [
+    "delivery_stall",
+    "escalation"
+   ]
+  },
+  {
+   "ref": "beacon_comm_1",
+   "account": "Beacon Media",
+   "day": -45,
+   "source_type": "ticket",
+   "signal_id": "2bf30229-5b71-46b6-9571-a33add6174f9",
+   "status": "queued",
+   "expected": [
+    "feature_request"
+   ],
+   "extracted": [
+    "feature_request"
+   ],
+   "verdict": "exact",
+   "expected_roles": [
+    "routine"
+   ],
+   "extracted_roles": [
+    "routine"
+   ]
+  },
+  {
+   "ref": "beacon_comm_2",
+   "account": "Beacon Media",
+   "day": -15,
+   "source_type": "meeting",
+   "signal_id": "a63bb3ea-8101-44e0-b94e-577eb0ced03a",
+   "status": "queued",
+   "expected": [
+    "routine_review"
+   ],
+   "extracted": [
+    "routine_review"
+   ],
+   "verdict": "exact",
+   "expected_roles": [
+    "routine"
+   ],
+   "extracted_roles": [
+    "routine"
+   ]
+  }
+ ]
+}
