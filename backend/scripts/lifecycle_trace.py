@@ -1,16 +1,18 @@
 """
-Lifecycle trace — walk one tenant through the whole platform and print, at
-every step, the exact rows written and their ids. Reads like a ledger, so
-the lifecycle can be READ rather than inferred.
+Lifecycle trace — signals first. Walk one tenant through the platform in the
+order evidence actually arrives, and print at every step the exact rows
+written and their ids, so the lifecycle can be READ rather than inferred.
 
     python scripts/lifecycle_trace.py [--out trace.md] [--name "Lifecycle Trace"] [--vertical saas_premium]
 
 Creates a fresh synthetic tenant (data_origin='synthetic_demo'), then:
-  1 create_customer · 2 upload accounts · 3 upload KPIs (one blank value)
-  4 process_data (ingest → health with provenance → journey → run row)
-  5 structured signal (declared subtype) · 6 free-text signal (extractor or stub)
-  7 exact duplicate · 8 human review (reject) · 9 outcome logged + linked
-  10 journey + narrative · 11 Ask AI · 12 what Hindsight needs · 13 audit tail
+  1 create the tenant · 2 roster only (accounts CSV, no KPIs) · 3 process_data on the roster
+  4–7 communications arrive over ten weeks through the engine (email, ticket, CRM note, meeting)
+  8 a typed-signals export (the CSM's own risk flag) takes the structured lane through the same engine
+  9 the journey from evidence alone — leading layer, no trailing layer yet
+  10 exact duplicate · 11 human review · 12 the outcome, linked to the signal that preceded it
+  13 THEN the KPI file arrives — process_data scores the months; the journey shows both layers and the lead time
+  14 Ask AI · 15 portfolio row · 16 what Hindsight needs
 Every step lists the tables it touched: +rows, ids, and the fields that matter.
 """
 from __future__ import annotations
@@ -28,19 +30,29 @@ ACCOUNTS = (
     "source_account_id,account_name,industry,region,arr,csm_name,csm_email,csm_manager,executive_sponsor,"
     "primary_champion_name,primary_champion_title,tier,employee_count,products,contract_end,renewal_date\n"
     "ACC-1,Harbor Analytics,Software,North America,1800000,Maya Johnson,maya@vendor.test,Sam Rivera,Tom Becker,"
-    "Elena Rossi,VP Data,Enterprise,900,,2026-12-01,2026-12-01\n"
+    "Elena Rossi,VP Data,Enterprise,900,,2026-08-01,2026-08-01\n"
 )
+# the CSM's own risk flag, as a Gainsight/ChurnZero-style export would carry it — the structured lane
+CRM_FLAGS = (
+    "signal_id,source_account_id,signal_date,signal_type,content,sentiment,sentiment_score,stakeholder_name,stakeholder_title,signal_ref,source_platform\n"
+    "gs_flag_1,ACC-1,2026-03-25,csm_risk_flag,CSM marked renewal at risk in Gainsight,negative,-0.5,Maya Johnson,CSM,gs_flag_1,gainsight\n"
+)
+# the KPI file arrives LAST — monthly, and the trailing score crosses its own warning line only in May
 KPIS = (
     "source_account_id,kpi_code,kpi_name,pillar,measured_at,value,target,weight,status\n"
-    "ACC-1,P1-KPI1,DAU rate,P1,2026-01-01,62,70,0.3,warning\n"
-    "ACC-1,P1-KPI2,Feature adoption breadth,P1,2026-01-01,55,65,0.2,warning\n"
-    "ACC-1,P2-KPI1,Exec sponsor engagement,P2,2026-01-01,70,80,0.3,ok\n"
-    "ACC-1,P1-KPI1,DAU rate,P1,2026-02-01,58,70,0.3,warning\n"
-    "ACC-1,P1-KPI2,Feature adoption breadth,P1,2026-02-01,,65,0.2,warning\n"      # blank → skipped, counted
-    "ACC-1,P2-KPI1,Exec sponsor engagement,P2,2026-02-01,64,80,0.3,warning\n"
-    "ACC-1,P1-KPI1,DAU rate,P1,2026-03-01,49,70,0.3,critical\n"
-    "ACC-1,P2-KPI1,Exec sponsor engagement,P2,2026-03-01,55,80,0.3,critical\n"
+    "ACC-1,P1-KPI1,DAU rate,P1,2026-01-01,74,70,0.3,ok\n"
+    "ACC-1,P2-KPI1,Exec sponsor engagement,P2,2026-01-01,78,80,0.3,ok\n"
+    "ACC-1,P1-KPI1,DAU rate,P1,2026-02-01,71,70,0.3,ok\n"
+    "ACC-1,P2-KPI1,Exec sponsor engagement,P2,2026-02-01,72,80,0.3,warning\n"
+    "ACC-1,P1-KPI1,DAU rate,P1,2026-03-01,64,70,0.3,warning\n"
+    "ACC-1,P2-KPI1,Exec sponsor engagement,P2,2026-03-01,,80,0.3,warning\n"      # blank → skipped, counted
+    "ACC-1,P1-KPI1,DAU rate,P1,2026-04-01,48,70,0.3,critical\n"
+    "ACC-1,P2-KPI1,Exec sponsor engagement,P2,2026-04-01,50,80,0.3,warning\n"
+    "ACC-1,P1-KPI1,DAU rate,P1,2026-05-01,30,70,0.3,critical\n"
+    "ACC-1,P2-KPI1,Exec sponsor engagement,P2,2026-05-01,30,80,0.3,critical\n"
 )
+MEETING = ("Meeting notes 12 Mar. Half the seats haven't logged in since January and procurement wants to true-down at renewal. "
+           "On the positive side Tom Becker asked what adding the analytics module for the EMEA team would cost.")
 
 TABLES = [  # (model name, id attr, formatter)
     ('Customer', 'customer_id', lambda r: f"{r.customer_name} · vertical via CustomerConfig · data_origin={r.data_origin}"),
@@ -127,6 +139,7 @@ def main():
     app = get_flask_app()
     with app.app_context():
         import models  # noqa: F401 — metadata for create_all
+        assert models
         from extensions import db
         db.create_all()
     out = open(args.out, 'w', encoding='utf-8')
@@ -150,41 +163,59 @@ def main():
     cid = r['customer_id']
     L.write(f"\n→ customer_id={cid}")
 
-    L.step('upload the roster (accounts CSV)', "upload_csv(cid, 'account_details.csv', <1 account: Harbor Analytics, champion Elena Rossi, renewal 2026-12-01>)",
+    L.step('the roster only — accounts CSV, no KPIs (signals-first: evidence comes before numbers)',
+           "upload_csv(cid, 'account_details.csv', <1 account: Harbor Analytics, champion Elena Rossi, sponsor Tom Becker, renewal 2026-08-01>)",
            lambda: upload_csv(cid, 'account_details.csv', ACCOUNTS), cid)
-    L.step('upload KPI measurements (3 months; one blank value)', "upload_csv(cid, 'kpi_measurements.csv', <8 rows, Jan–Mar 2026>)",
-           lambda: upload_csv(cid, 'kpi_measurements.csv', KPIS), cid)
-    pd = L.step('process_data — ingest, health with provenance, journey, run record', "process_data(cid)",
-                lambda: process_data(cid), cid)
-    L.write(f"\n→ run_id={pd['run_id']} status={pd['status']} steps={pd['steps_completed']}")
+    pd0 = L.step('process_data on the roster — nothing to score yet; the run is recorded anyway', "process_data(cid)", lambda: process_data(cid), cid)
+    L.write(f"\n→ run_id={pd0['run_id']} steps={pd0['steps_completed']}")
     with app.app_context():
         from models import Account
         aid = Account.query.filter_by(customer_id=cid).first().account_id
 
-    s1 = L.step('a structured signal — declared taxonomy subtype, no model call',
-                "submit_signal(cid, aid, 'Elena Rossi accepted a role at another company; last day March 27', source_type='crm_activity', signal_type='champion_departure', occurred_at='2026-03-20T10:00:00Z', participants=[{'name':'Elena Rossi','role':'VP Data'}], source_ref='crm:evt:7781')",
-                lambda: submit_signal(cid, aid, 'Elena Rossi accepted a role at another company; last day March 27', source_type='crm_activity',
-                                      signal_type='champion_departure', occurred_at='2026-03-20T10:00:00Z',
-                                      participants=[{'name': 'Elena Rossi', 'role': 'VP Data'}], source_ref='crm:evt:7781'), cid)
-    L.write(f"\n→ {s1['status']} · evidence={s1.get('evidence')}")
-    s2 = L.step('a free-text signal — the extractor types it against the tenant vocabulary',
-                "submit_signal(cid, aid, <meeting note: half the seats idle since March, procurement wants a true-down; Tom Becker asked about the analytics module for EMEA>, source_type='meeting', occurred_at='2026-04-03T15:00:00Z')",
-                lambda: submit_signal(cid, aid, "Meeting notes 3 Apr. Half the seats haven't logged in since March and procurement wants to true-down at renewal. "
-                                                "On the positive side Tom Becker asked what adding the analytics module for the EMEA team would cost.",
-                                      source_type='meeting', occurred_at='2026-04-03T15:00:00Z'), cid)
-    L.write(f"\n→ {s2['status']} · subtypes={(s2.get('evidence') or {}).get('subtypes')} · basis={(s2.get('evidence') or {}).get('basis')}")
-    s3 = L.step('the same note again — exact duplicate within the window', "submit_signal(cid, aid, <same text>, source_type='email', occurred_at='2026-04-04T09:00:00Z')",
-                lambda: submit_signal(cid, aid, "Meeting notes 3 Apr. Half the seats haven't logged in since March and procurement wants to true-down at renewal. "
-                                                "On the positive side Tom Becker asked what adding the analytics module for the EMEA team would cost.",
-                                      source_type='email', occurred_at='2026-04-04T09:00:00Z'), cid)
-    L.write(f"\n→ {s3['status']} (duplicate_of={s3.get('duplicate_of', '')[:8]}…) — nothing written, by design")
+    def _sig(text, **kw):
+        return lambda: submit_signal(cid, aid, text, **kw)
+
+    s_a = L.step('week 2 — an email arrives (free text; the extractor types it against the tenant vocabulary)',
+                 "submit_signal(cid, aid, 'Elena skipped the QBR again and has not replied to two follow-ups…', source_type='email', occurred_at='2026-01-14T09:30:00Z', participants=[{'name':'Elena Rossi'}])",
+                 _sig("Elena skipped the QBR again this quarter and hasn't replied to two follow-ups from Maya; her team lead says she is 'heads down on a platform review'.",
+                      source_type='email', occurred_at='2026-01-14T09:30:00Z', participants=[{'name': 'Elena Rossi', 'role': 'VP Data'}]), cid)
+    L.write(f"\n→ {s_a['status']} · subtypes={(s_a.get('evidence') or {}).get('subtypes')} · person={(s_a.get('evidence') or {}).get('person')}")
+    s_b = L.step('week 5 — a support ticket', "submit_signal(cid, aid, 'The Salesforce sync keeps dropping records…', source_type='ticket', occurred_at='2026-02-05T16:10:00Z', source_ref='ZD-8821')",
+                 _sig("Ticket ZD-8821: the Salesforce sync keeps dropping records and the ops team has stopped trusting the workflow; they are exporting to spreadsheets instead.",
+                      source_type='ticket', occurred_at='2026-02-05T16:10:00Z', source_ref='ZD-8821'), cid)
+    L.write(f"\n→ {s_b['status']} · subtypes={(s_b.get('evidence') or {}).get('subtypes')} · event_id=ticket's own ref")
+    s_c = L.step('week 7 — a CRM activity with a declared subtype (structured path: no model call)',
+                 "submit_signal(cid, aid, 'Elena Rossi accepted a role at another company; last day March 6', source_type='crm_activity', signal_type='champion_departure', occurred_at='2026-02-20T10:00:00Z', participants=[{'name':'Elena Rossi','role':'VP Data'}], source_ref='crm:evt:7781')",
+                 _sig('Elena Rossi accepted a role at another company; last day March 6', source_type='crm_activity', signal_type='champion_departure',
+                      occurred_at='2026-02-20T10:00:00Z', participants=[{'name': 'Elena Rossi', 'role': 'VP Data'}], source_ref='crm:evt:7781'), cid)
+    L.write(f"\n→ {s_c['status']} · basis={(s_c.get('evidence') or {}).get('basis')} · role={(s_c.get('evidence') or {}).get('role')} · urgency floor applies")
+    s_d = L.step('week 10 — a meeting note carrying three signals of two polarities',
+                 "submit_signal(cid, aid, <meeting note: seats idle since January, procurement wants a true-down; Tom Becker asked about the analytics module for EMEA>, source_type='meeting', occurred_at='2026-03-12T15:00:00Z')",
+                 _sig(MEETING, source_type='meeting', occurred_at='2026-03-12T15:00:00Z'), cid)
+    L.write(f"\n→ {s_d['status']} · subtypes={(s_d.get('evidence') or {}).get('subtypes')} · basis={(s_d.get('evidence') or {}).get('basis')}")
+
+    L.step('week 12 — a typed-signals export (the CSM flagged the renewal in Gainsight) takes the structured lane through the SAME engine',
+           "upload_csv(cid, 'enhanced_qualitative_signals.csv', <1 row: csm_risk_flag, 2026-03-25, source_platform=gainsight>) ; process_data(cid)",
+           lambda: (upload_csv(cid, 'enhanced_qualitative_signals.csv', CRM_FLAGS), process_data(cid))[1], cid)
+    L.write("\n→ the flag is evidence with provenance (origin gainsight) but its role is crm_flag: the human comparator, excluded from the leading score by rule")
+
+    j0 = L.step('the journey from evidence alone — a leading layer with no trailing layer', "get_journey(cid, aid)", lambda: get_journey(cid, aid), cid)
+    L.write(f"\n→ arc={j0['arc']['arc_type']} state={j0['state']} live_months={len(j0['live_months'])} (every month is live: no KPI has ever been scored) evidence_index={len(j0['evidence'])}")
+    L.write("\n**Leading series, no trailing** (month · kpi_only · qual · label · roles):")
+    for x in j0['leading_vs_trailing']['series']:
+        L.write(f"- {x['month']} · {x['kpi_only']} · {x['qual']} · {x['early_warning']} · {x['roles']}")
+    L.write(f"\nfirst_leading_warning_at={j0['leading_vs_trailing']['first_leading_warning_at']} · first_trailing_warning_at={j0['leading_vs_trailing']['first_trailing_warning_at']} (none: there is no trailing layer yet)")
+
+    s_dup = L.step('the meeting note forwarded again by email — exact duplicate within the window', "submit_signal(cid, aid, <same text>, source_type='email', occurred_at='2026-03-13T09:00:00Z')",
+                   _sig(MEETING, source_type='email', occurred_at='2026-03-13T09:00:00Z'), cid)
+    L.write(f"\n→ {s_dup['status']} (duplicate_of={s_dup.get('duplicate_of', '')[:8]}…) — nothing written, by design")
 
     q = L.step('what is waiting for a human', "get_review_queue(cid)", lambda: get_review_queue(cid), cid)
     L.write(f"\n→ {q['total']} signal(s) flagged requires_review")
     with app.app_context():
         from models import ContextNode
         nodes = ContextNode.query.filter_by(account_id=aid, node_type='SIGNAL').order_by(ContextNode.node_id).all()
-        target = next((n for n in nodes if (n.properties or {}).get('signal_id') == s2['signal_id']), nodes[-1])
+        target = next((n for n in nodes if (n.properties or {}).get('signal_id') == s_d['signal_id']), nodes[-1])
         target_id, target_sig = target.node_id, (target.properties or {}).get('signal_id')
     rv = L.step('a human decision — reject one extracted node (kept for audit, excluded from the journey)',
                 f"review_signal(cid, '{target_sig[:8]}…', 'reject', node_id={target_id}, note='the seat comment was about a sandbox tenant', reviewer='vp-cs@demo.test')",
@@ -192,35 +223,42 @@ def main():
     L.write(f"\n→ nodes={rv['nodes']} audit_ids={rv['audit_ids']} journeys_rebuilt={rv['journeys_rebuilt']}")
 
     oc = L.step('the decision the measurement chain hangs on — an outcome, linked to the signal that preceded it',
-                f"log_outcome(cid, aid, 'contraction', '2026-06-15', revenue=300000, note='Renewed at 12 fewer seats', linked_signal_ids=['{s1['signal_id'][:8]}…'], decided_by='ae@demo.test', source_ref='SO-4410')",
-                lambda: log_outcome(cid, aid, 'contraction', '2026-06-15', revenue=300000, note='Renewed at 12 fewer seats',
-                                    linked_signal_ids=[s1['signal_id']], decided_by='ae@demo.test', source_ref='SO-4410'), cid)
+                f"log_outcome(cid, aid, 'contraction', '2026-07-28', revenue=300000, note='Renewed at 12 fewer seats', linked_signal_ids=['{s_c['signal_id'][:8]}…'], decided_by='ae@demo.test', source_ref='SO-4410')",
+                lambda: log_outcome(cid, aid, 'contraction', '2026-07-28', revenue=300000, note='Renewed at 12 fewer seats',
+                                    linked_signal_ids=[s_c['signal_id']], decided_by='ae@demo.test', source_ref='SO-4410'), cid)
     L.write(f"\n→ {oc['status']} bucket={oc['bucket']} revenue={oc['revenue']} linked={oc['linked_signal_node_ids']} clamped={oc['evidence_clamped']}")
 
-    j = L.step('the journey as the read surface serves it (with the evidence index and the narrative)', "get_journey(cid, aid)", lambda: get_journey(cid, aid), cid)
-    L.write(f"\n→ arc={j['arc']['arc_type']} state={j['state']} phases={[p['name'] for p in j['phases']]} live_months={len(j['live_months'])} evidence_index={len(j['evidence'])} open_reviews={j['open_review_count']}")
+    L.step('THEN the KPI file arrives — five months at once, as it does in reality', "upload_csv(cid, 'kpi_measurements.csv', <10 rows, Jan–May 2026; one blank value>)",
+           lambda: upload_csv(cid, 'kpi_measurements.csv', KPIS), cid)
+    pd1 = L.step('process_data — the months are scored with provenance; the journey now carries BOTH layers', "process_data(cid)", lambda: process_data(cid), cid)
+    L.write(f"\n→ run_id={pd1['run_id']} steps={pd1['steps_completed']}")
+
+    j = L.step('the journey as the read surface serves it — evidence first, numbers confirming later', "get_journey(cid, aid)", lambda: get_journey(cid, aid), cid)
+    lvt = j['leading_vs_trailing']
+    L.write(f"\n→ arc={j['arc']['arc_type']} state={j['state']} phases={[p['name'] for p in j['phases']]} live_months={len(j['live_months'])} evidence_index={len(j['evidence'])}")
+    L.write(f"→ **first leading warning {lvt['first_leading_warning_at']} · first trailing warning {lvt['first_trailing_warning_at']} · lead_days {lvt['lead_days']}**")
+    L.write("\n**Leading vs trailing** (month · kpi_only · qual · label · roles):")
+    for x in lvt['series']:
+        L.write(f"- {x['month']} · {x['kpi_only']} · {x['qual']} · {x['early_warning']} · {x['roles']}")
     L.write("\n**Narrative** (every sentence cites the episode ids it was built from):")
     for ch in j['narrative']['chapters']:
-        for s in ch['sentences']:
-            L.write(f"- [{ch['phase']}] {s['text']}  `{s['cites']}`")
+        for x in ch['sentences']:
+            L.write(f"- [{ch['phase']}] {x['text']}  `{x['cites']}`")
     for o in j['narrative']['omitted']:
         L.write(f"- _omitted_ ({o.get('template') or o['reason']}): {o.get('note') or o.get('cites')}")
-    L.write("\n**Leading vs trailing** (month · kpi_only · qual · label · roles):")
-    for s in j['leading_vs_trailing']['series']:
-        L.write(f"- {s['month']} · {s['kpi_only']} · {s['qual']} · {s['early_warning']} · {s['roles']}")
 
-    a = L.step('Ask AI over the contract (cited; absence of evidence is an answer)', "ask(cid, 'Why is Harbor Analytics at risk and what did we decide?', account_id=aid)",
-               lambda: ask(cid, 'Why is Harbor Analytics at risk and what did we decide?', account_id=aid), cid)
+    a = L.step('Ask AI over the contract (cited; absence of evidence is an answer)', "ask(cid, 'When did we first know Harbor Analytics was at risk, and what did the numbers say at the time?', account_id=aid)",
+               lambda: ask(cid, 'When did we first know Harbor Analytics was at risk, and what did the numbers say at the time?', account_id=aid), cid)
     L.write(f"\n→ model={a.get('model')} sentences={len(a.get('sentences', []))} unsupported={len(a.get('unsupported', []))} gaps={len(a.get('evidence_gaps', []))}")
-    for s in a.get('sentences', [])[:6]:
-        L.write(f"- {s['text']}  `{s['cites']}`")
+    for x in a.get('sentences', [])[:6]:
+        L.write(f"- {x['text']}  `{x['cites']}`")
 
     L.step('portfolio row (what a CRO sees first)', "list_journeys(cid)", lambda: list_journeys(cid), cid)
     L.write("\n## What Hindsight needs from here\n")
     L.write("Wizard B (`trigger_wizard(cid, 'b')`) needs ≥5 journeys with outcomes to derive pattern profiles and run the lead-time backtest; "
             "on a one-account trace it reports 'insufficient'. On the seeded demo tenants it runs inside process_data (WizardRun rows). "
-            "The intervention step (playbook governance layer) is the gap in this trace: today an intervention is only a signal with role "
-            "'intervention'; the design doc adds the record (requested → approved → dispatched → receipt) and its measurement.")
+            "The intervention step is the gap in this trace: today an intervention is only a signal with role 'intervention'; "
+            "`playbook-governance-layer.md` adds the record (proposed → approved → sent → closed) and its measurement.")
 
     L.step('the audit trail of everything above', "GET /api/audit?customer_id=cid  (in-process calls are recorded as key_kind=local)", lambda: None, cid)
     out.close()
