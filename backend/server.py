@@ -151,6 +151,8 @@ def build_asgi_app(database_url: str | None = None, create_schema: bool = True):
     register_journey_routes(mcp)          # read surface: journeys + evidence
     from ask_ai.http import register_ask_routes
     register_ask_routes(mcp)              # POST /api/ask — Ask AI over the journey contract (P10)
+    from playbooks.http import register_playbook_routes
+    register_playbook_routes(mcp)         # /api/interventions*, /api/playbooks — the governance layer
     if create_schema:
         from signal_engine.models import ensure_enrichment_columns
         from utils.schema_additive import ensure_additive_columns

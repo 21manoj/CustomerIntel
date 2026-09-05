@@ -1,0 +1,29 @@
+{
+  "_doc": "Playbook governance layer (docs/design/playbook-governance-layer.md). Every number and enum the layer uses lives here; nothing in playbooks/ carries its own. Playbook definitions are per vertical in config/playbooks/<vertical>.json.",
+  "version": "1.0",
+  "action_classes": ["notify", "schedule", "escalate", "offer"],
+  "approval_modes": ["auto", "human"],
+  "auto_approval_allowed_for": ["notify"],
+  "roles_match_modes": ["any", "all"],
+  "states": ["proposed", "approved", "sent", "closed"],
+  "closed_states": ["done", "failed", "cancelled"],
+  "report_states": ["started", "done", "failed", "cancelled"],
+  "automation_levels": {
+    "0": "every approval is human",
+    "1": "playbooks declared approval=auto (notify only) are approved by policy at evaluation time"
+  },
+  "default_automation_level": 0,
+  "evaluate_on_journey_rebuild": true,
+  "stuck_after_days": 14,
+  "webhook": {
+    "timeout_seconds": 10,
+    "retries": 1,
+    "retry_delay_seconds": 2,
+    "signature_header": "X-CI-Signature",
+    "timestamp_header": "X-CI-Timestamp",
+    "signature_scheme": "sha256=HMAC_SHA256(secret, '<timestamp>.<body>')",
+    "allowed_schemes": ["https"],
+    "insecure_http_env": "PLAYBOOK_WEBHOOK_ALLOW_HTTP",
+    "quote_chars": 280
+  }
+}

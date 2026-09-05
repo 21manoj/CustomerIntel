@@ -82,3 +82,22 @@ About a week: config + loader + validation (S), table + node + tools (M), webhoo
 ## 9. Deferred (see the appendix)
 
 Approval tiers 2–3 and dual approval · dollar budgets per action class · `approve` / `integrate` key scopes · dead-letter queue and polled-queue alternative · events table · escalation and follow-up chaining · three-strength attribution · LLM-rendered action text · endpoint secret rotation UI.
+
+## 10. Shipped (2026-09-05) — what the build is, where it differs from the plan above
+
+Built on `main`: `config/playbook_governance.json` (every number and enum), `config/playbooks/{saas_premium,dc2_s,datacenter_v1,healthcare_provider}.json`, `models.Intervention` (the one table), `playbooks/` (`definitions`, `governance`, `webhook`, `http`), six MCP tools (`get_playbooks`, `configure_playbooks`, `evaluate_playbooks`, `approve_intervention`, `report_intervention`, `list_interventions`) + the HTTP routes in §4, the `INTERVENTION` node as a journey episode of kind `intervention` (generator 3.4), tests in `backend/tests/test_playbook_governance.py` (15, with a local receiving endpoint that verifies the signature).
+
+Deliberate differences from §2–§7, each for a reason:
+
+- **`roles_match`** on a trigger: `any` (default) or `all`. `seat_truedown_save` uses `all` — commercial pressure *and* usage decline; on `any` it would fire on every budget remark.
+- **dc2_s `thermal_escalation` floor is `high`, not `critical`.** The structural floor for `infra_incident` in `signal_engine.json` is `high`; a structured incident row never reaches `critical`, so the playbook would never fire on the CSV lane (the guard-never-fires class).
+- **Two more tools** than the three-plus-one: `configure_playbooks` (webhook target + secret, switched-off playbooks, automation level, kill switch — the tenant overlay §2 allows had nowhere to be set) and `get_playbooks` (the read of the definitions and the overlay, secret masked). The overlay lives in `FeatureToggle(feature_name='playbooks')`; the secret is in that row, never in the repo, never returned.
+- **Declining a proposal** is `report_intervention(state='cancelled')` on a proposed row (audited as `intervention.declined`); no separate reject tool.
+- **The INTERVENTION node is written on every approval**, also when delivery failed or no endpoint is configured (`delivery.status` = `failed` | `not_configured`). The approval happened; the delivery problem is a finding the journey and the narrative say out loud.
+- **Signature** covers `'<timestamp>.<body>'`, with the timestamp in `X-CI-Timestamp` — a captured payload cannot be replayed under a fresh header. Webhook URLs are `https` only; plain `http` needs `PLAYBOOK_WEBHOOK_ALLOW_HTTP=true` (tests, a local engine).
+- **Evaluation hook**: `run_wizard_a(..., evaluate_playbooks=True)` runs the evaluation after it commits, so every rebuild point (signal processing, review, outcome, process_data, trigger_wizard, the stale-journey rebuild at deploy) proposes. `approve`/`report` rebuild with `evaluate_playbooks=False`; no re-entry. Off via `evaluate_on_journey_rebuild` in the governance config.
+- **Audit rows** for propose / approve / send / started / done / failed / cancelled / declined / configure are written as `surface='playbook'`, `tool='intervention.<transition>'` with the caller's key kind and id (`system` for the rebuild hook and for policy approvals).
+- **Counterfactual hooks** now compare outcomes at day granularity (an outcome is a decision *date*; an intervention is timestamped) — a same-day outcome counts as after.
+- **Two numbers on the read**: `by_playbook[].realized_revenue` (linked outcomes, signed) and `exposure_revenue` (account revenue on the rows), with a note that says never to sum them.
+
+Not built, per §9, and one more: the step stubs / simulated close / closure report the user asked for later (backlog).

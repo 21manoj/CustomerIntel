@@ -93,6 +93,10 @@ WRITE_TOOLS = {
     'import_communications',
     'configure_column_map',
     'delete_customer',
+    'evaluate_playbooks',
+    'approve_intervention',
+    'report_intervention',
+    'configure_playbooks',
 }
 
 

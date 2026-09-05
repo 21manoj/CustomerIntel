@@ -1,0 +1,39 @@
+{
+  "version": "1.0",
+  "vertical": "dc2_s",
+  "_doc": "Data-centre hardware/channel motion. thermal_escalation's floor is 'high', not the design note's 'critical': the structural floor for infra_incident (signal_engine.json urgency.structural_by_role) is 'high', so a structured incident row never reaches 'critical' and the playbook would never fire on the CSV lane (the guard-never-fires class).",
+  "playbooks": [
+    {
+      "id": "thermal_escalation",
+      "label": "Infrastructure incident — engineering escalation",
+      "trigger": {"roles": ["infra_incident"], "urgency_floor": "high"},
+      "action_class": "escalate",
+      "approval": "human",
+      "expected_outcome": {"types": ["escalation_resolved", "revenue_protected", "churn_lost"], "window_days": 60}
+    },
+    {
+      "id": "capacity_expansion_offer",
+      "label": "Capacity pressure — expansion offer",
+      "trigger": {"roles": ["capacity_pressure", "expansion_intent"], "urgency_floor": "medium"},
+      "action_class": "offer",
+      "approval": "human",
+      "expected_outcome": {"types": ["expansion_closed", "expansion_opportunity", "repeat_order"], "window_days": 120}
+    },
+    {
+      "id": "refresh_at_risk_save",
+      "label": "Commercial pressure — refresh save",
+      "trigger": {"roles": ["commercial_pressure"], "urgency_floor": "high", "renewal_within_days": 180},
+      "action_class": "schedule",
+      "approval": "human",
+      "expected_outcome": {"types": ["refresh_won", "maintenance_renewed", "refresh_lost", "contraction"], "window_days": 120}
+    },
+    {
+      "id": "expansion_intent_handoff",
+      "label": "Expansion intent — sales handoff",
+      "trigger": {"roles": ["expansion_intent"], "urgency_floor": "medium"},
+      "action_class": "notify",
+      "approval": "auto",
+      "expected_outcome": {"types": ["expansion_closed", "expansion_opportunity"], "window_days": 90}
+    }
+  ]
+}

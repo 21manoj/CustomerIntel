@@ -32,7 +32,7 @@ import utils.health_thresholds as ht
 class Episode:
     episode_id: str
     date: datetime
-    kind: str                 # signal | stakeholder | decision | outcome | health_transition | renewal
+    kind: str                 # signal | stakeholder | decision | outcome | intervention | health_transition | renewal
     subtype: Optional[str]
     role: Optional[str]       # signal role from the taxonomy (signals only)
     polarity: int             # +1 / -1 / 0
@@ -75,7 +75,7 @@ def collect_episodes(account, taxonomy, health_rows) -> List[Episode]:
     eps: List[Episode] = []
     nodes = ContextNode.query.filter(
         ContextNode.account_id == account.account_id,
-        ContextNode.node_type.in_(['SIGNAL', 'DECISION', 'OUTCOME']),
+        ContextNode.node_type.in_(['SIGNAL', 'DECISION', 'OUTCOME', 'INTERVENTION']),
         ContextNode.source == 'observed',
     ).order_by(ContextNode.occurred_at).all()
 
@@ -118,6 +118,20 @@ def collect_episodes(account, taxonomy, health_rows) -> List[Episode]:
                 subtype=sub, role=None, polarity=0, source='observed',
                 title=(n.title or 'decision')[:200], evidence_node_ids=[n.node_id],
                 meta={'chosen_option': props.get('chosen_option')},
+            ))
+        elif n.node_type == 'INTERVENTION':
+            # a governed playbook intervention (playbooks/governance.py) — written when the payload was sent.
+            # role 'intervention' so the phase detectors read it as the CSM's response, never a trigger;
+            # kind 'intervention' so it is never scored into the leading composite.
+            eps.append(Episode(
+                episode_id=f'int:{n.node_id}', date=n.occurred_at, kind='intervention',
+                subtype=sub, role='intervention', polarity=0, source='observed',
+                title=(n.title or sub or 'intervention')[:200], evidence_node_ids=[n.node_id],
+                meta={'intervention_id': props.get('intervention_id'), 'playbook_id': props.get('playbook_id'),
+                      'action_class': props.get('action_class'), 'approved_by': props.get('approved_by'),
+                      'delivery_status': props.get('delivery_status'), 'delivery_error': props.get('delivery_error'),
+                      'closed_state': props.get('closed_state'), 'outcome_node_id': props.get('outcome_node_id'),
+                      'trigger_episode_ids': props.get('trigger_episode_ids') or [], 'quote': props.get('trigger_quote')},
             ))
         elif n.node_type == 'OUTCOME':
             bucket = taxonomy.revenue_bucket(n.revenue_impact_type or sub)
@@ -250,7 +264,7 @@ def detect_phases(points: List[tuple], episodes: List[Episode]) -> List[dict]:
             # A trigger is something that happened TO the account — a signal,
             # an outcome, the health move itself. Decisions and CSM
             # interventions are responses to a phase, never its trigger.
-            if e.kind in ('renewal', 'decision') or (e.kind == 'signal' and e.role == 'intervention'):
+            if e.kind in ('renewal', 'decision', 'intervention') or (e.kind == 'signal' and e.role == 'intervention'):
                 continue
             if entered - lookback <= e.date <= month_end(m):
                 trigger = e.episode_id
@@ -271,7 +285,7 @@ def detect_phases_from_evidence(episodes: List[Episode], months: List[date]) -> 
     rules = ht.evidence_phase_rules()
     by_month: Dict[str, List[Episode]] = {}
     for e in episodes:
-        if e.kind == 'signal' and e.role:
+        if (e.kind == 'signal' and e.role) or e.kind == 'intervention':
             by_month.setdefault(e.date.strftime('%Y-%m'), []).append(e)
 
     labels = []
@@ -411,13 +425,15 @@ def counterfactual_hooks(episodes: List[Episode], points: List[tuple]) -> List[d
     hooks = []
     win = timedelta(days=90)
     for e in episodes:
-        if not (e.kind == 'decision' or (e.kind == 'signal' and e.role == 'intervention')):
+        if not (e.kind in ('decision', 'intervention') or (e.kind == 'signal' and e.role == 'intervention')):
             continue
         before = [s for m, s in points if e.date - win <= month_end(m) < e.date]
         after = [s for m, s in points if e.date <= month_end(m) < e.date + win]
+        # day granularity: an outcome is dated (a decision date at midnight), an intervention is timestamped —
+        # a same-day outcome must count as 'after'
         outcomes_after = [
             {'episode_id': o.episode_id, 'bucket': o.revenue_bucket, 'revenue': o.revenue}
-            for o in episodes if o.kind == 'outcome' and e.date <= o.date < e.date + win
+            for o in episodes if o.kind == 'outcome' and e.date.date() <= o.date.date() < (e.date + win).date()
         ]
         hooks.append({
             'episode_id': e.episode_id, 'date': e.date.isoformat(), 'title': e.title,

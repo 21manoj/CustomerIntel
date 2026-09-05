@@ -30,7 +30,8 @@ logger = logging.getLogger(__name__)
 #        unreviewed weighting, generator_version inside the JSON (2026-09-04)
 #   3.2  narrative block — cited prose, template_v1 (2026-09-04)
 #   3.3  data_coverage, evidence phases, evidence-only arc predicates (2026-09-05)
-GENERATOR_VERSION = '3.3'
+#   3.4  INTERVENTION episodes (kind 'intervention') from the playbook governance layer (2026-09-05)
+GENERATOR_VERSION = '3.4'
 
 
 def stale_journey_query(customer_id: Optional[int] = None):
@@ -56,7 +57,10 @@ def rebuild_stale_journeys(customer_id: Optional[int] = None) -> dict:
     return out
 
 
-def run_wizard_a(customer_id: int, account_ids: Optional[Iterable[int]] = None) -> dict:
+def run_wizard_a(customer_id: int, account_ids: Optional[Iterable[int]] = None, evaluate_playbooks: bool = True) -> dict:
+    """evaluate_playbooks: after the journeys are committed, run the playbook evaluation on the accounts
+    processed (design §4: evaluate runs where journeys rebuild). approve/report pass False — they rebuild
+    the journey they just changed and must not re-enter evaluation."""
     from models import Account, JourneyData
     from extensions import db
     from utils.vertical_registry import get_vertical_for_customer
@@ -121,6 +125,12 @@ def run_wizard_a(customer_id: int, account_ids: Optional[Iterable[int]] = None) 
     db.session.commit()
     n = result['processed']
     result['coverage']['classified_pct'] = round(100.0 * (result['coverage']['classified'] + result['coverage']['steady']) / n, 1) if n else 0.0
+    if evaluate_playbooks and n:
+        from playbooks.governance import evaluate_after_rebuild
+        ev = evaluate_after_rebuild(customer_id, [a.account_id for a in accounts])
+        if ev is not None:
+            result['playbooks'] = {'status': ev['status'], 'proposed': len(ev['proposed']), 'auto_approved': len(ev['auto_approved']),
+                                   'proposed_ids': [p.get('intervention_id') for p in ev['proposed']]}
     return result
 
 

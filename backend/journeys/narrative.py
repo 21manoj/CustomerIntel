@@ -107,6 +107,8 @@ def _phrase(ep: dict) -> str:
         return f"health moved from {meta.get('from')} to {meta.get('to')} ({meta.get('health_score')})"
     if ep['kind'] == 'decision':
         return 'decision: ' + _lc(_strip_suffix(ep.get('title') or ''))
+    if ep['kind'] == 'intervention':
+        return _intervention_words(ep)
     if ep['kind'] == 'stakeholder':
         return _lc(_strip_suffix(ep.get('title') or 'a stakeholder change'))
     return _lc(ep.get('title') or ep['kind'])
@@ -183,13 +185,31 @@ def _t_month_events(month_key: str, groups: List[List[dict]]) -> Optional[Tuple[
     return f"In {month_key}, {_join(parts)}.", cites
 
 
+def _intervention_words(ep: dict) -> str:
+    """A governed playbook intervention in words: which playbook, who approved, whether it reached the workflow,
+    what the workflow reported. The delivery problem is said, never hidden (design §6)."""
+    meta = ep.get('meta') or {}
+    d = meta.get('delivery_status')
+    tail = ', but the workflow endpoint was not configured' if d == 'not_configured' else \
+           ', but delivery to the workflow failed' if d == 'failed' else ' and sent to the workflow' if d == 'delivered' else ''
+    closed = meta.get('closed_state')
+    if closed:
+        tail += f'; the workflow reported it {closed}'
+    ac = f" ({meta['action_class']})" if meta.get('action_class') else ''
+    return f"playbook '{_lc(_strip_suffix(ep.get('title') or 'an intervention'))}'{ac} was approved by {meta.get('approved_by') or 'a person'}{tail}"
+
+
 def _t_intervention(hook: dict, by_id: Dict[str, dict]) -> Optional[Tuple[str, List[str]]]:
     ep = by_id.get(hook.get('episode_id'))
     if not ep:
         return None
     b, a = hook.get('health_before') or {}, hook.get('health_after') or {}
     cites = [ep['episode_id']]
-    text = f"{_strip_suffix(ep.get('title') or 'An intervention')} on {_day(hook.get('date'))}"
+    if ep.get('kind') == 'intervention':
+        words = _intervention_words(ep)
+        text = f"{words[:1].upper()}{words[1:]} on {_day(hook.get('date'))}"
+    else:
+        text = f"{_strip_suffix(ep.get('title') or 'An intervention')} on {_day(hook.get('date'))}"
     if b.get('mean') is not None and a.get('last') is not None:
         text += f"; health averaged {b['mean']} in the {b.get('n')} months before and stood at {a['last']} after"
     outs = [o for o in hook.get('outcomes_after', []) if o.get('episode_id') in by_id]

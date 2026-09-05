@@ -155,7 +155,7 @@ class ToolAuditLog(db.Model):
     surface = db.Column(db.String(10), nullable=False)               # mcp | http
     tool = db.Column(db.String(80), nullable=False, index=True)      # tool name or route name
     customer_id = db.Column(db.Integer, nullable=True, index=True)   # the tenant the call named (no FK: denied calls may name a bad one)
-    key_kind = db.Column(db.String(10), nullable=False)              # server | customer | none | local
+    key_kind = db.Column(db.String(10), nullable=False)              # server | customer | none | local | system (playbook evaluation after a journey rebuild)
     key_id = db.Column(db.Integer, nullable=True)                    # CustomerApiKey.id when key_kind = customer
     key_prefix = db.Column(db.String(12), nullable=True)
     caller_ip = db.Column(db.String(64), nullable=True)
@@ -749,3 +749,58 @@ class HealthScore(db.Model):
             'pillar_weights': self.pillar_weights,
             'measurement_month': self.measurement_month.isoformat() if self.measurement_month else None,
         }
+
+
+class Intervention(db.Model):
+    """One governed intervention — the record between "the evidence says act"
+    and "an outcome happened" (docs/design/playbook-governance-layer.md).
+    What was proposed on which evidence, who approved it, that it was sent,
+    and what came back. States proposed → approved → sent → closed; every
+    transition is also a tool_audit_log row carrying the key. The workflow
+    itself runs outside the platform (n8n, Salesforce Flow, a partner's
+    system) and is reached by the signed webhook; it reports back through
+    report_intervention. No events table, no approvals table."""
+    __tablename__ = 'interventions'
+
+    id = db.Column(db.Integer, primary_key=True)
+    customer_id = db.Column(db.Integer, db.ForeignKey('customers.customer_id'), nullable=False, index=True)
+    account_id = db.Column(db.Integer, db.ForeignKey('accounts.account_id'), nullable=False, index=True)
+    playbook_id = db.Column(db.String(80), nullable=False, index=True)
+    playbook_version = db.Column(db.String(20), nullable=False)
+    action_class = db.Column(db.String(20), nullable=False)          # notify | schedule | escalate | offer
+    approval_mode = db.Column(db.String(10), nullable=False)         # auto | human (as declared by the playbook)
+    state = db.Column(db.String(12), nullable=False, default='proposed', index=True)   # proposed | approved | sent | closed
+    urgency = db.Column(db.String(10), nullable=True)                # the highest effective urgency among the cited evidence
+
+    trigger_key = db.Column(db.String(64), nullable=False)           # sha256 of the sorted trigger episode ids — idempotency
+    trigger_episode_ids = db.Column(db.JSON, nullable=False, default=list)
+    trigger_node_ids = db.Column(db.JSON, nullable=False, default=list)
+    trigger_roles = db.Column(db.JSON, nullable=False, default=list)
+    trigger_quote = db.Column(db.Text, nullable=True)                # the first cited quote
+    evaluated_as_of = db.Column(db.DateTime, nullable=True)          # the journey's as_of when the proposal was made
+    expected_outcome_types = db.Column(db.JSON, nullable=False, default=list)
+    expected_window_days = db.Column(db.Integer, nullable=False)
+    exposure_revenue = db.Column(db.Numeric(15, 2), nullable=True)   # the account's revenue at proposal time (never summed with realized)
+
+    proposed_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, index=True)
+    proposed_by = db.Column(db.String(120), nullable=True)           # actor label (see playbooks.governance.current_actor)
+    approved_at = db.Column(db.DateTime, nullable=True)
+    approved_by = db.Column(db.String(120), nullable=True)           # 'server_key' | 'key:<prefix>' | 'local' | 'policy:automation_level_1'
+    approved_by_key_id = db.Column(db.Integer, nullable=True)        # CustomerApiKey.id when a customer key approved
+    sent_at = db.Column(db.DateTime, nullable=True)
+    delivery = db.Column(db.JSON, nullable=True)                     # {status, url_host, http_status, attempts, error, at}
+    started_at = db.Column(db.DateTime, nullable=True)               # the engine said it started (informational)
+    last_report_at = db.Column(db.DateTime, nullable=True)
+    closed_at = db.Column(db.DateTime, nullable=True)
+    closed_state = db.Column(db.String(12), nullable=True)           # done | failed | cancelled
+    closed_by = db.Column(db.String(120), nullable=True)
+    outcome_node_id = db.Column(db.Integer, nullable=True)           # the OUTCOME node the engine reported, when any
+    outcome_in_window = db.Column(db.Boolean, nullable=True)
+    outcome_expected = db.Column(db.Boolean, nullable=True)          # the reported type is one the playbook expects
+    node_id = db.Column(db.Integer, nullable=True)                   # the INTERVENTION node, written when the payload is sent
+    notes = db.Column(db.JSON, nullable=False, default=list)         # [{at, by, transition, note}]
+
+    __table_args__ = (
+        db.UniqueConstraint('account_id', 'playbook_id', 'trigger_key', name='uq_intervention_trigger'),
+        db.Index('idx_intervention_customer_state', 'customer_id', 'state'),
+    )

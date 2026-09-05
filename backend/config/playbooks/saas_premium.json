@@ -1,0 +1,39 @@
+{
+  "version": "1.0",
+  "vertical": "saas_premium",
+  "_doc": "Playbook definitions are data: trigger roles are taxonomy signal roles, expected outcomes are taxonomy revenue-bucket types, urgency floors are signal-engine urgency levels. roles_match: 'any' (default) fires when one of the roles is in the latest leading month; 'all' needs every role. A tenant may switch a playbook off and set the webhook target; nothing else is overridable in v1.",
+  "playbooks": [
+    {
+      "id": "seat_truedown_save",
+      "label": "Seat true-down save",
+      "trigger": {"roles": ["commercial_pressure", "usage_decline"], "roles_match": "all", "urgency_floor": "high", "renewal_within_days": 120},
+      "action_class": "schedule",
+      "approval": "human",
+      "expected_outcome": {"types": ["renewal_secured", "revenue_protected", "contraction"], "window_days": 90}
+    },
+    {
+      "id": "champion_departure_sponsor_rebuild",
+      "label": "Champion departure — sponsor rebuild",
+      "trigger": {"roles": ["champion_change"], "urgency_floor": "critical"},
+      "action_class": "escalate",
+      "approval": "human",
+      "expected_outcome": {"types": ["renewal_secured", "churn_lost", "contraction"], "window_days": 120}
+    },
+    {
+      "id": "escalation_exec_response",
+      "label": "Escalation — executive response",
+      "trigger": {"roles": ["escalation"], "urgency_floor": "critical"},
+      "action_class": "escalate",
+      "approval": "human",
+      "expected_outcome": {"types": ["escalation_resolved", "churn_averted", "churn_lost"], "window_days": 60}
+    },
+    {
+      "id": "expansion_intent_handoff",
+      "label": "Expansion intent — sales handoff",
+      "trigger": {"roles": ["expansion_intent"], "urgency_floor": "medium"},
+      "action_class": "notify",
+      "approval": "auto",
+      "expected_outcome": {"types": ["expansion_closed", "expansion_opportunity"], "window_days": 90}
+    }
+  ]
+}

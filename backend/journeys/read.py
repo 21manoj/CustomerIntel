@@ -54,7 +54,7 @@ def get_evidence(customer_id: int, account_id: Optional[int] = None, node_ids: O
                  include_rejected: bool = False, limit: int = 200) -> List[dict]:
     from models import ContextNode
     q = ContextNode.query.filter(ContextNode.customer_id == int(customer_id),
-                                 ContextNode.node_type.in_(['SIGNAL', 'DECISION', 'OUTCOME']),
+                                 ContextNode.node_type.in_(['SIGNAL', 'DECISION', 'OUTCOME', 'INTERVENTION']),
                                  ContextNode.source == 'observed')
     if account_id:
         q = q.filter(ContextNode.account_id == int(account_id))

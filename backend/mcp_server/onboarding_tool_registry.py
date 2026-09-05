@@ -48,6 +48,13 @@ KEYED_TOOLS = frozenset({
     'configure_column_map',
     'get_column_map',
     'delete_customer',
+    # playbook governance layer (playbooks/)
+    'evaluate_playbooks',
+    'approve_intervention',
+    'report_intervention',
+    'list_interventions',
+    'configure_playbooks',
+    'get_playbooks',
 })
 
 ALL_TOOLS = ONBOARDING_TOOLS | KEYED_TOOLS

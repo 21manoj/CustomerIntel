@@ -1179,7 +1179,7 @@ def delete_customer(customer_id: int, confirm_domain: str, reason: str) -> dict:
         from extensions import db
         from models import (Customer, CustomerConfig, User, Account, KPIMeasurement, HealthScore, QualitativeSignal,
                             ContextNode, ContextEdge, JourneyData, CsvUpload, CsvUploadStaging, ProcessRun, SignalReview,
-                            WizardRun, CustomerApiKey, FeatureToggle)
+                            WizardRun, CustomerApiKey, FeatureToggle, Intervention)
         from mcp_server import audit as _audit
         c = db.session.get(Customer, int(customer_id))
         if not c:
@@ -1191,6 +1191,7 @@ def delete_customer(customer_id: int, confirm_domain: str, reason: str) -> dict:
         def _del(model, q):
             n = q.delete(synchronize_session=False)
             counts[model.__tablename__] = counts.get(model.__tablename__, 0) + int(n or 0)
+        _del(Intervention, Intervention.query.filter_by(customer_id=c.customer_id))
         _del(ContextEdge, ContextEdge.query.filter_by(customer_id=c.customer_id))
         _del(ContextNode, ContextNode.query.filter_by(customer_id=c.customer_id))
         _del(JourneyData, JourneyData.query.filter_by(customer_id=c.customer_id))
@@ -1223,3 +1224,182 @@ def delete_customer(customer_id: int, confirm_domain: str, reason: str) -> dict:
         _audit.record('mcp', 'delete_customer', customer_id, key_kind='server' if raw else 'local', outcome='allowed',
                       detail=f'{name} ({domain}) deleted: {reason.strip()[:200]} — rows {counts} — llm usage {usage_totals}')
         return {'customer_id': customer_id, 'customer_name': name, 'domain': domain, 'deleted_rows': counts, 'reason': reason.strip()}
+
+
+# ===================================================================
+# Tools: playbook governance layer (playbooks/) — the record between
+# "the evidence says act" and "an outcome happened"
+# ===================================================================
+
+@mcp.tool
+def get_playbooks(customer_id: int) -> dict:
+    """The playbooks this tenant's vertical defines (config/playbooks/<vertical>.json,
+    validated against the taxonomy) and the tenant's overlay: webhook target
+    (secret masked), switched-off playbooks, automation level, kill switch.
+
+    Args:
+        customer_id: The customer ID
+    """
+    _require_auth_if_key_present('get_playbooks', customer_id)
+    _check_mcp_enabled()
+    app = _get_flask_app()
+    with app.app_context():
+        from playbooks.definitions import playbooks_for_customer
+        return playbooks_for_customer(customer_id)
+
+
+@mcp.tool
+def configure_playbooks(customer_id: int, webhook_url: str = None, webhook_secret: str = None,
+                        disabled_playbooks: list = None, automation_level: int = None, kill_switch: bool = None) -> dict:
+    """Set the tenant's playbook overlay. Only the fields given change.
+
+    - webhook_url / webhook_secret: where approved interventions are POSTed
+      (one signed JSON payload per approval; X-CI-Signature = sha256 HMAC of
+      '<timestamp>.<body>' with the secret). https only. The secret is stored
+      per tenant, never returned.
+    - disabled_playbooks: playbook ids to switch off for this tenant.
+    - automation_level: 0 = every approval is human; 1 = playbooks declared
+      approval=auto (notify only) are approved by policy at evaluation time.
+    - kill_switch: true stops evaluation and sending for the tenant.
+
+    Args:
+        customer_id: The customer ID
+        webhook_url: Absolute https URL of the workflow engine's endpoint ('' clears it)
+        webhook_secret: Shared secret for the signature ('' clears it)
+        disabled_playbooks: Playbook ids to switch off (replaces the list)
+        automation_level: 0 or 1
+        kill_switch: true/false
+    """
+    _require_auth_if_key_present('configure_playbooks', customer_id)
+    _check_mcp_enabled()
+    app = _get_flask_app()
+    with app.app_context():
+        from models import Customer
+        from extensions import db
+        from playbooks.definitions import configure_tenant
+        from playbooks.governance import current_actor, _audit
+        if not db.session.get(Customer, int(customer_id)):
+            raise ToolError(f'Customer {customer_id} not found.')
+        try:
+            cfg = configure_tenant(customer_id, webhook_url=webhook_url, webhook_secret=webhook_secret,
+                                   disabled_playbooks=disabled_playbooks, automation_level=automation_level, kill_switch=kill_switch)
+        except ValueError as e:
+            raise ToolError(str(e))
+        changed = [k for k, v in (('webhook_url', webhook_url), ('webhook_secret', webhook_secret), ('disabled_playbooks', disabled_playbooks),
+                                  ('automation_level', automation_level), ('kill_switch', kill_switch)) if v is not None]
+        _audit(customer_id, 'configure', current_actor(),
+               f"changed {changed}; url_host={cfg['webhook_url'] and cfg['webhook_url'].split('/')[2]} level={cfg['automation_level']} kill={cfg['kill_switch']} off={cfg['disabled_playbooks']}")
+        return {'customer_id': int(customer_id), 'tenant': cfg}
+
+
+@mcp.tool
+def evaluate_playbooks(customer_id: int, account_id: int = None, dry_run: bool = False) -> dict:
+    """Propose interventions from the journeys' latest leading month: for each
+    playbook whose trigger roles are in the cited evidence (at or above its
+    urgency floor, and inside the renewal window when the trigger names one),
+    write a 'proposed' row citing the episode ids. Runs by itself after every
+    journey rebuild; call it to force a pass or to see what it would propose.
+
+    Idempotent per (account, playbook, trigger set); one open proposal per
+    (account, playbook); nothing within window_days of a closed one. Nothing
+    is sent here unless the tenant's automation_level is 1 and the playbook is
+    declared approval=auto (notify only).
+
+    Args:
+        customer_id: The customer ID
+        account_id: One account (default: every account with a journey)
+        dry_run: Return what would be proposed without writing anything
+    """
+    _require_auth_if_key_present('evaluate_playbooks', customer_id)
+    _check_mcp_enabled()
+    app = _get_flask_app()
+    with app.app_context():
+        from models import Customer
+        from extensions import db
+        from playbooks.governance import evaluate
+        if not db.session.get(Customer, int(customer_id)):
+            raise ToolError(f'Customer {customer_id} not found.')
+        try:
+            return evaluate(customer_id, account_id, dry_run=dry_run)
+        except ValueError as e:
+            raise ToolError(str(e))
+
+
+@mcp.tool
+def approve_intervention(customer_id: int, intervention_id: int, note: str = None) -> dict:
+    """Approve a proposed intervention (write scope or the server key). The
+    platform then sends the signed payload to the tenant's webhook, writes the
+    INTERVENTION node (cited from the trigger evidence) and moves the row to
+    'sent'. A failed or unconfigured delivery still moves to 'sent' with the
+    error on the row and on the journey — the approval happened; the
+    delivery problem is a finding, not a reason to hide it. To decline a
+    proposal, call report_intervention with state='cancelled'.
+
+    Args:
+        customer_id: The customer ID
+        intervention_id: The proposed intervention
+        note: Why (kept on the row and in the audit log)
+    """
+    _require_auth_if_key_present('approve_intervention', customer_id)
+    _check_mcp_enabled()
+    app = _get_flask_app()
+    with app.app_context():
+        from playbooks.governance import approve
+        try:
+            return approve(customer_id, intervention_id, note=note)
+        except ValueError as e:
+            raise ToolError(str(e))
+
+
+@mcp.tool
+def report_intervention(customer_id: int, intervention_id: int, state: str, note: str = None,
+                        outcome_type: str = None, outcome_date: str = None, revenue: float = None) -> dict:
+    """What the external workflow calls back with. state: 'started'
+    (informational), 'done', 'failed', or 'cancelled' (also how a person
+    declines a proposal). An outcome, if given, is logged through
+    log_outcome (the tenant's outcome vocabulary, decision date, revenue
+    magnitude) and linked to the intervention; the row records whether it
+    landed inside the playbook's window and is one of the outcomes the
+    playbook expects.
+
+    Args:
+        customer_id: The customer ID
+        intervention_id: The intervention being reported on
+        state: started | done | failed | cancelled
+        note: What happened
+        outcome_type: An outcome type from the tenant's vocabulary (optional)
+        outcome_date: ISO date of the decision (default: now)
+        revenue: Revenue magnitude for the outcome (optional)
+    """
+    _require_auth_if_key_present('report_intervention', customer_id)
+    _check_mcp_enabled()
+    app = _get_flask_app()
+    with app.app_context():
+        from playbooks.governance import report
+        try:
+            return report(customer_id, intervention_id, state, note=note, outcome_type=outcome_type,
+                          outcome_date=outcome_date, revenue=revenue)
+        except ValueError as e:
+            raise ToolError(str(e))
+
+
+@mcp.tool
+def list_interventions(customer_id: int, account_id: int = None, state: str = None) -> dict:
+    """Every intervention for a tenant: state, the cited evidence and quote,
+    who approved, delivery result, what the workflow reported, the linked
+    outcome. Flags stuck ones (sent, no report within the configured days)
+    and delivery problems, and gives the per-playbook numbers: proposed /
+    approved / sent / closed done-failed-cancelled, outcomes within window,
+    realized $ and exposure $ as two numbers, never summed.
+
+    Args:
+        customer_id: The customer ID
+        account_id: Filter to one account (optional)
+        state: proposed | approved | sent | closed (optional)
+    """
+    _require_auth_if_key_present('list_interventions', customer_id)
+    _check_mcp_enabled()
+    app = _get_flask_app()
+    with app.app_context():
+        from playbooks.governance import list_interventions as _list
+        return _list(customer_id, account_id, state)
