@@ -191,7 +191,7 @@ class TestMultiSignalExtraction:
         cid, aid = tenant
         from utils.taxonomy_loader import get_taxonomy
 
-        def fake_llm(signal_id, raw_text, account_id, customer_id, vertical, taxonomy=None, roster=None):
+        def fake_llm(signal_id, raw_text, account_id, customer_id, vertical, taxonomy=None, roster=None, **_kw):
             from signal_engine.enrichment import normalize_extraction
             out = normalize_extraction({'signals': [
                 {'subtype': 'integration_bug', 'quote': 'the Salesforce sync keeps dropping records', 'sentiment_score': -0.6,
@@ -235,7 +235,7 @@ class TestExtractionFailureIsNotEvidence:
         from signal_engine.pipeline import process_pending, ingest
         from utils.taxonomy_loader import get_taxonomy
 
-        def broken(signal_id, raw_text, account_id, customer_id, vertical, taxonomy=None, roster=None):
+        def broken(signal_id, raw_text, account_id, customer_id, vertical, taxonomy=None, roster=None, **_kw):
             out = enrichment.normalize_extraction({'signals': [], 'requires_review': True}, taxonomy or get_taxonomy(vertical))
             out['error'] = "No module named 'anthropic'"
             return out
@@ -249,7 +249,7 @@ class TestExtractionFailureIsNotEvidence:
             assert sig.cg_node_id is None and sig.intent_signals is None          # still queued, no node
             assert ContextNode.query.filter_by(source_event_id=sid).count() == 0
 
-        def fixed(signal_id, raw_text, account_id, customer_id, vertical, taxonomy=None, roster=None):
+        def fixed(signal_id, raw_text, account_id, customer_id, vertical, taxonomy=None, roster=None, **_kw):
             out = enrichment.normalize_extraction({'signals': [{'subtype': 'seat_reduction_request', 'quote': 'true-down the seats',
                                                                  'sentiment_score': -0.5, 'urgency_score': 0.6, 'escalation_probability': 0.2,
                                                                  'confidence': 0.9}], 'requires_review': False, 'is_duplicate': False,
@@ -296,7 +296,7 @@ class TestReadSurfaceAndReview:
         import signal_engine.enrichment as enrichment
         from utils.taxonomy_loader import get_taxonomy
 
-        def fake(signal_id, raw_text, account_id, customer_id, vertical, taxonomy=None, roster=None):
+        def fake(signal_id, raw_text, account_id, customer_id, vertical, taxonomy=None, roster=None, **_kw):
             out = enrichment.normalize_extraction({'signals': [
                 {'subtype': subtype, 'quote': raw_text[:40], 'sentiment_score': -0.5, 'urgency_score': 0.5,
                  'escalation_probability': 0.1, 'confidence': confidence, 'people': []}],
@@ -378,7 +378,7 @@ class TestReadSurfaceAndReview:
         from utils.taxonomy_loader import get_taxonomy
         from mcp_server.cs_pulse_onboarding import review_signal, submit_signal
 
-        def fake(signal_id, raw_text, account_id, customer_id, vertical, taxonomy=None, roster=None):
+        def fake(signal_id, raw_text, account_id, customer_id, vertical, taxonomy=None, roster=None, **_kw):
             out = enrichment.normalize_extraction({'signals': [
                 {'subtype': 'dau_drop', 'quote': 'logins are down a third', 'sentiment_score': -0.5, 'urgency_score': 0.5,
                  'escalation_probability': 0.1, 'confidence': 0.9, 'people': []},

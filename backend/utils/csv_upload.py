@@ -46,6 +46,9 @@ class FileTypeInfo:
 # here — found 2026-09-01 during the Tier 2A-3 live-parity run.
 _COLUMN_ALIASES: dict[str, tuple[str, ...]] = {
     'source_account_id': ('account_id',),
+    'occurred_at': ('signal_date', 'date'),
+    'source_ref': ('signal_ref', 'signal_id'),
+    'content': ('signal_text', 'text'),
 }
 
 
@@ -66,6 +69,10 @@ def _missing_required(info: 'FileTypeInfo', headers: set[str]) -> list[str]:
 # Alias → canonical filename mapping
 _ALIASES: dict[str, str] = {
     'account_details':               'account_details.csv',
+    'signals':                       'enhanced_qualitative_signals.csv',
+    'signals.csv':                   'enhanced_qualitative_signals.csv',
+    'communications':                'enhanced_qualitative_signals.csv',
+    'communications.csv':            'enhanced_qualitative_signals.csv',
     'accounts':                      'accounts.csv',
     'kpis':                          'kpi_measurements.csv',
     'kpi_measurements':              'kpi_measurements.csv',
@@ -309,8 +316,31 @@ def _upload_csv_impl(
             warnings=warnings,
         )
 
+    # ── 3b. signal_type against the tenant's taxonomy (a warning, never a rejection: unknown → the extractor decides) ──
+    if info.canonical_filename == 'enhanced_qualitative_signals.csv':
+        warnings.extend(_signal_type_warnings(customer_id, rows))
+
     # ── 4. Stage to DB ──
     return _upload_to_staging(customer_id, info, csv_content, rows, warnings=warnings, key_kind=key_kind, key_id=key_id)
+
+
+def _signal_type_warnings(customer_id: int, rows: list) -> list[str]:
+    """Which signal_type values the tenant's taxonomy does not know (they will be extracted from content)."""
+    try:
+        from utils.vertical_registry import get_vertical_for_customer
+        from utils.taxonomy_loader import get_taxonomy
+        tax = get_taxonomy(get_vertical_for_customer(int(customer_id)))
+    except Exception:
+        return []
+    unknown: dict[str, int] = {}
+    for r in rows:
+        st = (r.get('signal_type') or '').strip().lower()
+        if st and not tax.signal_role(st):
+            unknown[st] = unknown.get(st, 0) + 1
+    if not unknown:
+        return []
+    top = ', '.join(f'{k} ({n})' for k, n in sorted(unknown.items(), key=lambda kv: -kv[1])[:8])
+    return [f"signal_type not in this tenant's taxonomy for {sum(unknown.values())} row(s): {top} — these rows will be typed by the extractor from 'content'"]
 
 
 def _upload_to_staging(

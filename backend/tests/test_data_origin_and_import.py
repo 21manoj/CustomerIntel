@@ -128,3 +128,56 @@ def test_backtest_label_follows_the_declared_origin(tenant):
 def test_health_and_import_route_pinned():
     from signal_engine.http import ROUTES
     assert '/api/signals/import' in ROUTES
+
+
+def test_signals_csv_new_shape_aliases_and_taxonomy_warning(tenant):
+    """The signals file is the structured lane: new column names, aliases for the old ones, an unknown
+    signal_type is a WARNING (extracted from content), use_case and stakeholder_email flow through."""
+    cid, aid, _ = tenant
+    from mcp_server.cs_pulse_onboarding import upload_csv, process_data
+    csv_text = (
+        "source_account_id,occurred_at,signal_type,content,source_platform,source_ref,stakeholder_name,stakeholder_title,stakeholder_email,use_case,source_type\n"
+        "ACC-NW,2026-03-02T09:00:00,budget_pressure,Finance asked us to justify the renewal line by line,gainsight,GS-1,Tom Becker,Executive Sponsor,tom@northwind.com,Analytics rollout,crm_activity\n"
+        "ACC-NW,2026-03-03T09:00:00,some_legacy_code,Support asked about the sandbox refresh schedule,zendesk,ZD-2,,,,,ticket\n"
+    )
+    r = upload_csv(cid, 'signals.csv', csv_text)                         # alias filename
+    assert r['status'] == 'success' and r['canonical_filename'] == 'enhanced_qualitative_signals.csv'
+    assert any('some_legacy_code (1)' in w and 'extractor' in w for w in r['warnings']), r['warnings']
+    out = process_data(cid)
+    assert any(s.startswith('signals_queued_2') for s in out['steps_completed']), out['steps_completed']
+    with app.app_context():
+        typed = QualitativeSignal.query.filter_by(customer_id=cid, source_ref='GS-1').one()
+        assert typed.signal_type == 'budget_pressure' and typed.use_case == 'Analytics rollout' and typed.source_type == 'crm_activity'
+        assert typed.stakeholder_roles[0]['email'] == 'tom@northwind.com'
+        assert typed.cg_node_id is not None, (out['steps_completed'], out['errors'])
+        n = db.session.get(ContextNode, typed.cg_node_id)
+        assert n is not None and n.source_event_id == 'GS-1' and n.source_ref == 'GS-1'     # the source system's id is the event id when known
+        assert n.properties['use_case'] == 'Analytics rollout' and n.properties['classification_basis'] == 'declared_subtype'
+        legacy = QualitativeSignal.query.filter_by(customer_id=cid, source_ref='ZD-2').one()
+        assert legacy.source_type == 'ticket' and legacy.cg_node_id                # extracted (stub), not dropped
+
+
+def test_account_details_use_cases_and_installed_base_fields(tenant):
+    cid, aid, _ = tenant
+    from mcp_server.cs_pulse_onboarding import upload_csv, process_data, list_journeys, get_journey
+    from utils.csv_ingest import parse_use_cases
+    assert parse_use_cases('DR failover; LLM training') == [{'name': 'DR failover'}, {'name': 'LLM training'}]
+    assert parse_use_cases('[{"name":"DR failover","status":"planned","target_date":"2026-06-30"},"Reporting"]') == \
+        [{'name': 'DR failover', 'status': 'planned', 'target_date': '2026-06-30'}, {'name': 'Reporting'}]
+    assert parse_use_cases('not json [') == [{'name': 'not json ['}]
+    acc = ("source_account_id,account_name,industry,region,arr,use_cases,purchase_date,refresh_date,contract_value,contract_type\n"
+           "ACC-NW,Northwind Analytics,Software,NA,900000,\"[{\"\"name\"\": \"\"DR failover\"\", \"\"status\"\": \"\"planned\"\"}]\",2024-05-01,2027-05-01,1200000,hardware\n")
+    r = upload_csv(cid, 'account_details.csv', acc)
+    assert r['status'] == 'success' and not any('use_cases' in w for w in (r.get('warnings') or []))
+    process_data(cid)
+    with app.app_context():
+        a = Account.query.filter_by(customer_id=cid, external_account_id='ACC-NW').one()
+        pm = a.profile_metadata
+        assert pm['use_cases'] == [{'name': 'DR failover', 'status': 'planned'}] and pm['contract_type'] == 'hardware'
+        assert str(pm['refresh_date']).startswith('2027-05-01') and pm['contract_value'] in (1200000, 1200000.0)
+    row = next(r for r in list_journeys(cid)['journeys'] if r['account_id'] == aid)
+    assert row['use_cases'][0]['name'] == 'DR failover' and row['contract_type'] == 'hardware'
+    j = get_journey(cid, aid)
+    assert j['account']['use_cases'][0]['name'] == 'DR failover' and j['account']['refresh_date']
+    from signal_engine.enrichment import use_cases_block
+    assert 'DR failover' in use_cases_block(j['account']['use_cases']) and use_cases_block([]) == '(none declared)'

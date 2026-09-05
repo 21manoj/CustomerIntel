@@ -527,6 +527,7 @@ class QualitativeSignal(db.Model):
     content_hash = db.Column(db.String(64), nullable=True, index=True)
     source_ref = db.Column(db.String(255), nullable=True)      # ticket id / message ts / CRM activity id
     extractions = db.Column(db.JSON, nullable=True)            # v2: every signal the model found [{subtype, role, quote, ...}]
+    use_case = db.Column(db.String(120), nullable=True)         # which of the account's declared use cases this is about
     occurred_at = db.Column(db.DateTime, nullable=True)
 
     __table_args__ = (

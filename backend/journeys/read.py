@@ -13,6 +13,12 @@ from datetime import datetime
 from typing import Iterable, List, Optional
 
 
+def db_get_account(account_id: int):
+    from extensions import db
+    from models import Account
+    return db.session.get(Account, int(account_id))
+
+
 def origin_block(customer_id: int) -> dict:
     """{data_origin, label, synthetic, disclosure} for a tenant — on every read surface."""
     from extensions import db
@@ -82,6 +88,12 @@ def get_journey(customer_id: int, account_id: int, compact: bool = False) -> Opt
         for n in ContextNode.query.filter(ContextNode.node_id.in_(ids)).all():
             evidence[str(n.node_id)] = evidence_view(n)
     open_review = QualitativeSignal.query.filter_by(account_id=int(account_id), requires_review=True).count()
+    from models import Account
+    acct = db_get_account(int(account_id))
+    pm = (acct.profile_metadata or {}) if acct else {}
+    journey['account'] = {'use_cases': pm.get('use_cases') or [], 'contract_type': pm.get('contract_type'),
+                          'renewal_date': pm.get('renewal_date') or pm.get('contract_end'), 'refresh_date': pm.get('refresh_date'),
+                          'champion': pm.get('primary_champion_name'), 'executive_sponsor': pm.get('executive_sponsor'), 'csm': pm.get('csm_name')}
     journey['evidence'] = evidence
     journey['open_review_count'] = open_review
     journey.update(origin_block(customer_id))
@@ -112,6 +124,8 @@ def list_journeys(customer_id: int) -> List[dict]:
         arc = jj.get('arc') or {}
         out.append({
             'account_id': a.account_id, 'account_name': a.account_name, 'revenue': float(a.revenue) if a.revenue is not None else None,
+            'use_cases': (a.profile_metadata or {}).get('use_cases') or [],
+            'contract_type': (a.profile_metadata or {}).get('contract_type'),
             'arc_type': arc.get('arc_type'), 'state': jj.get('state'), 'arc_confidence': arc.get('confidence'),
             'current_phase': jj.get('current_phase'), 'last_scored_month': jj.get('last_scored_month'),
             'live_months': len(jj.get('live_months') or []), 'last_evidence_at': jj.get('last_evidence_at'),

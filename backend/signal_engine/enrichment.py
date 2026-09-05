@@ -63,6 +63,8 @@ EXAMPLES
 
 USER_PROMPT = """ACCOUNT ROSTER (known people on this account):
 {roster_block}
+ACCOUNT USE CASES (what the customer bought us for — read the text against these):
+{use_cases_block}
 {similar_signals_block}
 TEXT TO ANALYZE:
 {raw_text}"""
@@ -111,6 +113,14 @@ def roster_block(roster: List[dict]) -> str:
     if not roster:
         return '(no known people on this account)'
     return '\n'.join(f"- {p['name']} — {p.get('title') or '?'} (roster_role: {p['role']})" for p in roster)
+
+
+def use_cases_block(use_cases: Optional[List[dict]]) -> str:
+    if not use_cases:
+        return '(none declared)'
+    return '\n'.join(f"- {u.get('name')}" + (f" — product {u['product']}" if u.get('product') else '')
+                     + (f", status {u['status']}" if u.get('status') else '') + (f", target {u['target_date']}" if u.get('target_date') else '')
+                     for u in use_cases)
 
 
 def record_signals_tool(taxonomy, roster: List[dict]) -> dict:
@@ -294,7 +304,7 @@ def normalize_extraction(data: dict, taxonomy) -> dict:
 # ── extraction ──
 
 def enrich_signal(signal_id: str, raw_text: str, account_id: int, customer_id: int, vertical: str,
-                  taxonomy=None, roster: Optional[List[dict]] = None) -> Dict:
+                  taxonomy=None, roster: Optional[List[dict]] = None, use_cases: Optional[List[dict]] = None) -> Dict:
     """Extract every signal in one free-text communication. Returns the
     normalized shape above; on any failure a partial result with
     requires_review=True and no signals."""
@@ -317,7 +327,8 @@ def enrich_signal(signal_id: str, raw_text: str, account_id: int, customer_id: i
         vocabulary_block=vocabulary_block(taxonomy), examples_block=examples_block(taxonomy),
         confidence_threshold=settings.get('llm', 'confidence_threshold'))
     similar = _recent_account_signals(account_id)
-    user = USER_PROMPT.format(roster_block=roster_block(roster), similar_signals_block=_similar_block(similar),
+    user = USER_PROMPT.format(roster_block=roster_block(roster), use_cases_block=use_cases_block(use_cases),
+                              similar_signals_block=_similar_block(similar),
                               raw_text=raw_text[:settings.get('llm', 'prompt_text_chars')])
 
     api_key = os.environ.get('ANTHROPIC_API_KEY')

@@ -27,7 +27,8 @@
           "contract_end",
           "renewal_date",
           "account_status",
-          "tier"
+          "tier",
+          "use_cases"
         ],
         "optional_columns": [
           "customer_id",
@@ -42,10 +43,14 @@
           "budget_cycle",
           "fiscal_year_end",
           "revenue",
-          "uuid"
+          "uuid",
+          "purchase_date",
+          "refresh_date",
+          "contract_value",
+          "contract_type"
         ],
         "db_table": "accounts + products + context_nodes(STAKEHOLDER)",
-        "note": "Enriched account file. 'products' is a JSON array: [{\"name\": \"...\", \"arr\": 1000000, \"adoption\": null}]. adoption is auto-populated by process_data from P1 pillar score. 'account_status' values: active|onboarding|at_risk|churned|paused. Supersedes accounts.csv + products.csv + account_business_profiles.csv."
+        "note": "Enriched account file. 'products' is a JSON array: [{\"name\": \"...\", \"category\": \"...\", \"arr\": 1000000, \"use_case\": \"...\"}]. 'use_cases' is a JSON array of what the customer bought us for — strings or {name, product, status: planned|live|at_risk, owner, target_date}; it is read by the extractor (context), the journey/portfolio header, the narrative and Ask AI. 'account_status': active|onboarding|at_risk|churned|paused. Installed-base / once-sold accounts: purchase_date, refresh_date, contract_value (one-time), contract_type (subscription|perpetual|hardware|maintenance) — renewal_date may then carry the refresh date. Supersedes accounts.csv + products.csv + account_business_profiles.csv."
       },
       "accounts.csv": {
         "_deprecated": true,
@@ -95,103 +100,45 @@
       "enhanced_qualitative_signals.csv": {
         "required_columns": [
           "source_account_id",
-          "signal_date",
-          "signal_type",
-          "content",
-          "sentiment"
+          "occurred_at",
+          "content"
         ],
-        "optional_columns": [
-          "signal_ref",
-          "sentiment_score",
+        "recommended_columns": [
+          "signal_type",
+          "source_platform",
+          "source_ref",
           "stakeholder_name",
           "stakeholder_title",
-          "causal_chain_ref",
-          "signal_id",
-          "revenue_impact",
-          "confidence",
-          "source_platform"
+          "stakeholder_email",
+          "sentiment_score"
         ],
-        "enums": {
-          "signal_type": {
-            "_description": "Comprehensive signal taxonomy. Grouped by category for onboarding guidance.",
-            "risk_negative": [
-              "kpi_decline",
-              "critical_incident",
-              "champion_departure",
-              "champion_loss",
-              "engagement_gap",
-              "engagement_decline",
-              "engagement_drop",
-              "usage_decline",
-              "competitor_mention",
-              "competitor_evaluation",
-              "budget_pressure",
-              "budget_review",
-              "budget_change",
-              "escalation",
-              "escalation_increase",
-              "support_escalation",
-              "support_spike",
-              "deployment_delay",
-              "onboarding_delay",
-              "contract_dispute",
-              "renewal_risk",
-              "csat_drop",
-              "nps_decline",
-              "login_decline",
-              "feature_adoption_drop",
-              "ttfv_exceeded",
-              "stakeholder_escalation",
-              "stakeholder_change",
-              "org_change",
-              "downsizing",
-              "expansion_cancelled",
-              "expansion_stall",
-              "kpi_breach",
-              "capacity_warning",
-              "incident"
-            ],
-            "positive_growth": [
-              "expansion_signal",
-              "expansion_discussion",
-              "expansion_completed",
-              "advocacy",
-              "champion_advocacy",
-              "executive_engagement",
-              "health_improvement",
-              "positive_engagement",
-              "champion_reengagement",
-              "kpi_recovery",
-              "deployment_improvement",
-              "churn_averted",
-              "feature_adoption",
-              "feature_adoption_increase",
-              "usage_spike",
-              "nps_increase",
-              "rapid_adoption",
-              "fast_onboarding",
-              "recovery_milestone",
-              "onboarding_milestone"
-            ],
-            "operational": [
-              "csm_intervention",
-              "csm_action",
-              "routine_review",
-              "seasonal_pattern",
-              "sla_started",
-              "playbook_executed",
-              "health_score_alert",
-              "support_ticket"
-            ]
-          },
-          "sentiment": [
-            "positive",
-            "negative",
-            "neutral"
+        "optional_columns": [
+          "source_type",
+          "use_case",
+          "participants",
+          "consent_verified",
+          "signal_date",
+          "signal_ref",
+          "signal_id",
+          "sentiment"
+        ],
+        "aliases": {
+          "occurred_at": [
+            "signal_date",
+            "date"
+          ],
+          "source_ref": [
+            "signal_ref",
+            "signal_id"
+          ],
+          "content": [
+            "signal_text",
+            "text"
           ]
         },
-        "db_table": "qualitative_signals + context_nodes (node_type=SIGNAL)",
-        "note": "Comprehensive signal taxonomy (64 types in 3 categories). sentiment is required (positive/negative/neutral). Graph metadata columns (signal_ref, causal_chain_ref) are optional."
+        "signal_type_vocabulary": "the tenant's taxonomy (config/taxonomy_base.json + the vertical overlay) — validated at upload against it; an unknown or blank signal_type is not an error: the row goes to the extractor, which types it from 'content'",
+        "db_table": "qualitative_signals (signal engine) → context_nodes(SIGNAL, observed)",
+        "note": "The structured lane INTO the signal engine (signals-first, 2026-09-05). A typed row and a raw communication are one contract: the row is 'typed' when signal_type is a taxonomy subtype (no model call), otherwise its content is extracted like any free text. source_platform = the system it came from (salesforce, gainsight, zendesk…); source_ref = that system's id (re-uploads are 'exists', not copies); source_type = email|slack|ticket|transcript|meeting|crm_activity|manual|external (defaults to csv_import). sentiment is NOT required — the engine derives the label from the role and sentiment_score. Money and decisions belong in outcomes.csv, not here. Also accepted as 'signals.csv'; communications.jsonl is the same contract in JSON-lines."
       },
       "products.csv": {
         "required_columns": [

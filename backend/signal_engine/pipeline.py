@@ -67,7 +67,8 @@ def _parse_when(value) -> datetime:
 def ingest(customer_id: int, account_id: int, source_type: str, raw_text: str, *,
            occurred_at=None, participants: Optional[List[dict]] = None, signal_type: Optional[str] = None,
            source_ref: Optional[str] = None, consent_verified: Optional[bool] = None,
-           signal_id: Optional[str] = None, sentiment_score=None, origin_platform: Optional[str] = None) -> dict:
+           signal_id: Optional[str] = None, sentiment_score=None, origin_platform: Optional[str] = None,
+           use_case: Optional[str] = None) -> dict:
     """Store one signal. Returns {'status': 'queued'|'duplicate'|'exists', 'signal_id', ...}.
 
     `signal_type`, when given, must be a taxonomy subtype (structured path);
@@ -119,7 +120,7 @@ def ingest(customer_id: int, account_id: int, source_type: str, raw_text: str, *
         signal_date=when.date(), occurred_at=when, source_type=source_type, raw_text=raw_text,
         requires_review=False, consent_verified=bool(consent_verified) if consent_verified is not None else source_type != 'transcript',
         composite_signal_id=signal_id, stakeholder_roles=participants or None, content_hash=h,
-        source_ref=(source_ref or None), keywords=(origin_platform or None),
+        source_ref=(source_ref or None), keywords=(origin_platform or None), use_case=(use_case or None),
     )
     db.session.add(sig)
     db.session.commit()
@@ -136,6 +137,15 @@ def ingest(customer_id: int, account_id: int, source_type: str, raw_text: str, *
 
 
 # ── people ─────────────────────────────────────────────────────────────
+
+def account_use_cases(account_id: int) -> List[dict]:
+    """The account's declared use cases (profile_metadata.use_cases), [] when none."""
+    from extensions import db
+    from models import Account
+    acct = db.session.get(Account, account_id)
+    uc = ((acct.profile_metadata or {}).get('use_cases') if acct else None) or []
+    return [u if isinstance(u, dict) else {'name': str(u)} for u in uc]
+
 
 def account_roster(customer_id: int, account_id: int) -> List[dict]:
     """Known people on the account: the profile's champion / sponsor / CSM /
@@ -273,7 +283,7 @@ def _write_node(sig, item: dict, enrichment: dict, taxonomy, roster: List[dict],
         'structural_urgency': structural, 'effective_urgency': effective,
         'requires_review': bool(enrichment.get('requires_review')),
         'llm_model_version': enrichment.get('llm_model_version'),
-        'people': people, 'source_type': sig.source_type, 'evidence_tier': 'observed',
+        'people': people, 'source_type': sig.source_type, 'evidence_tier': 'observed', 'use_case': sig.use_case,
     }
     if primary:
         props['stakeholder_name'] = primary['name']
@@ -366,7 +376,8 @@ def process_pending(customer_id: Optional[int] = None, limit: int = 50, rebuild_
                 if sig.intent_signals is None:
                     enrichment = enrich_signal(signal_id=sig.signal_id, raw_text=sig.raw_text or sig.content or '',
                                                account_id=sig.account_id, customer_id=sig.customer_id, vertical=vertical,
-                                               taxonomy=tax, roster=account_roster(sig.customer_id, sig.account_id))
+                                               taxonomy=tax, roster=account_roster(sig.customer_id, sig.account_id),
+                                               use_cases=account_use_cases(sig.account_id))
                     if enrichment.get('error'):
                         # not evidence — leave it queued for the next pass, say why
                         out['errors'] += 1
@@ -465,7 +476,8 @@ def import_communications(customer_id: int, communications: list, process_now: b
         try:
             r = ingest(customer_id, acct.account_id, item.get('source_type') or 'manual', item.get('text') or item.get('raw_text') or '',
                        occurred_at=item.get('occurred_at'), participants=item.get('participants'), signal_type=item.get('signal_type'),
-                       source_ref=item.get('source_ref') or item.get('ref'), consent_verified=item.get('consent_verified'))
+                       source_ref=item.get('source_ref') or item.get('ref'), consent_verified=item.get('consent_verified'),
+                       use_case=item.get('use_case'))
         except ValueError as e:
             out['rejected'].append({'index': i, 'error': str(e)})
             continue

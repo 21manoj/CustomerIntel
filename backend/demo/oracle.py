@@ -46,7 +46,7 @@ def oracle_extractor(comms: Iterable[dict]) -> Callable:
     labels: Dict[str, dict] = {normalize_text(c['text']): c for c in comms}
     defaults = ht.leading_indicator_config()['default_sentiment_by_polarity']
 
-    def extract(signal_id, raw_text, account_id, customer_id, vertical, taxonomy=None, roster=None):
+    def extract(signal_id, raw_text, account_id, customer_id, vertical, taxonomy=None, roster=None, **_kw):
         from signal_engine.enrichment import normalize_extraction
         from utils.taxonomy_loader import get_taxonomy
         taxonomy = taxonomy or get_taxonomy(vertical)

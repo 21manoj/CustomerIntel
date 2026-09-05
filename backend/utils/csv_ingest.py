@@ -89,6 +89,7 @@ PROFILE_KEYS = (
     'employee_count', 'tech_stack', 'cloud_provider',
     'deployment_type', 'competitive_landscape',
     'strategic_initiatives', 'budget_cycle', 'fiscal_year_end',
+    'purchase_date', 'refresh_date', 'contract_value', 'contract_type',      # installed-base / once-sold (P2)
 )
 
 # (name column, STAKEHOLDER node_subtype, title column, email column)
@@ -227,6 +228,29 @@ class AccountResolver:
 # Per-file loaders — each idempotent, each returns a count
 # ═══════════════════════════════════════════════════════════════════════
 
+def parse_use_cases(raw: str) -> list:
+    """'use_cases' column → [{name, product?, status?, owner?, target_date?}]. Accepts a JSON array of strings or
+    objects, or a ';'-separated list of names. Unparseable → [] (never a crash on a roster upload)."""
+    raw = (raw or '').strip()
+    if not raw:
+        return []
+    items = None
+    if raw.startswith('['):
+        try:
+            items = json.loads(raw)
+        except (ValueError, TypeError):
+            items = None
+    if items is None:
+        items = [x.strip() for x in raw.split(';') if x.strip()]
+    out = []
+    for it in items:
+        if isinstance(it, str):
+            out.append({'name': it})
+        elif isinstance(it, dict) and it.get('name'):
+            out.append({k: it[k] for k in ('name', 'product', 'status', 'owner', 'target_date') if it.get(k)})
+    return out
+
+
 def load_accounts(customer_id: int, vertical: str, rows: list[dict]) -> tuple[int, int]:
     """Create Accounts (or fill missing profile_metadata on existing ones).
     Returns (created, updated)."""
@@ -251,6 +275,9 @@ def load_accounts(customer_id: int, vertical: str, rows: list[dict]) -> tuple[in
                     profile['products'] = prods
             except (ValueError, TypeError):
                 pass
+        uc = parse_use_cases(cell(row, 'use_cases'))
+        if uc:
+            profile['use_cases'] = uc
 
         source_id = cell(row, 'source_account_id', 'account_id') or None
         existing = Account.query.filter_by(customer_id=customer_id, account_name=name).first()
@@ -395,26 +422,40 @@ def load_signals(customer_id: int, rows: list[dict], resolve: Callable) -> tuple
         acct_id = resolve(row)
         if not acct_id:
             continue
-        signal_dt = when(row, 'signal_date', 'date')
+        signal_dt = when(row, 'occurred_at', 'signal_date', 'date')
         if not signal_dt:
             continue
-        raw_id = cell(row, 'signal_id') or f'sig_{uuid.uuid4().hex[:12]}'
+        raw_id = cell(row, 'signal_id') or cell(row, 'source_ref') or cell(row, 'signal_ref') or f'sig_{uuid.uuid4().hex[:12]}'
         # Customer-scoped so two tenants loaded from the same manifest
         # template can't collide on the (customer_id, signal_id) unique key.
         sig_id = (raw_id if raw_id.startswith(prefix) else prefix + raw_id)[:50]
         sh_name = cell(row, 'stakeholder_name')
         sh_title = cell(row, 'stakeholder_title')
-        content = cell(row, 'content', 'signal_text') or cell(row, 'signal_type')
+        sh_email = cell(row, 'stakeholder_email')
+        content = cell(row, 'content', 'signal_text', 'text') or cell(row, 'signal_type')
         if not content:
             continue
+        participants = None
+        praw = cell(row, 'participants')
+        if praw:
+            try:
+                pl = json.loads(praw)
+                participants = [p for p in pl if isinstance(p, dict) and p.get('name')] if isinstance(pl, list) else None
+            except (ValueError, TypeError):
+                participants = None
+        if sh_name:
+            participants = (participants or []) + [{'name': sh_name, 'role': sh_title or 'contact', **({'email': sh_email} if sh_email else {})}]
+        source_type = (cell(row, 'source_type') or 'csv_import').strip().lower()
+        consent = cell(row, 'consent_verified').strip().lower() in ('1', 'true', 'yes') if cell(row, 'consent_verified') else (source_type != 'transcript')
         try:
             res = ingest(
-                customer_id, acct_id, 'csv_import', content,
+                customer_id, acct_id, source_type, content,
                 occurred_at=signal_dt, signal_type=cell(row, 'signal_type') or None,
-                participants=[{'name': sh_name, 'role': sh_title or 'contact'}] if sh_name else None,
-                source_ref=cell(row, 'signal_ref') or raw_id, signal_id=sig_id,
+                participants=participants,
+                source_ref=cell(row, 'source_ref') or cell(row, 'signal_ref') or raw_id, signal_id=sig_id,
                 sentiment_score=cell(row, 'sentiment_score') or None,
-                origin_platform=cell(row, 'source_platform') or None, consent_verified=True,
+                origin_platform=cell(row, 'source_platform') or None, consent_verified=consent,
+                use_case=cell(row, 'use_case') or None,
             )
         except ValueError as e:
             logger.warning('csv signal row skipped (%s): %s', sig_id, e)
