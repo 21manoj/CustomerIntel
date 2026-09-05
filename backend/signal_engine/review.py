@@ -27,7 +27,9 @@ URGENCY_ORDER = ('low', 'medium', 'high', 'critical')
 
 def _nodes_for(sig) -> List:
     from models import ContextNode
-    return (ContextNode.query.filter_by(source_event_id=sig.signal_id, node_type='SIGNAL')
+    refs = [r for r in (sig.signal_id, sig.source_ref) if r]
+    return (ContextNode.query.filter(ContextNode.account_id == sig.account_id, ContextNode.node_type == 'SIGNAL',
+                                     ContextNode.source_event_id.in_(refs))
             .order_by(ContextNode.node_id).all())
 
 

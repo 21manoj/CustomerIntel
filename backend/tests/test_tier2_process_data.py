@@ -83,7 +83,7 @@ SIGNALS_CSV = (
     "negative,-0.66,Riley Foster,Director of IT,narrative_sig_1\n"
     "narrative_sig_2,ACC-1,2025-12-08,support_escalation,Support ticket escalated,"
     "negative,-0.71,,,narrative_sig_2\n"
-    "narrative_sig_3,ACC-2,2025-12-08,nps,NPS 9 from admin,positive,,Dana Wu,,\n"  # no ref → no node
+    "narrative_sig_3,ACC-2,2025-12-08,nps,NPS 9 from admin,positive,,Dana Wu,,\n"  # no ref, unknown subtype → still evidence (extracted/unclassified)
 )
 
 OUTCOMES_CSV = (
@@ -237,14 +237,20 @@ class TestCanonicalRegistration:
             esc = next(s for s in sigs if s.signal_type == 'support_escalation')
             assert esc.stakeholder_roles is None            # blank name → None, never [{'name':'nan'}]
 
-            # SIGNAL nodes only for rows with a signal_ref (2 of 3)
+            # Signals-first: every row is evidence — one node per signal, written by
+            # the engine. Rows with a ref keep it as source_event_id; the unreferenced
+            # 'nps' row (unknown subtype) went through extraction under its own id.
             sig_nodes = _nodes(customer_id, 'SIGNAL')
-            assert len(sig_nodes) == 2
-            assert {n.source_event_id for n in sig_nodes} == {'narrative_sig_1', 'narrative_sig_2'}
+            assert len(sig_nodes) == 3
+            assert {n.source_event_id for n in sig_nodes} >= {'narrative_sig_1', 'narrative_sig_2'}
             n1 = next(n for n in sig_nodes if n.source_event_id == 'narrative_sig_1')
             assert n1.properties['stakeholder_name'] == 'Riley Foster'
+            assert n1.properties['classification_basis'] == 'declared_subtype' and n1.properties['role'] == 'infra_incident'
+            assert n1.properties['effective_urgency'] and n1.source_platform == 'csv_import'
             n2 = next(n for n in sig_nodes if n.source_event_id == 'narrative_sig_2')
             assert 'stakeholder_name' not in n2.properties
+            n3 = next(n for n in sig_nodes if n.source_event_id not in ('narrative_sig_1', 'narrative_sig_2'))
+            assert n3.properties['classification_basis'] in ('llm_extraction', 'unclassified')
 
             # STAKEHOLDER nodes extracted from account_details profile fields:
             # Titan: champion + csm + cs_manager (sponsor blank) = 3
@@ -314,7 +320,7 @@ class TestCanonicalRegistration:
         res = process_data(customer_id)
         assert res['status'] == 'success', res
         assert 'kpis_loaded_0' in res['steps_completed']
-        assert 'signals_loaded_0_nodes_0' in res['steps_completed']
+        assert 'signals_queued_0_skipped_3' in res['steps_completed']          # re-upload: the engine already has them
         assert 'outcomes_loaded_0' in res['steps_completed']
         with app.app_context():
             after = (

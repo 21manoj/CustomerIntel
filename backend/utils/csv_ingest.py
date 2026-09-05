@@ -366,23 +366,22 @@ def load_kpis(rows: list[dict], resolve: Callable) -> int:
 
 
 def load_signals(customer_id: int, rows: list[dict], resolve: Callable) -> tuple[int, int]:
-    """QualitativeSignal rows + a SIGNAL ContextNode per row carrying a signal_ref.
-    Returns (signals_added, nodes_added). Dedup: signal_id per customer;
-    (account_id, signal_ref) per node."""
-    from models import QualitativeSignal, ContextNode
-    from extensions import db
+    """The typed-signals CSV is the structured lane INTO the signal engine
+    (signals-first, 2026-09-04): every row goes through pipeline.ingest with
+    its declared subtype, its recorded sentiment, its own id and ref, and the
+    system it came from. The engine writes the evidence node (materialize),
+    so a CSV signal and an extracted one carry the same provenance, urgency
+    and review state. A subtype the taxonomy does not know falls through to
+    extraction from the row's text, like any free text would.
 
-    existing_ids = {
-        r[0] for r in QualitativeSignal.query.filter_by(customer_id=customer_id)
-        .with_entities(QualitativeSignal.signal_id).all()
-    }
-    existing_refs = {
-        (r[0], r[1]) for r in ContextNode.query.filter_by(customer_id=customer_id, node_type='SIGNAL')
-        .with_entities(ContextNode.account_id, ContextNode.source_event_id).all()
-        if r[1]
-    }
+    Returns (signals_queued, duplicates_skipped). Nodes are written by
+    materialize_pending_signals() right after, before phase 2 links outcomes
+    to them.
+    """
+    from signal_engine.pipeline import ingest
+
     prefix = f'c{customer_id}_'
-    sig_added = node_added = 0
+    queued = skipped = 0
     for row in rows:
         acct_id = resolve(row)
         if not acct_id:
@@ -394,52 +393,42 @@ def load_signals(customer_id: int, rows: list[dict], resolve: Callable) -> tuple
         # Customer-scoped so two tenants loaded from the same manifest
         # template can't collide on the (customer_id, signal_id) unique key.
         sig_id = (raw_id if raw_id.startswith(prefix) else prefix + raw_id)[:50]
-        if sig_id in existing_ids:
-            continue
-        existing_ids.add(sig_id)
-
         sh_name = cell(row, 'stakeholder_name')
         sh_title = cell(row, 'stakeholder_title')
-        content = cell(row, 'content', 'signal_text')
-        signal_type = cell(row, 'signal_type', default='signal')
-
-        db.session.add(QualitativeSignal(
-            signal_id=sig_id, customer_id=customer_id, account_id=acct_id,
-            signal_type=signal_type,
-            content=content,
-            sentiment=cell(row, 'sentiment', default='neutral'),
-            sentiment_score=num(row, 'sentiment_score'),
-            signal_date=signal_dt.date(),
-            stakeholder_roles=[{'name': sh_name, 'role': sh_title or 'contact'}] if sh_name else None,
-        ))
-        sig_added += 1
-
-        sig_ref = cell(row, 'signal_ref')
-        if not sig_ref or (acct_id, sig_ref) in existing_refs:
+        content = cell(row, 'content', 'signal_text') or cell(row, 'signal_type')
+        if not content:
             continue
-        existing_refs.add((acct_id, sig_ref))
-        props = {
-            'signal_ref': sig_ref,
-            'sentiment': cell(row, 'sentiment'),
-            'sentiment_score': cell(row, 'sentiment_score'),
-        }
-        if sh_name:
-            props['stakeholder_name'] = sh_name
-        if sh_title:
-            props['stakeholder_title'] = sh_title
-        db.session.add(ContextNode(
-            customer_id=customer_id, account_id=acct_id,
-            node_type='SIGNAL', node_subtype=signal_type,
-            source='observed',
-            title=(content or signal_type)[:200],
-            properties=props,
-            tier=2, occurred_at=signal_dt,
-            source_platform=cell(row, 'source_platform', default='csv_import'),
-            source_event_id=sig_ref,
-        ))
-        node_added += 1
-    db.session.flush()
-    return sig_added, node_added
+        try:
+            res = ingest(
+                customer_id, acct_id, 'csv_import', content,
+                occurred_at=signal_dt, signal_type=cell(row, 'signal_type') or None,
+                participants=[{'name': sh_name, 'role': sh_title or 'contact'}] if sh_name else None,
+                source_ref=cell(row, 'signal_ref') or raw_id, signal_id=sig_id,
+                sentiment_score=cell(row, 'sentiment_score') or None,
+                origin_platform=cell(row, 'source_platform') or None, consent_verified=True,
+            )
+        except ValueError as e:
+            logger.warning('csv signal row skipped (%s): %s', sig_id, e)
+            continue
+        if res['status'] == 'queued':
+            queued += 1
+        else:
+            skipped += 1
+    return queued, skipped
+
+
+def materialize_pending_signals(customer_id: int) -> dict:
+    """Drain the engine for this customer without rebuilding journeys (the
+    Wizard A stage follows). Returns the pipeline's totals."""
+    from signal_engine.pipeline import process_pending
+    totals = {'processed': 0, 'structured': 0, 'enriched': 0, 'unclassified': 0, 'nodes_written': 0, 'errors': 0}
+    while True:
+        res = process_pending(customer_id=customer_id, limit=200, rebuild_journeys=False)
+        for k in totals:
+            totals[k] += res.get(k, 0)
+        if not res['processed']:
+            break
+    return totals
 
 
 def load_stakeholders(customer_id: int, rows: list[dict], resolve: Callable) -> int:
@@ -555,15 +544,14 @@ def load_outcomes(customer_id: int, rows: list[dict], resolve: Callable) -> tupl
 
     edges_added = 0
     if pending_edges:
-        sig_lookup = {
-            (n.account_id, n.source_event_id): n.node_id
-            for n in ContextNode.query.filter(
+        sig_lookup = {}
+        for n in ContextNode.query.filter(
                 ContextNode.customer_id == customer_id,
                 ContextNode.node_type == 'SIGNAL',
-                ContextNode.account_id.in_({a for _, a, _ in pending_edges}),
-            ).all()
-            if n.source_event_id
-        }
+                ContextNode.account_id.in_({a for _, a, _ in pending_edges})).all():
+            for ref in (n.source_event_id, n.source_ref, (n.properties or {}).get('signal_ref')):
+                if ref:
+                    sig_lookup.setdefault((n.account_id, str(ref)), n.node_id)
         for node, acct_id, linked in pending_edges:
             from_id = sig_lookup.get((acct_id, linked))
             if not from_id or not node.node_id:
@@ -778,6 +766,9 @@ def load_signal_edges(customer_id: int, rows: list[dict], resolve: Callable) -> 
         if n.source_event_id:
             srcid_to_node[n.source_event_id] = n.node_id
             acct_srcid_to_node[(n.account_id, n.source_event_id)] = n.node_id
+        if n.source_ref:
+            srcid_to_node.setdefault(n.source_ref, n.node_id)
+            acct_srcid_to_node.setdefault((n.account_id, n.source_ref), n.node_id)
         sr = (n.properties or {}).get('signal_ref') if isinstance(n.properties, dict) else None
         if sr:
             sigref_to_node[str(sr)] = n.node_id
@@ -929,8 +920,13 @@ def ingest_staged_csvs(customer_id: int, vertical: str) -> IngestResult:
             db.session.commit()
 
         if 'enhanced_qualitative_signals.csv' in rows:
-            s, nn = load_signals(customer_id, rows['enhanced_qualitative_signals.csv'], resolve)
-            result.steps.append(f'signals_loaded_{s}_nodes_{nn}')
+            s, dup = load_signals(customer_id, rows['enhanced_qualitative_signals.csv'], resolve)
+            result.steps.append(f'signals_queued_{s}_skipped_{dup}')
+            db.session.commit()
+            m = materialize_pending_signals(customer_id)
+            result.steps.append(f"signals_materialized_{m['processed']}_nodes_{m['nodes_written']}"
+                                f"_structured_{m['structured']}_extracted_{m['enriched']}_unclassified_{m['unclassified']}"
+                                + (f"_errors_{m['errors']}" if m['errors'] else ''))
             db.session.commit()
     except Exception as e:
         logger.exception('csv ingest phase 1 failed for customer %s', customer_id)

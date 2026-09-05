@@ -107,12 +107,27 @@ def test_ingest_counts_match_fixture(loaded):
         ids = [a.account_id for a in accts]
         assert KPIMeasurement.query.filter(KPIMeasurement.account_id.in_(ids)).count() == len(kpi_rows)
         assert res['kpi_measurements'] == len(kpi_rows)
-        assert QualitativeSignal.query.filter_by(customer_id=cid).count() == len(sig_rows)
+        # Signals-first (2026-09-04): the CSV is the structured lane INTO the
+        # engine. Exact same words on the same account within the dedup window
+        # are one piece of evidence (the replay carries 35 such pairs that the
+        # old loader double-counted); everything else is one signal + one node.
+        from signal_engine import settings
+        from signal_engine.pipeline import content_hash
+        from datetime import date as _date
+        seen, distinct = {}, 0
+        for r in sorted(sig_rows, key=lambda r: r['signal_date']):
+            key = (r['source_account_id'], content_hash(0, r['content'])[:16])
+            d = _date.fromisoformat(r['signal_date'])
+            if key in seen and abs((d - seen[key]).days) <= settings.get('dedup', 'window_days'):
+                continue
+            seen[key] = d
+            distinct += 1
+        assert QualitativeSignal.query.filter_by(customer_id=cid).count() == distinct
+        assert distinct < len(sig_rows)                                            # the pairs really were there
         sig_nodes = ContextNode.query.filter_by(customer_id=cid, node_type='SIGNAL', source_platform='csv_import').all()
-        # one SIGNAL node per (account, signal_ref) — the old loader deduped on
-        # (account, title) and collapsed same-title signals (79 nodes for 133
-        # signals on the live tenant); v2 keeps each referenced signal
-        assert len(sig_nodes) == len({(r['source_account_id'], r['signal_ref']) for r in sig_rows if r['signal_ref']})
+        assert len(sig_nodes) == distinct                                          # one evidence node per signal
+        assert all((n.properties or {}).get('classification_basis') == 'declared_subtype' for n in sig_nodes)
+        assert all(n.source_ref and (n.properties or {}).get('origin_platform') is None for n in sig_nodes)
         outs = ContextNode.query.filter_by(customer_id=cid, node_type='OUTCOME').all()
         assert len(outs) == len(out_rows)
         linked = ContextEdge.query.filter_by(customer_id=cid, created_by='process_data.linked_signal_id').count()

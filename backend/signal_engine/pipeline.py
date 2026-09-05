@@ -37,7 +37,7 @@ from signal_engine import settings
 
 logger = logging.getLogger(__name__)
 
-SOURCE_TYPES = ('manual', 'email', 'slack', 'transcript', 'ticket', 'crm_activity', 'meeting', 'external')
+SOURCE_TYPES = ('manual', 'email', 'slack', 'transcript', 'ticket', 'crm_activity', 'meeting', 'external', 'csv_import')
 UNCLASSIFIED_SUBTYPE = 'unclassified_signal'
 
 
@@ -66,12 +66,17 @@ def _parse_when(value) -> datetime:
 
 def ingest(customer_id: int, account_id: int, source_type: str, raw_text: str, *,
            occurred_at=None, participants: Optional[List[dict]] = None, signal_type: Optional[str] = None,
-           source_ref: Optional[str] = None, consent_verified: Optional[bool] = None) -> dict:
-    """Store one signal. Returns {'status': 'queued'|'duplicate', 'signal_id', ...}.
+           source_ref: Optional[str] = None, consent_verified: Optional[bool] = None,
+           signal_id: Optional[str] = None, sentiment_score=None, origin_platform: Optional[str] = None) -> dict:
+    """Store one signal. Returns {'status': 'queued'|'duplicate'|'exists', 'signal_id', ...}.
 
-    `signal_type`, when given, must be a taxonomy subtype (structured path).
-    `occurred_at` is the moment the event happened (system timestamp from
-    the source); it defaults to now only for live, untimestamped input.
+    `signal_type`, when given, must be a taxonomy subtype (structured path);
+    an unknown one falls through to extraction. `occurred_at` is the moment
+    the event happened; it defaults to now only for live, untimestamped input.
+    `signal_id` / `sentiment_score` / `origin_platform` are for the structured
+    lane (a typed CSV row, a CRM export): the row keeps its own id (so a
+    re-upload is 'exists', not a second copy), its recorded sentiment, and
+    the system it originally came from.
     """
     from extensions import db
     from models import Account, QualitativeSignal
@@ -88,6 +93,10 @@ def ingest(customer_id: int, account_id: int, source_type: str, raw_text: str, *
     if source_type == 'transcript' and not consent_verified:
         raise ValueError('transcript ingestion requires consent_verified=true')
 
+    if signal_id:
+        prior = QualitativeSignal.query.filter_by(customer_id=acct.customer_id, signal_id=signal_id).first()
+        if prior:
+            return {'status': 'exists', 'signal_id': signal_id, 'account_id': acct.account_id, 'customer_id': acct.customer_id}
     when = _parse_when(occurred_at)
     h = content_hash(acct.account_id, raw_text)
     dup = (QualitativeSignal.query
@@ -98,14 +107,19 @@ def ingest(customer_id: int, account_id: int, source_type: str, raw_text: str, *
         return {'status': 'duplicate', 'duplicate_of': dup.signal_id, 'account_id': acct.account_id,
                 'customer_id': acct.customer_id, 'content_hash': h}
 
-    signal_id = str(uuid.uuid4())
+    signal_id = signal_id or str(uuid.uuid4())
+    try:
+        sentiment_score = float(sentiment_score) if sentiment_score not in (None, '') else None
+    except (TypeError, ValueError):
+        sentiment_score = None
     sig = QualitativeSignal(
         signal_id=signal_id, customer_id=acct.customer_id, account_id=acct.account_id,
         signal_type=(signal_type or source_type), content=raw_text[:settings.get('storage', 'content_chars')], sentiment='neutral',
+        sentiment_score=sentiment_score,
         signal_date=when.date(), occurred_at=when, source_type=source_type, raw_text=raw_text,
         requires_review=False, consent_verified=bool(consent_verified) if consent_verified is not None else source_type != 'transcript',
         composite_signal_id=signal_id, stakeholder_roles=participants or None, content_hash=h,
-        source_ref=(source_ref or None),
+        source_ref=(source_ref or None), keywords=(origin_platform or None),
     )
     db.session.add(sig)
     db.session.commit()
@@ -249,7 +263,8 @@ def _write_node(sig, item: dict, enrichment: dict, taxonomy, roster: List[dict],
     band = settings.get('storage', 'sentiment_label_band')
     when = sig.occurred_at or datetime.combine(sig.signal_date, datetime.min.time())
     props = {
-        'signal_id': sig.signal_id, 'signal_ref': sig.signal_id,
+        'signal_id': sig.signal_id, 'signal_ref': sig.source_ref or sig.signal_id,
+        'origin_platform': sig.keywords,          # the system a structured row came from (crm, gainsight …); None for live sources
         'sentiment': 'positive' if score > band else 'negative' if score < -band else 'neutral',
         'sentiment_score': str(round(score, 2)), 'raw_sentiment_score': raw,
         'polarity_conflict': conflict, 'role': item['role'], 'classification_basis': item['basis'],
@@ -268,7 +283,10 @@ def _write_node(sig, item: dict, enrichment: dict, taxonomy, roster: List[dict],
     node = ContextNode(
         customer_id=sig.customer_id, account_id=sig.account_id, node_type='SIGNAL', node_subtype=item['subtype'],
         source='observed', title=(item.get('quote') or sig.content or item['subtype'])[:200], properties=props, tier=2,
-        occurred_at=when, source_platform=sig.source_type, source_event_id=sig.signal_id,
+        occurred_at=when, source_platform=sig.source_type,
+        # provenance: the event's id in its own system when the source gave one (ticket id, CSV signal_ref),
+        # else our signal id; properties.signal_id always reaches the signal row
+        source_event_id=(sig.source_ref or sig.signal_id), source_ref=sig.source_ref,
     )
     db.session.add(node)
     db.session.flush()
@@ -295,7 +313,8 @@ def materialize(sig, enrichment: dict, taxonomy) -> list:
     first = nodes[0]
     sig.cg_node_id = first.node_id
     sig.sentiment = first.properties['sentiment']
-    sig.sentiment_score = float(first.properties['sentiment_score'])
+    if sig.sentiment_score is None and enrichment.get('signals'):
+        sig.sentiment_score = float(first.properties['sentiment_score'])   # the row keeps what its source recorded; the node carries the reconciled value
     sig.structural_urgency = first.properties['structural_urgency']
     sig.effective_urgency = max((n.properties['effective_urgency'] for n in nodes),
                                 key=lambda lvl: ('low', 'medium', 'high', 'critical').index(lvl))

@@ -89,7 +89,7 @@ class TestSubmitSignalStructuredPath:
             n = db.session.get(ContextNode, ev['node_id'])
             assert n.source == 'observed' and n.node_type == 'SIGNAL' and n.node_subtype == 'champion_departure'
             assert n.occurred_at.isoformat().startswith('2026-02-10T09:30')     # event time, not call time
-            assert n.source_platform == 'crm_activity' and n.source_event_id == res['signal_id']
+            assert n.source_platform == 'crm_activity' and n.source_event_id == 'crm:evt:1' and n.properties['signal_id'] == res['signal_id']   # event id in its own system
             assert n.properties['stakeholder_role'] == 'champion' and n.properties['evidence_tier'] == 'observed'
             assert n.properties['llm_model_version'] == 'structured_rule_map'
             assert float(n.properties['sentiment_score']) < 0                 # role default: negative

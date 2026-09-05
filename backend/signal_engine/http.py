@@ -169,7 +169,7 @@ def register_signal_routes(mcp) -> None:
 ROUTES = (
     '/api/signals/ingest/manual', '/api/signals/ingest/email', '/api/signals/ingest/slack',
     '/api/signals/ingest/transcript', '/api/signals/ingest/ticket', '/api/signals/ingest/crm_activity',
-    '/api/signals/ingest/meeting', '/api/signals/ingest/external',
+    '/api/signals/ingest/meeting', '/api/signals/ingest/external', '/api/signals/ingest/csv_import',
     '/api/signals/ingest/transcript/upload', '/api/signals/ingest/email/parse', '/api/signals/ingest/slack/events',
     '/api/signals/process', '/api/signals/review-queue', '/api/signals/review', '/api/signals/review/history',
     '/api/signals/status',
