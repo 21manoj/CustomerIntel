@@ -92,3 +92,25 @@ def test_models_and_revisions_agree_on_the_shared_test_db():
     eng = create_engine(TEST_DB)
     migrate(eng)
     assert _diff(eng) == []
+
+
+def test_pre_alembic_drift_is_reconciled(scratch):
+    """The exact drift scripts/schema_check.py found on the EC2 database before the first Alembic deploy:
+    two JSONB columns where the model says JSON, two indexes the boot ALTER helper never created."""
+    from flask import Flask
+    from extensions import db
+    from utils.schema import migrate, head_revision
+    _wipe(scratch)
+    app = Flask(__name__); app.config['SQLALCHEMY_DATABASE_URI'] = MIG_DB; db.init_app(app)
+    with app.app_context():
+        import models  # noqa: F401
+        db.create_all()
+    with scratch.begin() as conn:
+        conn.execute(text('ALTER TABLE qualitative_signals ALTER COLUMN extractions TYPE JSONB USING extractions::jsonb'))
+        conn.execute(text('ALTER TABLE qualitative_signals ALTER COLUMN attributes TYPE JSONB USING attributes::jsonb'))
+        conn.execute(text('DROP INDEX ix_qualitative_signals_content_hash'))
+        conn.execute(text('DROP INDEX ix_kpi_measurements_upload_id'))
+    assert len(_diff(scratch)) == 4
+    res = migrate(scratch)
+    assert res['action'] == 'stamped_then_upgraded' and res['to'] == head_revision() == '0002_reconcile_pre_alembic'
+    assert _diff(scratch) == []
