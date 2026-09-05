@@ -1,0 +1,32 @@
+{
+  "_doc": "Wizard C — weight calibration from logged outcomes (docs/design/wizard-c-calibration.md). Every number the wizard uses lives here; wizards/wizard_c_calibration.py carries none of its own. Buckets are the taxonomy_base revenue bucket names.",
+  "version": "1.0",
+  "method_version": "1.0",
+  "label_buckets": {
+    "negative": ["lost", "at_risk"],
+    "positive": ["protected", "expansion", "pipeline"]
+  },
+  "feature_window_days": 120,
+  "gate": {
+    "min_outcomes_total": 10,
+    "min_outcomes_per_class": 4,
+    "min_accounts_with_outcomes": 4
+  },
+  "confidence": {
+    "_doc": "Tier by standardised effect |d| (difference in mean KPI score before positive vs negative outcomes, over the pooled sd). A tier also needs n_pos and n_neg >= min_samples_per_side; below that the tier is 'none' whatever the effect.",
+    "min_samples_per_side": 3,
+    "tiers": {"low": 0.2, "medium": 0.5, "high": 0.8},
+    "flat_effect_pts": 1.0
+  },
+  "adjustment": {
+    "adjust_from_confidence": "medium",
+    "gain": 0.5,
+    "d_cap": 1.0,
+    "min_pillar_weight": 0.05,
+    "max_kpi_weight_within_pillar": 0.5,
+    "weight_decimals": 4
+  },
+  "recompute_mode": "full_recalc",
+  "states": ["proposed", "approved", "rejected", "superseded"],
+  "impact_band_decimals": 2
+}

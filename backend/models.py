@@ -257,6 +257,10 @@ class CustomerConfig(db.Model):
 
     config_version = db.Column(db.String(20), default='1.0')
     customized_by = db.Column(db.String(255))
+    # Who set pillar_weights / kpi_weights (2026-09-05, Wizard C): 'vertical_default' (create_customer copied the
+    # vertical's tier default in) | 'customer_config' (a person set them) | 'wizard_c' (an approved calibration).
+    # Read by utils/vertical_health and stamped on every HealthScore.weight_source — stored, never guessed.
+    weights_origin = db.Column(db.String(24), nullable=True)
 
     created_at = db.Column(db.DateTime, server_default=db.func.now())
     updated_at = db.Column(db.DateTime, server_default=db.func.now(), onupdate=db.func.now())
@@ -715,7 +719,7 @@ class HealthScore(db.Model):
     kpi_weights = db.Column(db.JSON)           # {kpi_code: weight_l1 used}
     kpi_codes_used = db.Column(db.JSON)        # codes that entered the score
     kpi_codes_dropped = db.Column(db.JSON)     # codes present in the inputs but not in the catalog / disabled pillar
-    weight_source = db.Column(db.String(24))   # lifecycle | customer_config | catalog
+    weight_source = db.Column(db.String(24))   # lifecycle | vertical_default | customer_config | wizard_c | catalog (no override row)
     catalog_version = db.Column(db.String(20))
     taxonomy_version = db.Column(db.String(20))
     scorer_version = db.Column(db.String(20))
@@ -803,4 +807,49 @@ class Intervention(db.Model):
     __table_args__ = (
         db.UniqueConstraint('account_id', 'playbook_id', 'trigger_key', name='uq_intervention_trigger'),
         db.Index('idx_intervention_customer_state', 'customer_id', 'state'),
+    )
+
+
+class WeightCalibration(db.Model):
+    """One Wizard C calibration proposal (docs/design/wizard-c-calibration.md).
+    What the tenant's logged outcomes say about each KPI and pillar, the
+    weights that follow, the before/after on every account's latest month,
+    and who decided. States proposed → approved | rejected, or superseded by
+    a newer proposal; every transition is also a tool_audit_log row carrying
+    the key (surface 'wizard_c'). Approval is the only path that writes
+    CustomerConfig; the impact block is computed, never written to health
+    rows until then."""
+    __tablename__ = 'weight_calibrations'
+
+    id = db.Column(db.Integer, primary_key=True)
+    customer_id = db.Column(db.Integer, db.ForeignKey('customers.customer_id'), nullable=False, index=True)
+    vertical = db.Column(db.String(50), nullable=False)
+    state = db.Column(db.String(12), nullable=False, default='proposed', index=True)   # proposed | approved | rejected | superseded
+    method_version = db.Column(db.String(20), nullable=False)
+    catalog_version = db.Column(db.String(20), nullable=True)
+    config_snapshot = db.Column(db.JSON, nullable=False, default=dict)        # the wizard_c.json values the proposal was made with
+
+    outcome_counts = db.Column(db.JSON, nullable=False, default=dict)         # total, positive, negative, unbucketed, unfeatured, accounts, by_bucket
+    outcome_node_ids = db.Column(db.JSON, nullable=False, default=list)       # every OUTCOME node the labels came from
+    current_pillar_weights = db.Column(db.JSON, nullable=False, default=dict)
+    current_kpi_weights = db.Column(db.JSON, nullable=False, default=dict)    # {pillar: {code: w}}
+    proposed_pillar_weights = db.Column(db.JSON, nullable=False, default=dict)
+    proposed_kpi_weights = db.Column(db.JSON, nullable=False, default=dict)
+    evidence = db.Column(db.JSON, nullable=False, default=dict)               # {'pillars': {code: {...}}, 'kpis': {code: {...}}}
+    impact = db.Column(db.JSON, nullable=False, default=dict)                 # per-account before/after + summary (computed, not written)
+
+    proposed_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, index=True)
+    proposed_by = db.Column(db.String(120), nullable=True)                    # actor label (playbooks.governance.current_actor)
+    proposed_by_key_id = db.Column(db.Integer, nullable=True)
+    decided_at = db.Column(db.DateTime, nullable=True)
+    decided_by = db.Column(db.String(120), nullable=True)
+    decided_by_key_id = db.Column(db.Integer, nullable=True)                  # CustomerApiKey.id when a customer key decided
+    decision_note = db.Column(db.Text, nullable=True)
+    applied_config_version = db.Column(db.String(20), nullable=True)          # CustomerConfig.config_version after approval
+    recompute = db.Column(db.JSON, nullable=True)                             # {run_id, mode, status, steps, health_rows} from the pipeline
+    superseded_by = db.Column(db.Integer, nullable=True)
+    notes = db.Column(db.JSON, nullable=False, default=list)                  # [{at, by, transition, note}]
+
+    __table_args__ = (
+        db.Index('idx_weight_calibration_customer_state', 'customer_id', 'state'),
     )

@@ -113,5 +113,5 @@ def test_pre_alembic_drift_is_reconciled(scratch):
         conn.execute(text('DROP INDEX ix_kpi_measurements_upload_id'))
     assert len(_diff(scratch)) == 4
     res = migrate(scratch)
-    assert res['action'] == 'stamped_then_upgraded' and res['to'] == head_revision() == '0002_reconcile_pre_alembic'
+    assert res['action'] == 'stamped_then_upgraded' and res['to'] == head_revision()      # whatever head is: later revisions must be idempotent on a create_all DB
     assert _diff(scratch) == []
