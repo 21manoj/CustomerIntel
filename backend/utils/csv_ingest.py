@@ -549,7 +549,8 @@ def load_outcomes(customer_id: int, rows: list[dict], resolve: Callable) -> tupl
                 ContextNode.customer_id == customer_id,
                 ContextNode.node_type == 'SIGNAL',
                 ContextNode.account_id.in_({a for _, a, _ in pending_edges})).all():
-            for ref in (n.source_event_id, n.source_ref, (n.properties or {}).get('signal_ref')):
+            props = n.properties or {}
+            for ref in (n.source_event_id, n.source_ref, props.get('signal_ref'), props.get('signal_id')):
                 if ref:
                     sig_lookup.setdefault((n.account_id, str(ref)), n.node_id)
         for node, acct_id, linked in pending_edges:
@@ -766,9 +767,10 @@ def load_signal_edges(customer_id: int, rows: list[dict], resolve: Callable) -> 
         if n.source_event_id:
             srcid_to_node[n.source_event_id] = n.node_id
             acct_srcid_to_node[(n.account_id, n.source_event_id)] = n.node_id
-        if n.source_ref:
-            srcid_to_node.setdefault(n.source_ref, n.node_id)
-            acct_srcid_to_node.setdefault((n.account_id, n.source_ref), n.node_id)
+        for extra in (n.source_ref, (n.properties or {}).get('signal_id') if isinstance(n.properties, dict) else None):
+            if extra:
+                srcid_to_node.setdefault(str(extra), n.node_id)
+                acct_srcid_to_node.setdefault((n.account_id, str(extra)), n.node_id)
         sr = (n.properties or {}).get('signal_ref') if isinstance(n.properties, dict) else None
         if sr:
             sigref_to_node[str(sr)] = n.node_id

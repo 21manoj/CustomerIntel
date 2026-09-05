@@ -146,17 +146,19 @@ class TestRegisteredTenants:
                 cid = reg['customer_id']
                 comms = plan_communications(m, expand_accounts(m))
                 engine_sigs = QualitativeSignal.query.filter(QualitativeSignal.customer_id == cid,
-                                                             QualitativeSignal.source_type.isnot(None)).all()
+                                                             QualitativeSignal.source_type.isnot(None),
+                                                             QualitativeSignal.source_type != 'csv_import').all()   # typed rows (the CSM flag) take the CSV lane
                 assert len(engine_sigs) == len(comms), mid
                 assert all(s.cg_node_id is not None and s.occurred_at is not None for s in engine_sigs)
                 assert all(s.llm_model_version == ORACLE_MODEL_VERSION for s in engine_sigs)
                 csv_sigs = QualitativeSignal.query.filter(QualitativeSignal.customer_id == cid,
-                                                          QualitativeSignal.source_type.is_(None)).all()
+                                                          QualitativeSignal.source_type == 'csv_import').all()   # the CSV lane, through the engine
                 assert {s.signal_type for s in csv_sigs} <= {'csm_risk_flag'}, mid
                 nodes = ContextNode.query.filter_by(customer_id=cid, node_type='SIGNAL').all()
                 assert all(n.source == 'observed' for n in nodes)
-                by_event = {n.source_event_id for n in nodes}
-                assert {s.signal_id for s in engine_sigs} <= by_event
+                # every engine signal has a node that names it (properties.signal_id); source_event_id is the source's own ref
+                by_signal = {(n.properties or {}).get('signal_id') for n in nodes}
+                assert {s.signal_id for s in engine_sigs} <= by_signal
 
     def test_scorecard_is_perfect_under_the_oracle_and_says_so(self, registered):
         for mid, (m, files, reg, rep) in registered.items():

@@ -283,7 +283,9 @@ class TestRegisterV2:
             print('\nstub scorecard:', json.dumps({k: sc[k] for k in ('exact', 'partial', 'miss', 'hit_rate', 'unclassified', 'subtype')}))
             cid = reg['customer_id']
             assert JourneyData.query.filter_by(customer_id=cid).count() == 12
-            sigs = QualitativeSignal.query.filter(QualitativeSignal.customer_id == cid, QualitativeSignal.source_type.isnot(None)).all()
+            # communications = engine signals that did not arrive as typed CSV rows (the CSM risk flag does)
+            sigs = QualitativeSignal.query.filter(QualitativeSignal.customer_id == cid, QualitativeSignal.source_type.isnot(None),
+                                                  QualitativeSignal.source_type != 'csv_import').all()
             assert len(sigs) == len(comms) and all(s.cg_node_id for s in sigs)
             assert all(s.llm_model_version == 'stub_keyword_v2' and s.requires_review for s in sigs)
             lines = [json.loads(l) for l in Path(reg['outputs']['labelled']).read_text().splitlines()]
@@ -299,8 +301,8 @@ class TestRegisterV2:
             assert reg['status'] == 'success' and 'scorecard' not in reg
             cid = reg['customer_id']
             assert JourneyData.query.filter_by(customer_id=cid).count() == 2
-            assert QualitativeSignal.query.filter(QualitativeSignal.customer_id == cid,
-                                                  QualitativeSignal.source_type.isnot(None)).count() == 0   # nothing through the engine
+            assert QualitativeSignal.query.filter(QualitativeSignal.customer_id == cid, QualitativeSignal.source_type.isnot(None),
+                                                  QualitativeSignal.source_type != 'csv_import').count() == 0   # no communications; typed rows take the CSV lane
             arcs = {a['account_name']: a for a in reg['wizard_a']['arcs'].values()}
             assert arcs['Oldco']['arc_type'] == 'exec_sponsor_change'
 

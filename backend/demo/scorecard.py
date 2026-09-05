@@ -99,9 +99,12 @@ def read_back(customer_id: int, submissions: Dict[str, dict]) -> Dict[str, dict]
     sigs = {s.signal_id: s for s in QualitativeSignal.query.filter(QualitativeSignal.signal_id.in_(ids)).all()} if ids else {}
     nodes: Dict[str, list] = {}
     if ids:
+        # node.source_event_id is the communication's own ref when it had one (provenance rule);
+        # properties.signal_id always reaches the signal row — key on that
+        refs = ids + [sg.source_ref for sg in sigs.values() if sg.source_ref]
         for nd in ContextNode.query.filter(ContextNode.customer_id == customer_id, ContextNode.node_type == 'SIGNAL',
-                                           ContextNode.source_event_id.in_(ids)).all():
-            nodes.setdefault(nd.source_event_id, []).append(nd)
+                                           ContextNode.source_event_id.in_(refs)).all():
+            nodes.setdefault((nd.properties or {}).get('signal_id') or nd.source_event_id, []).append(nd)
     for ref, sub in submissions.items():
         sid = sub.get('signal_id')
         sig = sigs.get(sid)

@@ -85,12 +85,16 @@ def _warning_months(series: List[dict], hyp: dict, at_risk_min: float, healthy_m
         else:
             # Trailing comparator = the KPI layer's own threshold crossing:
             # H1 below at-risk; H2 crossing UP into healthy from below.
-            if hyp['name'] == 'H1_retention' and s['kpi_only'] < at_risk_min:
+            # Live months (and signals-only tenants) have no trailing layer:
+            # kpi_only is None there, and None can never be a warning.
+            k = s.get('kpi_only')
+            if k is None:
+                continue
+            if hyp['name'] == 'H1_retention' and k < at_risk_min:
                 out.append(m)
-            if (hyp['name'] == 'H2_growth' and prev_kpi is not None
-                    and prev_kpi < healthy_min <= s['kpi_only']):
+            if hyp['name'] == 'H2_growth' and prev_kpi is not None and prev_kpi < healthy_min <= k:
                 out.append(m)
-        prev_kpi = s['kpi_only']
+            prev_kpi = k
     return out
 
 
