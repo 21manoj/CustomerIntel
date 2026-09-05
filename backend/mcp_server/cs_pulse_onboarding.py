@@ -932,3 +932,35 @@ def log_outcome(customer_id: int, account_id: int, outcome_type: str, occurred_a
                        linked_signal_ids=linked_signal_ids, decided_by=decided_by, source_type=source_type, source_ref=source_ref)
         except ValueError as e:
             raise ToolError(str(e))
+
+
+# ===================================================================
+# Ask AI over the journey contract (P10)
+# ===================================================================
+
+@mcp.tool
+def ask(customer_id: int, question: str, account_id: int = None, as_of: str = None) -> dict:
+    """Ask a question over the journey contract — one account's cited
+    narrative, journey, episodes and evidence, or the portfolio rows — and
+    get an answer where every sentence cites the episode / evidence node /
+    portfolio row it was built from. Sentences the evidence cannot back are
+    dropped and listed under `unsupported`; what the evidence could not say
+    is under `evidence_gaps`; numbers are read from the blocks, never
+    computed. Without ANTHROPIC_API_KEY a deterministic stub answers from
+    the narrative block.
+
+    Args:
+        customer_id: The customer ID
+        question: The question, e.g. "why did health fall in March?" or "which accounts are most at risk?"
+        account_id: One account (optional; otherwise an account named in the question, else the portfolio)
+        as_of: ISO date/time — answer as of that instant only (scrubber semantics; optional)
+    """
+    _require_auth_if_key_present('ask', customer_id)
+    _check_mcp_enabled()
+    app = _get_flask_app()
+    with app.app_context():
+        from ask_ai.answer import ask as _ask
+        try:
+            return _ask(customer_id, question, account_id=account_id, as_of=as_of)
+        except (LookupError, ValueError) as e:
+            raise ToolError(str(e))
