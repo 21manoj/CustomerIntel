@@ -1,0 +1,10 @@
+Activity ID,Activity Type,Subject,Notes,Activity Date,Company ID,Company Name,Author,Internal Attendees,External Attendees,Milestone Type,Scorecard Health
+1P05XXXXXXA1,Email,Renewal budget pressure,"<p>Procurement wants a <b>20% reduction</b> at the renewal; budget is frozen for Q4.</p>",2026-08-12 10:15:00,GS-NOR,Northstar Mutual,Priya Raman,,Dana Whitfield,,Red
+1P05XXXXXXA2,Call,Seat utilization review,"140 of 300 seats have not logged in this quarter; utilization keeps dropping.",08/20/2026 02:30 PM,GS-NOR,Northstar Mutual,Priya Raman,Priya Raman; Tom Alvarez,Dana Whitfield; Mark Ellison,,Red
+1P05XXXXXXA3,Update,Champion leaving,"Dana Whitfield is leaving at the end of the month; no successor named yet.",2026-08-04T09:00:00Z,GS-NOR,Northstar Mutual,Tom Alvarez,,,,Red
+1P05XXXXXXB1,Meeting,Expansion ask,"Ops team asked for 40 additional seats for the new region — wants a quote before the board meeting.",2026-08-18,GS-ORC,Orchard Retail,Priya Raman,Priya Raman,Lena Ortiz,,Green
+1P05XXXXXXB2,Milestone,Go-live,"Region 2 went live; adoption tracking starts next week.",2026-08-25 11:00,,Orchard Retail,Priya Raman,,,Go Live,Green
+1P05XXXXXXC1,Email,Intro,"Kickoff scheduled with the new account team.",2026-08-26 09:00:00,GS-NOPE,Unknown Holdings,Priya Raman,,,,Yellow
+1P05XXXXXXA4,Update,,,2026-08-27 09:00:00,GS-NOR,Northstar Mutual,Tom Alvarez,,,,Red
+1P05XXXXXXA5,Update,Bad date row,"This row has an unreadable date and is reported, not dropped.",next tuesday,GS-NOR,Northstar Mutual,Tom Alvarez,,,,Red
+1P05XXXXXXA1,Email,Renewal budget pressure,"<p>Procurement wants a <b>20% reduction</b> at the renewal; budget is frozen for Q4.</p>",2026-08-12 10:15:00,GS-NOR,Northstar Mutual,Priya Raman,,Dana Whitfield,,Red

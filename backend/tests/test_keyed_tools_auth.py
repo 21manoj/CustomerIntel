@@ -74,7 +74,7 @@ def test_registry_partition_is_complete():
         assert t in KEYED_TOOLS, t
     # every tool the server registers is classified
     import re
-    src = (BACKEND / 'mcp_server' / 'cs_pulse_onboarding.py').read_text()
+    src = (BACKEND / 'mcp_server' / 'cs_pulse_onboarding.py').read_text() + (BACKEND / 'mcp_server' / 'cs_pulse_adapters.py').read_text()
     registered = set(re.findall(r"_require_auth_if_key_present\('([a-z_]+)'", src))
     assert registered <= ALL_TOOLS, registered - ALL_TOOLS
 

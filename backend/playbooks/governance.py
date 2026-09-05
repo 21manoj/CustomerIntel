@@ -281,11 +281,13 @@ def _triggers(row) -> List[dict]:
 def approve(customer_id: int, intervention_id: int, note: Optional[str] = None, actor: Optional[dict] = None) -> dict:
     """proposed → approved → (send) → sent. Writes the INTERVENTION node and the LED_TO edges from the cited
     evidence when the payload is sent — also when delivery fails or nothing is configured: the approved
-    intervention must be visible on the journey, and so must the delivery problem."""
+    intervention must be visible on the journey, and so must the delivery problem. A notify-class row on a
+    tenant with a Slack URL also posts there; that result is delivery.slack, a second entry."""
     from extensions import db
     from models import Account, Customer, ContextNode, ContextEdge
-    from playbooks.definitions import tenant_config, tenant_secret
+    from playbooks.definitions import tenant_config, tenant_secret, tenant_slack_url
     from playbooks import webhook
+    from adapters import slack_notify
     from utils.data_origin import block
     actor = actor or current_actor()
     row = _get(customer_id, intervention_id)
@@ -306,6 +308,9 @@ def approve(customer_id: int, intervention_id: int, note: Optional[str] = None, 
     pb = _playbook_def(row)
     payload = webhook.build_payload(row, acct, cust, triggers, actor['label'], block(cust))
     delivery = webhook.deliver(cfg.get('webhook_url'), tenant_secret(customer_id), payload)
+    if cfg['slack_webhook_url_set'] and slack_notify.applies_to(row.action_class):
+        # a second entry, not a second channel: delivery.status stays the workflow engine's (adapters.md §3)
+        delivery = {**delivery, 'slack': slack_notify.post(tenant_slack_url(customer_id), row, acct, pb)}
     row.sent_at = datetime.utcnow()
     row.delivery = delivery
     row.state = 'sent'
@@ -333,7 +338,8 @@ def approve(customer_id: int, intervention_id: int, note: Optional[str] = None, 
             ))
     db.session.commit()
     _audit(customer_id, 'send', actor, f'#{row.id} {row.playbook_id} → {delivery["status"]} host={delivery.get("url_host")} '
-                                        f'attempts={delivery["attempts"]} node={node.node_id}' + (f' error={delivery["error"][:80]}' if delivery.get('error') else ''))
+                                        f'attempts={delivery["attempts"]} node={node.node_id}' + (f' error={delivery["error"][:80]}' if delivery.get('error') else '')
+                                        + (f' slack={delivery["slack"]["status"]}' if delivery.get('slack') else ''))
     rebuilt = _rebuild(row)
     return {**row_view(row), 'payload': payload, 'journeys_rebuilt': rebuilt}
 

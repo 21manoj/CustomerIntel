@@ -1251,13 +1251,18 @@ def get_playbooks(customer_id: int) -> dict:
 
 @mcp.tool
 def configure_playbooks(customer_id: int, webhook_url: str = None, webhook_secret: str = None,
-                        disabled_playbooks: list = None, automation_level: int = None, kill_switch: bool = None) -> dict:
+                        disabled_playbooks: list = None, automation_level: int = None, kill_switch: bool = None,
+                        slack_webhook_url: str = None) -> dict:
     """Set the tenant's playbook overlay. Only the fields given change.
 
     - webhook_url / webhook_secret: where approved interventions are POSTed
       (one signed JSON payload per approval; X-CI-Signature = sha256 HMAC of
       '<timestamp>.<body>' with the secret). https only. The secret is stored
       per tenant, never returned.
+    - slack_webhook_url: optional Slack incoming-webhook URL; an approved
+      notify-class intervention also posts a minimal message there (account,
+      playbook, quote, intervention id). The URL is a secret: stored per
+      tenant, never returned (reads show slack_webhook_url_set).
     - disabled_playbooks: playbook ids to switch off for this tenant.
     - automation_level: 0 = every approval is human; 1 = playbooks declared
       approval=auto (notify only) are approved by policy at evaluation time.
@@ -1270,6 +1275,7 @@ def configure_playbooks(customer_id: int, webhook_url: str = None, webhook_secre
         disabled_playbooks: Playbook ids to switch off (replaces the list)
         automation_level: 0 or 1
         kill_switch: true/false
+        slack_webhook_url: https://hooks.slack.com/services/... ('' clears it)
     """
     _require_auth_if_key_present('configure_playbooks', customer_id)
     _check_mcp_enabled()
@@ -1283,13 +1289,16 @@ def configure_playbooks(customer_id: int, webhook_url: str = None, webhook_secre
             raise ToolError(f'Customer {customer_id} not found.')
         try:
             cfg = configure_tenant(customer_id, webhook_url=webhook_url, webhook_secret=webhook_secret,
-                                   disabled_playbooks=disabled_playbooks, automation_level=automation_level, kill_switch=kill_switch)
+                                   disabled_playbooks=disabled_playbooks, automation_level=automation_level, kill_switch=kill_switch,
+                                   slack_webhook_url=slack_webhook_url)
         except ValueError as e:
             raise ToolError(str(e))
         changed = [k for k, v in (('webhook_url', webhook_url), ('webhook_secret', webhook_secret), ('disabled_playbooks', disabled_playbooks),
-                                  ('automation_level', automation_level), ('kill_switch', kill_switch)) if v is not None]
+                                  ('automation_level', automation_level), ('kill_switch', kill_switch),
+                                  ('slack_webhook_url', slack_webhook_url)) if v is not None]
         _audit(customer_id, 'configure', current_actor(),
-               f"changed {changed}; url_host={cfg['webhook_url'] and cfg['webhook_url'].split('/')[2]} level={cfg['automation_level']} kill={cfg['kill_switch']} off={cfg['disabled_playbooks']}")
+               f"changed {changed}; url_host={cfg['webhook_url'] and cfg['webhook_url'].split('/')[2]} level={cfg['automation_level']} "
+               f"kill={cfg['kill_switch']} off={cfg['disabled_playbooks']} slack={cfg['slack_webhook_url_set']}")
         return {'customer_id': int(customer_id), 'tenant': cfg}
 
 

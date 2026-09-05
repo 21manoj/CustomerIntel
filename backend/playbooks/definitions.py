@@ -3,7 +3,8 @@ Playbook definitions and the governance config.
 
     governance()                         config/playbook_governance.json (every number the layer uses)
     load_vertical(vertical)              validated playbooks for a vertical ([] + note when no file)
-    tenant_config(customer_id)           the tenant's overlay: webhook target, disabled playbooks, automation level, kill switch
+    tenant_config(customer_id)           the tenant's overlay: webhook target, Slack URL (set/unset only), disabled playbooks,
+                                         automation level, kill switch
     playbooks_for_customer(customer_id)  the vertical's playbooks minus the ones the tenant switched off
     validate_all()                       boot / test check over every config/playbooks/*.json
 
@@ -141,6 +142,7 @@ def tenant_config(customer_id: int) -> dict:
     return {
         'webhook_url': cfg.get('webhook_url'),
         'webhook_secret_set': bool(cfg.get('webhook_secret')),
+        'slack_webhook_url_set': bool(cfg.get('slack_webhook_url')),      # the URL is the secret: never returned
         'disabled_playbooks': sorted(cfg.get('disabled_playbooks') or []),
         'automation_level': int(cfg.get('automation_level', gov['default_automation_level'])),
         'automation_level_meaning': gov['automation_levels'][str(int(cfg.get('automation_level', gov['default_automation_level'])))],
@@ -153,9 +155,16 @@ def tenant_secret(customer_id: int) -> Optional[str]:
     return ((t.config or {}).get('webhook_secret') or None) if t else None
 
 
+def tenant_slack_url(customer_id: int) -> Optional[str]:
+    """The Slack incoming-webhook URL (adapters/slack_notify) — for the send path only, never a read surface."""
+    t = _toggle(customer_id)
+    return ((t.config or {}).get('slack_webhook_url') or None) if t else None
+
+
 def configure_tenant(customer_id: int, *, webhook_url=None, webhook_secret=None, disabled_playbooks=None,
-                     automation_level=None, kill_switch=None) -> dict:
-    """Write the overlay. Only the fields given change. Validates the URL scheme and the level."""
+                     automation_level=None, kill_switch=None, slack_webhook_url=None) -> dict:
+    """Write the overlay. Only the fields given change. Validates the URL schemes (webhook: https unless the
+    insecure-http env is set; Slack: adapters.slack_notify.validate_url) and the level."""
     from extensions import db
     from models import FeatureToggle
     from urllib.parse import urlparse
@@ -185,6 +194,12 @@ def configure_tenant(customer_id: int, *, webhook_url=None, webhook_secret=None,
             cfg.pop('webhook_secret', None)
     if cfg.get('webhook_url') and not cfg.get('webhook_secret'):
         raise ValueError('a webhook_secret is required with a webhook_url (payloads are signed)')
+    if slack_webhook_url is not None:
+        if str(slack_webhook_url).strip():
+            from adapters.slack_notify import validate_url
+            cfg['slack_webhook_url'] = validate_url(str(slack_webhook_url))
+        else:
+            cfg.pop('slack_webhook_url', None)
     if disabled_playbooks is not None:
         vertical = _vertical(customer_id)
         known = {p['id'] for p in load_vertical(vertical)['playbooks']}

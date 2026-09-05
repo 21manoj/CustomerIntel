@@ -55,6 +55,8 @@ KEYED_TOOLS = frozenset({
     'list_interventions',
     'configure_playbooks',
     'get_playbooks',
+    # adapters (adapters/sources, mcp_server/cs_pulse_adapters.py)
+    'import_from_source',
 })
 
 ALL_TOOLS = ONBOARDING_TOOLS | KEYED_TOOLS
