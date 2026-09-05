@@ -27,7 +27,12 @@ if docker ps --format '{{.Names}}' | grep -q '^customerintelv1-postgres$'; then
 fi
 CRON_LINE="15 3 * * * /bin/bash $HOME/CustomerIntel/deploy/backup_db.sh >> $HOME/backups/customerintelv1/cron.log 2>&1"
 if command -v crontab >/dev/null 2>&1; then
-  ( crontab -l 2>/dev/null | grep -v 'deploy/backup_db.sh'; echo "$CRON_LINE" ) | crontab -
+  # `crontab -l` exits 1 when the user has no crontab yet — under set -e/pipefail that silently killed the deploy (2026-09-05)
+  EXISTING="$(crontab -l 2>/dev/null || true)"
+  TMP_CRON="$(mktemp)"
+  { printf '%s\n' "$EXISTING" | grep -v 'deploy/backup_db.sh' || true; echo "$CRON_LINE"; } | grep -v '^$' > "$TMP_CRON"
+  crontab "$TMP_CRON" && rm -f "$TMP_CRON"
+  echo "cron: daily backup scheduled (03:15 UTC)"
 else
   echo "WARNING: no crontab on this host — daily backup NOT scheduled (Amazon Linux 2023: sudo dnf -y install cronie && sudo systemctl enable --now crond, then redeploy)"
 fi
