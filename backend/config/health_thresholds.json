@@ -58,5 +58,10 @@
   "evidence_phase_rules": {
     "_description": "Journey phases from evidence alone (no KPI layer). Per month: an intervention-role signal → intervention; more negative-role than positive-role signals → deterioration; a positive month after a negative/intervention phase → resolution; a quiet month keeps the previous phase until quiet_months_to_baseline in a row, then baseline.",
     "quiet_months_to_baseline": 2
+  },
+  "arc_evidence_equivalents": {
+    "_description": "How the arc rules' health predicates are read when an account has no KPI layer (features.evidence_only). net = positive − negative signals in the 90-day window. 'below healthy'/'declining' = net < 0 or a negative evidence phase; 'dipped' = a negative phase or negative signals followed by recovery-role signals; 'healthy' = net > 0 and no recent negative phase; 'very healthy' = net ≥ very_healthy_net_min and negatives ≤ very_healthy_negative_share_max of positives.",
+    "very_healthy_net_min": 3,
+    "very_healthy_negative_share_max": 0.2
   }
 }

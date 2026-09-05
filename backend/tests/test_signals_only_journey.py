@@ -53,8 +53,9 @@ def tenant():
         quiet = mk('Quiet Co', 'QUI', {'renewal_date': '2026-12-01'})
         fresh = mk('Fresh Co', 'FRE', {'renewal_date': '2026-12-01'})
         hw = mk('Ironworks', 'IRO', {'contract_type': 'hardware', 'refresh_date': '2027-03-01'})
-        db.session.add_all([churn, grow, quiet, fresh, hw]); db.session.commit()
-        ids = {a.external_account_id: a.account_id for a in (churn, grow, quiet, fresh, hw)}
+        pine = mk('Pine Street Bank', 'PIN', {'renewal_date': '2026-11-01'})
+        db.session.add_all([churn, grow, quiet, fresh, hw, pine]); db.session.commit()
+        ids = {a.external_account_id: a.account_id for a in (churn, grow, quiet, fresh, hw, pine)}
     # a churn story: negative → intervention → recovery, over four months
     _sig(cid, ids['HAL'], 'champion_departure', '2026-01-20T10:00:00Z', 'Nadia Bell left for a regional health system')
     _sig(cid, ids['HAL'], 'engagement_gap', '2026-02-10T10:00:00Z', 'Two QBR invitations declined by the interim owner')
@@ -64,6 +65,16 @@ def tenant():
     _sig(cid, ids['ORC'], 'expansion_discussion', '2026-02-03T10:00:00Z', 'Asked what 150 more seats would cost')
     _sig(cid, ids['ORC'], 'champion_advocacy', '2026-02-25T10:00:00Z', 'Ivy presented us at their ops all-hands')
     _sig(cid, ids['ORC'], 'expansion_signal', '2026-03-18T10:00:00Z', 'Procurement requested a co-term quote')
+    # a crisis and its recovery inside ONE month (below the monthly phase grain), then advocacy
+    _sig(cid, ids['PIN'], 'performance_degradation', '2026-03-01T10:00:00Z', 'Page loads went from two seconds to fifteen')
+    _sig(cid, ids['PIN'], 'workflow_friction', '2026-03-09T10:00:00Z', 'The workaround adds a click to every case')
+    _sig(cid, ids['PIN'], 'kpi_recovery', '2026-03-21T10:00:00Z', 'The performance fix landed; the queue is back to normal')
+    _sig(cid, ids['PIN'], 'positive_advocacy', '2026-03-21T10:00:00Z', 'Thanks for turning that around')
+    _sig(cid, ids['PIN'], 'review_site_rating', '2026-04-08T10:00:00Z', 'Left a five-star review this morning')
+    # an expansion story with ONE stray negative remark among many positives
+    _sig(cid, ids['ORC'], 'capacity_warning', '2026-03-09T10:00:00Z', 'Let us know if we are getting near any limits')
+    _sig(cid, ids['ORC'], 'new_team_rollout', '2026-03-12T10:00:00Z', 'Rolling the tool out to merchandising')
+    _sig(cid, ids['ORC'], 'case_study_consent', '2026-04-10T10:00:00Z', 'Happy to do a case study')
     # a quiet account with routine only, over three months
     _sig(cid, ids['QUI'], 'routine_review', '2026-01-15T10:00:00Z', 'Monthly check-in, nothing to report')
     _sig(cid, ids['QUI'], 'routine_review', '2026-03-15T10:00:00Z', 'Monthly check-in, nothing to report either')
@@ -109,8 +120,11 @@ def test_arcs_fire_on_evidence_equivalents(tenant):
     hal = _journey(cid, ids['HAL'])['arc']
     assert hal['arc_type'] == 'exec_sponsor_change' and hal['evidence_scope'] == 'evidence_only'
     orc = _journey(cid, ids['ORC'])['arc']
-    assert orc['arc_type'] == 'expansion_champion' and orc['evidence_scope'] == 'evidence_only', orc
+    assert orc['arc_type'] == 'expansion_champion' and orc['evidence_scope'] == 'evidence_only', orc   # one stray negative does not make a stall
     assert orc['confidence_semantics'] == 'rule_match_constant'
+    pin = _journey(cid, ids['PIN'])
+    assert pin['arc']['arc_type'] == 'crisis_recovery', pin['arc']                                        # crisis + recovery inside one month
+    assert pin['features']['negative_then_recovery_90d'] is True and [p['name'] for p in pin['phases']] == ['baseline']
 
 
 def test_quiet_evidence_only_account_is_steady_not_no_health(tenant):
@@ -136,5 +150,5 @@ def test_backtest_runs_on_live_months(tenant):
     from evals.lead_time_backtest import run_backtest
     with app.app_context():
         rep = run_backtest(cid, min_events=1)
-    assert rep['journeys'] == 5 and rep['evidence_label'] != 'measured'      # ran on live months, no trailing layer, no crash
+    assert rep['journeys'] == 6 and rep['evidence_label'] != 'measured'      # ran on live months, no trailing layer, no crash
     assert isinstance(rep['results'], (dict, list))

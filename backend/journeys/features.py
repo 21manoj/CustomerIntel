@@ -67,6 +67,10 @@ def compute(account, vertical: str, taxonomy, points: List[tuple], episodes: Lis
                 recovery_90 += 1
         if e.role and e.date <= as_of:
             last_role_at[e.role] = e.date.date().isoformat()
+    # a crisis and its recovery can sit inside one month, below the phase detector's grain
+    neg_dates = [e.date for e in episodes if e.kind == 'signal' and e.polarity < 0 and _in_window(e, 90)]
+    rec_dates = [e.date for e in episodes if e.kind == 'signal' and e.role == 'recovery' and _in_window(e, 90)]
+    negative_then_recovery = bool(neg_dates and rec_dates and min(neg_dates) < max(rec_dates))
 
     renewal = None
     for e in episodes:
@@ -120,6 +124,8 @@ def compute(account, vertical: str, taxonomy, points: List[tuple], episodes: Lis
         'negative_signals_90d': negative_90,
         'positive_signals_90d': positive_90,
         'recovery_signals_90d': recovery_90,
+        'net_polarity_90d': positive_90 - negative_90,
+        'negative_then_recovery_90d': negative_then_recovery,
         'time_in_phase_days': time_in_phase_days,
         'days_to_renewal': renewal,
         'days_to_renewal_band': days_to_renewal_band(renewal),

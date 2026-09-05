@@ -49,6 +49,10 @@ def data_coverage_config() -> dict:
     return _load_full()['data_coverage']
 
 
+def arc_evidence_equivalents() -> dict:
+    return _load_full()['arc_evidence_equivalents']
+
+
 def evidence_phase_rules() -> dict:
     return _load_full()['evidence_phase_rules']
 

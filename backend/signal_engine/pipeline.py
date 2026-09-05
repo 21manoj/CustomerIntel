@@ -361,7 +361,13 @@ def process_pending(customer_id: Optional[int] = None, limit: int = 50, rebuild_
     q = QualitativeSignal.query.filter(QualitativeSignal.source_type.isnot(None), QualitativeSignal.cg_node_id.is_(None))
     if customer_id is not None:
         q = q.filter(QualitativeSignal.customer_id == int(customer_id))
-    sigs = q.order_by(QualitativeSignal.id).limit(limit).all()
+    # Two drains can run at once (the background worker and an on-demand call): lock the rows this
+    # pass takes and let the other pass skip them, or a signal is materialised twice. Found on the
+    # box 2026-09-05: every communication on a seeded tenant carried two evidence nodes.
+    try:
+        sigs = q.order_by(QualitativeSignal.id).limit(limit).with_for_update(skip_locked=True).all()
+    except Exception:                      # dialects without SKIP LOCKED (sqlite in a scratch run)
+        sigs = q.order_by(QualitativeSignal.id).limit(limit).all()
     out = {'processed': 0, 'structured': 0, 'enriched': 0, 'unclassified': 0, 'nodes_written': 0, 'errors': 0,
            'accounts': set(), 'signals': [], 'error_signals': []}
     taxonomies: Dict[str, object] = {}

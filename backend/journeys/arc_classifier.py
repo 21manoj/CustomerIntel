@@ -120,16 +120,22 @@ _NEGATIVE_FOR_STEADY = {
 # Evidence equivalents of the health predicates, used when the account has no
 # KPI layer (features['evidence_only']). The arc says so: evidence_scope =
 # 'evidence_only'. Same rules, a different witness.
+def _very_healthy_ev(f: dict) -> bool:
+    cfg = ht.arc_evidence_equivalents()
+    pos, neg = f['positive_signals_90d'], f['negative_signals_90d']
+    return (pos - neg) >= cfg['very_healthy_net_min'] and neg <= pos * cfg['very_healthy_negative_share_max']
+
+
 _EVIDENCE_EQUIV = {
-    'below_healthy': lambda f: f['negative_signals_90d'] > 0 or bool(f.get('had_negative_phase')),
-    'below_at_risk': lambda f: bool(f.get('had_negative_phase')),
-    'below_at_risk_or_dipped': lambda f: bool(f.get('had_negative_phase')),
-    'below_healthy_or_had_negative_phase': lambda f: f['negative_signals_90d'] > 0 or bool(f.get('had_negative_phase')),
-    'declining': lambda f: f['negative_signals_90d'] > 0,
-    'declining_3mo': lambda f: f['negative_signals_90d'] > 0 or bool(f.get('had_negative_phase')),
-    'recovering': lambda f: bool(f.get('had_negative_phase')) and f['recovery_signals_90d'] > 0,
-    'healthy': lambda f: f['negative_signals_90d'] == 0 and f['positive_signals_90d'] > 0,
-    'very_healthy': lambda f: f['negative_signals_90d'] == 0 and f['positive_signals_90d'] >= 2,
+    'below_healthy': lambda f: f['net_polarity_90d'] < 0 or bool(f.get('had_negative_phase')),
+    'below_at_risk': lambda f: bool(f.get('had_negative_phase')) or bool(f.get('negative_then_recovery_90d')),
+    'below_at_risk_or_dipped': lambda f: bool(f.get('had_negative_phase')) or bool(f.get('negative_then_recovery_90d')),
+    'below_healthy_or_had_negative_phase': lambda f: f['net_polarity_90d'] < 0 or bool(f.get('had_negative_phase')),
+    'declining': lambda f: f['net_polarity_90d'] < 0,
+    'declining_3mo': lambda f: f['net_polarity_90d'] < 0 or bool(f.get('had_negative_phase')),
+    'recovering': lambda f: (bool(f.get('had_negative_phase')) or bool(f.get('negative_then_recovery_90d'))) and f['recovery_signals_90d'] > 0,
+    'healthy': lambda f: f['net_polarity_90d'] > 0 and not f.get('had_negative_phase'),
+    'very_healthy': _very_healthy_ev,
     'flat': lambda f: f['negative_signals_90d'] == 0,
 }
 
