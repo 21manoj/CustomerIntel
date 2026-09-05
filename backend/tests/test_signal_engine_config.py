@@ -74,10 +74,8 @@ def test_urgency_role_floors_name_real_roles():
 
 def test_retired_modules_are_gone():
     pkg = BACKEND / 'signal_engine'
-    for name in ('fusion.py', 'collision.py', 'cleanup.py'):
+    for name in ('fusion.py', 'collision.py', 'cleanup.py', 'models.py'):      # models.py: the boot ALTER dict, folded into the Alembic baseline
         assert not (pkg / name).exists(), name
-    import signal_engine.models as m
-    assert not hasattr(m, 'AlertRecord') and not hasattr(m, 'TIER_1_SUBTYPES')
 
 
 def test_urgency_is_role_floor_or_perceived_whichever_is_higher():

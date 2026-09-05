@@ -15,8 +15,10 @@ Environment:
   PORT                  default 8101
   GIT_SHA / BUILD_TIME  surfaced by /health
 
-Schema: db.create_all() at boot — additive only. There is no migration
-tool in this build yet; the first deployment starts from an empty DB.
+Schema: Alembic at boot (utils/schema.migrate → `alembic upgrade head`;
+a pre-Alembic DB is stamped at the baseline first). Revisions live in
+backend/migrations/versions; a model change without a revision fails
+tests/test_migrations.py. No create_all anywhere but the test suite.
 
     python server.py                       # serve
     python -c "from server import build_asgi_app"   # tests / ASGI hosts
@@ -107,8 +109,9 @@ def build_asgi_app(database_url: str | None = None, create_schema: bool = True):
     app = _common.get_flask_app()
     if create_schema:
         from extensions import db
+        from utils.schema import migrate
         with app.app_context():
-            db.create_all()
+            logger.info('schema: %s', migrate(db.engine))
 
     @mcp.custom_route('/health', methods=['GET'])
     async def health(request):
@@ -153,13 +156,12 @@ def build_asgi_app(database_url: str | None = None, create_schema: bool = True):
     register_ask_routes(mcp)              # POST /api/ask — Ask AI over the journey contract (P10)
     from playbooks.http import register_playbook_routes
     register_playbook_routes(mcp)         # /api/interventions*, /api/playbooks — the governance layer
+    app = _common.get_flask_app()
     if create_schema:
-        from signal_engine.models import ensure_enrichment_columns
-        from utils.schema_additive import ensure_additive_columns
+        from extensions import db
+        from utils.schema import migrate
         with app.app_context():
-            ensure_enrichment_columns(db.engine)   # additive, idempotent (content_hash, occurred_at on existing DBs)
-            ensure_additive_columns(db.engine)     # lineage / provenance columns on existing tables
-
+            logger.info('schema: %s', migrate(db.engine))
     asgi = mcp.http_app(path='/mcp')
     return BearerAuthMiddleware(asgi)
 

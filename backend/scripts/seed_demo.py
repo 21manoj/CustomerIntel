@@ -39,7 +39,7 @@ def main():
     from models import Customer
 
     with app.app_context():
-        db.create_all()
+        from utils.schema import migrate; migrate(db.engine)
         from demo.generate import generate, register, load_manifest, MANIFESTS_DIR
         from mcp_server.cs_pulse_onboarding import create_customer, upload_csv, process_data
 

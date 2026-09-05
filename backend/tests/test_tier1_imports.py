@@ -90,7 +90,6 @@ def test_signal_engine_modules_import():
     with app.app_context():
         import models  # noqa: F401
         db.create_all()
-        import signal_engine.models  # noqa: F401
         from signal_engine import enrichment, urgency, pipeline, settings  # noqa: F401
 
 

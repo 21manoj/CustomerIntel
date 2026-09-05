@@ -33,7 +33,7 @@
 | 7 | **Users, login, RBAC, SSO/MFA** | auth_decorators, auth_middleware, admin/user APIs, magic link | new, with the UI; keys stay for integrations | M |
 | 8 | **Outbound notifications** | `notifications_api.py`, providers (slack/email/jira/salesforce), integration_api/models, n8n models | folded into the playbook layer's `notify` action class + webhook; providers become adapters (#9) | with #1 |
 | 9 | **Source adapters** | `providers/` (inbound direction did not exist) | new, first one chosen by the first design partner (Zendesk/Pylon or Gainsight/ChurnZero export); communications lane already exists | M each |
-| 10 | **Schema migrations + backup/restore** | alembic/, migrations/, backup_restore_api | new: Alembic before the first real tenant; backup job | S–M |
+| 10 | **Schema migrations + backup/restore** | alembic/, migrations/, backup_restore_api | **DONE 2026-09-05**: Alembic (`backend/migrations`, baseline `0001_baseline`, `utils/schema.migrate` at boot stamps pre-Alembic DBs), `tests/test_migrations.py` guard, `scripts/schema_check.py` in the deploy, `deploy/backup_db.sh` (pg_dump before every deploy + daily cron, keeps 14) + `restore_db.sh` | done |
 
 ## C. Retired — not coming back
 

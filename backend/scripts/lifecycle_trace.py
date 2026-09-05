@@ -141,7 +141,7 @@ def main():
         import models  # noqa: F401 — metadata for create_all
         assert models
         from extensions import db
-        db.create_all()
+        from utils.schema import migrate; migrate(db.engine)
     out = open(args.out, 'w', encoding='utf-8')
     L = Ledger(app, out)
     tag = uuid.uuid4().hex[:6]
