@@ -276,14 +276,16 @@ class TestRegisteredTenants:
             assert halcyon['arc']['arc_type'] == 'exec_sponsor_change'
             assert halcyon['leading_vs_trailing']['first_leading_warning_at'] is not None
             assert all(s['qual'] is not None and s['qual'] < 50 for s in halcyon['leading_vs_trailing']['series'])
-            # the expansion story is evidence-complete but the expansion arcs need a health predicate
-            # (very_healthy / healthy) that a signals-only tenant cannot satisfy — P1's open half
+            # P1 closed 2026-09-05: with no KPI layer the arc rules use their evidence equivalents,
+            # so the expansion story classifies on the evidence alone and says so
             orchard = journeys['Orchard Retail']
             roles = set()
             for s in orchard['leading_vs_trailing']['series']:
                 roles |= set(s['roles'])
-            assert {'expansion_intent', 'advocacy'} <= roles and orchard['state'] == 'unclassified'
-            assert reg['wizard_a']['coverage']['unclassified'] >= 4
+            assert {'expansion_intent', 'advocacy'} <= roles
+            assert orchard['arc']['arc_type'] == 'expansion_champion' and orchard['arc']['evidence_scope'] == 'evidence_only'
+            assert orchard['phases_basis'] == 'evidence' and orchard['data_coverage']['kpi_layer'] in ('none', 'not_yet')
+            assert reg['wizard_a']['coverage']['classified'] >= 2
 
 
 if __name__ == '__main__':

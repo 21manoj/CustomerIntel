@@ -29,7 +29,8 @@ logger = logging.getLogger(__name__)
 #   3.1  live months, quote/confidence/requires_review/review on episodes,
 #        unreviewed weighting, generator_version inside the JSON (2026-09-04)
 #   3.2  narrative block — cited prose, template_v1 (2026-09-04)
-GENERATOR_VERSION = '3.2'
+#   3.3  data_coverage, evidence phases, evidence-only arc predicates (2026-09-05)
+GENERATOR_VERSION = '3.3'
 
 
 def stale_journey_query(customer_id: Optional[int] = None):

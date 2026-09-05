@@ -262,6 +262,61 @@ def detect_phases(points: List[tuple], episodes: List[Episode]) -> List[dict]:
     return segments
 
 
+def detect_phases_from_evidence(episodes: List[Episode], months: List[date]) -> List[dict]:
+    """Phases when there is no KPI layer: per month, from the roles that
+    happened (evidence_phase_rules in health_thresholds.json). Same segment
+    shape as detect_phases, with health_start/end None and basis='evidence'."""
+    if not months:
+        return []
+    rules = ht.evidence_phase_rules()
+    by_month: Dict[str, List[Episode]] = {}
+    for e in episodes:
+        if e.kind == 'signal' and e.role:
+            by_month.setdefault(e.date.strftime('%Y-%m'), []).append(e)
+
+    labels = []
+    prev, quiet_run = 'baseline', 0
+    for m in months:
+        eps = by_month.get(m.strftime('%Y-%m'), [])
+        neg = [e for e in eps if e.polarity < 0]
+        pos = [e for e in eps if e.polarity > 0]
+        interventions = [e for e in eps if e.role == 'intervention']
+        if interventions:
+            ph, trigger = 'intervention', interventions[0]
+        elif neg and len(neg) > len(pos):
+            ph, trigger = 'deterioration', neg[0]
+        elif pos and prev in ('deterioration', 'intervention', 'resolution'):
+            ph, trigger = 'resolution', pos[0]
+        elif pos:
+            ph, trigger = 'baseline', pos[0]
+        elif eps:
+            ph, trigger = prev if prev != 'resolution' else 'baseline', eps[0]
+        else:
+            quiet_run += 1
+            ph, trigger = (prev if quiet_run < rules['quiet_months_to_baseline'] else 'baseline'), None
+        if eps:
+            quiet_run = 0
+        labels.append((m, ph, trigger, len(neg), len(pos)))
+        prev = ph
+
+    segments: List[dict] = []
+    for m, ph, trigger, n_neg, n_pos in labels:
+        if segments and segments[-1]['name'] == ph:
+            segments[-1]['months'] += 1
+            segments[-1]['negative_signals'] += n_neg
+            segments[-1]['positive_signals'] += n_pos
+            continue
+        if segments:
+            segments[-1]['exited_at'] = m.isoformat()
+        segments.append({
+            'name': ph, 'entered_at': m.isoformat(), 'exited_at': None, 'months': 1,
+            'health_start': None, 'health_end': None, 'basis': 'evidence',
+            'trigger_episode_id': trigger.episode_id if trigger else None,
+            'negative_signals': n_neg, 'positive_signals': n_pos,
+        })
+    return segments
+
+
 # ═══════════════════════════════════════════════════════════════════════
 # Leading vs trailing
 # ═══════════════════════════════════════════════════════════════════════
@@ -419,11 +474,23 @@ def build_journey(account, vertical: str) -> dict:
     episodes = collect_episodes(account, taxonomy, health_rows)
     live_months = _live_months(points, episodes)
     last_evidence = max((e.date for e in episodes if e.kind == 'signal'), default=None)
-    as_of = month_end(points[-1][0]) if points else datetime.utcnow()
-    if last_evidence and last_evidence > as_of:
-        as_of = min(last_evidence, datetime.utcnow())     # evidence after the last scored month moves 'now' forward
+    if points:
+        as_of = month_end(points[-1][0])
+        if last_evidence and last_evidence > as_of:
+            as_of = min(last_evidence, datetime.utcnow())     # evidence after the last scored month moves 'now' forward
+    else:
+        # no KPI layer: 'now' is the latest evidence (capped at today) — a replayed or historical signals-only
+        # tenant is read as of its last signal, not as of the wall clock, or every 90-day window would be empty
+        as_of = min(last_evidence, datetime.utcnow()) if last_evidence else datetime.utcnow()
 
-    phases = detect_phases(points, episodes)
+    from journeys.coverage import data_coverage
+    coverage = data_coverage(account, points, episodes, as_of)
+    if points:
+        phases = detect_phases(points, episodes)
+        phases_basis = 'health'
+    else:
+        phases = detect_phases_from_evidence(episodes, live_months)
+        phases_basis = 'evidence'
     lvt = leading_series(points + [(m, None) for m in live_months], kpi_only, episodes)
     fv = feat.compute(account, vertical, taxonomy, points, episodes, phases, lvt, as_of)
     arc = arc_classifier.classify(fv, episodes, taxonomy, as_of)
@@ -447,6 +514,8 @@ def build_journey(account, vertical: str) -> dict:
         'state': arc['state'],
         'current_phase': phases[-1]['name'] if phases else None,
         'phases': phases,
+        'phases_basis': phases_basis,
+        'data_coverage': coverage,
         'episodes': [e.to_json() for e in episodes],
         'leading_vs_trailing': lvt,
         'counterfactual_hooks': hooks,

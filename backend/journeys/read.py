@@ -132,6 +132,8 @@ def list_journeys(customer_id: int) -> List[dict]:
             'live_months': len(jj.get('live_months') or []), 'last_evidence_at': jj.get('last_evidence_at'),
             'latest': {'month': latest.get('month'), 'kpi_only': latest.get('kpi_only'), 'qual': latest.get('qual'),
                        'early_warning': latest.get('early_warning'), 'roles': latest.get('roles')},
+            'data_coverage': {k: (jj.get('data_coverage') or {}).get(k) for k in ('kpi_layer', 'months_scored', 'evidence_count', 'last_evidence_at', 'contract_shape')},
+            'phases_basis': jj.get('phases_basis'),
             'first_leading_warning_at': (jj.get('leading_vs_trailing') or {}).get('first_leading_warning_at'),
             'lead_days': (jj.get('leading_vs_trailing') or {}).get('lead_days'),
             'episodes': len(jj.get('episodes') or []), 'open_review_count': open_by_acct.get(a.account_id, 0),

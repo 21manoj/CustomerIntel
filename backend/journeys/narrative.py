@@ -146,7 +146,10 @@ def _t_phase_open(phase: dict, by_id: Dict[str, dict], account: str, first: bool
         return None
     name = phase['name'].replace('_', ' ')
     when = _month(phase['entered_at'])
-    if first:
+    if first and phase.get('health_start') is None:
+        text = (f"From {when} {account} is read from evidence alone (no KPI layer); the first thing it showed was "
+                f"{_ROLE_VERB.get(trig.get('role'), 'activity')}: {_phrase(trig)}.")
+    elif first:
         text = (f"From {when} {account} was in {name} on the numbers ({phase.get('health_start')}) "
                 f"while the evidence already showed {_ROLE_VERB.get(trig.get('role'), 'activity')}: {_phrase(trig)}.")
     else:
@@ -200,8 +203,16 @@ def _t_intervention(hook: dict, by_id: Dict[str, dict]) -> Optional[Tuple[str, L
 def _t_live_notice(journey: dict, live_eps: List[dict]) -> Optional[Tuple[str, List[str]]]:
     if not journey.get('live_months') or not live_eps:
         return None
-    return (f"No KPI upload has arrived since {_month(journey.get('last_scored_month'))}; what follows is live evidence only.",
-            [live_eps[0]['episode_id']])
+    cov = journey.get('data_coverage') or {}
+    layer = cov.get('kpi_layer')
+    if layer == 'none':
+        text = (f"This account has no KPI layer ({cov.get('basis')}); everything here is read from evidence — "
+                f"{cov.get('evidence_count')} signals over {cov.get('evidence_span_days')} days.")
+    elif layer == 'not_yet':
+        text = f"No KPI upload yet ({cov.get('basis')}); what follows is evidence only."
+    else:
+        text = f"No KPI upload has arrived since {_month(journey.get('last_scored_month'))}; what follows is live evidence only."
+    return text, [live_eps[0]['episode_id']]
 
 
 def _t_arc(arc: dict, by_id: Dict[str, dict]) -> Optional[Tuple[str, List[str]]]:
@@ -241,7 +252,7 @@ def build_narrative(journey: dict, rejected: Optional[List[dict]] = None) -> dic
     hooks = journey.get('counterfactual_hooks') or []
     hook_ids = {h.get('episode_id') for h in hooks}
     hook_outcome_ids = {o.get('episode_id') for h in hooks for o in h.get('outcomes_after', [])}
-    live_from = _d(journey['live_months'][0]) if journey.get('live_months') else None
+    live_from = _d(journey['live_months'][0]) if journey.get('live_months') and journey.get('phases_basis') != 'evidence' else None
     live_eps = [e for e in episodes if live_from and _d(e['date']) >= live_from]      # every kind: signals, outcomes, decisions
 
     chapters, omitted = [], []
@@ -255,6 +266,13 @@ def build_narrative(journey: dict, rejected: Optional[List[dict]] = None) -> dic
             text, cites = res
             sentences.append({'text': text, 'cites': list(dict.fromkeys(cites)), 'template': template})
 
+        if ci == 0 and journey.get('phases_basis') == 'evidence':
+            first_sig = next((e for e in episodes if e['kind'] == 'signal'), None)
+            if first_sig:
+                cov = journey.get('data_coverage') or {}
+                sentences.append({'text': (f"This account has no KPI layer ({cov.get('basis')}); everything here is read from evidence — "
+                                           f"{cov.get('evidence_count')} signals over {cov.get('evidence_span_days')} days."),
+                                  'cites': [first_sig['episode_id']], 'template': 'coverage_notice'})
         if '_phase' in ch:
             trig_id = ch['_phase'].get('trigger_episode_id')
             if trig_id in hook_ids and ci > 0:

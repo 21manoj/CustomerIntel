@@ -43,5 +43,20 @@
     "resolution_slope_pts": 3,
     "deterioration_health_ceiling_offset": 5,
     "phase_trigger_lookback_days": 45
+  },
+  "data_coverage": {
+    "_description": "Derived per account at every journey rebuild — never configured per tenant. kpi_layer: present (scored month within kpi_stale_after_days) | stale (scored, but older) | not_yet (no KPI yet, evidence younger than no_kpi_layer_after_days, subscription contract) | none (no KPI layer: evidence older than that, or an installed-base contract). Phases, arc predicates, backtest comparator and wording branch on it and SAY which way they went.",
+    "no_kpi_layer_after_days": 45,
+    "kpi_stale_after_days": 75,
+    "installed_base_contract_types": [
+      "hardware",
+      "perpetual",
+      "maintenance",
+      "capital_equipment"
+    ]
+  },
+  "evidence_phase_rules": {
+    "_description": "Journey phases from evidence alone (no KPI layer). Per month: an intervention-role signal → intervention; more negative-role than positive-role signals → deterioration; a positive month after a negative/intervention phase → resolution; a quiet month keeps the previous phase until quiet_months_to_baseline in a row, then baseline.",
+    "quiet_months_to_baseline": 2
   }
 }

@@ -117,7 +117,26 @@ _NEGATIVE_FOR_STEADY = {
 }
 
 
+# Evidence equivalents of the health predicates, used when the account has no
+# KPI layer (features['evidence_only']). The arc says so: evidence_scope =
+# 'evidence_only'. Same rules, a different witness.
+_EVIDENCE_EQUIV = {
+    'below_healthy': lambda f: f['negative_signals_90d'] > 0 or bool(f.get('had_negative_phase')),
+    'below_at_risk': lambda f: bool(f.get('had_negative_phase')),
+    'below_at_risk_or_dipped': lambda f: bool(f.get('had_negative_phase')),
+    'below_healthy_or_had_negative_phase': lambda f: f['negative_signals_90d'] > 0 or bool(f.get('had_negative_phase')),
+    'declining': lambda f: f['negative_signals_90d'] > 0,
+    'declining_3mo': lambda f: f['negative_signals_90d'] > 0 or bool(f.get('had_negative_phase')),
+    'recovering': lambda f: bool(f.get('had_negative_phase')) and f['recovery_signals_90d'] > 0,
+    'healthy': lambda f: f['negative_signals_90d'] == 0 and f['positive_signals_90d'] > 0,
+    'very_healthy': lambda f: f['negative_signals_90d'] == 0 and f['positive_signals_90d'] >= 2,
+    'flat': lambda f: f['negative_signals_90d'] == 0,
+}
+
+
 def _health_pred(name: str, f: dict) -> bool:
+    if f.get('evidence_only') and name in _EVIDENCE_EQUIV:
+        return _EVIDENCE_EQUIV[name](f)
     if name == 'below_at_risk_or_dipped':
         return _f('below_at_risk')(f) or bool(f['dipped_below_at_risk'])
     if name == 'below_healthy_or_had_negative_phase':
@@ -192,15 +211,17 @@ def classify(features: dict, episodes: List[Episode], taxonomy, as_of: datetime)
             'contradicting_evidence': contradicting,
             'alternatives': alternatives,
             'observed_roles': observed_roles,
-            'evidence_scope': 'whole_journey',
+            'evidence_scope': 'evidence_only' if features.get('evidence_only') else 'whole_journey',
         }
 
     healthy = features['health_now'] is not None and features['health_now'] >= ht.healthy_min()
     quiet = not recent_negative and not features.get('had_negative_phase')
     if healthy and _f('flat')(features) and quiet:
         state, reason = 'steady', f'healthy, flat, no negative-role signals in the last {STEADY_QUIET_DAYS} days, no negative phase'
+    elif features['health_now'] is None and quiet:
+        state, reason = 'steady', f'no KPI layer; no negative-role signals in the last {STEADY_QUIET_DAYS} days, no negative phase (evidence only)'
     elif features['health_now'] is None:
-        state, reason = 'unclassified', 'no health scores'
+        state, reason = 'unclassified', f"no KPI layer; observed roles {observed_roles or 'none'} — no rule satisfied on the evidence alone"
     else:
         state, reason = 'unclassified', (
             f"observed roles {observed_roles or 'none'} with health "
@@ -217,5 +238,5 @@ def classify(features: dict, episodes: List[Episode], taxonomy, as_of: datetime)
         'alternatives': alternatives,
         'observed_roles': observed_roles,
         'reason': reason,
-        'evidence_scope': 'whole_journey',
+        'evidence_scope': 'evidence_only' if features.get('evidence_only') else 'whole_journey',
     }

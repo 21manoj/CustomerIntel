@@ -48,6 +48,7 @@ def compute(account, vertical: str, taxonomy, points: List[tuple], episodes: Lis
     role_counts_90: Dict[str, int] = {}
     role_counts_total: Dict[str, int] = {}
     unmapped_90 = 0
+    negative_90 = positive_90 = recovery_90 = 0
     last_role_at: Dict[str, str] = {}
     for e in episodes:
         if e.kind != 'signal':
@@ -58,6 +59,12 @@ def compute(account, vertical: str, taxonomy, points: List[tuple], episodes: Lis
             role_counts_90[key] = role_counts_90.get(key, 0) + 1
             if not e.role:
                 unmapped_90 += 1
+            if e.polarity < 0:
+                negative_90 += 1
+            elif e.polarity > 0:
+                positive_90 += 1
+            if e.role == 'recovery':
+                recovery_90 += 1
         if e.role and e.date <= as_of:
             last_role_at[e.role] = e.date.date().isoformat()
 
@@ -109,6 +116,10 @@ def compute(account, vertical: str, taxonomy, points: List[tuple], episodes: Lis
         'current_phase': current['name'] if current else None,
         'phases_seen': [p['name'] for p in phases],
         'had_negative_phase': any(p['name'] in ('deterioration', 'intervention') for p in phases),
+        'evidence_only': health_now is None,                      # no KPI layer: arc predicates use their evidence equivalents
+        'negative_signals_90d': negative_90,
+        'positive_signals_90d': positive_90,
+        'recovery_signals_90d': recovery_90,
         'time_in_phase_days': time_in_phase_days,
         'days_to_renewal': renewal,
         'days_to_renewal_band': days_to_renewal_band(renewal),

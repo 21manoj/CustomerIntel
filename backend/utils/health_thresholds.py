@@ -45,6 +45,14 @@ def leading_indicator_config() -> dict:
     return _load_full()['leading_indicator']
 
 
+def data_coverage_config() -> dict:
+    return _load_full()['data_coverage']
+
+
+def evidence_phase_rules() -> dict:
+    return _load_full()['evidence_phase_rules']
+
+
 def phase_rules() -> dict:
     """Journey phase-detection parameters (journeys/)."""
     return _load_full()['phase_rules']
