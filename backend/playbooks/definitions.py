@@ -10,7 +10,8 @@ Playbook definitions and the governance config.
 Validation at load (design §2): roles must exist in the vertical's taxonomy,
 outcome types in its revenue buckets (the check log_outcome makes),
 action_class / approval / roles_match / urgency_floor from the governance
-enums, and approval=auto only for the classes the config allows.
+enums, approval=auto only for the classes the config allows, and a label that
+never carries the INTERVENTION title separator (the narrative cuts there).
 """
 from __future__ import annotations
 
@@ -43,6 +44,7 @@ def reset_cache() -> None:
 
 def _validate_playbook(pb: dict, vertical: str, taxonomy, gov: dict, seen: set) -> dict:
     from signal_engine.urgency import LEVELS
+    from playbooks.governance import TITLE_SEP
     name = f"{vertical}.json playbook {pb.get('id')!r}"
     pid = pb.get('id')
     if not pid or not isinstance(pid, str):
@@ -50,6 +52,10 @@ def _validate_playbook(pb: dict, vertical: str, taxonomy, gov: dict, seen: set) 
     if pid in seen:
         raise PlaybookConfigError(f'{name}: duplicate id')
     seen.add(pid)
+    label = pb.get('label') or pid.replace('_', ' ')
+    if TITLE_SEP in label:
+        raise PlaybookConfigError(f'{name}: label must not contain {TITLE_SEP!r} — the INTERVENTION node title is '
+                                  f'"<label>{TITLE_SEP}<account>" and the narrative cuts at the first one (use a colon)')
     trig = pb.get('trigger') or {}
     roles = trig.get('roles') or []
     if not roles or not isinstance(roles, list):
@@ -86,7 +92,7 @@ def _validate_playbook(pb: dict, vertical: str, taxonomy, gov: dict, seen: set) 
     if not isinstance(win, int) or win <= 0:
         raise PlaybookConfigError(f'{name}: expected_outcome.window_days must be a positive integer')
     return {
-        'id': pid, 'label': pb.get('label') or pid.replace('_', ' '),
+        'id': pid, 'label': label,
         'trigger': {'roles': list(roles), 'roles_match': match, 'urgency_floor': floor, 'renewal_within_days': rwd},
         'action_class': ac, 'approval': ap,
         'expected_outcome': {'types': list(types), 'window_days': win},

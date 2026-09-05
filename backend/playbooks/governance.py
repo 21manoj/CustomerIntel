@@ -5,6 +5,9 @@ Interventions — propose, approve+send, report, list (design §3–§7).
     approve(customer_id, intervention_id, note=None)              human/policy approval → signed webhook → INTERVENTION node → 'sent'
     report(customer_id, intervention_id, state, ...)              the external workflow's callback → 'closed' (+ outcome)
     list_interventions(customer_id, account_id=None, state=None)  the read, with stuck ones and the per-playbook numbers
+    health_counts()                                               the platform-wide numbers /health reports (same definitions)
+    intervention_title(playbook_label, account_name)              the INTERVENTION node's title — approve and the repair
+                                                                  script (scripts/repair_intervention_titles.py) share it
 
 Rules kept: every proposal cites episode ids; a human approves anything
 beyond a notification; every state change is a tool_audit_log row carrying
@@ -28,6 +31,18 @@ SOURCE_PLATFORM = 'playbook'
 CREATED_BY = 'approve_intervention'
 AUDIT_SURFACE = 'playbook'
 SYSTEM_ACTOR = {'key_kind': 'system', 'key_record': None, 'key_id': None, 'label': 'system:journey_rebuild'}
+TITLE_SEP = ' — '          # journeys.narrative._strip_suffix cuts a title at the first one: a playbook label never contains it
+
+
+def intervention_title(playbook_label: str, account_name: Optional[str]) -> str:
+    """'<playbook label> — <account name>', the one way an INTERVENTION node is titled. The narrative reads the
+    label back by cutting at the first ' — ' (journeys.narrative._strip_suffix), which is why the label itself
+    must not carry that separator (playbooks.definitions refuses one that does) and why the separator lives here."""
+    from models import ContextNode
+    label = (playbook_label or '').strip()
+    name = (account_name or '').strip()
+    title = f'{label}{TITLE_SEP}{name}' if name else label
+    return title[:ContextNode.__table__.c.title.type.length]
 
 
 # ── who ───────────────────────────────────────────────────────────────
@@ -255,13 +270,15 @@ def _get(customer_id: int, intervention_id: int):
     return row
 
 
-def _playbook_def(row) -> dict:
+def playbook_def(customer_id: int, playbook_id: str, action_class: Optional[str] = None) -> dict:
+    """The CURRENT definition of a playbook for the tenant's vertical. A playbook that no longer exists (renamed,
+    removed from the vertical file) comes back as its id humanised, so a row or node written under it still reads."""
     from playbooks.definitions import load_vertical
     from utils.vertical_registry import get_vertical_for_customer
-    for p in load_vertical(get_vertical_for_customer(row.customer_id))['playbooks']:
-        if p['id'] == row.playbook_id:
+    for p in load_vertical(get_vertical_for_customer(int(customer_id)))['playbooks']:
+        if p['id'] == playbook_id:
             return p
-    return {'id': row.playbook_id, 'label': row.playbook_id.replace('_', ' '), 'action_class': row.action_class}
+    return {'id': playbook_id, 'label': playbook_id.replace('_', ' '), 'action_class': action_class}
 
 
 def _triggers(row) -> List[dict]:
@@ -303,7 +320,7 @@ def approve(customer_id: int, intervention_id: int, note: Optional[str] = None, 
     acct = db.session.get(Account, row.account_id)
     cust = db.session.get(Customer, row.customer_id)
     triggers = _triggers(row)
-    pb = _playbook_def(row)
+    pb = playbook_def(row.customer_id, row.playbook_id, row.action_class)
     payload = webhook.build_payload(row, acct, cust, triggers, actor['label'], block(cust))
     delivery = webhook.deliver(cfg.get('webhook_url'), tenant_secret(customer_id), payload)
     row.sent_at = datetime.utcnow()
@@ -312,7 +329,7 @@ def approve(customer_id: int, intervention_id: int, note: Optional[str] = None, 
 
     node = ContextNode(
         customer_id=row.customer_id, account_id=row.account_id, node_type=NODE_TYPE, node_subtype=row.playbook_id,
-        source='observed', tier=1, title=f"{pb['label']} — {acct.account_name}"[:500],
+        source='observed', tier=1, title=intervention_title(pb['label'], acct.account_name),
         properties={'intervention_id': row.id, 'playbook_id': row.playbook_id, 'playbook_version': row.playbook_version,
                     'action_class': row.action_class, 'approved_by': row.approved_by, 'approved_at': row.approved_at.isoformat(),
                     'trigger_episode_ids': list(row.trigger_episode_ids or []), 'trigger_quote': row.trigger_quote,
@@ -421,17 +438,25 @@ def report(customer_id: int, intervention_id: int, state: str, note: Optional[st
 # ── read ──────────────────────────────────────────────────────────────
 
 def _stuck(row, now: datetime, after_days: int) -> Optional[int]:
+    """Days a sent row has waited without any report once past after_days; None otherwise. The one definition
+    of 'stuck' (row_view, list_interventions, health_counts)."""
     if row.state != 'sent' or row.last_report_at:
         return None
     days = (now - row.sent_at).days if row.sent_at else None
     return days if days is not None and days >= after_days else None
 
 
+def _delivery_problem(row) -> bool:
+    """A delivery record whose status is not 'delivered' (failed, not_configured). The one definition."""
+    from playbooks.webhook import DELIVERED
+    d = row.delivery or {}
+    return bool(d) and d.get('status') != DELIVERED
+
+
 def row_view(row, now: Optional[datetime] = None) -> dict:
     from playbooks.definitions import governance
     now = now or datetime.utcnow()
     stuck_days = _stuck(row, now, int(governance()['stuck_after_days']))
-    d = row.delivery or {}
     iso = lambda x: x.isoformat() if x else None
     return {
         'intervention_id': row.id, 'customer_id': row.customer_id, 'account_id': row.account_id,
@@ -443,12 +468,33 @@ def row_view(row, now: Optional[datetime] = None) -> dict:
         'exposure_revenue': float(row.exposure_revenue) if row.exposure_revenue is not None else None,
         'proposed_at': iso(row.proposed_at), 'proposed_by': row.proposed_by,
         'approved_at': iso(row.approved_at), 'approved_by': row.approved_by, 'approved_by_key_id': row.approved_by_key_id,
-        'sent_at': iso(row.sent_at), 'delivery': row.delivery, 'delivery_problem': bool(d) and d.get('status') != 'delivered',
+        'sent_at': iso(row.sent_at), 'delivery': row.delivery, 'delivery_problem': _delivery_problem(row),
         'started_at': iso(row.started_at), 'last_report_at': iso(row.last_report_at),
         'closed_at': iso(row.closed_at), 'closed_by': row.closed_by,
         'outcome': {'node_id': row.outcome_node_id, 'in_window': row.outcome_in_window, 'expected': row.outcome_expected} if row.outcome_node_id else None,
         'node_id': row.node_id, 'stuck': stuck_days is not None, 'stuck_days': stuck_days, 'notes': row.notes or [],
     }
+
+
+def health_counts(now: Optional[datetime] = None) -> dict:
+    """The platform-wide intervention numbers /health reports, across every tenant:
+    {'total', 'by_state': {<each governance state>: n}, 'stuck', 'delivery_problems'} — stuck and delivery
+    problem by the same definitions list_interventions uses (_stuck, _delivery_problem)."""
+    from extensions import db
+    from sqlalchemy import func
+    from models import Intervention
+    from playbooks.definitions import governance
+    gov = governance()
+    now = now or datetime.utcnow()
+    by_state = {s: 0 for s in gov['states']}
+    for state, n in db.session.query(Intervention.state, func.count(Intervention.id)).group_by(Intervention.state).all():
+        by_state[state] = int(n)
+    after_days = int(gov['stuck_after_days'])
+    stuck = delivery_problems = 0
+    for r in Intervention.query.filter(Intervention.sent_at.isnot(None)).all():   # only a sent row can be stuck or undelivered
+        stuck += int(_stuck(r, now, after_days) is not None)
+        delivery_problems += int(_delivery_problem(r))
+    return {'total': sum(by_state.values()), 'by_state': by_state, 'stuck': stuck, 'delivery_problems': delivery_problems}
 
 
 def list_interventions(customer_id: int, account_id: Optional[int] = None, state: Optional[str] = None) -> dict:

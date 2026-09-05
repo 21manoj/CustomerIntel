@@ -122,6 +122,7 @@ def build_asgi_app(database_url: str | None = None, create_schema: bool = True):
             with app.app_context():
                 db.session.execute(text('select 1'))
                 from journeys.wizard_a import stale_journey_query, GENERATOR_VERSION
+                from playbooks.governance import health_counts
                 from sqlalchemy import func
                 by_origin = dict(db.session.query(func.coalesce(Customer.data_origin, 'undeclared'), func.count(Customer.customer_id))
                                  .group_by(func.coalesce(Customer.data_origin, 'undeclared')).all())
@@ -131,6 +132,7 @@ def build_asgi_app(database_url: str | None = None, create_schema: bool = True):
                     'journeys': JourneyData.query.count(),
                     'stale_journeys': stale_journey_query().count(),   # behind GENERATOR_VERSION; deploy rebuilds them
                     'wizard_runs': WizardRun.query.count(),
+                    'interventions': health_counts(),   # total / by_state / stuck / delivery_problems, playbooks.governance's definitions
                 }
             status, db_ok = 200, True
         except Exception as e:  # pragma: no cover — only on a broken DB
