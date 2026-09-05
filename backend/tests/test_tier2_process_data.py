@@ -213,7 +213,7 @@ class TestCanonicalRegistration:
             assert titan.external_account_id == 'ACC-1'    # persisted so later KPI-only uploads resolve
             pm = titan.profile_metadata
             assert pm['csm_name'] == 'Sarah Rivera'
-            assert pm['employee_count'] == 4592           # coerced to int, as pandas did
+            assert pm['attributes']['employee_count'] == 4592   # an extension now (folded, coerced to int); not a named field
             assert pm['products'][0]['name'] == 'Managed Kubernetes'
             assert 'executive_sponsor' not in pm           # blank cell → absent, never 'nan'
 

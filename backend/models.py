@@ -224,6 +224,7 @@ class CustomerConfig(db.Model):
     customer_id = db.Column(db.Integer, db.ForeignKey('customers.customer_id'), unique=True)
 
     kpi_upload_mode = db.Column(db.String, default='corporate')  # 'corporate' or 'account_rollup'
+    column_map = db.Column(db.JSON, nullable=True)   # per-file renames: {file_type: {their_column: our_column}} applied at upload (configure_column_map)
     category_weights = db.Column(db.Text)  # JSON string of category weights
     master_file_name = db.Column(db.String)  # Name of uploaded master file
     openai_api_key_encrypted = db.Column(db.Text, nullable=True)
@@ -528,6 +529,7 @@ class QualitativeSignal(db.Model):
     source_ref = db.Column(db.String(255), nullable=True)      # ticket id / message ts / CRM activity id
     extractions = db.Column(db.JSON, nullable=True)            # v2: every signal the model found [{subtype, role, quote, ...}]
     use_case = db.Column(db.String(120), nullable=True)         # which of the account's declared use cases this is about
+    attributes = db.Column(db.JSON, nullable=True)              # customer extensions (never scored, never sent to the model)
     occurred_at = db.Column(db.DateTime, nullable=True)
 
     __table_args__ = (
@@ -575,6 +577,7 @@ class KPIMeasurement(db.Model):
     target = db.Column(db.Numeric(10, 2))
     pillar = db.Column(db.String(10), index=True)
     upload_id = db.Column(db.Integer, nullable=True, index=True)   # lineage: the CsvUpload this row came from (NULL for pre-lineage rows)
+    attributes = db.Column(db.JSON, nullable=True)                 # customer extensions (never scored)
     weight = db.Column(db.Numeric(5, 4))
     status = db.Column(db.String(20))
     measured_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)

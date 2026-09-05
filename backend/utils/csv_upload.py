@@ -46,6 +46,7 @@ class FileTypeInfo:
 # here — found 2026-09-01 during the Tier 2A-3 live-parity run.
 _COLUMN_ALIASES: dict[str, tuple[str, ...]] = {
     'source_account_id': ('account_id',),
+    'arr': ('revenue',),
     'occurred_at': ('signal_date', 'date', 'outcome_date'),
     'source_ref': ('signal_ref', 'signal_id', 'outcome_id'),
     'content': ('signal_text', 'text'),
@@ -58,9 +59,93 @@ _COLUMN_ALIASES: dict[str, tuple[str, ...]] = {
 
 def _known_columns(info: 'FileTypeInfo') -> set[str]:
     known = set(info.required_columns) | set(info.optional_columns)
-    for col in info.required_columns:
+    for col in list(info.required_columns) + list(info.optional_columns):
         known.update(_COLUMN_ALIASES.get(col, ()))
     return known
+
+
+def known_columns(file_type: str) -> set[str]:
+    """Every column name the platform reads for a file (canonical + aliases). Anything else folds into attributes."""
+    return _known_columns(resolve_file_type(file_type))
+
+
+def apply_column_map(customer_id: int, canonical_filename: str, rows: list, headers: set) -> tuple[list, set, list[str]]:
+    """Rename a customer's columns to ours per the tenant's column map ({file_type: {their: ours}}).
+    'attributes.x' as a source means the same as 'x' (promotion of an extension into a field we read)."""
+    try:
+        from models import CustomerConfig
+        cc = CustomerConfig.query.filter_by(customer_id=int(customer_id)).first()
+        cmap = ((cc.column_map or {}) if cc else {}).get(canonical_filename) or {}
+    except Exception:
+        cmap = {}
+    if not cmap:
+        return rows, headers, []
+    renames = {(k[len('attributes.'):] if k.startswith('attributes.') else k): v for k, v in cmap.items()}
+    applied = [f'{k} → {v}' for k, v in renames.items() if k in headers]
+    if not applied:
+        return rows, headers, []
+    new_rows = []
+    for r in rows:
+        nr = {}
+        for k, v in r.items():
+            nr[renames.get(k, k)] = v
+        new_rows.append(nr)
+    new_headers = {renames.get(h, h) for h in headers}
+    return new_rows, new_headers, [f'column map applied: {", ".join(applied)}']
+
+
+def _attributes_size_warnings(rows: list, unknown: list[str]) -> list[str]:
+    """Rows whose customer extensions would exceed the cap (rejected at ingest)."""
+    cap = attributes_max_bytes()
+    over = 0
+    for r in rows:
+        blob = {k: r.get(k) for k in unknown if r.get(k)}
+        raw = (r.get('attributes') or '').strip()
+        size = len(raw.encode('utf-8')) + len(json.dumps(blob).encode('utf-8'))
+        if size > cap:
+            over += 1
+    return [f'{over} row(s) carry more than {cap} bytes of attributes — those rows will be rejected at ingest'] if over else []
+
+
+def attributes_max_bytes() -> int:
+    with open(_SCHEMAS_PATH) as f:
+        return int(json.load(f).get('attributes_max_bytes', 4096))
+
+
+def _kpi_catalog_warnings(customer_id: int, rows: list) -> list[str]:
+    """kpi_code not in the vertical catalog, and catalog-owned columns (target) that disagree with it."""
+    try:
+        from utils.vertical_registry import get_vertical_for_customer, get_kpis
+        kpis = get_kpis(get_vertical_for_customer(int(customer_id)))
+    except Exception:
+        return []
+    unknown: dict[str, int] = {}
+    disagree: dict[str, int] = {}
+    for r in rows[:5000]:
+        code = (r.get('kpi_code') or '').strip()
+        if not code:
+            continue
+        kdef = kpis.get(code)
+        if not kdef:
+            unknown[code] = unknown.get(code, 0) + 1
+            continue
+        t = (r.get('target') or '').strip()
+        if t:
+            cat = kdef.get('target')
+            cat_v = cat.get('value') if isinstance(cat, dict) else cat
+            try:
+                if cat_v is not None and abs(float(t) - float(cat_v)) > 1e-9:
+                    disagree[code] = disagree.get(code, 0) + 1
+            except (TypeError, ValueError):
+                pass
+    out = []
+    if unknown:
+        top = ', '.join(f'{k} ({n})' for k, n in sorted(unknown.items(), key=lambda kv: -kv[1])[:8])
+        out.append(f"kpi_code not in this tenant's catalog for {sum(unknown.values())} row(s): {top} — stored, not scored (the catalog decides what counts)")
+    if disagree:
+        top = ', '.join(sorted(disagree))
+        out.append(f"target differs from the catalog for {sum(disagree.values())} row(s) ({top}) — the catalog's target is used; pillar/target/weight/status columns are catalog-owned")
+    return out
 
 
 def _missing_required(info: 'FileTypeInfo', headers: set[str]) -> list[str]:
@@ -272,6 +357,14 @@ def _upload_csv_impl(
 
     required = set(info.required_columns)
 
+    # ── 2a. the tenant's column map (their names → ours) ──
+    rows, headers, map_notes = apply_column_map(customer_id, info.canonical_filename, rows, headers)
+    if map_notes:                                   # staged content carries OUR names; the map is applied once, here
+        buf = io.StringIO()
+        w = csv.DictWriter(buf, fieldnames=list(rows[0].keys()) if rows else sorted(headers))
+        w.writeheader(); w.writerows(rows)
+        csv_content = buf.getvalue()
+
     missing_required = _missing_required(info, headers)
     unknown_columns = sorted(headers - _known_columns(info))
 
@@ -284,8 +377,10 @@ def _upload_csv_impl(
             errors.append(msg)
         else:
             warnings.append(f"[non-strict] {msg} — file accepted anyway")
+    warnings.extend(map_notes)
     if unknown_columns:
-        warnings.append(f"Unknown columns (will be ignored): {unknown_columns}")
+        warnings.append(f"Unknown columns (folded into attributes): {unknown_columns}")
+        warnings.extend(_attributes_size_warnings(rows, unknown_columns))
     if len(rows) == 0:
         errors.append("CSV has no data rows.")
 
@@ -325,6 +420,8 @@ def _upload_csv_impl(
         warnings.extend(_signal_type_warnings(customer_id, rows))
     if info.canonical_filename == 'outcomes.csv':
         warnings.extend(_outcome_type_warnings(customer_id, rows))
+    if info.canonical_filename == 'kpi_measurements.csv':
+        warnings.extend(_kpi_catalog_warnings(customer_id, rows))
 
     # ── 4. Stage to DB ──
     return _upload_to_staging(customer_id, info, csv_content, rows, warnings=warnings, key_kind=key_kind, key_id=key_id)

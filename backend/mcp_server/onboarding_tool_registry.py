@@ -45,6 +45,8 @@ KEYED_TOOLS = frozenset({
     'ask',
     'declare_data_origin',
     'import_communications',
+    'configure_column_map',
+    'get_column_map',
 })
 
 ALL_TOOLS = ONBOARDING_TOOLS | KEYED_TOOLS

@@ -84,13 +84,37 @@ PROFILE_KEYS = (
     'contract_start', 'contract_end', 'renewal_date',
     'csm_name', 'csm_email', 'csm_manager',
     'executive_sponsor', 'tier',
-    'primary_champion_name', 'primary_champion_title',
-    'primary_champion_email', 'primary_champion_engagement_score',
-    'employee_count', 'tech_stack', 'cloud_provider',
-    'deployment_type', 'competitive_landscape',
-    'strategic_initiatives', 'budget_cycle', 'fiscal_year_end',
+    'primary_champion_name', 'primary_champion_title', 'primary_champion_email',
     'purchase_date', 'refresh_date', 'contract_value', 'contract_type',      # installed-base / once-sold (P2)
-)
+)   # trimmed 2026-09-05: a named field exists only when something reads it; everything else is attributes
+
+
+def row_attributes(row: dict, file_type: str) -> tuple:
+    """Customer extensions for one row: the 'attributes' JSON column merged with every column the
+    platform does not read. Returns (attributes_dict, error) — error set when over the size cap."""
+    from utils.csv_upload import known_columns, attributes_max_bytes
+    known = known_columns(file_type)
+    attrs = {}
+    raw = (row.get('attributes') or '').strip()
+    if raw:
+        try:
+            parsed = json.loads(raw)
+            if isinstance(parsed, dict):
+                attrs.update(parsed)
+            else:
+                attrs['attributes'] = parsed
+        except (ValueError, TypeError):
+            attrs['attributes_raw'] = raw
+    for k, v in row.items():
+        if k and k not in known and v not in (None, ''):
+            attrs.setdefault(k, coerce(v))
+    if not attrs:
+        return {}, None
+    size = len(json.dumps(attrs, default=str).encode('utf-8'))
+    cap = attributes_max_bytes()
+    if size > cap:
+        return {}, f'attributes {size} bytes > {cap}'
+    return attrs, None
 
 # (name column, STAKEHOLDER node_subtype, title column, email column)
 STAKEHOLDER_FIELDS = (
@@ -278,6 +302,12 @@ def load_accounts(customer_id: int, vertical: str, rows: list[dict]) -> tuple[in
         uc = parse_use_cases(cell(row, 'use_cases'))
         if uc:
             profile['use_cases'] = uc
+        attrs, attr_err = row_attributes(row, 'account_details.csv')
+        if attr_err:
+            logger.warning('account row %r rejected: %s', name, attr_err)
+            continue
+        if attrs:
+            profile['attributes'] = attrs
 
         source_id = cell(row, 'source_account_id', 'account_id') or None
         existing = Account.query.filter_by(customer_id=customer_id, account_name=name).first()
@@ -380,11 +410,17 @@ def load_kpis(rows: list[dict], resolve: Callable, upload_id: Optional[int] = No
         if key in seen:
             continue
         seen.add(key)
+        attrs, attr_err = row_attributes(row, 'kpi_measurements.csv')
+        if attr_err:
+            skipped_blank += 0
+            logger.warning('kpi row %s/%s rejected: %s', acct_id, code, attr_err)
+            continue
         values.append({
             'account_id': acct_id,
             'kpi_code': code,
             'value': value,
             'upload_id': upload_id,
+            'attributes': attrs or None,
             'target': num(row, 'target'),
             'pillar': cell(row, 'pillar') or None,
             'weight': num(row, 'weight'),
@@ -445,6 +481,11 @@ def load_signals(customer_id: int, rows: list[dict], resolve: Callable) -> tuple
                 participants = None
         if sh_name:
             participants = (participants or []) + [{'name': sh_name, 'role': sh_title or 'contact', **({'email': sh_email} if sh_email else {})}]
+        attrs, attr_err = row_attributes(row, 'enhanced_qualitative_signals.csv')
+        if attr_err:
+            logger.warning('signal row %s rejected: %s', sig_id, attr_err)
+            skipped += 1
+            continue
         source_type = (cell(row, 'source_type') or 'csv_import').strip().lower()
         consent = cell(row, 'consent_verified').strip().lower() in ('1', 'true', 'yes') if cell(row, 'consent_verified') else (source_type != 'transcript')
         try:
@@ -455,7 +496,7 @@ def load_signals(customer_id: int, rows: list[dict], resolve: Callable) -> tuple
                 source_ref=cell(row, 'source_ref') or cell(row, 'signal_ref') or raw_id, signal_id=sig_id,
                 sentiment_score=cell(row, 'sentiment_score') or None,
                 origin_platform=cell(row, 'source_platform') or None, consent_verified=consent,
-                use_case=cell(row, 'use_case') or None,
+                use_case=cell(row, 'use_case') or None, attributes=attrs or None,
             )
         except ValueError as e:
             logger.warning('csv signal row skipped (%s): %s', sig_id, e)
@@ -556,12 +597,16 @@ def load_outcomes(customer_id: int, rows: list[dict], resolve: Callable) -> tupl
         if not source_ref and _key(acct_id, title, rev, otype, when_dt.date()) in existing:
             continue
         refs = [r.strip() for r in (cell(row, 'linked_signal_refs', 'linked_signal_id') or '').replace(',', ';').split(';') if r.strip()]
+        attrs, attr_err = row_attributes(row, 'outcomes.csv')
+        if attr_err:
+            logger.warning('outcome row %s rejected: %s', source_ref or title, attr_err)
+            continue
         try:
             res = log_outcome(customer_id, acct_id, otype, when_dt, revenue=rev, note=cell(row, 'note', 'evidence') or None,
                               linked_signal_ids=refs or None, decided_by=cell(row, 'decided_by') or None,
                               source_type='csv_import', source_ref=source_ref, rebuild=False, title=title or None,
                               use_case=cell(row, 'use_case') or None, origin_platform=cell(row, 'source_platform') or None,
-                              allow_unknown_type=True)
+                              allow_unknown_type=True, attributes=attrs or None)
         except ValueError as e:
             logger.warning('outcome row skipped (%s / %s): %s', acct_id, otype, e)
             continue

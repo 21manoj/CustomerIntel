@@ -58,7 +58,8 @@ def log_outcome(customer_id: int, account_id: int, outcome_type: str, occurred_a
                 note: Optional[str] = None, linked_signal_ids: Optional[List[str]] = None,
                 decided_by: Optional[str] = None, source_type: str = 'manual', source_ref: Optional[str] = None,
                 rebuild: bool = True, title: Optional[str] = None, use_case: Optional[str] = None,
-                origin_platform: Optional[str] = None, allow_unknown_type: bool = False) -> dict:
+                origin_platform: Optional[str] = None, allow_unknown_type: bool = False,
+                attributes: Optional[dict] = None) -> dict:
     """One lane for every outcome: the MCP tool, the HTTP route and the CSV loader all end here.
     `allow_unknown_type` (CSV lane): store a type outside the buckets with no direction rather than reject the row."""
     from extensions import db
@@ -114,7 +115,7 @@ def log_outcome(customer_id: int, account_id: int, outcome_type: str, occurred_a
         'decided_by': decided_by, 'logged_via': LOGGED_BY, 'bucket': bucket, 'evidence_tier': 'observed',
         'linked_signal_ids': [str(x) for x in (linked_signal_ids or [])], 'logged_at': datetime.utcnow().isoformat(),
         'use_case': use_case, 'origin_platform': origin_platform, 'sign_normalised': sign_disagreement,
-        'unknown_type': not bucket,
+        'unknown_type': not bucket, 'attributes': attributes or None,
     }
     # The CSV lane keeps the invariant the old loader had: only the row's own 'evidence' earns full confidence;
     # a bare id column is not evidence. A tool caller's source_ref (an order form named by a person) is.

@@ -31,26 +31,19 @@
           "use_cases"
         ],
         "optional_columns": [
-          "customer_id",
-          "vertical",
-          "primary_champion_engagement_score",
-          "employee_count",
-          "tech_stack",
-          "cloud_provider",
-          "deployment_type",
-          "competitive_landscape",
-          "strategic_initiatives",
-          "budget_cycle",
-          "fiscal_year_end",
-          "revenue",
-          "uuid",
           "purchase_date",
           "refresh_date",
           "contract_value",
-          "contract_type"
+          "contract_type",
+          "attributes"
         ],
         "db_table": "accounts + products + context_nodes(STAKEHOLDER)",
-        "note": "Enriched account file. 'products' is a JSON array: [{\"name\": \"...\", \"category\": \"...\", \"arr\": 1000000, \"use_case\": \"...\"}]. 'use_cases' is a JSON array of what the customer bought us for — strings or {name, product, status: planned|live|at_risk, owner, target_date}; it is read by the extractor (context), the journey/portfolio header, the narrative and Ask AI. 'account_status': active|onboarding|at_risk|churned|paused. Installed-base / once-sold accounts: purchase_date, refresh_date, contract_value (one-time), contract_type (subscription|perpetual|hardware|maintenance) — renewal_date may then carry the refresh date. Supersedes accounts.csv + products.csv + account_business_profiles.csv."
+        "note": "Enriched account file. 'products' is a JSON array: [{\"name\": \"...\", \"category\": \"...\", \"arr\": 1000000, \"use_case\": \"...\"}]. 'use_cases' is a JSON array of what the customer bought us for — strings or {name, product, status: planned|live|at_risk, owner, target_date}; it is read by the extractor (context), the journey/portfolio header, the narrative and Ask AI. 'account_status': active|onboarding|at_risk|churned|paused. Installed-base / once-sold accounts: purchase_date, refresh_date, contract_value (one-time), contract_type (subscription|perpetual|hardware|maintenance) — renewal_date may then carry the refresh date. Trimmed 2026-09-05: a named column exists only when something reads it; everything else goes in 'attributes'. Supersedes accounts.csv + products.csv + account_business_profiles.csv.",
+        "aliases": {
+          "arr": [
+            "revenue"
+          ]
+        }
       },
       "accounts.csv": {
         "_deprecated": true,
@@ -88,14 +81,21 @@
         ],
         "optional_columns": [
           "kpi_name",
+          "unit",
           "pillar",
           "target",
           "weight",
-          "unit",
-          "status"
+          "status",
+          "attributes"
         ],
-        "db_table": "dc2s_kpis",
-        "note": "NEVER use kpi_data.csv — always kpi_measurements.csv"
+        "db_table": "kpi_measurements",
+        "note": "Required: source_account_id, kpi_code (a code in the vertical catalog), measured_at, value. pillar / target / weight / status are CATALOG-OWNED: accepted for convenience and ignored by scoring — the catalog version stamped on each health row is the source of truth; a target that disagrees with the catalog is warned at upload. A blank value is a missing measurement (skipped and counted), never 0. NEVER use kpi_data.csv — always kpi_measurements.csv.",
+        "catalog_owned_columns": [
+          "pillar",
+          "target",
+          "weight",
+          "status"
+        ]
       },
       "enhanced_qualitative_signals.csv": {
         "required_columns": [
@@ -120,7 +120,8 @@
           "signal_date",
           "signal_ref",
           "signal_id",
-          "sentiment"
+          "sentiment",
+          "attributes"
         ],
         "aliases": {
           "occurred_at": [
@@ -249,7 +250,8 @@
           "evidence",
           "linked_signal_id",
           "outcome_name",
-          "confidence"
+          "confidence",
+          "attributes"
         ],
         "aliases": {
           "occurred_at": [
@@ -363,5 +365,7 @@
     "accounts.csv": "Superseded by account_details.csv. Still accepted as backward-compat alias.",
     "products.csv": "Absorbed into account_details.csv 'products' JSON column. Standalone upload still accepted.",
     "account_business_profiles.csv": "Absorbed into account_details.csv optional columns. Standalone upload still accepted."
-  }
+  },
+  "attributes_max_bytes": 4096,
+  "_customer_extensions": "Every file accepts an optional 'attributes' column (a JSON object) and any UNKNOWN column is folded into attributes.<column> at ingest (warned at upload, never dropped). Attributes are stored on the object (account profile, KPI row, evidence node, outcome node), shown on the surfaces that display it, never scored and never sent to the model or a webhook unless promoted. Promotion / renames: the per-tenant column map (configure_column_map) renames a customer column to one of ours at upload. Rows whose attributes exceed attributes_max_bytes are rejected with a message."
 }

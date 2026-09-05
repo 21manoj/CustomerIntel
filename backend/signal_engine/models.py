@@ -34,6 +34,7 @@ ENRICHMENT_COLUMNS = {
     'source_ref': "VARCHAR(255)",                 # ticket id / message ts / CRM activity id
     'extractions': "JSONB",                       # every signal the model found in the text
     'use_case': "VARCHAR(120)",                  # the account use case the signal is about
+    'attributes': "JSONB",                        # customer extensions
 }
 
 

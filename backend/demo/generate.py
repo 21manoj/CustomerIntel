@@ -64,7 +64,7 @@ MAX_PENDING_PASSES = 50      # a pass that processes nothing ends the loop; this
 ACCOUNT_COLUMNS = ['source_account_id', 'account_name', 'industry', 'region', 'arr', 'account_status',
                    'csm_name', 'csm_email', 'csm_manager', 'executive_sponsor', 'primary_champion_name',
                    'primary_champion_title', 'products', 'contract_start', 'contract_end', 'renewal_date',
-                   'tier', 'employee_count']
+                   'tier', 'attributes']
 KPI_COLUMNS = ['source_account_id', 'kpi_code', 'kpi_name', 'pillar', 'measured_at', 'value']
 SIGNAL_COLUMNS = ['signal_id', 'source_account_id', 'signal_date', 'signal_type', 'content', 'sentiment',
                   'sentiment_score', 'stakeholder_name', 'stakeholder_title', 'signal_ref', 'source_platform']
@@ -197,7 +197,7 @@ def _account_row(a: dict, manifest: dict, t0: datetime, rng: random.Random) -> d
         'primary_champion_name': a.get('champion', ''), 'primary_champion_title': a.get('champion_title', ''),
         'products': json.dumps(products), 'contract_start': (t0 - timedelta(days=365 + a.get('renewal_day', 180))).date().isoformat(),
         'contract_end': renewal, 'renewal_date': renewal, 'tier': a.get('tier', 'Enterprise'),
-        'employee_count': a.get('employee_count', rng.randint(200, 5000)),
+        'attributes': json.dumps({'employee_count': a.get('employee_count', rng.randint(200, 5000))}),   # an extension, not a named column
     }
 
 

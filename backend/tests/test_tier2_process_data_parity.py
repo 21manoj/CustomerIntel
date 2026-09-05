@@ -111,11 +111,12 @@ def test_accounts(loaded):
         # the key — it mutated the loaded JSON dict in place and reassigned
         # the same object, which SQLAlchemy's by-value change detection
         # treats as unchanged (verified: NULL on all 12 accounts there).
-        assert sorted(accts[0].profile_metadata) == [
-            'cloud_provider', 'contract_end', 'contract_start', 'csm_email', 'csm_manager',
-            'csm_name', 'deployment_type', 'employee_count', 'primary_champion_engagement_score',
-            'product_adoption', 'products', 'renewal_date', 'tech_stack', 'tier',
-        ]
+        pm = accts[0].profile_metadata
+        # named fields = the ones something reads; the load-driver's firmographics (cloud_provider, employee_count…)
+        # are customer extensions now and live under 'attributes' (2026-09-05)
+        assert {'contract_end', 'contract_start', 'csm_email', 'csm_manager', 'csm_name', 'products',
+                'renewal_date', 'tier', 'product_adoption'} <= set(pm)
+        assert 'cloud_provider' not in pm and pm['attributes']['cloud_provider']
         # blank champion/sponsor cells never became the string 'nan'
         assert not any(str(v) == 'nan' for a in accts for v in a.profile_metadata.values())
 

@@ -7,7 +7,8 @@ Run at boot (server.build_asgi_app) — idempotent.
 from __future__ import annotations
 
 ADDITIVE_COLUMNS = {
-    'kpi_measurements': {'upload_id': 'INTEGER'},
+    'kpi_measurements': {'upload_id': 'INTEGER', 'attributes': 'JSON'},
+    'customer_configs': {'column_map': 'JSON'},
     'csv_upload_staging': {'upload_id': 'INTEGER'},
     'health_scores': {
         'kpi_weights': 'JSON', 'kpi_codes_used': 'JSON', 'kpi_codes_dropped': 'JSON', 'weight_source': 'VARCHAR(24)',

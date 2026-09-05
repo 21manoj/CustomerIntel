@@ -68,7 +68,7 @@ def ingest(customer_id: int, account_id: int, source_type: str, raw_text: str, *
            occurred_at=None, participants: Optional[List[dict]] = None, signal_type: Optional[str] = None,
            source_ref: Optional[str] = None, consent_verified: Optional[bool] = None,
            signal_id: Optional[str] = None, sentiment_score=None, origin_platform: Optional[str] = None,
-           use_case: Optional[str] = None) -> dict:
+           use_case: Optional[str] = None, attributes: Optional[dict] = None) -> dict:
     """Store one signal. Returns {'status': 'queued'|'duplicate'|'exists', 'signal_id', ...}.
 
     `signal_type`, when given, must be a taxonomy subtype (structured path);
@@ -121,6 +121,7 @@ def ingest(customer_id: int, account_id: int, source_type: str, raw_text: str, *
         requires_review=False, consent_verified=bool(consent_verified) if consent_verified is not None else source_type != 'transcript',
         composite_signal_id=signal_id, stakeholder_roles=participants or None, content_hash=h,
         source_ref=(source_ref or None), keywords=(origin_platform or None), use_case=(use_case or None),
+        attributes=(attributes or None),
     )
     db.session.add(sig)
     db.session.commit()
@@ -284,6 +285,7 @@ def _write_node(sig, item: dict, enrichment: dict, taxonomy, roster: List[dict],
         'requires_review': bool(enrichment.get('requires_review')),
         'llm_model_version': enrichment.get('llm_model_version'),
         'people': people, 'source_type': sig.source_type, 'evidence_tier': 'observed', 'use_case': sig.use_case,
+        'attributes': sig.attributes or None,     # customer extensions: shown, never scored, never in the prompt
     }
     if primary:
         props['stakeholder_name'] = primary['name']
@@ -477,7 +479,7 @@ def import_communications(customer_id: int, communications: list, process_now: b
             r = ingest(customer_id, acct.account_id, item.get('source_type') or 'manual', item.get('text') or item.get('raw_text') or '',
                        occurred_at=item.get('occurred_at'), participants=item.get('participants'), signal_type=item.get('signal_type'),
                        source_ref=item.get('source_ref') or item.get('ref'), consent_verified=item.get('consent_verified'),
-                       use_case=item.get('use_case'))
+                       use_case=item.get('use_case'), attributes=item.get('attributes') if isinstance(item.get('attributes'), dict) else None)
         except ValueError as e:
             out['rejected'].append({'index': i, 'error': str(e)})
             continue

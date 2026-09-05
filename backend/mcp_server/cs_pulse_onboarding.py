@@ -1081,3 +1081,69 @@ def import_communications(customer_id: int, communications: list, process_now: b
             return _imp(int(customer_id), communications, process_now=process_now)
         except ValueError as e:
             raise ToolError(str(e))
+
+
+# ===================================================================
+# Customer extensions: the per-tenant column map
+# ===================================================================
+
+@mcp.tool
+def configure_column_map(customer_id: int, file_type: str, mapping: dict, replace: bool = False) -> dict:
+    """Map a customer's own column names to ours for one file, applied at every upload
+    (their view can keep its names). Keys are their columns (or 'attributes.<col>' to
+    promote an extension into a field we read); values are our column names for that
+    file. Unknown target names are refused. Audited.
+
+    Args:
+        customer_id: The customer ID
+        file_type: account_details.csv | kpi_measurements.csv | enhanced_qualitative_signals.csv | outcomes.csv (aliases accepted)
+        mapping: {"their_column": "our_column", ...}
+        replace: Replace the file's whole map instead of merging (default merge)
+    """
+    _require_auth_if_key_present('configure_column_map', customer_id)
+    _check_mcp_enabled()
+    app = _get_flask_app()
+    with app.app_context():
+        from models import CustomerConfig
+        from extensions import db
+        from utils.csv_upload import resolve_file_type, known_columns
+        from mcp_server import audit as _audit
+        try:
+            info = resolve_file_type(file_type)
+        except ValueError as e:
+            raise ToolError(str(e))
+        ours = known_columns(info.canonical_filename)
+        bad = [v for v in (mapping or {}).values() if v not in ours]
+        if bad:
+            raise ToolError(f'not columns of {info.canonical_filename}: {bad}; allowed: {sorted(ours)}')
+        cc = CustomerConfig.query.filter_by(customer_id=int(customer_id)).first()
+        if not cc:
+            raise ToolError(f'Customer {customer_id} not found.')
+        cmap = dict(cc.column_map or {})
+        current = {} if replace else dict(cmap.get(info.canonical_filename) or {})
+        current.update({str(k): str(v) for k, v in (mapping or {}).items()})
+        cmap[info.canonical_filename] = current
+        cc.column_map = cmap
+        db.session.commit()
+        _audit.record('mcp', 'configure_column_map', customer_id, key_kind='n/a', outcome='allowed',
+                      detail=f'{info.canonical_filename}: {current}'[:400])
+        return {'customer_id': customer_id, 'file_type': info.canonical_filename, 'column_map': current}
+
+
+@mcp.tool
+def get_column_map(customer_id: int) -> dict:
+    """The tenant's column maps per file, and the column names each file accepts.
+
+    Args:
+        customer_id: The customer ID
+    """
+    _require_auth_if_key_present('get_column_map', customer_id)
+    _check_mcp_enabled()
+    app = _get_flask_app()
+    with app.app_context():
+        from models import CustomerConfig
+        from utils.csv_upload import known_columns
+        cc = CustomerConfig.query.filter_by(customer_id=int(customer_id)).first()
+        files = ['account_details.csv', 'kpi_measurements.csv', 'enhanced_qualitative_signals.csv', 'outcomes.csv']
+        return {'customer_id': customer_id, 'column_map': (cc.column_map if cc else None) or {},
+                'accepted_columns': {f: sorted(known_columns(f)) for f in files}}

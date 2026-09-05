@@ -91,6 +91,7 @@ WRITE_TOOLS = {
     'log_outcome',
     'declare_data_origin',
     'import_communications',
+    'configure_column_map',
 }
 
 

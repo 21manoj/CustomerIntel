@@ -45,7 +45,7 @@ def evidence_view(n) -> dict:
                        'classification_basis': p.get('classification_basis'), 'llm_model_version': p.get('llm_model_version'),
                        'original_subtype': p.get('original_subtype')},
         'confidence': p.get('confidence'), 'requires_review': bool(p.get('requires_review')),
-        'review': p.get('review'),
+        'review': p.get('review'), 'use_case': p.get('use_case'), 'attributes': p.get('attributes'),
     }
 
 
@@ -93,7 +93,8 @@ def get_journey(customer_id: int, account_id: int, compact: bool = False) -> Opt
     pm = (acct.profile_metadata or {}) if acct else {}
     journey['account'] = {'use_cases': pm.get('use_cases') or [], 'contract_type': pm.get('contract_type'),
                           'renewal_date': pm.get('renewal_date') or pm.get('contract_end'), 'refresh_date': pm.get('refresh_date'),
-                          'champion': pm.get('primary_champion_name'), 'executive_sponsor': pm.get('executive_sponsor'), 'csm': pm.get('csm_name')}
+                          'champion': pm.get('primary_champion_name'), 'executive_sponsor': pm.get('executive_sponsor'), 'csm': pm.get('csm_name'),
+                          'attributes': pm.get('attributes') or {}}
     journey['evidence'] = evidence
     journey['open_review_count'] = open_review
     journey.update(origin_block(customer_id))
