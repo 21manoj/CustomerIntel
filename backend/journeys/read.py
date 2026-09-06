@@ -88,7 +88,6 @@ def get_journey(customer_id: int, account_id: int, compact: bool = False) -> Opt
         for n in ContextNode.query.filter(ContextNode.node_id.in_(ids)).all():
             evidence[str(n.node_id)] = evidence_view(n)
     open_review = QualitativeSignal.query.filter_by(account_id=int(account_id), requires_review=True).count()
-    from models import Account
     acct = db_get_account(int(account_id))
     pm = (acct.profile_metadata or {}) if acct else {}
     journey['account'] = {'use_cases': pm.get('use_cases') or [], 'contract_type': pm.get('contract_type'),
