@@ -16,6 +16,7 @@ from functools import lru_cache
 from pathlib import Path
 
 CONFIG_PATH = Path(__file__).resolve().parent.parent / 'config' / 'ask_ai.json'
+QUESTIONS_PATH = Path(__file__).resolve().parent.parent / 'config' / 'ask_ai_questions.json'
 MODEL_ENV = 'ASK_AI_MODEL'
 
 
@@ -23,6 +24,15 @@ MODEL_ENV = 'ASK_AI_MODEL'
 def load() -> dict:
     with open(CONFIG_PATH, encoding='utf-8') as f:
         return json.load(f)
+
+
+@lru_cache(maxsize=1)
+def curated_questions() -> dict:
+    """{role: [{id, scope, text}]} — the UI's suggested-question chips, quality-checked
+    by scripts/eval_ask_ai_questions.py against what ask_ai/answer.py can actually ground."""
+    with open(QUESTIONS_PATH, encoding='utf-8') as f:
+        data = json.load(f)
+    return {k: v for k, v in data.items() if not k.startswith('_')}
 
 
 def reload() -> dict:

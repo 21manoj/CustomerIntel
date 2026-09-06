@@ -14,6 +14,7 @@ docs/design/ui-rbac.md §4 for the route → function table.
     GET  /app/api/review-queue | POST /app/api/review                                        (csm/admin)
     GET  /app/api/playbooks/config | POST /app/api/playbooks/config                          (admin)
     GET  /app/api/users | POST /app/api/users | PATCH /app/api/users/{id} | POST .../{id}/reset-password  (admin)
+    GET  /app/api/ask/questions | POST /app/api/ask                                              (every role)
 """
 from __future__ import annotations
 
@@ -257,6 +258,47 @@ def register_app_api_routes(mcp) -> None:
             return JSONResponse({'error': 'no Foresight run yet'}, status_code=404)
         return JSONResponse(res)
 
+    # ── ask ai (every role; admin may also preview any role's curated set) ──
+
+    @mcp.custom_route('/app/api/ask/questions', methods=['GET'], name='ui_ask_questions')
+    async def ui_ask_questions(request):
+        user, err = _guard(request)
+        if err:
+            return err
+        from ask_ai import settings as ask_ai_settings
+        by_role = ask_ai_settings.curated_questions()
+        # non-admin roles only ever see their own set; admin gets all sets, to preview/use any of them
+        visible = by_role if user.role == 'admin' else {user.role: by_role.get(user.role, [])}
+        return JSONResponse({'roles': list(by_role.keys()), 'questions': visible})
+
+    @mcp.custom_route('/app/api/ask', methods=['POST'], name='ui_ask')
+    async def ui_ask(request):
+        user, err = _guard(request)
+        if err:
+            return err
+        try:
+            data = await request.json()
+        except Exception:
+            data = {}
+        cid = data.get('customer_id')
+        if not cid or not (data.get('question') or '').strip():
+            return JSONResponse({'error': 'customer_id and question are required'}, status_code=400)
+        if not allows_customer(user, int(cid)):
+            return _forbidden_scope()
+        aid = data.get('account_id')
+        if aid and not allows_account(user, int(aid)):
+            return _forbidden_scope()
+        from ask_ai.answer import ask as ask_ai_ask
+        try:
+            res = _with_app(lambda: ask_ai_ask(int(cid), data['question'], account_id=int(aid) if aid else None, as_of=data.get('as_of')))
+        except LookupError as e:
+            return JSONResponse({'error': str(e)}, status_code=404)
+        except ValueError as e:
+            return JSONResponse({'error': str(e)}, status_code=400)
+        except Exception as e:
+            return JSONResponse({'error': f'answer failed: {str(e)[:200]}'}, status_code=502)
+        return JSONResponse(res)
+
     # ── calibrations (admin) ──
 
     @mcp.custom_route('/app/api/calibrations', methods=['GET'], name='ui_calibrations_get')
@@ -427,4 +469,5 @@ ROUTES = ('/app/api/auth/login', '/app/api/auth/logout', '/app/api/auth/set-pass
           '/app/api/interventions/{id}/report', '/app/api/roi', '/app/api/roi/priorities', '/app/api/roi/power-of-1',
           '/app/api/forecast', '/app/api/calibrations', '/app/api/calibrations/propose', '/app/api/calibrations/{id}/approve',
           '/app/api/calibrations/{id}/reject', '/app/api/review-queue', '/app/api/review', '/app/api/playbooks/config',
-          '/app/api/users', '/app/api/users/{id}', '/app/api/users/{id}/reset-password')
+          '/app/api/users', '/app/api/users/{id}', '/app/api/users/{id}/reset-password',
+          '/app/api/ask/questions', '/app/api/ask')

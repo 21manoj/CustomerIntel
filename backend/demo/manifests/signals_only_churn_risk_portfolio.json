@@ -1,0 +1,939 @@
+{
+ "version": 2,
+ "manifest_id": "signals_only_churn_risk_portfolio",
+ "scenario": "Signals-only tenant (saas_premium, P1): 10 accounts spanning about-to-churn / at-risk / healthy, no KPI layer",
+ "narrative": "A portfolio review requested to show what a signals-only tenant looks like across the health spectrum \u2014 3 accounts headed for non-renewal, 6 at-risk with mixed/unresolved signals, 1 healthy and expanding. docs/design/backlog-provisions.md P1.",
+ "vertical": "saas_premium",
+ "kpis": "none",
+ "customer_name": "Ridgeline Analytics (demo, signals-only)",
+ "domain_prefix": "ridgeline-demo",
+ "default_product": "Ridgeline Platform",
+ "default_csm": "Morgan Ellis",
+ "csm_manager": "Dana Whitfield",
+ "seed": 7042,
+ "timeline": {
+  "t0": "2026-09-05",
+  "history_days": 150,
+  "future_days": 0
+ },
+ "accounts": [
+  {
+   "source_account_id": "VANTAGE",
+   "name": "Vantage Robotics",
+   "arr": 1300000,
+   "industry": "Manufacturing",
+   "region": "North America",
+   "champion": "Elena Vasquez",
+   "champion_title": "VP Operations",
+   "renewal_day": 15,
+   "role": "about_to_churn",
+   "crm_flag_day": -60,
+   "communications": [
+    {
+     "day": -130,
+     "source_type": "crm_activity",
+     "participants": [
+      {
+       "name": "Elena Vasquez",
+       "title": "VP Operations"
+      }
+     ],
+     "text": "CRM contact update: Elena Vasquez (VP Operations), the executive who championed the rollout, has resigned from Vantage Robotics effective end of month. No successor has been named.",
+     "expected_subtypes": [
+      "champion_departure"
+     ],
+     "expected_sentiment": -0.7
+    },
+    {
+     "day": -110,
+     "source_type": "email",
+     "participants": [
+      {
+       "name": "David Ochoa",
+       "title": "Plant Systems Manager"
+      }
+     ],
+     "text": "With Elena gone I'm going to hold off on our biweekly syncs until leadership decides who owns this internally.",
+     "expected_subtypes": [
+      "engagement_decline"
+     ],
+     "expected_sentiment": -0.5
+    },
+    {
+     "day": -90,
+     "source_type": "crm_activity",
+     "participants": [
+      {
+       "name": "David Ochoa",
+       "title": "Plant Systems Manager"
+      }
+     ],
+     "text": "QBR held as scheduled; nobody from Vantage joined and David did not respond to the follow-up note.",
+     "expected_subtypes": [
+      "qbr_no_show"
+     ],
+     "expected_sentiment": -0.5
+    },
+    {
+     "day": -70,
+     "source_type": "slack",
+     "participants": [
+      {
+       "name": "David Ochoa",
+       "title": "Plant Systems Manager"
+      }
+     ],
+     "text": "Renewal committee is benchmarking us against Sightline Ops as part of the decision \u2014 wanted to flag that before you hear it elsewhere.",
+     "expected_subtypes": [
+      "competitor_evaluation"
+     ],
+     "expected_sentiment": -0.6
+    },
+    {
+     "day": -45,
+     "source_type": "crm_activity",
+     "participants": [
+      {
+       "name": "Morgan Ellis",
+       "title": "CSM"
+      }
+     ],
+     "text": "Playbook 'exec sponsor rebuild' executed: outreach sent to Vantage's COO to re-establish sponsorship; no response after two follow-ups.",
+     "expected_subtypes": [
+      "csm_intervention"
+     ],
+     "expected_sentiment": 0.1
+    },
+    {
+     "day": -8,
+     "source_type": "email",
+     "participants": [
+      {
+       "name": "David Ochoa",
+       "title": "Plant Systems Manager"
+      }
+     ],
+     "text": "David confirmed Vantage will not renew \u2014 the team has selected Sightline Ops and asked for a data export timeline.",
+     "expected_subtypes": [
+      "non_renewal_notice"
+     ],
+     "expected_sentiment": -0.85
+    }
+   ]
+  },
+  {
+   "source_account_id": "BRIGHTLINE",
+   "name": "Brightline Logistics",
+   "arr": 950000,
+   "industry": "Logistics",
+   "region": "EMEA",
+   "champion": "Priyanka Shah",
+   "champion_title": "Head of Fleet Operations",
+   "executive_sponsor": "Marcus Webb",
+   "renewal_day": 25,
+   "role": "about_to_churn",
+   "crm_flag_day": -70,
+   "communications": [
+    {
+     "day": -140,
+     "source_type": "ticket",
+     "participants": [
+      {
+       "name": "Priyanka Shah",
+       "title": "Head of Fleet Operations"
+      }
+     ],
+     "text": "Support escalation: dispatch routing failed twice this month during peak hours, forcing manual overrides across three depots.",
+     "expected_subtypes": [
+      "support_escalation"
+     ],
+     "expected_sentiment": -0.6
+    },
+    {
+     "day": -115,
+     "source_type": "email",
+     "participants": [
+      {
+       "name": "Marcus Webb",
+       "title": "COO"
+      }
+     ],
+     "text": "We're reviewing all software spend above six figures this quarter given the wider contraction, and your renewal is on that list.",
+     "expected_subtypes": [
+      "budget_pressure"
+     ],
+     "expected_sentiment": -0.5
+    },
+    {
+     "day": -95,
+     "source_type": "slack",
+     "participants": [
+      {
+       "name": "Priyanka Shah",
+       "title": "Head of Fleet Operations"
+      }
+     ],
+     "text": "Still waiting on the SLA credit for the routing outage \u2014 finance won't sign off on renewal terms until that's resolved.",
+     "expected_subtypes": [
+      "contract_dispute"
+     ],
+     "expected_sentiment": -0.65
+    },
+    {
+     "day": -60,
+     "source_type": "crm_activity",
+     "participants": [
+      {
+       "name": "Morgan Ellis",
+       "title": "CSM"
+      }
+     ],
+     "text": "Offered an executive call to reset the relationship; Marcus's office declined, citing the ongoing spend review.",
+     "expected_subtypes": [
+      "csm_intervention"
+     ],
+     "expected_sentiment": -0.1
+    },
+    {
+     "day": -18,
+     "source_type": "email",
+     "participants": [
+      {
+       "name": "Priyanka Shah",
+       "title": "Head of Fleet Operations"
+      }
+     ],
+     "text": "The board approved moving fleet routing in-house. Please send the formal cancellation paperwork and a transition call time.",
+     "expected_subtypes": [
+      "cancellation_request"
+     ],
+     "expected_sentiment": -0.8
+    }
+   ]
+  },
+  {
+   "source_account_id": "MERIDIAN",
+   "name": "Meridian Foods",
+   "arr": 1050000,
+   "industry": "Food & Beverage",
+   "region": "North America",
+   "champion": "Grace Lin",
+   "champion_title": "Director of Supply Chain Systems",
+   "renewal_day": 10,
+   "role": "about_to_churn",
+   "crm_flag_day": -50,
+   "communications": [
+    {
+     "day": -135,
+     "source_type": "slack",
+     "participants": [
+      {
+       "name": "Grace Lin",
+       "title": "Director of Supply Chain Systems"
+      }
+     ],
+     "text": "Half the warehouse leads have gone back to spreadsheets for the pick lists \u2014 adoption never really recovered after the last release.",
+     "expected_subtypes": [
+      "usage_decline"
+     ],
+     "expected_sentiment": -0.55
+    },
+    {
+     "day": -110,
+     "source_type": "ticket",
+     "participants": [
+      {
+       "name": "Grace Lin",
+       "title": "Director of Supply Chain Systems"
+      }
+     ],
+     "text": "Third sync failure with our WMS this month; the team has stopped trusting the pick-list counts.",
+     "expected_subtypes": [
+      "bug_report"
+     ],
+     "expected_sentiment": -0.55
+    },
+    {
+     "day": -85,
+     "source_type": "email",
+     "participants": [
+      {
+       "name": "Grace Lin",
+       "title": "Director of Supply Chain Systems"
+      }
+     ],
+     "text": "Going to be hard to schedule this quarter \u2014 let's plan on catching up after the holidays.",
+     "expected_subtypes": [
+      "engagement_gap"
+     ],
+     "expected_sentiment": -0.5
+    },
+    {
+     "day": -55,
+     "source_type": "crm_activity",
+     "participants": [
+      {
+       "name": "Grace Lin",
+       "title": "Director of Supply Chain Systems"
+      }
+     ],
+     "text": "A sister facility recommended a rival platform and leadership has asked us to run a side-by-side evaluation.",
+     "expected_subtypes": [
+      "competitor_mention"
+     ],
+     "expected_sentiment": -0.6
+    },
+    {
+     "day": -25,
+     "source_type": "crm_activity",
+     "participants": [
+      {
+       "name": "Morgan Ellis",
+       "title": "CSM"
+      }
+     ],
+     "text": "Grace agreed to one more working session before the evaluation concludes; scheduled for next week.",
+     "expected_subtypes": [
+      "csm_intervention"
+     ],
+     "expected_sentiment": 0.15
+    },
+    {
+     "day": -4,
+     "source_type": "email",
+     "participants": [
+      {
+       "name": "Grace Lin",
+       "title": "Director of Supply Chain Systems"
+      }
+     ],
+     "text": "Leadership decided not to renew past the current term. I'll confirm the wind-down date once it's finalized internally.",
+     "expected_subtypes": [
+      "churn_notice"
+     ],
+     "expected_sentiment": -0.85
+    }
+   ]
+  },
+  {
+   "source_account_id": "KESTREL",
+   "name": "Kestrel Analytics",
+   "arr": 1600000,
+   "industry": "Financial Services",
+   "region": "North America",
+   "champion": "Omar Haddad",
+   "champion_title": "Director of Data Platforms",
+   "renewal_day": 95,
+   "role": "at_risk",
+   "crm_flag_day": -50,
+   "communications": [
+    {
+     "day": -120,
+     "source_type": "crm_activity",
+     "participants": [
+      {
+       "name": "Omar Haddad",
+       "title": "Director of Data Platforms"
+      }
+     ],
+     "text": "Omar is new to the account \u2014 his predecessor left last month and he's still getting oriented to the platform.",
+     "expected_subtypes": [
+      "stakeholder_change"
+     ],
+     "expected_sentiment": -0.3
+    },
+    {
+     "day": -95,
+     "source_type": "slack",
+     "participants": [
+      {
+       "name": "Omar Haddad",
+       "title": "Director of Data Platforms"
+      }
+     ],
+     "text": "Daily active users are down noticeably since the reorg; a few of the old power users have moved teams.",
+     "expected_subtypes": [
+      "dau_drop"
+     ],
+     "expected_sentiment": -0.45
+    },
+    {
+     "day": -60,
+     "source_type": "ticket",
+     "participants": [
+      {
+       "name": "Omar Haddad",
+       "title": "Director of Data Platforms"
+      }
+     ],
+     "text": "Fourth onboarding ticket this month from Omar's new analysts \u2014 the backlog is longer than usual.",
+     "expected_subtypes": [
+      "support_spike"
+     ],
+     "expected_sentiment": -0.4
+    },
+    {
+     "day": -30,
+     "source_type": "crm_activity",
+     "participants": [
+      {
+       "name": "Morgan Ellis",
+       "title": "CSM"
+      }
+     ],
+     "text": "Scheduled a platform health review with Omar for next week to walk through the adoption dashboard together.",
+     "expected_subtypes": [
+      "csm_intervention"
+     ],
+     "expected_sentiment": 0.2
+    },
+    {
+     "day": -10,
+     "source_type": "meeting",
+     "participants": [
+      {
+       "name": "Omar Haddad",
+       "title": "Director of Data Platforms"
+      }
+     ],
+     "text": "Omar joined the health review, asked detailed questions about the dashboard, and wants a follow-up next month \u2014 no commitment yet on next steps.",
+     "expected_subtypes": [
+      "positive_engagement"
+     ],
+     "expected_sentiment": 0.3
+    }
+   ]
+  },
+  {
+   "source_account_id": "ASHGROVE",
+   "name": "Ashgrove Dental Group",
+   "arr": 480000,
+   "industry": "Healthcare",
+   "region": "North America",
+   "champion": "Renee Castillo",
+   "champion_title": "Practice Operations Director",
+   "renewal_day": 130,
+   "role": "at_risk",
+   "communications": [
+    {
+     "day": -125,
+     "source_type": "slack",
+     "participants": [
+      {
+       "name": "Renee Castillo",
+       "title": "Practice Operations Director"
+      }
+     ],
+     "text": "Less than half of the front-desk seats we licensed have logged in this quarter across the clinics.",
+     "expected_subtypes": [
+      "seat_underutilization"
+     ],
+     "expected_sentiment": -0.5
+    },
+    {
+     "day": -100,
+     "source_type": "email",
+     "participants": [
+      {
+       "name": "Renee Castillo",
+       "title": "Practice Operations Director"
+      }
+     ],
+     "text": "Flagging that our renewal will go through a spend audit this cycle before anything gets signed off.",
+     "expected_subtypes": [
+      "procurement_review"
+     ],
+     "expected_sentiment": -0.4
+    },
+    {
+     "day": -70,
+     "source_type": "ticket",
+     "participants": [
+      {
+       "name": "Renee Castillo",
+       "title": "Practice Operations Director"
+      }
+     ],
+     "text": "The scheduling module change is causing double-bookings across two of our clinics this week.",
+     "expected_subtypes": [
+      "workflow_friction"
+     ],
+     "expected_sentiment": -0.5
+    },
+    {
+     "day": -40,
+     "source_type": "crm_activity",
+     "participants": [
+      {
+       "name": "Renee Castillo",
+       "title": "Practice Operations Director"
+      }
+     ],
+     "text": "Given how few seats are active, can we talk about stepping down to a smaller tier at renewal?",
+     "expected_subtypes": [
+      "tier_downgrade_interest"
+     ],
+     "expected_sentiment": -0.55
+    },
+    {
+     "day": -15,
+     "source_type": "email",
+     "participants": [
+      {
+       "name": "Renee Castillo",
+       "title": "Practice Operations Director"
+      }
+     ],
+     "text": "Still waiting on the proposal you mentioned before we decide anything on our end.",
+     "expected_subtypes": [],
+     "expected_sentiment": 0.0
+    }
+   ]
+  },
+  {
+   "source_account_id": "NORTHFIELD",
+   "name": "Northfield Insurance",
+   "arr": 1900000,
+   "industry": "Insurance",
+   "region": "North America",
+   "champion": "Grant Okafor",
+   "champion_title": "VP Claims Technology",
+   "executive_sponsor": "Diane Foss",
+   "renewal_day": 80,
+   "role": "at_risk",
+   "crm_flag_day": -60,
+   "communications": [
+    {
+     "day": -130,
+     "source_type": "crm_activity",
+     "participants": [
+      {
+       "name": "Grant Okafor",
+       "title": "VP Claims Technology"
+      }
+     ],
+     "text": "Company-wide software spend review just got announced; every platform above $1M ARR is in scope, ours included.",
+     "expected_subtypes": [
+      "budget_review"
+     ],
+     "expected_sentiment": -0.35
+    },
+    {
+     "day": -100,
+     "source_type": "slack",
+     "participants": [
+      {
+       "name": "Grant Okafor",
+       "title": "VP Claims Technology"
+      }
+     ],
+     "text": "Procurement asked us to benchmark against two other claims platforms as part of the review.",
+     "expected_subtypes": [
+      "competitor_mention"
+     ],
+     "expected_sentiment": -0.5
+    },
+    {
+     "day": -70,
+     "source_type": "ticket",
+     "participants": [
+      {
+       "name": "Grant Okafor",
+       "title": "VP Claims Technology"
+      }
+     ],
+     "text": "Claims sync has dropped records intermittently for two weeks straight; we're reconciling by hand every morning.",
+     "expected_subtypes": [
+      "integration_bug"
+     ],
+     "expected_sentiment": -0.55
+    },
+    {
+     "day": -45,
+     "source_type": "email",
+     "participants": [
+      {
+       "name": "Diane Foss",
+       "title": "CIO"
+      }
+     ],
+     "text": "Grant briefed me on the sync issue. I want a committed fix date before this review goes any further.",
+     "expected_subtypes": [
+      "executive_escalation"
+     ],
+     "expected_sentiment": -0.6
+    },
+    {
+     "day": -20,
+     "source_type": "crm_activity",
+     "participants": [
+      {
+       "name": "Diane Foss",
+       "title": "CIO"
+      }
+     ],
+     "text": "The engineering fix shipped and early numbers look clean. Diane scheduled a follow-up call to review two weeks of results.",
+     "expected_subtypes": [
+      "csm_intervention"
+     ],
+     "expected_sentiment": 0.35
+    }
+   ]
+  },
+  {
+   "source_account_id": "SOLARA",
+   "name": "Solara Energy",
+   "arr": 1150000,
+   "industry": "Energy & Utilities",
+   "region": "North America",
+   "champion": "Talia Meyers",
+   "champion_title": "Director of Field Operations",
+   "renewal_day": 110,
+   "role": "at_risk",
+   "crm_flag_day": -70,
+   "communications": [
+    {
+     "day": -140,
+     "source_type": "ticket",
+     "participants": [
+      {
+       "name": "Talia Meyers",
+       "title": "Director of Field Operations"
+      }
+     ],
+     "text": "Dashboard timeouts during shift-change load again this week \u2014 the same issue we flagged last month.",
+     "expected_subtypes": [
+      "performance_complaint"
+     ],
+     "expected_sentiment": -0.5
+    },
+    {
+     "day": -115,
+     "source_type": "slack",
+     "participants": [
+      {
+       "name": "Talia Meyers",
+       "title": "Director of Field Operations"
+      }
+     ],
+     "text": "Field crews are back to paper checklists during the timeouts because the app isn't reliable enough right now.",
+     "expected_subtypes": [
+      "workflow_friction"
+     ],
+     "expected_sentiment": -0.55
+    },
+    {
+     "day": -85,
+     "source_type": "ticket",
+     "participants": [
+      {
+       "name": "Talia Meyers",
+       "title": "Director of Field Operations"
+      }
+     ],
+     "text": "Third escalation this month on the same root cause \u2014 still no fix date from engineering.",
+     "expected_subtypes": [
+      "escalation_increase"
+     ],
+     "expected_sentiment": -0.6
+    },
+    {
+     "day": -55,
+     "source_type": "email",
+     "participants": [
+      {
+       "name": "Morgan Ellis",
+       "title": "CSM"
+      }
+     ],
+     "text": "Performance fix rolled out to Solara's environment; Talia asked for two weeks of monitoring before calling it resolved.",
+     "expected_subtypes": [
+      "csm_intervention"
+     ],
+     "expected_sentiment": 0.25
+    },
+    {
+     "day": -15,
+     "source_type": "slack",
+     "participants": [
+      {
+       "name": "Talia Meyers",
+       "title": "Director of Field Operations"
+      }
+     ],
+     "text": "Crews have been back on the app for two weeks now with no timeouts reported \u2014 still watching before we call it fixed on our end.",
+     "expected_subtypes": [
+      "recovery_milestone"
+     ],
+     "expected_sentiment": 0.35
+    }
+   ]
+  },
+  {
+   "source_account_id": "PALISADE",
+   "name": "Palisade Media",
+   "arr": 720000,
+   "industry": "Media",
+   "region": "APAC",
+   "champion": "Owen Brandt",
+   "champion_title": "VP Content Operations",
+   "renewal_day": 70,
+   "role": "at_risk",
+   "crm_flag_day": -60,
+   "communications": [
+    {
+     "day": -130,
+     "source_type": "crm_activity",
+     "participants": [
+      {
+       "name": "Owen Brandt",
+       "title": "VP Content Operations"
+      }
+     ],
+     "text": "QBR held as scheduled; nobody from Palisade joined and there was no response to the reschedule offer.",
+     "expected_subtypes": [
+      "qbr_no_show"
+     ],
+     "expected_sentiment": -0.5
+    },
+    {
+     "day": -100,
+     "source_type": "email",
+     "participants": [
+      {
+       "name": "Owen Brandt",
+       "title": "VP Content Operations"
+      }
+     ],
+     "text": "Just so you know, we cut headcount on the content ops team last month \u2014 fewer active users going forward.",
+     "expected_subtypes": [
+      "downsizing"
+     ],
+     "expected_sentiment": -0.5
+    },
+    {
+     "day": -65,
+     "source_type": "slack",
+     "participants": [
+      {
+       "name": "Owen Brandt",
+       "title": "VP Content Operations"
+      }
+     ],
+     "text": "Haven't had a chance to respond to your last two check-ins \u2014 things are stretched thin right now.",
+     "expected_subtypes": [
+      "engagement_gap"
+     ],
+     "expected_sentiment": -0.5
+    },
+    {
+     "day": -35,
+     "source_type": "ticket",
+     "participants": [
+      {
+       "name": "Priya Osei",
+       "title": "Senior Producer"
+      }
+     ],
+     "text": "Is there a way to bulk-export the asset library? One of our producers needs it for an offline archive project.",
+     "expected_subtypes": [
+      "feature_request"
+     ],
+     "expected_sentiment": 0.1
+    },
+    {
+     "day": -10,
+     "source_type": "crm_activity",
+     "participants": [
+      {
+       "name": "Morgan Ellis",
+       "title": "CSM"
+      }
+     ],
+     "text": "Reached Owen directly to reset expectations after the gap; he booked a call for next week to talk through the reduced usage.",
+     "expected_subtypes": [
+      "csm_intervention"
+     ],
+     "expected_sentiment": 0.2
+    }
+   ]
+  },
+  {
+   "source_account_id": "IRONWOOD",
+   "name": "Ironwood Manufacturing",
+   "arr": 2100000,
+   "industry": "Manufacturing",
+   "region": "North America",
+   "champion": "Beatrice Nolan",
+   "champion_title": "Plant IT Manager",
+   "renewal_day": 140,
+   "role": "at_risk_recovering",
+   "communications": [
+    {
+     "day": -145,
+     "source_type": "ticket",
+     "participants": [
+      {
+       "name": "Beatrice Nolan",
+       "title": "Plant IT Manager"
+      }
+     ],
+     "text": "Wave of tickets since the plant-floor rollout last week \u2014 supervisors are struggling with the new interface.",
+     "expected_subtypes": [
+      "support_spike"
+     ],
+     "expected_sentiment": -0.5
+    },
+    {
+     "day": -120,
+     "source_type": "slack",
+     "participants": [
+      {
+       "name": "Beatrice Nolan",
+       "title": "Plant IT Manager"
+      }
+     ],
+     "text": "Daily logins from floor supervisors dropped off hard after the rollout friction \u2014 most went back to the paper boards.",
+     "expected_subtypes": [
+      "dau_drop"
+     ],
+     "expected_sentiment": -0.45
+    },
+    {
+     "day": -90,
+     "source_type": "crm_activity",
+     "participants": [
+      {
+       "name": "Morgan Ellis",
+       "title": "CSM"
+      }
+     ],
+     "text": "Scheduled two additional on-site training sessions for the supervisor group to address the rollout friction.",
+     "expected_subtypes": [
+      "csm_intervention"
+     ],
+     "expected_sentiment": 0.2
+    },
+    {
+     "day": -55,
+     "source_type": "email",
+     "participants": [
+      {
+       "name": "Beatrice Nolan",
+       "title": "Plant IT Manager"
+      }
+     ],
+     "text": "Supervisors are back to daily use since the extra training \u2014 the interface complaints have basically stopped.",
+     "expected_subtypes": [
+      "health_improvement"
+     ],
+     "expected_sentiment": 0.5
+    },
+    {
+     "day": -25,
+     "source_type": "meeting",
+     "participants": [
+      {
+       "name": "Carl Osei",
+       "title": "Plant Director"
+      }
+     ],
+     "text": "Carl joined the monthly review for the first time and asked what it would take to roll this out to our second site.",
+     "expected_subtypes": [
+      "executive_engagement"
+     ],
+     "expected_sentiment": 0.6
+    }
+   ]
+  },
+  {
+   "source_account_id": "LUCENT",
+   "name": "Lucent Health Partners",
+   "arr": 1400000,
+   "industry": "Healthcare",
+   "region": "North America",
+   "champion": "Faye Adeyemi",
+   "champion_title": "VP Clinical Systems",
+   "executive_sponsor": "Robert Kim",
+   "renewal_day": 200,
+   "role": "healthy",
+   "communications": [
+    {
+     "day": -120,
+     "source_type": "meeting",
+     "participants": [
+      {
+       "name": "Faye Adeyemi",
+       "title": "VP Clinical Systems"
+      }
+     ],
+     "text": "Routine quarterly review with Faye: walked through the dashboards and the open requests, nothing flagged on either side.",
+     "expected_subtypes": [
+      "routine_review"
+     ],
+     "expected_sentiment": 0.1
+    },
+    {
+     "day": -90,
+     "source_type": "slack",
+     "participants": [
+      {
+       "name": "Faye Adeyemi",
+       "title": "VP Clinical Systems"
+      }
+     ],
+     "text": "Clinical staff are adopting the new intake workflow faster than we expected \u2014 most clinics were fully on it within two weeks.",
+     "expected_subtypes": [
+      "feature_adoption"
+     ],
+     "expected_sentiment": 0.5
+    },
+    {
+     "day": -60,
+     "source_type": "email",
+     "participants": [
+      {
+       "name": "Faye Adeyemi",
+       "title": "VP Clinical Systems"
+      }
+     ],
+     "text": "Filled out the quarterly survey \u2014 gave you a 9. The intake workflow is doing exactly what we needed.",
+     "expected_subtypes": [
+      "nps_increase"
+     ],
+     "expected_sentiment": 0.7
+    },
+    {
+     "day": -30,
+     "source_type": "meeting",
+     "participants": [
+      {
+       "name": "Robert Kim",
+       "title": "CMIO"
+      }
+     ],
+     "text": "Robert joined the QBR for the first time and asked what it would take to expand to two more clinics next year.",
+     "expected_subtypes": [
+      "executive_engagement"
+     ],
+     "expected_sentiment": 0.7
+    },
+    {
+     "day": -10,
+     "source_type": "email",
+     "participants": [
+      {
+       "name": "Faye Adeyemi",
+       "title": "VP Clinical Systems"
+      }
+     ],
+     "text": "Following up on Robert's question \u2014 can you send a quote for adding the two new clinics to the agreement?",
+     "expected_subtypes": [
+      "expansion_interest"
+     ],
+     "expected_sentiment": 0.65
+    }
+   ]
+  }
+ ]
+}

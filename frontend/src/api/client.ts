@@ -2,6 +2,8 @@
 // same functions the design doc's route table names. No business logic here, just
 // the HTTP call + typed response.
 import type {
+  AskQuestionsResponse,
+  AskResponse,
   CalibrationProposal,
   CalibrationProposeResult,
   CalibrationResponse,
@@ -213,5 +215,16 @@ export function rejectCalibration(proposalId: number, customerId: number, note?:
   return request<CalibrationProposal>(`/app/api/calibrations/${proposalId}/reject`, {
     method: 'POST',
     body: JSON.stringify({ customer_id: customerId, note }),
+  })
+}
+
+export function getAskQuestions() {
+  return request<AskQuestionsResponse>('/app/api/ask/questions')
+}
+
+export function askQuestion(customerId: number, question: string, accountId?: number) {
+  return request<AskResponse>('/app/api/ask', {
+    method: 'POST',
+    body: JSON.stringify({ customer_id: customerId, question, account_id: accountId }),
   })
 }

@@ -2,8 +2,10 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import ProtectedRoute from './components/ProtectedRoute'
 import Shell from './components/Shell'
 import AccountDetail from './pages/AccountDetail'
+import AskAI from './pages/AskAI'
 import Calibrations from './pages/Calibrations'
 import Interventions from './pages/Interventions'
+import JourneyCanvas from './pages/JourneyCanvas'
 import Login from './pages/Login'
 import Portfolio from './pages/Portfolio'
 import ReviewQueue from './pages/ReviewQueue'
@@ -17,12 +19,14 @@ export default function App() {
       <Route element={<ProtectedRoute />}>
         <Route element={<Shell />}>
           <Route path="/portfolio" element={<Portfolio />} />
+          <Route path="/ask" element={<AskAI />} />
           <Route path="/interventions" element={<Interventions />} />
           <Route path="/review-queue" element={<ReviewQueue />} />
           <Route path="/roi" element={<Roi />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/calibrations" element={<Calibrations />} />
           <Route path="/accounts/:accountId" element={<AccountDetail />} />
+          <Route path="/accounts/:accountId/canvas" element={<JourneyCanvas />} />
           <Route path="/" element={<Navigate to="/portfolio" replace />} />
         </Route>
       </Route>

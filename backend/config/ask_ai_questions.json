@@ -1,0 +1,59 @@
+{
+  "_doc": "Curated 'ask this' prompts shown in the Ask AI UI, one set per role. Each question is written to be answerable from ask_ai/answer.py's actual context blocks (arc, phases, leading_vs_trailing, forecast, narrative, episodes, evidence, portfolio rows) — not aspirational. scope 'account' means it needs an account picked in the UI; 'portfolio' runs with no account_id. Quality-checked by scripts/eval_ask_ai_questions.py — see that script's README block for what 'checked' means and its limits (stub mode only, no ANTHROPIC_API_KEY in this environment).",
+  "csm": [
+    {"id": "csm-1", "scope": "account", "text": "What is this account's current arc, and how confident is the classification?"},
+    {"id": "csm-2", "scope": "account", "text": "What evidence supports this account's arc classification?"},
+    {"id": "csm-3", "scope": "account", "text": "Has this account had any negative signals in the last 90 days?"},
+    {"id": "csm-4", "scope": "account", "text": "What is the most recent evidence recorded for this account, and when?"},
+    {"id": "csm-5", "scope": "account", "text": "Are there any signals still pending review for this account?"},
+    {"id": "csm-6", "scope": "account", "text": "What does the narrative say happened during the current phase?"},
+    {"id": "csm-7", "scope": "account", "text": "Has there been a champion or executive sponsor change on this account?"},
+    {"id": "csm-8", "scope": "account", "text": "How does this account's leading (behavioral) score compare to its trailing KPI score?"},
+    {"id": "csm-9", "scope": "account", "text": "What outcomes have been recorded for this account?"},
+    {"id": "csm-10", "scope": "account", "text": "Is this account's story complete, or are there gaps the evidence can't fill?"},
+    {"id": "csm-11", "scope": "portfolio", "text": "Which of my accounts have open reviews pending?"},
+    {"id": "csm-12", "scope": "portfolio", "text": "Which accounts showed an early-warning label in the most recent scored month?"}
+  ],
+  "cfo": [
+    {"id": "cfo-1", "scope": "portfolio", "text": "Which accounts have the lowest retention forecast?"},
+    {"id": "cfo-2", "scope": "portfolio", "text": "Which accounts are classified at-risk or unclassified, and what is their combined revenue?"},
+    {"id": "cfo-3", "scope": "portfolio", "text": "Which accounts have no forecast run yet?"},
+    {"id": "cfo-4", "scope": "portfolio", "text": "Which accounts have the widest forecast uncertainty range?"},
+    {"id": "cfo-5", "scope": "portfolio", "text": "How many accounts showed an early-warning label in the most recent scored month?"},
+    {"id": "cfo-6", "scope": "portfolio", "text": "Which accounts are approaching a renewal or other decision point soonest?"},
+    {"id": "cfo-7", "scope": "account", "text": "What is this account's expected ARR range at the end of the forecast horizon?"},
+    {"id": "cfo-8", "scope": "account", "text": "What is the basis for this account's retention forecast — calibrated on this tenant, or a template prior?"},
+    {"id": "cfo-9", "scope": "account", "text": "What decision point is coming up for this account?"},
+    {"id": "cfo-10", "scope": "account", "text": "How many months of evidence does this account have, and how recent is the latest?"},
+    {"id": "cfo-11", "scope": "account", "text": "What does the evidence say about this account's renewal risk?"},
+    {"id": "cfo-12", "scope": "portfolio", "text": "Across the portfolio, how many accounts have a calibrated forecast versus a template-only prior?"}
+  ],
+  "cro": [
+    {"id": "cro-1", "scope": "portfolio", "text": "Which accounts show an expansion or land-and-expand arc?"},
+    {"id": "cro-2", "scope": "portfolio", "text": "Which accounts show signs of competitive displacement risk?"},
+    {"id": "cro-3", "scope": "portfolio", "text": "Which accounts have had a champion or executive sponsor change recently?"},
+    {"id": "cro-4", "scope": "portfolio", "text": "Which accounts have the richest evidence trail (most cited episodes)?"},
+    {"id": "cro-5", "scope": "portfolio", "text": "Which accounts have strong leading signals but no forecast confidence yet?"},
+    {"id": "cro-6", "scope": "account", "text": "What evidence supports an expansion opportunity on this account?"},
+    {"id": "cro-7", "scope": "account", "text": "Has this account shown any commercial pressure or competitor mentions recently?"},
+    {"id": "cro-8", "scope": "account", "text": "What is this account's expansion probability from the latest forecast?"},
+    {"id": "cro-9", "scope": "account", "text": "What phase is this account currently in, and what triggered the transition?"},
+    {"id": "cro-10", "scope": "account", "text": "Has there been a positive or advocacy signal on this account recently?"},
+    {"id": "cro-11", "scope": "account", "text": "What outcomes has this account recorded so far?"},
+    {"id": "cro-12", "scope": "account", "text": "What does the evidence say about this account's renewal risk?"}
+  ],
+  "admin": [
+    {"id": "admin-1", "scope": "portfolio", "text": "Which accounts are currently unclassified?"},
+    {"id": "admin-2", "scope": "portfolio", "text": "How many accounts across the portfolio have open reviews pending?"},
+    {"id": "admin-3", "scope": "portfolio", "text": "Which accounts have the fewest recorded episodes?"},
+    {"id": "admin-4", "scope": "portfolio", "text": "Which accounts have had no new evidence in the most recent scored month?"},
+    {"id": "admin-5", "scope": "portfolio", "text": "How many accounts showed an early-warning label in the most recent scored month?"},
+    {"id": "admin-6", "scope": "account", "text": "Has this account's arc classification been contradicted by any evidence?"},
+    {"id": "admin-7", "scope": "account", "text": "What is the confidence level behind this account's arc classification?"},
+    {"id": "admin-8", "scope": "account", "text": "How many episodes are recorded for this account, and when was the last one?"},
+    {"id": "admin-9", "scope": "account", "text": "Are there any signals still pending review for this account?"},
+    {"id": "admin-10", "scope": "account", "text": "What phases has this account gone through, and what triggered each one?"},
+    {"id": "admin-11", "scope": "account", "text": "Were any sentences in this account's narrative dropped for lack of citation?"},
+    {"id": "admin-12", "scope": "portfolio", "text": "Which accounts have the most open reviews needing attention?"}
+  ]
+}

@@ -205,6 +205,7 @@ export default function AccountDetail() {
   const [reloadKey, setReloadKey] = useState(0)
 
   const canAct = user?.role === 'admin' || user?.role === 'csm'
+  const canSeeCanvas = user?.role === 'admin' || user?.role === 'cfo' || user?.role === 'cro'
 
   useEffect(() => {
     if (customerId == null || !accountId) return
@@ -248,9 +249,19 @@ export default function AccountDetail() {
 
   return (
     <div className="space-y-6">
-      <Link to={`/portfolio${customerId ? `?customer_id=${customerId}` : ''}`} className="text-sm text-slate-500 hover:text-slate-800">
-        ← Portfolio
-      </Link>
+      <div className="flex items-center justify-between">
+        <Link to={`/portfolio${customerId ? `?customer_id=${customerId}` : ''}`} className="text-sm text-slate-500 hover:text-slate-800">
+          ← Portfolio
+        </Link>
+        {canSeeCanvas && (
+          <Link
+            to={`/accounts/${accountId}/canvas${customerId ? `?customer_id=${customerId}` : ''}`}
+            className="text-sm font-medium text-slate-700 hover:text-slate-900"
+          >
+            View Journey Canvas →
+          </Link>
+        )}
+      </div>
 
       {journey.synthetic && (
         <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">{journey.disclosure}</div>

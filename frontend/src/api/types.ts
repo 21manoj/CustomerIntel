@@ -307,10 +307,79 @@ export interface AccountBlock {
   attributes: Record<string, unknown>
 }
 
+// journeys/journey_builder.py detect_phases()/detect_phases_from_evidence() — one
+// contiguous segment of a named phase, with the episode that triggered the transition.
+export interface Phase {
+  name: 'baseline' | 'deterioration' | 'intervention' | 'resolution' | string
+  entered_at: string
+  exited_at: string | null
+  months: number
+  health_start: number | null
+  health_end: number | null
+  trigger_episode_id: string | null
+  basis?: 'evidence' | string
+  negative_signals?: number
+  positive_signals?: number
+}
+
+// journeys/journey_builder.py leading_series() — one scored (or live) month's
+// trailing (kpi_only) vs leading (qual) reading and their divergence.
+export interface LeadingVsTrailingPoint {
+  month: string
+  kpi_only: number | null
+  qual: number | null
+  divergence: number | null
+  early_warning: 'early_warning' | 'recovery_watch' | 'aligned' | 'leading_only' | null
+  signal_count: number
+  live: boolean
+  unreviewed_count: number
+  contributing_episode_ids: string[]
+  roles: Record<string, number>
+}
+
+export interface LeadingVsTrailing {
+  series: LeadingVsTrailingPoint[]
+  first_leading_warning_at: string | null
+  first_trailing_warning_at: string | null
+  lead_days: number | null
+  window_days?: number
+  divergence_warning_pts?: number
+  note?: string
+}
+
+// journeys/journey_builder.py counterfactual_hooks() — health + outcomes in the
+// 90 days either side of an observed decision/intervention episode.
+export interface CounterfactualHook {
+  episode_id: string
+  date: string
+  title: string
+  health_before: { n: number; mean: number | null; last: number | null }
+  health_after: { n: number; mean: number | null; last: number | null }
+  outcomes_after: { episode_id: string; bucket: string | null; revenue: number | null }[]
+}
+
+// utils/story_arc_loader.py expected_path() — the arc template's typical trajectory,
+// a prior overlay (week-relative, not this account's dates).
+export interface ExpectedPathPhase {
+  phase_id: string | null
+  name: string | null
+  starts_week: number
+  duration_weeks: number
+  health_start: number | null
+  health_end: number | null
+  description?: string | null
+}
+
+export interface ExpectedPath {
+  arc_type: string
+  arc_name?: string | null
+  source: string
+  note: string
+  phases: ExpectedPathPhase[]
+}
+
 // get_journey(customer_id, account_id, compact=False) — journey_json plus the added
-// account/evidence/open_review_count/origin fields. Not exhaustive: journey_json also
-// carries phases/features/summary/etc that this page doesn't render; typed loosely
-// where we only pass them through.
+// account/evidence/open_review_count/origin fields.
 export type Journey = OriginBlock & {
   version: string
   account_id: number
@@ -323,12 +392,13 @@ export type Journey = OriginBlock & {
   arc: ArcBlock
   state: string
   current_phase: string | null
-  phases: Record<string, unknown>[]
+  phases: Phase[]
   phases_basis: string | null
   data_coverage: DataCoverage
   episodes: Episode[]
-  leading_vs_trailing: { series?: Record<string, unknown>[]; first_leading_warning_at?: string | null; lead_days?: number | null }
-  counterfactual_hooks: Record<string, unknown>[]
+  leading_vs_trailing: LeadingVsTrailing
+  counterfactual_hooks: CounterfactualHook[]
+  expected_path: ExpectedPath | null
   forecast: Forecast | null
   narrative: Narrative | null
   account: AccountBlock
@@ -1017,3 +1087,48 @@ export type CalibrationProposeResult = CalibrationGateFailure | CalibrationNoCon
 // backend/config/playbook_governance.json report_states — the only values report() accepts.
 export const REPORT_STATES = ['started', 'done', 'failed', 'cancelled'] as const
 export type ReportState = (typeof REPORT_STATES)[number]
+
+// ── Ask AI (backend/ask_ai) ──
+
+export interface AskQuestion {
+  id: string
+  scope: 'account' | 'portfolio'
+  text: string
+}
+
+// GET /app/api/ask/questions — `questions` is just the caller's own role for non-admin,
+// every role for admin (server-side gate, not a UI-only restriction).
+export interface AskQuestionsResponse {
+  roles: string[]
+  questions: Record<string, AskQuestion[]>
+}
+
+export interface AskSentence {
+  text: string
+  cites: string[]
+  unverified_numbers?: string[]
+}
+
+export interface AskUnsupported {
+  text: string
+  cites: string[]
+  reason: 'no_citation' | 'unresolved_citation' | 'over_max_sentences' | string
+  unresolved?: string[]
+}
+
+// POST /app/api/ask — journeys/ask_ai.answer.ask()'s full return shape.
+export type AskResponse = OriginBlock & {
+  question: string
+  scope: 'account' | 'portfolio'
+  scope_detail: Record<string, unknown>
+  answer: string
+  sentences: AskSentence[]
+  citations: Record<string, unknown>
+  unsupported: AskUnsupported[]
+  evidence_gaps: string[]
+  confidence: number | null
+  citation_rule: string
+  context_chars: number
+  model: string
+  generator: string
+}

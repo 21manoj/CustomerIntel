@@ -6,6 +6,7 @@ import { useAuth } from '../auth/AuthContext'
 // landing in parallel (Interventions, Review Queue, Calibrations, Settings, ...) need the same gating.
 const NAV_ITEMS: { to: string; label: string; roles?: string[] }[] = [
   { to: '/portfolio', label: 'Portfolio' },
+  { to: '/ask', label: 'Ask AI' },
   { to: '/interventions', label: 'Interventions' },
   { to: '/review-queue', label: 'Review Queue', roles: ['csm', 'admin'] },
   { to: '/roi', label: 'ROI & Power-of-1', roles: ['cfo', 'cro', 'admin'] },
