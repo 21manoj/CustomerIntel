@@ -114,7 +114,7 @@ def account_power_of_1(account, customer_id: int, vertical: str, pillars: dict, 
         pdef = pillars.get(code, {})
         score = contributing.get(code)
         codes_in = [c for c in kpi_scope if kpis.get(c, {}).get('pillar') == code]
-        l1_total = sum(float(kpi_scope[c] or kpis[c].get('weight_l1') or 1.0) for c in codes_in) or 0.0
+        l1_total = sum(float(kpi_scope[c] or kpis[c]['weight_l1']) for c in codes_in)      # every catalog KPI carries weight_l1 > 0
         pillar_rows.append({
             'pillar': code, 'name': pdef.get('name'), 'weight': round(w, 4), 'weight_source': pw['source'],
             'current_score': score,
@@ -127,7 +127,7 @@ def account_power_of_1(account, customer_id: int, vertical: str, pillars: dict, 
         })
         for c in codes_in:
             kdef = kpis[c]
-            l1 = float(kpi_scope[c] or kdef.get('weight_l1') or 1.0)
+            l1 = float(kpi_scope[c] or kdef['weight_l1'])
             l1_norm = l1 / l1_total if l1_total else 0.0
             hp = w * l1_norm
             row = {'kpi': c, 'name': kdef.get('name'), 'pillar': code, 'unit': kdef.get('unit'), 'weight_l1': round(l1_norm, 4),
