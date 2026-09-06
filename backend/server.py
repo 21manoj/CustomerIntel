@@ -104,6 +104,7 @@ def build_asgi_app(database_url: str | None = None, create_schema: bool = True):
     import mcp_server.common as _common
     from mcp_server.cs_pulse_mcp_server import mcp
     import mcp_server.cs_pulse_onboarding  # noqa: F401 — registers the tools
+    import mcp_server.cs_pulse_wizard_d    # noqa: F401 — Wizard D (Foresight) read tool
     import models  # noqa: F401 — metadata for create_all
 
     app = _common.get_flask_app()
@@ -158,6 +159,8 @@ def build_asgi_app(database_url: str | None = None, create_schema: bool = True):
     register_ask_routes(mcp)              # POST /api/ask — Ask AI over the journey contract (P10)
     from playbooks.http import register_playbook_routes
     register_playbook_routes(mcp)         # /api/interventions*, /api/playbooks — the governance layer
+    from wizards.wizard_d_http import register_forecast_routes
+    register_forecast_routes(mcp)         # GET /api/forecast — Wizard D (Foresight) latest run
     app = _common.get_flask_app()
     if create_schema:
         from extensions import db

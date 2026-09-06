@@ -66,7 +66,8 @@ def test_empty_db_is_created_at_head_and_matches_models(scratch):
     _wipe(scratch)
     res = migrate(scratch)
     assert res['action'] == 'created' and res['from'] is None and res['to'] == head_revision()
-    assert 'interventions' in inspect(scratch).get_table_names() and 'alembic_version' in inspect(scratch).get_table_names()
+    tables = set(inspect(scratch).get_table_names())
+    assert {'interventions', 'forecast_runs', 'account_forecasts', 'alembic_version'} <= tables
     assert _diff(scratch) == []
     assert migrate(scratch)['action'] == 'upgraded'      # at head: no-op
 
@@ -113,5 +114,5 @@ def test_pre_alembic_drift_is_reconciled(scratch):
         conn.execute(text('DROP INDEX ix_kpi_measurements_upload_id'))
     assert len(_diff(scratch)) == 4
     res = migrate(scratch)
-    assert res['action'] == 'stamped_then_upgraded' and res['to'] == head_revision() == '0002_reconcile_pre_alembic'
-    assert _diff(scratch) == []
+    assert res['action'] == 'stamped_then_upgraded' and res['to'] == head_revision()
+    assert _diff(scratch) == []           # the drift 0002 reconciles is gone; every later revision is at head too

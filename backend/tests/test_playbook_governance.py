@@ -266,7 +266,8 @@ def test_approve_sends_one_signed_minimal_payload_and_writes_the_node(tenant, re
         assert any(h['episode_id'] == ep['episode_id'] for h in j['counterfactual_hooks'])
         cited = [s for ch in j['narrative']['chapters'] for s in ch['sentences'] if ep['episode_id'] in s['cites']]
         assert cited and 'approved by local' in cited[0]['text']
-        assert j['generator_version'] == '3.6'
+        from journeys.wizard_a import GENERATOR_VERSION
+        assert j['generator_version'] == GENERATOR_VERSION
         assert _audit(cid, 'send')[-1].detail.startswith(f'#{champ.id} champion_departure_sponsor_rebuild → delivered')
         with pytest.raises(ValueError, match='only a proposed one'):
             approve(cid, champ.id)
