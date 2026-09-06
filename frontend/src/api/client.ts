@@ -3,14 +3,20 @@
 // the HTTP call + typed response.
 import type {
   InterventionsResponse,
+  InviteUserResponse,
   MeasuredRoiResponse,
+  PlaybookConfigResponse,
   PortfolioResponse,
   PowerOfOneResponse,
   PrioritiesResponse,
   ReviewQueueResponse,
   ReviewSignalRequest,
   ReviewSignalResult,
+  Role,
   SessionUser,
+  SetupTokenResponse,
+  TenantPlaybookConfig,
+  UserView,
 } from './types'
 
 const BASE = import.meta.env.VITE_API_BASE ?? ''
@@ -127,4 +133,48 @@ export function getPowerOfOne(customerId: number) {
 
 export function getMeasuredRoi(customerId: number) {
   return request<MeasuredRoiResponse>(`/app/api/roi?customer_id=${customerId}`)
+}
+
+// ── Settings: users (admin) ──
+
+export function getUsers(customerId: number) {
+  return request<{ users: UserView[] }>(`/app/api/users?customer_id=${customerId}`)
+}
+
+export function inviteUser(payload: {
+  customer_id: number
+  email: string
+  name: string
+  role: Role
+  allowed_account_ids?: number[]
+}) {
+  return request<InviteUserResponse>('/app/api/users', { method: 'POST', body: JSON.stringify(payload) })
+}
+
+export function patchUser(
+  userId: number,
+  payload: { role?: Role; active?: boolean; allowed_customer_ids?: number[]; allowed_account_ids?: number[] },
+) {
+  return request<UserView>(`/app/api/users/${userId}`, { method: 'PATCH', body: JSON.stringify(payload) })
+}
+
+export function resetUserPassword(userId: number) {
+  return request<SetupTokenResponse>(`/app/api/users/${userId}/reset-password`, { method: 'POST' })
+}
+
+// ── Settings: playbook config (admin) ──
+
+export function getPlaybookConfig(customerId: number) {
+  return request<PlaybookConfigResponse>(`/app/api/playbooks/config?customer_id=${customerId}`)
+}
+
+export function configurePlaybooks(payload: {
+  customer_id: number
+  webhook_url?: string
+  webhook_secret?: string
+  disabled_playbooks?: string[]
+  automation_level?: number
+  kill_switch?: boolean
+}) {
+  return request<TenantPlaybookConfig>('/app/api/playbooks/config', { method: 'POST', body: JSON.stringify(payload) })
 }
