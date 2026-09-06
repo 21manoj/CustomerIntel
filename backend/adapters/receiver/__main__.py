@@ -26,8 +26,11 @@ def main(argv=None) -> None:
     p.add_argument('--log', help=f"JSONL event log path (env {env['log_path']})")
     a = p.parse_args(argv)
     logging.basicConfig(level=os.environ.get('LOG_LEVEL', 'INFO'), format='%(asctime)s %(levelname)s %(name)s: %(message)s')
-    cfg = ReceiverConfig.from_env(secret=a.secret, platform_url=a.platform_url, platform_key=a.key, customer_id=a.customer_id,
-                                  policy=a.policy, auto_done_after_seconds=a.auto_done_after, log_path=a.log)
+    try:
+        cfg = ReceiverConfig.from_env(secret=a.secret, platform_url=a.platform_url, platform_key=a.key, customer_id=a.customer_id,
+                                      policy=a.policy, auto_done_after_seconds=a.auto_done_after, log_path=a.log)
+    except ValueError as e:
+        p.error(str(e))                    # usage + the reason, exit 2 — not a traceback
     import uvicorn
     logging.getLogger('adapters.receiver').info('receiver on %s:%d → %s (policy %s, log %s)', a.host, a.port,
                                                 cfg.platform_url, cfg.policy, cfg.log_path)
