@@ -843,6 +843,229 @@ def _check_kpi_dependencies(enabled_kpis=None, enabled_pillars=None):
     return warnings
 
 
+def _configure_customer_kpis_impl(customer_id: int, pillar_weights: dict = None, kpi_weights: dict = None,
+                                  enabled_kpis: list = None, kpi_overrides: dict = None,
+                                  customized_by: str = None) -> dict:
+    """Business logic for configure_customer_kpis — a human directly setting a tenant's
+    KPI/pillar weights, the missing writer for weights_origin='customer_config' (the
+    third label, alongside 'vertical_default' from create_customer's tier default and
+    'wizard_c' from an approved calibration — see models.CustomerConfig.weights_origin).
+
+    Overlay semantics: only the fields actually passed change (None = leave alone), same
+    contract as playbooks.definitions.configure_tenant. Every pillar/KPI code is checked
+    against the tenant's actual vertical catalog (utils.vertical_registry.get_kpis/
+    get_pillars — the same source wizard_c_calibration.current_weights() reads) rather
+    than trusting the caller; unknown codes raise ValueError. Weights are sanity-checked:
+    not a number, negative, or a dict summing to <= 0 all raise. A KPI weight of exactly
+    0 also raises — utils.generic_scorer treats a falsy weight_l1 override as *unset* and
+    falls back to 1.0 (`if not l1_weight or l1_weight <= 0: l1_weight = 1.0`), so writing
+    0 would silently do the opposite of what the caller asked; use enabled_kpis to drop a
+    KPI entirely instead. Pillar weights may be 0 (the scorer honours that literally,
+    zeroing the pillar's contribution) as long as the group doesn't sum to <= 0.
+
+    kpi_overrides is merged into the existing dict, not replaced: the same JSON column
+    also holds utils.llm_budget_controller's per-customer LLM budget under the
+    'llm_budget' key (kept there "to avoid adding new columns" — see that module), and a
+    full-column replace here would silently delete a budget nothing else in this build
+    writes back. Every other field is replaced whole, matching configure_tenant's
+    per-field overlay contract.
+
+    On success: config_version is bumped, weights_origin is set to 'customer_config',
+    customized_by is set (given, else the calling actor's label), and health is
+    recomputed through the normal pipeline in 'full_recalc' mode — the same mode
+    wizard_c_calibration.approve() uses — so every account's stored score reflects the
+    new weights immediately rather than waiting for the next CSV upload. A recompute
+    failure is recorded on the result, not hidden — the config write already committed.
+
+    Assumes an app context is already open (the @mcp.tool wrapper below provides one),
+    matching wizards.wizard_c_calibration.approve()'s contract.
+    """
+    from extensions import db
+    from models import Account, CustomerConfig, HealthScore
+    from utils.vertical_registry import get_vertical_for_customer, get_kpis, get_pillars
+    from wizards.wizard_c_calibration import current_actor, _bump_version
+
+    if pillar_weights is None and kpi_weights is None and enabled_kpis is None and kpi_overrides is None:
+        raise ValueError('configure_customer_kpis: pass at least one of pillar_weights, kpi_weights, '
+                         'enabled_kpis, kpi_overrides — nothing to change')
+
+    cc = CustomerConfig.query.filter_by(customer_id=int(customer_id)).first()
+    if not cc:
+        raise ValueError(f'customer {customer_id} has no CustomerConfig row')
+    vertical = get_vertical_for_customer(int(customer_id))     # fails closed on an unset vertical
+    kpis, pillars = get_kpis(vertical), get_pillars(vertical)
+
+    def _weight(value, where: str, allow_zero: bool = True) -> float:
+        try:
+            w = float(value)
+        except (TypeError, ValueError):
+            raise ValueError(f'{where}: {value!r} is not a number')
+        if w < 0:
+            raise ValueError(f'{where}: weight {w} is negative')
+        if w == 0 and not allow_zero:
+            raise ValueError(f"{where}: a weight of 0 is treated as *unset* by the scorer (falls back to 1.0), "
+                             f"not as 'zero out this KPI' — drop the code from kpi_weights or from enabled_kpis "
+                             f"to exclude it entirely")
+        return w
+
+    new_pillar_weights = None
+    if pillar_weights is not None:
+        if not isinstance(pillar_weights, dict) or not pillar_weights:
+            raise ValueError('pillar_weights must be a non-empty {pillar_code: weight} dict')
+        unknown = sorted(p for p in pillar_weights if p not in pillars)
+        if unknown:
+            raise ValueError(f'unknown pillar codes for vertical {vertical!r}: {unknown} (known: {sorted(pillars)})')
+        new_pillar_weights = {p: _weight(w, f'pillar_weights[{p!r}]') for p, w in pillar_weights.items()}
+        if sum(new_pillar_weights.values()) <= 0:
+            raise ValueError('pillar_weights must have at least one positive weight (the group sums to <= 0)')
+
+    new_kpi_weights = None
+    if kpi_weights is not None:
+        if not isinstance(kpi_weights, dict) or not kpi_weights:
+            raise ValueError('kpi_weights must be a non-empty {pillar_code: {kpi_code: weight}} dict')
+        new_kpi_weights = {}
+        for p, ws in kpi_weights.items():
+            if p not in pillars:
+                raise ValueError(f'unknown pillar code {p!r} in kpi_weights for vertical {vertical!r} (known: {sorted(pillars)})')
+            if not isinstance(ws, dict) or not ws:
+                raise ValueError(f'kpi_weights[{p!r}] must be a non-empty {{kpi_code: weight}} dict')
+            group = {}
+            for code, w in ws.items():
+                if code not in kpis:
+                    raise ValueError(f'unknown KPI code {code!r} for vertical {vertical!r} (known: {sorted(kpis)})')
+                if kpis[code].get('pillar') != p:
+                    raise ValueError(f"KPI {code!r} belongs to pillar {kpis[code].get('pillar')!r}, not {p!r} "
+                                     f"— nest it under its own pillar in kpi_weights")
+                group[code] = _weight(w, f'kpi_weights[{p!r}][{code!r}]', allow_zero=False)
+            if sum(group.values()) <= 0:
+                raise ValueError(f'kpi_weights[{p!r}] must have at least one positive weight (the group sums to <= 0)')
+            new_kpi_weights[p] = group
+
+    new_enabled_kpis = None
+    if enabled_kpis is not None:
+        if not isinstance(enabled_kpis, list) or not enabled_kpis:
+            raise ValueError('enabled_kpis must be a non-empty list of KPI codes')
+        unknown = sorted({c for c in enabled_kpis if c not in kpis})
+        if unknown:
+            raise ValueError(f'unknown KPI codes for vertical {vertical!r}: {unknown} (known: {sorted(kpis)})')
+        new_enabled_kpis = sorted(set(enabled_kpis))
+
+    new_kpi_overrides = None
+    if kpi_overrides is not None:
+        if not isinstance(kpi_overrides, dict) or not kpi_overrides:
+            raise ValueError('kpi_overrides must be a non-empty {kpi_code: {...}} dict')
+        unknown = sorted(c for c in kpi_overrides if c not in kpis)
+        if unknown:
+            raise ValueError(f'unknown KPI codes for vertical {vertical!r}: {unknown} (known: {sorted(kpis)})')
+        new_kpi_overrides = dict(kpi_overrides)
+
+    # Dependency warnings (non-fatal): config/kpi_dependencies.json is written against
+    # dc2_s's own pillar/KPI codes and names (P1-KPI1 there is "Time-to-First-Workload";
+    # the same code means "Daily Active Users" on saas_premium and something else again
+    # on datacenter_v1 — checked directly against both catalogs, not assumed) — firing it
+    # for another vertical would attach a wrong, dc2_s-flavoured warning to the customer's
+    # own KPI codes. Scoped to dc2_s until the dependency map is made vertical-generic.
+    warnings = []
+    if vertical == 'dc2_s':
+        warnings = _check_kpi_dependencies(
+            enabled_kpis=new_enabled_kpis,
+            enabled_pillars=sorted(new_pillar_weights) if new_pillar_weights is not None else None,
+        )
+
+    actor = current_actor()
+    label = (customized_by or '').strip() or actor['label']
+
+    if new_pillar_weights is not None:
+        cc.pillar_weights = new_pillar_weights
+    if new_kpi_weights is not None:
+        cc.kpi_weights = new_kpi_weights
+    if new_enabled_kpis is not None:
+        cc.enabled_kpis = new_enabled_kpis
+    if new_kpi_overrides is not None:
+        cc.kpi_overrides = {**(cc.kpi_overrides or {}), **new_kpi_overrides}
+    fields_changed = [n for n, v in (('pillar_weights', new_pillar_weights), ('kpi_weights', new_kpi_weights),
+                                     ('enabled_kpis', new_enabled_kpis), ('kpi_overrides', new_kpi_overrides))
+                      if v is not None]
+    cc.customized_by = label
+    cc.config_version = _bump_version(cc.config_version)
+    cc.weights_origin = 'customer_config'
+    db.session.commit()
+
+    from mcp_server import audit
+    audit.record('customer_config', 'configure_customer_kpis', int(customer_id), key_kind=actor['key_kind'],
+                key_record=actor.get('key_record'), outcome='allowed',
+                detail=f'fields={fields_changed} by {label} -> config_version {cc.config_version}, '
+                       f'weights_origin=customer_config' + (f' warnings={len(warnings)}' if warnings else ''))
+
+    recompute = {'mode': 'full_recalc', 'status': None, 'run_id': None, 'steps': None, 'error': None,
+                'health_rows_customer_config': 0}
+    try:
+        res = _process_data_impl(int(customer_id), mode='full_recalc')
+        recompute.update({'status': res.get('status'), 'run_id': res.get('run_id'), 'steps': res.get('steps_completed')})
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning('configure_customer_kpis: health recompute for customer %s failed: %s', customer_id, e)
+        db.session.rollback()
+        recompute.update({'status': 'failed', 'error': str(e)[:300]})
+    acct_ids = [a.account_id for a in Account.query.filter_by(customer_id=int(customer_id)).all()]
+    if acct_ids:
+        recompute['health_rows_customer_config'] = HealthScore.query.filter(
+            HealthScore.account_id.in_(acct_ids), HealthScore.weight_source == 'customer_config').count()
+
+    return {
+        'customer_id': int(customer_id), 'vertical': vertical, 'config_version': cc.config_version,
+        'weights_origin': cc.weights_origin, 'customized_by': cc.customized_by,
+        'pillar_weights': cc.pillar_weights, 'kpi_weights': cc.kpi_weights,
+        'enabled_kpis': cc.enabled_kpis, 'kpi_overrides': cc.kpi_overrides,
+        'fields_changed': fields_changed, 'warnings': warnings, 'recompute': recompute,
+    }
+
+
+@mcp.tool
+def configure_customer_kpis(customer_id: int, pillar_weights: dict = None, kpi_weights: dict = None,
+                            enabled_kpis: list = None, kpi_overrides: dict = None,
+                            customized_by: str = None) -> dict:
+    """Set a tenant's KPI/pillar weights by hand — the direct-human-input counterpart to
+    an approved Wizard C calibration. Only the fields you pass change (overlay, not
+    replace-everything); pass a field to fully replace it (kpi_overrides is the one
+    exception — see below). Every pillar/KPI code is validated against the vertical's
+    own catalog and rejected if unknown; weights are checked for being non-negative and
+    for each group (all pillar weights, or the KPI weights within one pillar) summing to
+    more than zero. Writes CustomerConfig with config_version bumped and
+    weights_origin='customer_config', then recomputes health (full_recalc) so the change
+    is visible immediately, not on the next CSV upload.
+
+    Args:
+        customer_id: The customer ID
+        pillar_weights: Replace the tenant's pillar weights: {pillar_code: weight}, e.g.
+            {"P1": 0.3, "P2": 0.3, "P3": 0.4}. Every key must be a real pillar for this
+            vertical (get_vertical_config lists them); weights need not sum to 1 — the
+            scorer normalises by the group total — but must sum to something positive.
+        kpi_weights: Replace the tenant's KPI weights within each pillar:
+            {pillar_code: {kpi_code: weight}}, e.g. {"P1": {"P1-KPI1": 2, "P1-KPI2": 1}}.
+            Every KPI must belong to the pillar it's nested under. A weight of exactly 0
+            is rejected (the scorer treats it as unset, not as zero-out) — use
+            enabled_kpis to drop a KPI instead.
+        enabled_kpis: Replace the tenant's enabled-KPI list — every other KPI in the
+            catalog is excluded from scoring. Must be non-empty; every code must be real.
+        kpi_overrides: Per-KPI overrides, e.g. {"P3-KPI1": {"target": 90}}. Merged into
+            the existing dict (not replaced) so an unrelated key already stored there
+            (this column also holds the LLM budget config) is never silently dropped.
+        customized_by: Who made this change (e.g. an email or username), kept on the row.
+            Defaults to the calling API key's label when omitted.
+    """
+    _require_auth_if_key_present('configure_customer_kpis', customer_id)
+    _check_mcp_enabled()
+    app = _get_flask_app()
+    with app.app_context():
+        try:
+            return _configure_customer_kpis_impl(customer_id, pillar_weights=pillar_weights, kpi_weights=kpi_weights,
+                                                 enabled_kpis=enabled_kpis, kpi_overrides=kpi_overrides,
+                                                 customized_by=customized_by)
+        except ValueError as e:
+            raise ToolError(str(e))
+
+
 # ===================================================================
 # Read surface (journeys + evidence) and human review
 # ===================================================================
