@@ -3,7 +3,8 @@ import { useAuth } from '../auth/AuthContext'
 
 const NAV_ITEMS: { to: string; label: string; roles?: string[] }[] = [
   { to: '/portfolio', label: 'Portfolio' },
-  // Account/Journey Canvas, Interventions, ROI & Power-of-1, Review Queue,
+  { to: '/review-queue', label: 'Review Queue', roles: ['csm', 'admin'] },
+  // Account/Journey Canvas, Interventions, ROI & Power-of-1,
   // Calibrations, Settings — added as their own pages land.
 ]
 
@@ -23,7 +24,7 @@ export default function Shell() {
           <div className="flex items-center gap-8">
             <span className="font-semibold tracking-tight text-slate-900">CustomerIntel</span>
             <nav className="flex gap-4">
-              {NAV_ITEMS.map((item) => (
+              {NAV_ITEMS.filter((item) => !item.roles || (user && item.roles.includes(user.role))).map((item) => (
                 <NavLink
                   key={item.to}
                   to={item.to}

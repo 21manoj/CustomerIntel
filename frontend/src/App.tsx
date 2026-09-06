@@ -3,6 +3,7 @@ import ProtectedRoute from './components/ProtectedRoute'
 import Shell from './components/Shell'
 import Login from './pages/Login'
 import Portfolio from './pages/Portfolio'
+import ReviewQueue from './pages/ReviewQueue'
 
 export default function App() {
   return (
@@ -11,6 +12,7 @@ export default function App() {
       <Route element={<ProtectedRoute />}>
         <Route element={<Shell />}>
           <Route path="/portfolio" element={<Portfolio />} />
+          <Route path="/review-queue" element={<ReviewQueue />} />
           <Route path="/" element={<Navigate to="/portfolio" replace />} />
         </Route>
       </Route>
