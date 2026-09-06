@@ -2,14 +2,16 @@
 Investment priorities — where the next hour / dollar goes, now (design §3).
 
     investment_priorities(customer_id, account_id=None)   ranked rows + portfolio totals
-    compact_for_rows(customer_id, pairs)                  the same score, compact, for list_journeys rows
+    compact_for_rows(customer_id, vertical, pairs)        the same score, compact, for list_journeys rows
 
 Per account: risk_factor = weighted sum of phase, leading layer, the highest
 effective urgency on the latest month's cited evidence, renewal proximity;
 opportunity_factor from positive roles / recovery_watch / an open
 expansion-class intervention. revenue_weighted = revenue × max(risk,
-opportunity); lens = protect | grow. Every row cites the episodes it rests
-on and lists the open interventions (a proposed row is a decision waiting).
+opportunity); lens = protect | grow — protect whenever risk clears
+protect_override_risk, else the larger factor, the other kept as
+secondary_lens. Every row cites the episodes it rests on and lists the
+open interventions (a proposed row is a decision waiting).
 One scoring function serves the tool, the route and the portfolio row.
 """
 from __future__ import annotations
@@ -144,6 +146,18 @@ def _opportunity(journey: dict, open_rows: List[dict], taxonomy, cfg: dict) -> d
             'basis': '; '.join(parts) or 'no positive roles in the latest month'}
 
 
+def _lens(risk: float, opportunity: float, cfg: dict) -> Tuple[str, Optional[str]]:
+    """(lens, secondary_lens). Risk at or above protect_override_risk is protect whatever the upside — an
+    account being lost is protected first (live tenants 10/11: an exec-sponsor change with an expansion
+    ask in the same month is not a 'grow' account). Otherwise the larger factor. The other lens is
+    reported as secondary when its factor clears list_floor, so the upside stays visible."""
+    override = float(cfg['protect_override_risk'])
+    floor = float(cfg['list_floor'])
+    if risk >= override or risk >= opportunity:
+        return LENS_PROTECT, (LENS_GROW if opportunity >= floor else None)
+    return LENS_GROW, (LENS_PROTECT if risk >= floor else None)
+
+
 def score_account(journey: dict, account, urgencies: Dict[int, Optional[str]], open_rows: List[dict], taxonomy) -> dict:
     """The one scoring function. `journey` is the account's journey_json; `urgencies` the effective_urgency
     of its evidence nodes; `open_rows` its open interventions."""
@@ -154,7 +168,7 @@ def score_account(journey: dict, account, urgencies: Dict[int, Optional[str]], o
     risk = round(float(w['phase']) * phase['factor'] + float(w['leading']) * leading['factor']
                  + float(w['urgency']) * urgency['factor'] + float(w['renewal']) * renewal['factor'], 4)
     opp = _opportunity(journey, open_rows, taxonomy, cfg)
-    lens = LENS_GROW if opp['factor'] > risk else LENS_PROTECT
+    lens, secondary = _lens(risk, opp['factor'], cfg)
     top = max(risk, opp['factor'])
     revenue = get_account_arr(account)
     eids, nids = _latest_evidence_nodes(journey)
@@ -165,11 +179,13 @@ def score_account(journey: dict, account, urgencies: Dict[int, Optional[str]], o
     first = by_id.get(eids[0]) if eids else None
     return {
         'account_id': account.account_id, 'account_name': account.account_name,
-        'lens': lens, 'risk_factor': risk, 'opportunity_factor': opp['factor'], 'priority_factor': round(top, 4),
+        'lens': lens, 'secondary_lens': secondary, 'risk_factor': risk, 'opportunity_factor': opp['factor'], 'priority_factor': round(top, 4),
         'revenue': money(revenue, 'derived', ['derived: Account.revenue (get_account_arr)']),
         'revenue_weighted': money(revenue * top, 'derived',
-                                  ['derived: Account.revenue', f'derived: {lens} factor {round(top, 4)} from the journey '
-                                   '(phase, leading layer, cited urgency, renewal proximity | positive roles) with weights from power_of_1.json']),
+                                  ['derived: Account.revenue',
+                                   f'derived: {"risk_factor" if risk >= opp["factor"] else "opportunity_factor"} {round(top, 4)} from the journey '
+                                   '(phase, leading layer, cited urgency, renewal proximity | positive roles, open expansion interventions) '
+                                   'with weights from power_of_1.json']),
         'factors': {'phase': phase, 'leading': leading, 'urgency': urgency, 'renewal': renewal, 'weights': dict(w)},
         'opportunity': opp,
         'arc_type': arc.get('arc_type'), 'state': journey.get('state'), 'as_of': journey.get('as_of'),
@@ -181,7 +197,7 @@ def score_account(journey: dict, account, urgencies: Dict[int, Optional[str]], o
 
 
 def compact(row: dict) -> dict:
-    return {'lens': row['lens'], 'risk_factor': row['risk_factor'], 'opportunity_factor': row['opportunity_factor'],
+    return {'lens': row['lens'], 'secondary_lens': row['secondary_lens'], 'risk_factor': row['risk_factor'], 'opportunity_factor': row['opportunity_factor'],
             'revenue_weighted': row['revenue_weighted']['value'], 'basis': row['revenue_weighted']['basis'],
             'pending_approvals': row['pending_approvals'], 'cited_episodes': len(row['cites']['episode_ids'])}
 

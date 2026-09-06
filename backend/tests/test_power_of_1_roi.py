@@ -298,8 +298,14 @@ def test_priorities_on_datacenter_use_its_own_taxonomy(tenants):
         from roi.priorities import investment_priorities
         rows = {r['account_id']: r for r in investment_priorities(cid)['rows']}
         tit, mer = rows[ids['TIT']], rows[ids['MER']]
-        assert tit['lens'] == 'protect' and tit['factors']['urgency']['level'] in ('high', 'critical')
-        assert mer['lens'] == 'grow' and set(mer['opportunity']['roles']) >= {'expansion_intent'}
+        assert tit['lens'] == 'protect' and tit['secondary_lens'] is None and tit['factors']['urgency']['level'] in ('high', 'critical')
+        # Meridian: capacity pressure (taxonomy polarity -1) diverging from healthy KPIs → the journey's own early_warning,
+        # so risk clears the override and the account is protected first; the expansion ask stays visible as the secondary lens
+        assert mer['lens'] == 'protect' and mer['secondary_lens'] == 'grow' and mer['risk_factor'] >= 0.5
+        assert mer['factors']['leading']['label'] == 'early_warning' and set(mer['opportunity']['roles']) >= {'expansion_intent'}
+        assert mer['opportunity_factor'] == 1.0 and len(mer['opportunity']['open_expansion_interventions']) == 2
+        assert mer['priority_factor'] == 1.0 and mer['revenue_weighted']['value'] == 4_100_000
+        assert 'opportunity_factor' in mer['revenue_weighted']['basis_chain'][1] and 'risk_factor' in tit['revenue_weighted']['basis_chain'][1]
 
 
 def test_portfolio_row_carries_the_same_priority_number(tenants):
@@ -439,3 +445,69 @@ def test_http_routes_are_keyed(tenants):
     finally:
         auth.MCP_SERVER_API_KEY = prev
         os.environ['MCP_TRANSPORT'] = 'stdio'
+
+
+# ── hindsight block on a real Wizard B run ────────────────────────────
+
+HIND_ACCOUNTS = ("source_account_id,account_name,industry,region,arr,renewal_date\n"
+                 + "".join(f"H{i},Hind {i},Media,NA,{200000 * (i + 1)},2027-0{i + 1}-01\n" for i in range(5)))
+HIND_KPIS = ("source_account_id,kpi_code,measured_at,value\n"
+             + "".join(f"H{i},P1-KPI1,2026-0{m}-01,{80 - 10 * i - 2 * m}\nH{i},P5-KPI1,2026-0{m}-01,{110 - 5 * i}\n" for i in range(5) for m in (5, 6, 7)))
+
+
+def test_hindsight_block_maps_a_real_wizard_b_run(tenants):
+    """Only the no_run branch is otherwise exercised: prove the key mapping against Wizard B's actual results."""
+    with app.app_context():
+        from wizards.wizard_b_hindsight import run_wizard_b
+        from roi.measured import roi, _hindsight
+        from models import WizardRun
+        cid, ids = _tenant('Po1Hind', 'saas_premium', HIND_ACCOUNTS, HIND_KPIS)
+        _sig(cid, ids['H0'], 'champion_departure', '2026-07-10T10:00:00Z', 'Sponsor moved to a competitor')
+        _sig(cid, ids['H1'], 'expansion_interest', '2026-07-12T10:00:00Z', 'Asked about the enterprise tier')
+        _rebuild(cid)
+        # process_data already ran Wizard B for a 5-journey tenant; a second explicit run must be the one the block follows
+        earlier = {r.run_id for r in WizardRun.query.filter_by(customer_id=cid, wizard='b').all()}
+        res = run_wizard_b(cid)
+        assert res['status'] == 'completed', res
+        runs = WizardRun.query.filter_by(customer_id=cid, wizard='b', status='completed').order_by(WizardRun.created_at.desc()).all()
+        assert len(runs) == len(earlier) + 1 and runs[0].run_id not in earlier
+        h = _hindsight(cid)
+        assert h['status'] == 'ok' and h['run_id'] == runs[0].run_id and h['journeys'] == 5
+        assert h['evidence_label'] == res['evidence_label'] and h['generated_at'] == res['generated_at']
+        assert set(h['interventions']) == {'basis', 'n', 'with_health_lift_share', 'median_lift_pts', 'followed_by_protected_or_expansion_share'}
+        assert h['interventions']['n'] == res['interventions']['n'] == len(h['intervention_rows'])
+        assert h['realized_nrr'] == res['realized_nrr']['portfolio'] and h['realized_nrr_basis'] == res['realized_nrr']['basis']
+        assert h['realized_nrr'] is not None and 'nrr' in json.dumps(h['realized_nrr']).lower()
+        for row in h['intervention_rows']:
+            assert set(row) == {'account', 'date', 'title', 'lift_pts', 'outcomes_after', 'revenue_after_protected'}
+        assert roi(cid)['hindsight'] == h
+
+
+def test_lens_protects_first_when_risk_is_high():
+    """Live tenants 10/11: an exec-sponsor change with an expansion ask in the same month saturated the
+    opportunity factor and labelled a deteriorating account 'grow'. Risk at the override is protect."""
+    from roi.priorities import _lens
+    from roi import settings
+    cfg = settings.get('priority')
+    override, floor = cfg['protect_override_risk'], cfg['list_floor']
+    assert _lens(override, 1.0, cfg) == ('protect', 'grow')
+    assert _lens(0.76, 1.0, cfg) == ('protect', 'grow')
+    assert _lens(override - 0.01, 1.0, cfg) == ('grow', 'protect')
+    assert _lens(floor - 0.01, 1.0, cfg) == ('grow', None)
+    assert _lens(0.3, 0.3, cfg) == ('protect', 'grow')            # tie → protect
+    assert _lens(0.3, floor - 0.01, cfg) == ('protect', None)
+    assert _lens(0.0, 0.0, cfg) == ('protect', None)
+
+
+def test_money_cannot_claim_more_than_its_weakest_link():
+    from roi.basis import money, weakest, assumed_link
+    assert weakest('derived', 'assumed') == 'assumed' and weakest('measured', 'derived') == 'derived'
+    assert money(1, 'assumed', ['derived: revenue', 'assumed: sensitivity'])['basis'] == 'assumed'
+    assert money(None, 'measured', note='none yet')['basis_chain'] == ['measured']
+    with pytest.raises(ValueError, match="weakest link is 'assumed'"):
+        money(1, 'derived', ['derived: revenue', 'assumed: sensitivity'])
+    with pytest.raises(ValueError, match="weakest link is 'derived'"):
+        money(1, 'measured', ['measured: outcome 9', 'derived: revenue'])
+    with pytest.raises(ValueError, match='unknown basis'):
+        money(1, 'guessed')
+    assert assumed_link('assumed: x') == 'assumed: x' and assumed_link('x') == 'assumed: x'

@@ -8,8 +8,9 @@
   },
   "basis_rank": ["measured", "derived", "assumed"],
   "priority": {
-    "_doc": "risk_factor = sum(weight * factor) over the four inputs, each factor in [0,1]; revenue_weighted = revenue * max(risk_factor, opportunity_factor).",
+    "_doc": "risk_factor = sum(weight * factor) over the four inputs, each factor in [0,1]; revenue_weighted = revenue * max(risk_factor, opportunity_factor). lens = protect when risk_factor >= protect_override_risk (an account being lost is protected first, whatever its upside), else the larger factor; the other lens is reported as secondary_lens when its factor clears list_floor.",
     "weights": {"phase": 0.25, "leading": 0.35, "urgency": 0.25, "renewal": 0.15},
+    "protect_override_risk": 0.5,
     "phase_factor": {"deterioration": 1.0, "intervention": 0.9, "resolution": 0.4, "baseline": 0.1, "none": 0.0},
     "leading_label_factor": {"early_warning": 1.0, "recovery_watch": 0.2},
     "_leading_note": "aligned / leading_only / no label fall back to band_factor of the kpi_only (aligned) or qual (leading_only) band; nothing scored = 'unknown'",

@@ -33,7 +33,9 @@ def get_investment_priorities(customer_id: int, account_id: int = None) -> dict:
     exposure-weighted revenue (revenue × the larger of a journey-derived
     risk factor — phase, leading layer, cited urgency, renewal proximity —
     and an opportunity factor from positive roles), each row with its lens
-    (protect | grow), the factors, the open interventions (a proposed one is
+    (protect | grow — protect first whenever the risk factor clears the
+    configured override, the other lens kept as secondary_lens), the
+    factors, the open interventions (a proposed one is
     a decision waiting) and the episode / node ids it rests on. Portfolio
     totals for the tenant's vertical. Every $ is labelled derived; nothing
     here is a forecast.

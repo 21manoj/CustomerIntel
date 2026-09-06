@@ -34,11 +34,16 @@ def assumed_link(sentence: str) -> str:
 
 
 def money(value: Optional[float], basis: str, chain: Optional[Iterable[str]] = None, note: Optional[str] = None) -> dict:
-    """One labelled dollar figure. value None = not computable (the note says why)."""
+    """One labelled dollar figure. value None = not computable (the note says why).
+    The basis must be the weakest label in the chain ('derived: …', 'assumed: …'): a figure cannot
+    claim more than its weakest link, and a link labelled below the claimed basis is a bug, not a note."""
     if basis not in rank():
         raise ValueError(f'unknown basis {basis!r}')
-    out = {'value': round(float(value), 2) if value is not None else None, 'basis': basis,
-           'basis_chain': list(chain or [f'{basis}'])}
+    links = list(chain or [basis])
+    labels = [lab for lab in (str(c).split(':', 1)[0].strip().lower() for c in links) if lab in rank()]
+    if labels and weakest(*labels) != basis:
+        raise ValueError(f'basis {basis!r} claimed over a chain whose weakest link is {weakest(*labels)!r}: {links}')
+    out = {'value': round(float(value), 2) if value is not None else None, 'basis': basis, 'basis_chain': links}
     if note:
         out['note'] = note
     return out

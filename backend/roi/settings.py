@@ -34,12 +34,6 @@ def load() -> dict:
         return json.load(f)
 
 
-def reload() -> dict:
-    load.cache_clear()
-    economics.cache_clear()
-    return load()
-
-
 def get(*keys):
     """Nested lookup; KeyError names the missing path."""
     node = load()
