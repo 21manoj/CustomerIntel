@@ -168,6 +168,8 @@ def build_asgi_app(database_url: str | None = None, create_schema: bool = True):
     register_forecast_routes(mcp)         # GET /api/forecast — Wizard D (Foresight) latest run
     from adapters.http import register_adapter_routes
     register_adapter_routes(mcp)          # /api/sources* — inbound source adapters
+    from app_api.http import register_app_api_routes
+    register_app_api_routes(mcp)          # /app/api/* — the human UI (session cookies, not Bearer keys)
     from wizards.wizard_c_http import register_calibration_routes
     register_calibration_routes(mcp)      # /api/calibrations* — Wizard C proposals, approve / reject
     app = _common.get_flask_app()

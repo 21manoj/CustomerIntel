@@ -122,7 +122,7 @@ def create_customer(
 
     This is the first write step in onboarding. Creates:
     1. Customer record (with UUID)
-    2. Admin user (with generated password)
+    2. Admin user (with a one-time password-setup token — see admin_setup_token in the result)
     3. CustomerConfig (vertical defaults)
     4. API key (returned once — save it! Not issued yet if api_key_service
        isn't available in this build — known gap, see project memory)
@@ -164,8 +164,6 @@ def create_customer(
     with app.app_context():
         from models import Customer, User, CustomerConfig
         from extensions import db
-        from werkzeug.security import generate_password_hash
-        import secrets as _secrets
 
         existing = Customer.query.filter_by(domain=domain).first()
         if existing:
@@ -200,12 +198,10 @@ def create_customer(
 
         customer_id = customer.customer_id
 
-        generated_password = _secrets.token_urlsafe(16)
         user = User(
             customer_id=customer_id,
             user_name=admin_name,
             email=admin_email,
-            password_hash=generate_password_hash(generated_password),
             role='admin',
             vertical=vertical,
         )
@@ -218,6 +214,9 @@ def create_customer(
             pass
         db.session.add(user)
         db.session.flush()
+
+        from app_api.auth import issue_setup_token
+        setup_token = issue_setup_token(user)
 
         config = CustomerConfig(
             customer_id=customer_id,
@@ -276,6 +275,8 @@ def create_customer(
             'created_at': customer.created_at.isoformat() if customer.created_at else None,
             'admin_user_id': user.user_id,
             'admin_email': admin_email,
+            'admin_setup_token': setup_token,
+            'admin_setup_token_note': 'Shown only once — use it at POST /app/api/auth/set-password to set the admin login password.',
             'data_origin': data_origin,
             'disclosure': _disclosure(data_origin),
         }

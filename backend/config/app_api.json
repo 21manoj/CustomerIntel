@@ -1,0 +1,21 @@
+{
+  "_doc": "The human UI's session auth — every number the app_api/ package uses. Separate from config/signal_engine.json etc. by concern, same loader shape.",
+  "version": "1.0",
+  "roles": ["admin", "cro", "cfo", "csm"],
+  "session": {
+    "cookie_name": "ci_session",
+    "max_age_seconds": 43200,
+    "secret_env": "SESSION_SECRET"
+  },
+  "password_setup": {
+    "token_bytes": 32,
+    "expiry_minutes": 15
+  },
+  "login_rate_limit": {
+    "max_failures": 5,
+    "window_seconds": 300,
+    "block_seconds": 60,
+    "cleanup_interval_seconds": 600
+  },
+  "password_min_length": 10
+}

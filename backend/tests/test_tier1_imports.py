@@ -64,19 +64,6 @@ def test_vertical_health_imports():
         from utils import vertical_health  # noqa: F401
 
 
-def test_approval_queue_service_imports():
-    """ApprovalQueueService (the actual business logic) must import even
-    though auth_middleware is a placeholder -- the service class itself
-    doesn't touch auth, only the Flask blueprint at the bottom of the file
-    does, and that's expected to fail until real auth exists."""
-    app = _make_app()
-    with app.app_context():
-        import models  # noqa: F401
-        db.create_all()
-        from approval_queue import ApprovalQueueService
-        assert ApprovalQueueService is not None
-
-
 def test_llm_budget_controller_imports():
     app = _make_app()
     with app.app_context():

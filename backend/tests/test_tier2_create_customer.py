@@ -89,7 +89,11 @@ class TestCreateCustomerBasics:
             user = User.query.get(result['admin_user_id'])
             assert user is not None
             assert user.role == 'admin'
-            assert user.password_hash is not None
+            # no password is generated and discarded any more (that left the account permanently
+            # unusable) -- a one-time setup token is issued instead, consumed at POST
+            # /app/api/auth/set-password (tests/test_app_api_auth.py exercises the token end to end)
+            assert user.password_hash is None
+            assert result['admin_setup_token'] and 'once' in result['admin_setup_token_note'].lower()
 
             config = CustomerConfig.query.filter_by(customer_id=result['customer_id']).first()
             assert config is not None
