@@ -1,7 +1,7 @@
 // Thin fetch wrapper over /app/api/* — session-cookie auth (credentials: 'include'),
 // same functions the design doc's route table names. No business logic here, just
 // the HTTP call + typed response.
-import type { PortfolioResponse, SessionUser } from './types'
+import type { CalibrationProposal, CalibrationProposeResult, CalibrationResponse, PortfolioResponse, SessionUser } from './types'
 
 const BASE = import.meta.env.VITE_API_BASE ?? ''
 
@@ -50,4 +50,31 @@ export function me() {
 
 export function getPortfolio(customerId: number) {
   return request<PortfolioResponse>(`/app/api/portfolio?customer_id=${customerId}`)
+}
+
+export function getCalibrations(customerId: number, proposalId?: number) {
+  const q = new URLSearchParams({ customer_id: String(customerId) })
+  if (proposalId != null) q.set('proposal_id', String(proposalId))
+  return request<CalibrationResponse>(`/app/api/calibrations?${q.toString()}`)
+}
+
+export function proposeCalibration(customerId: number) {
+  return request<CalibrationProposeResult>('/app/api/calibrations/propose', {
+    method: 'POST',
+    body: JSON.stringify({ customer_id: customerId }),
+  })
+}
+
+export function approveCalibration(proposalId: number, customerId: number, note?: string) {
+  return request<CalibrationProposal>(`/app/api/calibrations/${proposalId}/approve`, {
+    method: 'POST',
+    body: JSON.stringify({ customer_id: customerId, note }),
+  })
+}
+
+export function rejectCalibration(proposalId: number, customerId: number, note?: string) {
+  return request<CalibrationProposal>(`/app/api/calibrations/${proposalId}/reject`, {
+    method: 'POST',
+    body: JSON.stringify({ customer_id: customerId, note }),
+  })
 }
