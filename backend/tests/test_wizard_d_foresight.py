@@ -135,8 +135,8 @@ def test_loader_raises_on_missing_key_and_module_names_no_vertical():
     with pytest.raises(KeyError, match='wizard_d.json has no prior/no_such_key'):
         settings.get('prior', 'no_such_key')
     assert settings.vertical_get('any_vertical', 'prior', 'base_retention_at_decision') == settings.get('prior', 'base_retention_at_decision')
-    src = (BACKEND / 'wizards' / 'wizard_d_foresight.py').read_text()
-    assert not re.search(r"saas|dc2|datacenter|healthcare|manufacturing", src, re.I)
+    for f in ('wizards/wizard_d_foresight.py', 'wizards/wizard_d_settings.py', 'wizards/wizard_d_http.py', 'mcp_server/cs_pulse_wizard_d.py'):
+        assert not re.search(r"saas|dc2|datacenter|healthcare|manufacturing", (BACKEND / f).read_text(), re.I), f
     for band in ('healthy', 'at_risk', 'critical', 'none'):
         assert band in settings.get('prior', 'health_band_factor') and band in settings.get('expansion', 'health_band_factor')
     for label in ('early_warning', 'recovery_watch', 'aligned', 'leading_only_negative', 'leading_only_positive', 'leading_only_neutral', 'none'):

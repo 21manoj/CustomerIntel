@@ -45,7 +45,7 @@ GENERATOR_VERSION = 'd1.0'
 LENS = 'foresight'
 WIZARD = 'd'
 SEPARATION_NOTE = 'kpi_only (health band) and qual (leading label) are read side by side as separate factors; never blended.'
-INTERVENTION_OPEN_STATES = (None, '', 'started')       # closed_state values that mean the intervention is still in flight
+INTERVENTION_OPEN_STATES = (None, '')   # closed_state is unset until the workflow reports done / failed / cancelled (playbooks.governance)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -358,6 +358,8 @@ def _prior_retention(journey: dict, vertical: str, dp: dict, iv: List[dict], dri
     floor, ceiling = settings.get('p_floor'), settings.get('p_ceiling')
     if dp['inside_horizon']:
         return _clamp(vg('base_retention_at_decision') * product, floor, ceiling), 'decision_in_horizon'
+    # no decision inside the horizon: the question is mid-term contraction — the configured hazard, raised by the
+    # same factors when they fall below 1 and lowered when above (hazard ÷ factor product)
     hazard = vg('midterm_loss_hazard') / product if product > 0 else 1.0
     return _clamp(1.0 - hazard, floor, ceiling), 'midterm'
 
@@ -401,8 +403,7 @@ def _cites(journey: dict, iv: List[dict]) -> List[str]:
     if transitions:
         ids.append(transitions[-1])
     ids.extend(e['episode_id'] for e in iv)
-    if any(e.get('kind') == 'renewal' for e in (journey.get('episodes') or [])):
-        ids.append('renewal')
+    ids.extend(e['episode_id'] for e in (journey.get('episodes') or []) if e.get('kind') == 'renewal')
     known = {e['episode_id'] for e in (journey.get('episodes') or [])}
     return [i for i in dict.fromkeys(ids) if i in known]
 

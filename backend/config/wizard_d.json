@@ -16,7 +16,7 @@
     "terminal_negative_buckets": ["lost"]
   },
   "prior": {
-    "_doc": "p_retain = clamp(base_retention_at_decision × health_band × leading_label × arc × phase × intervention). When no decision point (renewal / refresh / contract end) falls inside the horizon, the question is mid-term contraction: p_retain = 1 − midterm_loss_hazard × the same factors' shortfall. Factor values are template judgements (every one ≤ ~1.1 and ≥ ~0.5) — a prior, labelled as such on every block.",
+    "_doc": "p_retain = clamp(base_retention_at_decision × health_band × leading_label × arc × phase × intervention). When no decision point (renewal / refresh / contract end) falls inside the horizon, the question is mid-term contraction: p_retain = 1 − midterm_loss_hazard ÷ (the same factor product) — factors below 1 raise the hazard, above 1 lower it. Factor values are template judgements (every one ≤ ~1.1 and ≥ ~0.5) — a prior, labelled as such on every block.",
     "base_retention_at_decision": 0.85,
     "midterm_loss_hazard": 0.06,
     "health_band_factor": {"healthy": 1.0, "at_risk": 0.82, "critical": 0.6, "none": 0.95},

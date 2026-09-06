@@ -3,7 +3,7 @@ Wizard D settings — config/wizard_d.json, loaded once.
 
     from wizards import wizard_d_settings as settings
     settings.get('calibration', 'min_labels')          # 30
-    settings.vertical_get('saas_premium', 'prior', 'base_retention_at_decision')
+    settings.vertical_get(vertical, 'prior', 'base_retention_at_decision')
 
 Nothing in Foresight carries its own number; a missing key raises here, it
 is never invented. `vertical_get` reads `<section>.verticals.<vertical>.<key>`
