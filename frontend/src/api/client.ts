@@ -1,7 +1,13 @@
 // Thin fetch wrapper over /app/api/* — session-cookie auth (credentials: 'include'),
 // same functions the design doc's route table names. No business logic here, just
 // the HTTP call + typed response.
-import type { PortfolioResponse, SessionUser } from './types'
+import type {
+  MeasuredRoiResponse,
+  PortfolioResponse,
+  PowerOfOneResponse,
+  PrioritiesResponse,
+  SessionUser,
+} from './types'
 
 const BASE = import.meta.env.VITE_API_BASE ?? ''
 
@@ -50,4 +56,17 @@ export function me() {
 
 export function getPortfolio(customerId: number) {
   return request<PortfolioResponse>(`/app/api/portfolio?customer_id=${customerId}`)
+}
+
+// cfo/cro/admin only — the backend 403s every other role on all three (_finance_guard in http.py).
+export function getInvestmentPriorities(customerId: number) {
+  return request<PrioritiesResponse>(`/app/api/roi/priorities?customer_id=${customerId}`)
+}
+
+export function getPowerOfOne(customerId: number) {
+  return request<PowerOfOneResponse>(`/app/api/roi/power-of-1?customer_id=${customerId}`)
+}
+
+export function getMeasuredRoi(customerId: number) {
+  return request<MeasuredRoiResponse>(`/app/api/roi?customer_id=${customerId}`)
 }

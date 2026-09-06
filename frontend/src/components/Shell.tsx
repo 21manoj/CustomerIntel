@@ -1,15 +1,20 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 
+// `roles`, when present, restricts the link to those SessionUser.role values (checked against the
+// logged-in user below) — omit it for a link every role should see. Generic on purpose: other pages
+// landing in parallel (Interventions, Review Queue, Calibrations, Settings, ...) need the same gating.
 const NAV_ITEMS: { to: string; label: string; roles?: string[] }[] = [
   { to: '/portfolio', label: 'Portfolio' },
-  // Account/Journey Canvas, Interventions, ROI & Power-of-1, Review Queue,
+  { to: '/roi', label: 'ROI & Power-of-1', roles: ['cfo', 'cro', 'admin'] },
+  // Account/Journey Canvas, Interventions, Review Queue,
   // Calibrations, Settings — added as their own pages land.
 ]
 
 export default function Shell() {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
+  const navItems = NAV_ITEMS.filter((item) => !item.roles || (user && item.roles.includes(user.role)))
 
   async function handleLogout() {
     await logout()
@@ -23,7 +28,7 @@ export default function Shell() {
           <div className="flex items-center gap-8">
             <span className="font-semibold tracking-tight text-slate-900">CustomerIntel</span>
             <nav className="flex gap-4">
-              {NAV_ITEMS.map((item) => (
+              {navItems.map((item) => (
                 <NavLink
                   key={item.to}
                   to={item.to}
