@@ -79,7 +79,7 @@ def calculate_health_scores(
 
     Provenance (2026-09-05): every row records the pillar and KPI weights
     actually applied, the KPI codes used and dropped, where the weights came
-    from (lifecycle / customer_config / catalog), the catalog, taxonomy and
+    from (lifecycle / vertical_default / customer_config / wizard_c / catalog), the catalog, taxonomy and
     scorer versions, the newest upload among its inputs, and the run that
     wrote it. A scorer that cannot be built fails the stage (no 0.0 rows);
     a month whose calculation raises is counted in the step, not skipped
@@ -154,13 +154,17 @@ def calculate_health_scores(
         calc_failed = 0
         for (aid, month), kpi_groups in groups.items():
             kpi_vals = {code: sum(v) / len(v) for code, v in kpi_groups.items()}
-            pillar_overrides = None
+            pillar_overrides, kpi_overrides = None, None
             if lifecycle:
                 stage = resolve_account_stage(acct_by_id[aid], month, lifecycle)
-                pillar_overrides, _kpi_overrides = get_stage_weights(stage)
+                pillar_overrides, kpi_overrides = get_stage_weights(stage)
+                if kpi_overrides:
+                    from utils.vertical_health import flatten_kpi_weights
+                    kpi_overrides = flatten_kpi_weights(kpi_overrides)   # the stage's KPI weights were computed and discarded before 2026-09-05
             try:
                 r = calculate_fn(
                     kpi_vals, customer_id=customer_id, pillar_weight_overrides=pillar_overrides, explain=True,
+                    kpi_weight_overrides=kpi_overrides,
                 )
             except Exception as calc_err:
                 calc_failed += 1

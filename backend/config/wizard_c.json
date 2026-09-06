@@ -24,6 +24,8 @@
     "d_cap": 1.0,
     "min_pillar_weight": 0.05,
     "max_kpi_weight_within_pillar": 0.5,
+    "kpi_cap_min_kpis": 3,
+    "_cap_doc": "max_kpi_weight_within_pillar stops one KPI from becoming the pillar; it applies only to pillars scoring at least kpi_cap_min_kpis KPIs — on a two-KPI pillar a 0.5 cap could only force equality, overriding the evidence.",
     "weight_decimals": 4
   },
   "recompute_mode": "full_recalc",

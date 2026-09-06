@@ -104,6 +104,7 @@ def build_asgi_app(database_url: str | None = None, create_schema: bool = True):
     import mcp_server.common as _common
     from mcp_server.cs_pulse_mcp_server import mcp
     import mcp_server.cs_pulse_onboarding  # noqa: F401 — registers the tools
+    import mcp_server.cs_pulse_wizard_c    # noqa: F401 — Wizard C: get/approve/reject_calibration
     import models  # noqa: F401 — metadata for create_all
 
     app = _common.get_flask_app()
@@ -156,6 +157,8 @@ def build_asgi_app(database_url: str | None = None, create_schema: bool = True):
     register_ask_routes(mcp)              # POST /api/ask — Ask AI over the journey contract (P10)
     from playbooks.http import register_playbook_routes
     register_playbook_routes(mcp)         # /api/interventions*, /api/playbooks — the governance layer
+    from wizards.wizard_c_http import register_calibration_routes
+    register_calibration_routes(mcp)      # /api/calibrations* — Wizard C proposals, approve / reject
     app = _common.get_flask_app()
     if create_schema:
         from extensions import db

@@ -112,7 +112,7 @@ def score_kpi(value: float, kpi_def: dict) -> float:
     return max(0.0, min(100.0, score))
 
 
-SCORER_VERSION = '2.0'   # 2.0: returns what it used (weights, codes) — 2026-09-05
+SCORER_VERSION = '2.1'   # 2.0: returns what it used (weights, codes); 2.1: kpi_weight_overrides applied — 2026-09-05
 
 
 def score_account_health(
@@ -133,12 +133,13 @@ def score_account_health_explained(
     pillar_catalog: dict,
     pillar_weight_overrides: dict = None,
     enabled_pillars: set = None,
+    kpi_weight_overrides: dict = None,
 ) -> dict:
     """
     Calculate account health from KPI values using any catalog.
 
     L1: KPI values → individual scores (0-100) via score_kpi()
-    L2: KPI scores → pillar averages (weighted by weight_l1)
+    L2: KPI scores → pillar averages (weighted by weight_l1, or kpi_weight_overrides)
     L3: Pillar averages → overall health (weighted by weight_l2 or overrides)
 
     Args:
@@ -147,6 +148,10 @@ def score_account_health_explained(
         pillar_catalog: {pillar_code: pillar_def} — pillar definitions with weight_l2
         pillar_weight_overrides: optional {pillar_code: weight} from CustomerConfig
         enabled_pillars: optional set of pillar codes to include (skip others)
+        kpi_weight_overrides: optional flat {kpi_code: weight} (CustomerConfig.kpi_weights flattened,
+            a lifecycle stage's kpi_weights, or a Wizard C proposal being evaluated). A code not in
+            the dict keeps the catalog's weight_l1. Added 2026-09-05: before that the column existed
+            and nothing read it.
 
     Returns:
         (overall_health: float, pillar_averages: dict)
@@ -180,8 +185,10 @@ def score_account_health_explained(
         # Score the KPI value
         score = score_kpi(value, kpi_def)
 
-        # L1 weight from definition (equal weight fallback)
+        # L1 weight: override → definition (equal weight fallback)
         l1_weight = kpi_def.get('weight_l1', 0)
+        if kpi_weight_overrides and kpi_code in kpi_weight_overrides:
+            l1_weight = float(kpi_weight_overrides[kpi_code])
         if not l1_weight or l1_weight <= 0:
             l1_weight = 1.0
 

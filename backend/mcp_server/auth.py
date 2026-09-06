@@ -97,6 +97,8 @@ WRITE_TOOLS = {
     'approve_intervention',
     'report_intervention',
     'configure_playbooks',
+    'approve_calibration',
+    'reject_calibration',
 }
 
 

@@ -101,7 +101,7 @@ def test_health_rows_cite_what_they_were_computed_from(tenant):
         run = ProcessRun.query.filter_by(run_id=res['run_id']).one()
         for h in hs.values():
             assert h.pillar_weights and h.kpi_weights and h.kpi_codes_used
-            assert h.weight_source == 'catalog' and h.catalog_version and h.taxonomy_version and h.scorer_version == '2.0'
+            assert h.weight_source == 'catalog' and h.catalog_version and h.taxonomy_version and h.scorer_version == '2.1'
             assert h.input_upload_id == u2['upload_id'] and h.process_run_id == run.id
         assert hs[11].kpi_codes_used == ['P1-KPI1', 'P2-KPI1'] and hs[11].kpi_codes_dropped == []
         assert hs[12].kpi_codes_used == ['P1-KPI1'] and hs[12].kpi_codes_dropped == ['NOT-A-KPI']       # named, not silent

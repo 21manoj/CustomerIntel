@@ -70,6 +70,17 @@ def clear_vertical_cache(customer_id: int = None):
         _vertical_cache.clear()
 
 
+def flatten_kpi_weights(kpi_weights) -> dict:
+    """CustomerConfig.kpi_weights is documented as {pillar: {code: w}}; a flat {code: w} is accepted too."""
+    flat = {}
+    for k, v in (kpi_weights or {}).items():
+        if isinstance(v, dict):
+            flat.update({code: float(w) for code, w in v.items()})
+        else:
+            flat[k] = float(v)
+    return flat
+
+
 def get_health_calculator(customer_id: int):
     """
     Return the correct calculate_kpi_health function for a customer's
@@ -103,7 +114,7 @@ def _make_generic_calculator(vertical: str, customer_id: int = None):
     vertical_name = vertical
 
     def calculate_kpi_health(kpi_values, customer_id=None, vertical=None,
-                             pillar_weight_overrides=None, explain=False):
+                             pillar_weight_overrides=None, explain=False, kpi_weight_overrides=None):
         """Generic health calculator using JSON catalog.
 
         `pillar_weight_overrides` (explicit, e.g. a lifecycle-stage profile
@@ -112,22 +123,31 @@ def _make_generic_calculator(vertical: str, customer_id: int = None):
         passed this kwarg to a calculator that didn't accept it, caught the
         TypeError and silently fell back to config weights — so lifecycle
         stage weights were never applied for any customer. Accepted here.
+        `kpi_weight_overrides` (flat {code: weight}) likewise; without it
+        the customer's CustomerConfig.kpi_weights apply (nested per pillar
+        or flat), else the catalog's weight_l1.
+
+        weight_source names who set the pillar weights that were applied:
+        'lifecycle' (explicit stage profile) | CustomerConfig.weights_origin
+        ('vertical_default' | 'customer_config' | 'wizard_c'; a row with
+        weights but no origin was set by hand → 'customer_config') |
+        'catalog' (no override row: the catalog's weight_l2 directly).
         """
         enabled_pillars = None
         weight_source = 'catalog'
         if pillar_weight_overrides:
             enabled_pillars = set(pillar_weight_overrides.keys())
             weight_source = 'lifecycle'
-        elif customer_id is not None:
-            try:
-                from models import CustomerConfig as CC
-                cc = CC.query.filter_by(customer_id=int(customer_id)).first()
-                if cc and cc.pillar_weights:
-                    pillar_weight_overrides = cc.pillar_weights
-                    enabled_pillars = set(cc.pillar_weights.keys())
-                    weight_source = 'customer_config'
-            except Exception:
-                pass
+        cc = None
+        if customer_id is not None and (not pillar_weight_overrides or kpi_weight_overrides is None):
+            from models import CustomerConfig as CC
+            cc = CC.query.filter_by(customer_id=int(customer_id)).first()
+        if not pillar_weight_overrides and cc is not None and cc.pillar_weights:
+            pillar_weight_overrides = cc.pillar_weights
+            enabled_pillars = set(cc.pillar_weights.keys())
+            weight_source = cc.weights_origin or 'customer_config'
+        if kpi_weight_overrides is None and cc is not None and cc.kpi_weights:
+            kpi_weight_overrides = flatten_kpi_weights(cc.kpi_weights)
 
         from utils.generic_scorer import score_account_health_explained
         r = score_account_health_explained(
@@ -136,6 +156,7 @@ def _make_generic_calculator(vertical: str, customer_id: int = None):
             pillar_catalog=pillar_catalog,
             pillar_weight_overrides=pillar_weight_overrides,
             enabled_pillars=enabled_pillars,
+            kpi_weight_overrides=kpi_weight_overrides,
         )
         if explain:
             from utils.vertical_registry import get_catalog_version

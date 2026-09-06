@@ -55,6 +55,10 @@ KEYED_TOOLS = frozenset({
     'list_interventions',
     'configure_playbooks',
     'get_playbooks',
+    # Wizard C (mcp_server/cs_pulse_wizard_c.py)
+    'get_calibration',
+    'approve_calibration',
+    'reject_calibration',
 })
 
 ALL_TOOLS = ONBOARDING_TOOLS | KEYED_TOOLS
