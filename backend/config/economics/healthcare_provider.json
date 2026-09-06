@@ -1,0 +1,17 @@
+{
+  "_doc": "Assumed economics for healthcare_provider. Every value is 'assumed' and carries its basis.",
+  "version": "1.0",
+  "vertical": "healthcare_provider",
+  "basis": "assumed",
+  "horizon_months": 12,
+  "retention_sensitivity_per_health_point": {
+    "value": 0.003,
+    "basis": "assumed: multi-year provider contracts with high switching cost; a 50-point health span is taken to move 12-month retention by ~15% of ARR, i.e. 0.3% per point"
+  },
+  "revenue_at_risk_share_by_band": {
+    "critical": 0.30,
+    "at_risk": 0.12,
+    "healthy": 0.02,
+    "basis": "assumed: share of the account's annual contract value expected to be lost within the horizon, by health band; long procurement cycles and compliance lock-in keep the healthy-band baseline low"
+  }
+}

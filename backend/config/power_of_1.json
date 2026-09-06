@@ -1,0 +1,56 @@
+{
+  "_doc": "Power-of-1 / ROI (docs/design/power-of-1-roi.md). Every number the roi/ package uses lives here or in config/economics/<vertical>.json; nothing in roi/ carries its own. Loader raises on a missing key.",
+  "version": "1.0",
+  "bases": {
+    "measured": "from logged outcomes and closed interventions on this tenant (cited by intervention id / outcome node id) or Wizard B's hindsight run",
+    "derived": "arithmetic over the tenant's own data: account revenue, the catalog and the weights actually applied, the journey",
+    "assumed": "an economics parameter from config/economics/<vertical>.json, labelled with its basis sentence; never summed with measured"
+  },
+  "basis_rank": ["measured", "derived", "assumed"],
+  "priority": {
+    "_doc": "risk_factor = sum(weight * factor) over the four inputs, each factor in [0,1]; revenue_weighted = revenue * max(risk_factor, opportunity_factor).",
+    "weights": {"phase": 0.25, "leading": 0.35, "urgency": 0.25, "renewal": 0.15},
+    "phase_factor": {"deterioration": 1.0, "intervention": 0.9, "resolution": 0.4, "baseline": 0.1, "none": 0.0},
+    "leading_label_factor": {"early_warning": 1.0, "recovery_watch": 0.2},
+    "_leading_note": "aligned / leading_only / no label fall back to band_factor of the kpi_only (aligned) or qual (leading_only) band; nothing scored = 'unknown'",
+    "band_factor": {"critical": 1.0, "at_risk": 0.6, "healthy": 0.1, "unknown": 0.3},
+    "urgency_factor": {"critical": 1.0, "high": 0.7, "medium": 0.4, "low": 0.15, "none": 0.0},
+    "renewal_factor_by_band": {"0-30": 1.0, "31-90": 0.8, "91-180": 0.5, "181-365": 0.3, ">365": 0.15, "unknown": 0.3},
+    "opportunity": {
+      "role_factor": {"expansion_intent": 1.0, "expansion_realized": 0.8, "advocacy": 0.6, "recovery": 0.4},
+      "recovery_watch_factor": 0.5,
+      "open_expansion_intervention_factor": 0.7
+    },
+    "list_floor": 0.2,
+    "top_n": 10
+  },
+  "attribution": {
+    "_doc": "signal role (taxonomy) -> pillar role (catalog pillar_roles). Resolved per vertical through vertical_registry.role(); a role the vertical has no pillar for is reported under 'unmapped', never guessed.",
+    "signal_role_to_pillar_role": {
+      "usage_decline": "adoption",
+      "delivery_stall": "adoption",
+      "engagement_decline": "engagement",
+      "champion_change": "engagement",
+      "product_friction": "engagement",
+      "escalation": "reliability",
+      "infra_incident": "reliability",
+      "capacity_pressure": "capacity",
+      "commercial_pressure": "revenue",
+      "expansion_intent": "expansion",
+      "expansion_realized": "expansion",
+      "advocacy": "expansion",
+      "recovery": "adoption"
+    }
+  },
+  "measured": {
+    "min_interventions_for_sensitivity": 5,
+    "revenue_buckets_positive": ["protected", "expansion"],
+    "revenue_buckets_negative": ["lost"],
+    "ledger_buckets": ["lost", "expansion", "protected", "pipeline", "at_risk"]
+  },
+  "scenarios": {
+    "_doc": "CS investment as a share of revenue (positioning memo: 0.3% reactive today, 1-2.5% proactive). Break-even lift = share / retention_sensitivity_per_health_point, in portfolio health points.",
+    "cs_investment_share_of_revenue": [0.01, 0.025]
+  },
+  "one_pct": 0.01
+}

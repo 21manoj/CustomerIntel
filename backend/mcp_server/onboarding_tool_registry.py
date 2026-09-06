@@ -55,6 +55,10 @@ KEYED_TOOLS = frozenset({
     'list_interventions',
     'configure_playbooks',
     'get_playbooks',
+    # Power-of-1 / ROI (roi/, mcp_server/cs_pulse_roi.py) — reads
+    'get_investment_priorities',
+    'get_power_of_1',
+    'get_roi',
 })
 
 ALL_TOOLS = ONBOARDING_TOOLS | KEYED_TOOLS

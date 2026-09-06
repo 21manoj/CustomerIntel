@@ -1,0 +1,17 @@
+{
+  "_doc": "Assumed economics for saas_premium — the links Power-of-1 cannot derive from the catalog. Every value is 'assumed' and carries its basis; replace with a measured figure when get_roi reports one.",
+  "version": "1.0",
+  "vertical": "saas_premium",
+  "basis": "assumed",
+  "horizon_months": 12,
+  "retention_sensitivity_per_health_point": {
+    "value": 0.004,
+    "basis": "assumed: subscription revenue; a 50-point health span (critical floor to healthy) is taken to move 12-month retention probability by ~20% of ARR, i.e. 0.4% of ARR per point"
+  },
+  "revenue_at_risk_share_by_band": {
+    "critical": 0.35,
+    "at_risk": 0.15,
+    "healthy": 0.03,
+    "basis": "assumed: share of an account's ARR expected to be lost or contracted within the horizon, by health band; annual subscription renewals with 3-5% baseline churn in the healthy band"
+  }
+}

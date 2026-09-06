@@ -1,0 +1,36 @@
+# Power-of-1 / ROI — investment-allocation intelligence
+
+*2026-09-05. Port inventory row 4. Built on the journey, the interventions table and Wizard B; nothing copied from the old `power_of_1_model.py` / `outcome_roi_*` / `playbook_cost_bridge.py`.*
+
+## 1. What it is for, and who reads it
+
+CRO / CFO: **where do the next CS dollars (or the CSM's next hour) go, what is a point of health worth on our own revenue, and what did the last interventions return.** Three reads, one package (`backend/roi/`), three tools + three routes:
+
+| Read | Question | Basis of every $ |
+|---|---|---|
+| `get_investment_priorities` | which accounts now, protect or grow, on what evidence | `derived` — the tenant's revenue × a journey-derived factor |
+| `get_power_of_1` | what a 1-point / 1 % move in each pillar and KPI is worth | `derived` × `assumed` (labelled) |
+| `get_roi` | realized $ vs exposure $ per playbook and per pillar; Wizard B's lift | `measured` (cited) next to `derived`, never summed |
+
+## 2. What the old one did (measured before designing)
+
+`power_of_1_economics.json`: six SaaS metrics (TTFV, NRR, GRR, ticket resolution, adoption, expansion rate) with dollar constants calibrated at `_arr_base: $10M` and scaled linearly by ARR; `linked_kpi_codes` were dc2_s codes applied to every vertical; `POWER_OF_1_PILLAR_MAPS` renamed pillars onto those six metrics for three verticals and cycled a fallback order for the rest; tenants without an `ROISnapshot` got `_get_po1_benchmark_metrics` — ARR-scaled deck constants labelled BENCHMARK, zero tenant input (item 25's promotion to DERIVED never fires: nothing tags `pillar_code`). The cost bridge turned playbook hours into "affordable runs" from a SaaS budget. Net: every tenant saw the same six numbers at the same $/1 % ratio, and none of it touched the tenant's catalog, weights, scores or outcomes.
+
+Live box (read tools only, 2026-09-05): tenants 10/11 (saas_premium, 3 accounts, $2.7M) have the only closed interventions with outcomes — #13 `expansion_intent_handoff` → `expansion_opportunity` $48k (pipeline) against $900k exposure; #26 `escalation_exec_response` → `escalation_resolved` (protected, no $) on Northstar (renewal in 17 days, health 55.4, qual 39.2, phase resolution, a −$120k contraction on record). Tenants 2/3 (datacenter_v1, 12 accounts, $34.6M / $37.9M, 4 and 3 early-warning months) and 4 (dc2_s, $52.4M) have proposals and nothing closed: realized $0 everywhere outside 10/11. So today `measured` is one $48k row; everything else a CFO would see must be `derived` or `assumed`, and must say so.
+
+## 3. Design
+
+**Basis labels.** Every dollar figure carries `basis` ∈ {`measured`, `derived`, `assumed`} and a `basis_chain`; a figure inherits the weakest link of its chain (`derived` revenue × `assumed` sensitivity ⇒ `assumed`). Measured and assumed figures are never added; each block keeps them as separate keys.
+
+**Priorities (exposure-weighted, now).** Per account, from its journey: `risk_factor` = weighted sum (weights in `config/power_of_1.json`) of phase, leading layer (early-warning label, else the health/qual band), the highest effective urgency on the latest month's cited evidence (same lookup `evaluate_playbooks` makes) and renewal proximity; `opportunity_factor` from positive roles in the latest month and `recovery_watch`. `revenue_weighted = revenue × max(risk, opportunity)`, lens `protect` / `grow`. Every row cites the episodes it rests on (latest month's contributing episodes, arc support, open interventions' triggers), lists open interventions (a `proposed` row is a decision waiting — that *is* the next hour) and names the factors. Portfolio: totals, revenue at exposure (protect) and in play (grow), counts by lens; the tenant is one vertical, so this is the per-vertical view. `list_journeys` rows carry the same compact block from the same function (one number, not two).
+
+**Power-of-1 (on the tenant's own base).** Revenue base = the tenant's accounts (`get_account_arr`, the helper everything else uses). Pillar weights = the weights actually applied on the latest health row (`HealthScore.pillar_weights` + `weight_source`), else `CustomerConfig.pillar_weights`, else the catalog — normalised over the pillars present; never a global base. A 1-point pillar move = `w_p` health points; a 1-point KPI move = `w_p × l1_norm`; a 1 % move in a KPI's *value* is scored through the catalog curve at the account's latest measurement (`score_kpi`), so a KPI already at its healthy max is worth $0 and says so. The one non-derivable link — what a health point is worth in revenue — is `assumed`, per vertical, in `config/economics/<vertical>.json` (`retention_sensitivity_per_health_point`, `revenue_at_risk_share_by_band`, each with a sentence of basis); an unknown vertical or a missing economics file raises. Scenarios (1 % / 2.5 % of revenue, the pitch's proactive range) give the health lift each must buy to break even — `assumed`, arithmetic shown.
+
+**Measured impact.** `list_interventions` already gives realized vs exposure per playbook; reused, not re-derived. Added: the same two numbers per pillar (trigger roles → pillar role via `attribution.signal_role_to_pillar_role` → `vertical_registry.role`; roles a vertical has no pillar for land in `unmapped`, visibly), citing intervention ids and outcome node ids; the outcome ledger (all outcomes in the taxonomy's lost/expansion/protected buckets vs the subset linked to interventions); Wizard B's latest run (`interventions` lift rows, `realized_nrr`, `evidence_label`, run id); and a `measured` $ per health point that exists only when ≥ `min_interventions_for_sensitivity` closed interventions carry both a health lift and a revenue outcome — below that it is `insufficient_data` with the count, not a number.
+
+## 4. Decisions and deviations
+
+- No table, no migration: everything is a read over journeys, interventions, health rows and Wizard B runs. Snapshots stay optional.
+- Economics are per vertical and *assumed* by construction; five files ship (one per catalog) so the loader can fail closed on anything else. Signal-role → pillar-role attribution is one map, vertical-agnostic, resolved through `pillar_roles`.
+- Per-playbook costs are not modelled (memory: Po1 scaling, not per-playbook costs). Investment is a share of revenue; the return side is measured or it is not claimed.
+- `list_journeys` gains `priority` (compact) — an addition inside the contract; Ask AI reads it as any other row field.

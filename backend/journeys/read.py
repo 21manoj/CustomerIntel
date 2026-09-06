@@ -117,6 +117,14 @@ def list_journeys(customer_id: int) -> List[dict]:
     from extensions import db
     open_by_acct = dict(db.session.query(QualitativeSignal.account_id, func.count(QualitativeSignal.id))
                         .filter_by(customer_id=int(customer_id), requires_review=True).group_by(QualitativeSignal.account_id).all())
+    # the compact priority block (roi/priorities.py) — the same scoring function as get_investment_priorities,
+    # batched: one urgency query and one interventions query for the whole portfolio
+    priority = {}
+    if rows:
+        from roi.priorities import compact_for_rows
+        from utils.vertical_registry import get_vertical_for_customer
+        vertical = next((v for v in ((j.journey_json or {}).get('vertical') for j, _ in rows) if v), None) or get_vertical_for_customer(int(customer_id))
+        priority = compact_for_rows(int(customer_id), vertical, [(j.journey_json or {}, a) for j, a in rows])
     out = []
     for j, a in rows:
         jj = j.journey_json or {}
@@ -137,6 +145,7 @@ def list_journeys(customer_id: int) -> List[dict]:
             'first_leading_warning_at': (jj.get('leading_vs_trailing') or {}).get('first_leading_warning_at'),
             'lead_days': (jj.get('leading_vs_trailing') or {}).get('lead_days'),
             'episodes': len(jj.get('episodes') or []), 'open_review_count': open_by_acct.get(a.account_id, 0),
+            'priority': priority.get(a.account_id),          # lens, factors, revenue_weighted (derived) — see get_investment_priorities
             'updated_at': j.updated_at.isoformat() if j.updated_at else None,
         })
     return out

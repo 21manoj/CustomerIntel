@@ -1,0 +1,17 @@
+{
+  "_doc": "Assumed economics for dc2_s (data-center hardware, installed base with refresh cycles). Every value is 'assumed' and carries its basis.",
+  "version": "1.0",
+  "vertical": "dc2_s",
+  "basis": "assumed",
+  "horizon_months": 12,
+  "retention_sensitivity_per_health_point": {
+    "value": 0.0025,
+    "basis": "assumed: hardware revenue is realized at refresh and repeat orders, not monthly; a 50-point health span is taken to move 12-month refresh/repeat revenue by ~12.5% of the base, i.e. 0.25% per point"
+  },
+  "revenue_at_risk_share_by_band": {
+    "critical": 0.25,
+    "at_risk": 0.10,
+    "healthy": 0.02,
+    "basis": "assumed: share of the account's annual hardware+support revenue expected to be lost within the horizon (support lapse, refresh lost to a competitor), by health band; multi-year installed base churns slowly but in large steps at refresh"
+  }
+}

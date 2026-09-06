@@ -1,0 +1,17 @@
+{
+  "_doc": "Assumed economics for datacenter_v1 (GPU-rental neocloud: hourly + reserved clusters). Every value is 'assumed' and carries its basis.",
+  "version": "1.0",
+  "vertical": "datacenter_v1",
+  "basis": "assumed",
+  "horizon_months": 12,
+  "retention_sensitivity_per_health_point": {
+    "value": 0.005,
+    "basis": "assumed: usage-based and short reserved terms let revenue move quickly with utilization and reliability; a 50-point health span is taken to move 12-month revenue by ~25% of the base, i.e. 0.5% per point"
+  },
+  "revenue_at_risk_share_by_band": {
+    "critical": 0.45,
+    "at_risk": 0.20,
+    "healthy": 0.05,
+    "basis": "assumed: share of the account's annualized rental revenue expected to be lost within the horizon (workloads migrated, reservations not renewed), by health band; low switching cost in GPU rental"
+  }
+}
