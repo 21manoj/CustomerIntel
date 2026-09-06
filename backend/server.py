@@ -105,6 +105,8 @@ def build_asgi_app(database_url: str | None = None, create_schema: bool = True):
     from mcp_server.cs_pulse_mcp_server import mcp
     import mcp_server.cs_pulse_onboarding  # noqa: F401 — registers the tools
     import mcp_server.cs_pulse_roi         # noqa: F401 — Power-of-1 / ROI read tools
+    import mcp_server.cs_pulse_wizard_d    # noqa: F401 — Wizard D (Foresight) read tool
+    import mcp_server.cs_pulse_adapters    # noqa: F401 — import_from_source (adapters/sources)
     import models  # noqa: F401 — metadata for create_all
 
     app = _common.get_flask_app()
@@ -123,6 +125,7 @@ def build_asgi_app(database_url: str | None = None, create_schema: bool = True):
             with app.app_context():
                 db.session.execute(text('select 1'))
                 from journeys.wizard_a import stale_journey_query, GENERATOR_VERSION
+                from playbooks.governance import health_counts
                 from sqlalchemy import func
                 by_origin = dict(db.session.query(func.coalesce(Customer.data_origin, 'undeclared'), func.count(Customer.customer_id))
                                  .group_by(func.coalesce(Customer.data_origin, 'undeclared')).all())
@@ -132,6 +135,7 @@ def build_asgi_app(database_url: str | None = None, create_schema: bool = True):
                     'journeys': JourneyData.query.count(),
                     'stale_journeys': stale_journey_query().count(),   # behind GENERATOR_VERSION; deploy rebuilds them
                     'wizard_runs': WizardRun.query.count(),
+                    'interventions': health_counts(),   # total / by_state / stuck / delivery_problems, playbooks.governance's definitions
                 }
             status, db_ok = 200, True
         except Exception as e:  # pragma: no cover — only on a broken DB
@@ -159,6 +163,10 @@ def build_asgi_app(database_url: str | None = None, create_schema: bool = True):
     register_playbook_routes(mcp)         # /api/interventions*, /api/playbooks — the governance layer
     from roi.http import register_roi_routes
     register_roi_routes(mcp)              # /api/roi, /api/roi/priorities, /api/roi/power-of-1
+    from wizards.wizard_d_http import register_forecast_routes
+    register_forecast_routes(mcp)         # GET /api/forecast — Wizard D (Foresight) latest run
+    from adapters.http import register_adapter_routes
+    register_adapter_routes(mcp)          # /api/sources* — inbound source adapters
     app = _common.get_flask_app()
     if create_schema:
         from extensions import db

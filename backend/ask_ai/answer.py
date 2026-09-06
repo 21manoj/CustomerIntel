@@ -230,7 +230,7 @@ def _evidence_compact(v: dict, quote_chars: int) -> dict:
 def _row_compact(r: dict) -> dict:
     return {k: r.get(k) for k in ('account_id', 'account_name', 'revenue', 'arc_type', 'state', 'arc_confidence', 'current_phase',
                                   'last_scored_month', 'live_months', 'last_evidence_at', 'latest', 'first_leading_warning_at',
-                                  'lead_days', 'episodes', 'open_review_count')}
+                                  'lead_days', 'episodes', 'open_review_count', 'forecast')}
 
 
 def _narrative_gaps(narrative: dict) -> List[str]:
@@ -265,6 +265,7 @@ def account_context(customer_id: int, account_id: int, question: str, as_of: Opt
         'arc': j.get('arc'), 'summary': j.get('summary'), 'open_review_count': j.get('open_review_count'),
         'phases': j.get('phases'), 'counterfactual_hooks': j.get('counterfactual_hooks'),
         'leading_vs_trailing': {k: v for k, v in lvt.items() if k != 'series'} | {'series': series},
+        'forecast': j.get('forecast'),          # Foresight block: basis, label counts, probabilities with ranges, expected ARR
     })
     if row:
         ctx.add('row', _row_compact(row), cite_id=f"row:{row['account_id']}", citation=row)

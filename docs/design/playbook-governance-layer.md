@@ -101,3 +101,5 @@ Deliberate differences from §2–§7, each for a reason:
 - **Two numbers on the read**: `by_playbook[].realized_revenue` (linked outcomes, signed) and `exposure_revenue` (account revenue on the rows), with a note that says never to sum them.
 
 Not built, per §9, and one more: the step stubs / simulated close / closure report the user asked for later (backlog).
+
+Same day, two loose ends closed: the INTERVENTION node title is built by one helper, `playbooks.governance.intervention_title(label, account_name)` = `"<label> — <account>"` (the narrative cuts at the first ` — `, so a label with one is refused at load; the labels moved to colon form for that reason), and `scripts/repair_intervention_titles.py` (dry run by default, `--apply`, `--customer-id`) re-titles nodes written under an older label and rebuilds their journeys. `/health` counts interventions (`total`, `by_state`, `stuck`, `delivery_problems`) through `playbooks.governance.health_counts()`, the same `_stuck` / delivery definitions `list_interventions` uses.

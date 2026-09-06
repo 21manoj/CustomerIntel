@@ -88,7 +88,6 @@ def get_journey(customer_id: int, account_id: int, compact: bool = False) -> Opt
         for n in ContextNode.query.filter(ContextNode.node_id.in_(ids)).all():
             evidence[str(n.node_id)] = evidence_view(n)
     open_review = QualitativeSignal.query.filter_by(account_id=int(account_id), requires_review=True).count()
-    from models import Account
     acct = db_get_account(int(account_id))
     pm = (acct.profile_metadata or {}) if acct else {}
     journey['account'] = {'use_cases': pm.get('use_cases') or [], 'contract_type': pm.get('contract_type'),
@@ -146,6 +145,19 @@ def list_journeys(customer_id: int) -> List[dict]:
             'lead_days': (jj.get('leading_vs_trailing') or {}).get('lead_days'),
             'episodes': len(jj.get('episodes') or []), 'open_review_count': open_by_acct.get(a.account_id, 0),
             'priority': priority.get(a.account_id),          # lens, factors, revenue_weighted (derived) — see get_investment_priorities
+            'forecast': _forecast_row(jj.get('forecast')),
             'updated_at': j.updated_at.isoformat() if j.updated_at else None,
         })
     return out
+
+
+def _forecast_row(fc: Optional[dict]) -> Optional[dict]:
+    """The Foresight block reduced to the portfolio row: basis, label counts, retention with its range, expected ARR."""
+    if not fc or fc.get('status') != 'forecast':
+        return {'status': (fc or {}).get('status') or 'not_run'}
+    ret, rev, labels = fc.get('retention') or {}, fc.get('revenue') or {}, fc.get('labels') or {}
+    return {'status': 'forecast', 'basis': fc.get('basis'), 'labels': {'n': labels.get('n'), 'needed': labels.get('needed')},
+            'p_retain': ret.get('p'), 'p_retain_low': ret.get('low'), 'p_retain_high': ret.get('high'),
+            'p_expand': (fc.get('expansion') or {}).get('p'), 'expected_arr_end': rev.get('expected_arr_end'),
+            'expected_arr_low': rev.get('low'), 'expected_arr_high': rev.get('high'), 'horizon_days': fc.get('horizon_days'),
+            'decision_point': (fc.get('decision_point') or {}).get('at'), 'stale': fc.get('stale'), 'run_id': fc.get('run_id')}

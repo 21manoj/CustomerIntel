@@ -24,6 +24,8 @@ from datetime import datetime
 from typing import Optional
 from urllib.parse import urlparse
 
+DELIVERED = 'delivered'     # the delivery status for a payload that reached the workflow; anything else is a delivery problem
+
 logger = logging.getLogger(__name__)
 
 _sleep = time.sleep                      # tests replace this; the retry delay comes from config
@@ -85,7 +87,7 @@ def deliver(url: Optional[str], secret: Optional[str], payload: dict) -> dict:
                 r = client.post(url, content=body, headers=headers)
             last_status = r.status_code
             if 200 <= r.status_code < 300:
-                return {'status': 'delivered', 'url_host': urlparse(url).hostname, 'http_status': r.status_code,
+                return {'status': DELIVERED, 'url_host': urlparse(url).hostname, 'http_status': r.status_code,
                         'attempts': attempts, 'error': None, 'at': datetime.utcnow().isoformat()}
             last_err = f'HTTP {r.status_code}: {r.text[:120]}'
         except Exception as e:      # connection refused, timeout, TLS

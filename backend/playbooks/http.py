@@ -6,7 +6,7 @@ Playbook governance routes (Starlette, mounted beside /mcp).
   POST /api/interventions/{id}/approve   {customer_id, note?}                                     write scope
   POST /api/interventions/{id}/report    {customer_id, state, note?, outcome_type?, outcome_date?, revenue?}   write scope
   GET  /api/playbooks?customer_id=…                                  read scope — the tenant's playbooks + overlay (secret masked)
-  POST /api/playbooks  {customer_id, webhook_url?, webhook_secret?, disabled_playbooks?, automation_level?, kill_switch?}   write scope
+  POST /api/playbooks  {customer_id, webhook_url?, webhook_secret?, disabled_playbooks?, automation_level?, kill_switch?, slack_webhook_url?}   write scope
 
 Auth: the same Bearer keys as MCP. The workflow engine reports back with its
 own key (write scope), the way it already calls submit_signal / log_outcome.
@@ -95,7 +95,7 @@ def register_playbook_routes(mcp) -> None:
             return JSONResponse(_with_app(lambda: configure_tenant(
                 int(cid), webhook_url=data.get('webhook_url'), webhook_secret=data.get('webhook_secret'),
                 disabled_playbooks=data.get('disabled_playbooks'), automation_level=data.get('automation_level'),
-                kill_switch=data.get('kill_switch'))))
+                kill_switch=data.get('kill_switch'), slack_webhook_url=data.get('slack_webhook_url'))))
         except ValueError as e:
             return _bad(e)
 

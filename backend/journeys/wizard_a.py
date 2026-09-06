@@ -33,7 +33,8 @@ logger = logging.getLogger(__name__)
 #   3.4  INTERVENTION episodes (kind 'intervention') from the playbook governance layer (2026-09-05)
 #   3.5  intervention sentence: outcomes without a revenue figure are not '$0'; playbook labels readable (2026-09-05)
 #   3.6  a live-month intervention is told once, in the live chapter, with its before/after (2026-09-05)
-GENERATOR_VERSION = '3.6'
+#   3.7  forecast block — the latest Wizard D (Foresight) run embedded, staleness marked, cited forecast sentence (2026-09-05)
+GENERATOR_VERSION = '3.7'
 
 
 def stale_journey_query(customer_id: Optional[int] = None):

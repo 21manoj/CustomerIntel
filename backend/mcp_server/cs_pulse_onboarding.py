@@ -393,6 +393,7 @@ def _process_data_impl(customer_id: int, mode: str = 'auto') -> dict:
             backfill_product_adoption,
             run_wizard_a_step,
             run_wizard_b_step,
+            run_wizard_d_step,
             link_stakeholders_to_decisions,
         )
 
@@ -504,6 +505,12 @@ def _process_data_impl(customer_id: int, mode: str = 'auto') -> dict:
             steps.append(wb_step)
         timings['wizard_b'] = wb_duration
 
+        # Stage 3c: Wizard D — Foresight over the journeys, embedded as journey_json['forecast']
+        wd_step, wd_duration = run_wizard_d_step(customer_id)
+        if wd_step:
+            steps.append(wd_step)
+        timings['wizard_d'] = wd_duration
+
         # Stages 3a, 4–8 (LLM tier-1, signal analyst, urgent scanner, ROI,
         # approval seed, Qdrant, onboarding agent) — later phases.
 
@@ -580,6 +587,7 @@ def process_data(customer_id: int, mode: str = 'auto') -> dict:
 _WIZARDS = {
     'a': 'Journeys (Wizard A v2 — evidence-cited arcs, leading layer)',
     'b': 'Hindsight (Wizard B — patterns, transitions, realized NRR, backtest)',
+    'd': 'Foresight (Wizard D — per-account retention / expansion / expected ARR with basis + interval, portfolio roll-up)',
 }
 
 
@@ -594,12 +602,19 @@ def trigger_wizard(customer_id: int, wizard: str) -> dict:
       before/after, the lead-time backtest, and data-derived early-warning
       rules. Needs ≥5 journeys. Results are stored as a WizardRun.
 
-    Wizards 'c' (weight calibration) and 'd' (NRR predictor) are not in
-    this build yet.
+    - 'd': Foresight over the journeys — per account, retention and
+      expansion probability with an interval and a basis label ('prior'
+      template until the tenant has enough labelled outcomes, then
+      'calibrated' on them), expected ARR at the horizon end, and a
+      revenue-weighted portfolio roll-up with the range propagated. Stored
+      as a ForecastRun and embedded in each journey as `forecast`; read
+      with get_forecast.
+
+    Wizard 'c' (weight calibration) is not in this build yet.
 
     Args:
         customer_id: The customer ID
-        wizard: 'a' or 'b'
+        wizard: 'a', 'b' or 'd'
     """
     _require_auth_if_key_present('trigger_wizard', customer_id)
     _check_mcp_enabled()
@@ -623,6 +638,16 @@ def trigger_wizard(customer_id: int, wizard: str) -> dict:
                 from journeys.wizard_a import run_wizard_a
                 result = run_wizard_a(customer_id)
                 summary = {k: v for k, v in result.items() if k != 'arcs'} | {'accounts': len(result.get('arcs', {}))}
+            elif wizard == 'd':
+                from wizards.wizard_d_foresight import run_wizard_d
+                result = run_wizard_d(customer_id, created_by='trigger_wizard')
+                summary = result if result.get('status') != 'completed' else {
+                    'status': 'completed', 'run_id': result['run_id'], 'accounts': result['accounts'],
+                    'basis_counts': result['basis_counts'],
+                    'labels': {k: result['labels'][k] for k in ('n', 'positive', 'negative', 'needed', 'per_class_needed', 'reason')},
+                    'portfolio': {k: result['portfolio'][k] for k in ('arr', 'expected_arr_end', 'low', 'high', 'nrr', 'nrr_low', 'nrr_high',
+                                                                      'headline_assumption', 'basis')},
+                }
             else:
                 from wizards.wizard_b_hindsight import run_wizard_b
                 result = run_wizard_b(customer_id, persist=False)
@@ -1180,7 +1205,7 @@ def delete_customer(customer_id: int, confirm_domain: str, reason: str) -> dict:
         from extensions import db
         from models import (Customer, CustomerConfig, User, Account, KPIMeasurement, HealthScore, QualitativeSignal,
                             ContextNode, ContextEdge, JourneyData, CsvUpload, CsvUploadStaging, ProcessRun, SignalReview,
-                            WizardRun, CustomerApiKey, FeatureToggle, Intervention)
+                            WizardRun, CustomerApiKey, FeatureToggle, Intervention, ForecastRun, AccountForecast)
         from mcp_server import audit as _audit
         c = db.session.get(Customer, int(customer_id))
         if not c:
@@ -1193,6 +1218,8 @@ def delete_customer(customer_id: int, confirm_domain: str, reason: str) -> dict:
             n = q.delete(synchronize_session=False)
             counts[model.__tablename__] = counts.get(model.__tablename__, 0) + int(n or 0)
         _del(Intervention, Intervention.query.filter_by(customer_id=c.customer_id))
+        _del(AccountForecast, AccountForecast.query.filter_by(customer_id=c.customer_id))
+        _del(ForecastRun, ForecastRun.query.filter_by(customer_id=c.customer_id))
         _del(ContextEdge, ContextEdge.query.filter_by(customer_id=c.customer_id))
         _del(ContextNode, ContextNode.query.filter_by(customer_id=c.customer_id))
         _del(JourneyData, JourneyData.query.filter_by(customer_id=c.customer_id))
@@ -1251,13 +1278,18 @@ def get_playbooks(customer_id: int) -> dict:
 
 @mcp.tool
 def configure_playbooks(customer_id: int, webhook_url: str = None, webhook_secret: str = None,
-                        disabled_playbooks: list = None, automation_level: int = None, kill_switch: bool = None) -> dict:
+                        disabled_playbooks: list = None, automation_level: int = None, kill_switch: bool = None,
+                        slack_webhook_url: str = None) -> dict:
     """Set the tenant's playbook overlay. Only the fields given change.
 
     - webhook_url / webhook_secret: where approved interventions are POSTed
       (one signed JSON payload per approval; X-CI-Signature = sha256 HMAC of
       '<timestamp>.<body>' with the secret). https only. The secret is stored
       per tenant, never returned.
+    - slack_webhook_url: optional Slack incoming-webhook URL; an approved
+      notify-class intervention also posts a minimal message there (account,
+      playbook, quote, intervention id). The URL is a secret: stored per
+      tenant, never returned (reads show slack_webhook_url_set).
     - disabled_playbooks: playbook ids to switch off for this tenant.
     - automation_level: 0 = every approval is human; 1 = playbooks declared
       approval=auto (notify only) are approved by policy at evaluation time.
@@ -1270,6 +1302,7 @@ def configure_playbooks(customer_id: int, webhook_url: str = None, webhook_secre
         disabled_playbooks: Playbook ids to switch off (replaces the list)
         automation_level: 0 or 1
         kill_switch: true/false
+        slack_webhook_url: https://hooks.slack.com/services/... ('' clears it)
     """
     _require_auth_if_key_present('configure_playbooks', customer_id)
     _check_mcp_enabled()
@@ -1283,13 +1316,16 @@ def configure_playbooks(customer_id: int, webhook_url: str = None, webhook_secre
             raise ToolError(f'Customer {customer_id} not found.')
         try:
             cfg = configure_tenant(customer_id, webhook_url=webhook_url, webhook_secret=webhook_secret,
-                                   disabled_playbooks=disabled_playbooks, automation_level=automation_level, kill_switch=kill_switch)
+                                   disabled_playbooks=disabled_playbooks, automation_level=automation_level, kill_switch=kill_switch,
+                                   slack_webhook_url=slack_webhook_url)
         except ValueError as e:
             raise ToolError(str(e))
         changed = [k for k, v in (('webhook_url', webhook_url), ('webhook_secret', webhook_secret), ('disabled_playbooks', disabled_playbooks),
-                                  ('automation_level', automation_level), ('kill_switch', kill_switch)) if v is not None]
+                                  ('automation_level', automation_level), ('kill_switch', kill_switch),
+                                  ('slack_webhook_url', slack_webhook_url)) if v is not None]
         _audit(customer_id, 'configure', current_actor(),
-               f"changed {changed}; url_host={cfg['webhook_url'] and cfg['webhook_url'].split('/')[2]} level={cfg['automation_level']} kill={cfg['kill_switch']} off={cfg['disabled_playbooks']}")
+               f"changed {changed}; url_host={cfg['webhook_url'] and cfg['webhook_url'].split('/')[2]} level={cfg['automation_level']} "
+               f"kill={cfg['kill_switch']} off={cfg['disabled_playbooks']} slack={cfg['slack_webhook_url_set']}")
         return {'customer_id': int(customer_id), 'tenant': cfg}
 
 

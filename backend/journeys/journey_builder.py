@@ -554,6 +554,10 @@ def build_journey(account, vertical: str) -> dict:
         'total_months': len(points),
         'total_weeks': len(points) * 4,
     }
+    # Foresight: the latest stored forecast for this account (wizards/wizard_d_foresight), marked stale when
+    # the journey has moved past the run it was read from. The narrative below cites it.
+    from wizards.wizard_d_foresight import latest_forecast_block
+    journey['forecast'] = latest_forecast_block(account.account_id, journey)
     from journeys.narrative import build_narrative
     journey['narrative'] = build_narrative(journey, rejected=_rejected_evidence(account))
     return journey
