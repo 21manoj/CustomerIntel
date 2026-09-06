@@ -187,3 +187,49 @@ export interface InterventionsResponse {
   by_playbook: PlaybookRollup[]
   tenant: Record<string, unknown>
 }
+
+// backend/signal_engine/ingest_api.py review_queue() — one QualitativeSignal flagged
+// requires_review, truncated to the UI-safe shape the route returns.
+export interface ReviewQueueItem {
+  signal_id: string
+  account_id: number
+  signal_type: string
+  content: string
+  sentiment: string | null
+  signal_date: string | null
+  source_type: string | null
+  intent_signals: string[] | null
+  confidence: number | null
+  effective_urgency: string | null
+  node_id: number | null
+}
+
+export interface ReviewQueueResponse {
+  review_queue: ReviewQueueItem[]
+  total: number
+  page: number
+}
+
+// backend/signal_engine/review.py DECISIONS — accept clears the flag as-is, reject
+// excludes the node from the journey (kept for audit), reclassify re-types it to a
+// taxonomy subtype (requires `subtype`; `node_id` disambiguates a multi-node signal).
+export type ReviewDecision = 'accept' | 'reject' | 'reclassify'
+
+export interface ReviewSignalRequest {
+  customer_id: number
+  signal_id: string
+  decision: ReviewDecision
+  subtype?: string
+  node_id?: number
+  note?: string
+}
+
+export interface ReviewSignalResult {
+  signal_id: string
+  account_id: number
+  decision: ReviewDecision
+  nodes: Array<{ node_id: number; subtype: string; role: string | null; effective_urgency: string | null; review: string }>
+  audit_ids: number[]
+  requires_review: boolean
+  journeys_rebuilt: number
+}

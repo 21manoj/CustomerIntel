@@ -1,7 +1,14 @@
 // Thin fetch wrapper over /app/api/* — session-cookie auth (credentials: 'include'),
 // same functions the design doc's route table names. No business logic here, just
 // the HTTP call + typed response.
-import type { InterventionsResponse, PortfolioResponse, SessionUser } from './types'
+import type {
+  InterventionsResponse,
+  PortfolioResponse,
+  ReviewQueueResponse,
+  ReviewSignalRequest,
+  ReviewSignalResult,
+  SessionUser,
+} from './types'
 
 const BASE = import.meta.env.VITE_API_BASE ?? ''
 
@@ -81,5 +88,27 @@ export function reportIntervention(
       outcome_date: opts.outcomeDate,
       revenue: opts.revenue,
     }),
+  })
+}
+
+export function getReviewQueue(params: {
+  customerId: number
+  accountId?: number
+  urgency?: string
+  page?: number
+  perPage?: number
+}) {
+  const q = new URLSearchParams({ customer_id: String(params.customerId) })
+  if (params.accountId) q.set('account_id', String(params.accountId))
+  if (params.urgency) q.set('urgency', params.urgency)
+  if (params.page) q.set('page', String(params.page))
+  if (params.perPage) q.set('per_page', String(params.perPage))
+  return request<ReviewQueueResponse>(`/app/api/review-queue?${q.toString()}`)
+}
+
+export function reviewSignal(body: ReviewSignalRequest) {
+  return request<ReviewSignalResult>('/app/api/review', {
+    method: 'POST',
+    body: JSON.stringify(body),
   })
 }

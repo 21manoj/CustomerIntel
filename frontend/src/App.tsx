@@ -4,6 +4,7 @@ import Shell from './components/Shell'
 import Interventions from './pages/Interventions'
 import Login from './pages/Login'
 import Portfolio from './pages/Portfolio'
+import ReviewQueue from './pages/ReviewQueue'
 
 export default function App() {
   return (
@@ -13,6 +14,7 @@ export default function App() {
         <Route element={<Shell />}>
           <Route path="/portfolio" element={<Portfolio />} />
           <Route path="/interventions" element={<Interventions />} />
+          <Route path="/review-queue" element={<ReviewQueue />} />
           <Route path="/" element={<Navigate to="/portfolio" replace />} />
         </Route>
       </Route>
