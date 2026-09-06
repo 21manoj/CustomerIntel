@@ -233,6 +233,7 @@ def test_proposal_cites_outcomes_and_writes_nothing_to_health(tenants):
         assert set(pw) == {'P1', 'P2', 'P3', 'P5'} and abs(sum(pw.values()) - 1.0) < 1e-6
         assert all(abs(sum(ws.values()) - 1.0) < 1e-6 for ws in kw.values()) and set(kw['P1']) == {'P1-KPI1', 'P1-KPI3'}
         assert out['current']['pillar_weights'] == {'P1': 0.25, 'P2': 0.25, 'P3': 0.25, 'P5': 0.25} and out['current']['origin'] == 'vertical_default'
+        assert out['warnings'] == []
         imp = out['impact']
         assert imp['summary']['accounts_scored'] == 8 and imp['summary']['accounts_unscored'] == 1
         assert all(a['stored_matches_recompute'] for a in imp['accounts']) and imp['summary']['stored_vs_recompute_mismatches'] == 0
@@ -340,6 +341,25 @@ def test_hand_set_weights_are_labelled_customer_config(tenants):
         cc = CustomerConfig.query.filter_by(customer_id=B['cid']).one()
         cc.pillar_weights, cc.customized_by = None, None
         db.session.commit()
+
+
+def test_a_lifecycle_profile_is_warned_about_not_silently_outranked(tenants):
+    """The pipeline scores a resolved stage's months with the stage weights, whatever CustomerConfig says; a
+    proposal on such a tenant must say so up front rather than let an approval reach zero rows unexplained."""
+    B = tenants['B']
+    with app.app_context():
+        from wizards.wizard_c_calibration import current_weights, get_calibration
+        cc = CustomerConfig.query.filter_by(customer_id=B['cid']).one()
+        assert current_weights(B['cid'], B['vertical'])['warnings'] == []
+        cc.lifecycle_stage_weights = {'stages': [{'name': 'onboarding', 'pillar_weights': {'P1': 1.0}}]}
+        db.session.commit()
+        try:
+            w = current_weights(B['cid'], B['vertical'])['warnings']
+            assert len(w) == 1 and 'lifecycle stage profile' in w[0] and "weight_source='lifecycle'" in w[0]
+            assert get_calibration(B['cid'])['in_force']['warnings'] == w
+        finally:
+            cc.lifecycle_stage_weights = None
+            db.session.commit()
 
 
 # ── never from process_data; keyed; routes ────────────────────────────

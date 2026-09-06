@@ -106,7 +106,8 @@ def current_weights(customer_id: int, vertical: str) -> dict:
     (CustomerConfig.pillar_weights, else every catalog pillar's weight_l2) and KPI weights within each
     pillar over the KPIs it scores (CustomerConfig.kpi_weights, else the catalog's weight_l1),
     each normalised within its group — the scorer normalises by the group total, so this is
-    ratio-preserving. Also says where they came from."""
+    ratio-preserving. Also says where they came from, and warns when something else (a lifecycle
+    stage profile) would take precedence over them in the pipeline."""
     from models import CustomerConfig
     from utils.vertical_registry import get_kpis, get_pillars
     from utils.vertical_health import flatten_kpi_weights
@@ -129,11 +130,16 @@ def current_weights(customer_id: int, vertical: str) -> dict:
             continue
         w = flat_cc.get(code, d.get('weight_l1', 0) or 0)
         kw.setdefault(p, {})[code] = float(w) if w and w > 0 else 1.0
+    warnings = []
+    if cc and cc.lifecycle_stage_weights:      # the pipeline's own test (process_data_pipeline: `lifecycle = cc.lifecycle_stage_weights ...`)
+        warnings.append('a lifecycle stage profile is configured: months where a stage resolves are scored with the stage weights '
+                        "(weight_source='lifecycle') and an approved calibration will not apply to them; the recompute count on the "
+                        'approved row says how many rows it did reach')
     return {
         'pillar_weights': _round_to_one(pw, dec),
         'kpi_weights': {p: _round_to_one(ws, dec) for p, ws in kw.items()},
         'origin': origin, 'config_version': cc.config_version if cc else None,
-        'lifecycle_enabled': bool(cc and cc.lifecycle_stage_weights and cc.lifecycle_stage_weights.get('enabled')),
+        'warnings': warnings,
     }
 
 
@@ -422,6 +428,7 @@ def propose(customer_id: int, actor: Optional[dict] = None) -> dict:
     evidence = _evidence(samples, kpis, list(current['pillar_weights']))
     proposed_pw, proposed_kw, adjusted = _propose_weights(current, evidence)
     base['current'] = {'pillar_weights': current['pillar_weights'], 'kpi_weights': current['kpi_weights'], 'origin': current['origin']}
+    base['warnings'] = current['warnings']
     if adjusted == 0:
         logger.info('wizard_c customer=%s no_confident_effect (%d samples, %d unfeatured)', customer_id, len(samples), counts['unfeatured'])
         return {**base, 'status': 'no_confident_effect', 'evidence': evidence, 'proposal_id': None,

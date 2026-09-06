@@ -93,6 +93,7 @@ def calculate_health_scores(
     from extensions import db
     from mcp_server.common import get_health_functions
     from utils.lifecycle_stages import resolve_account_stage, get_stage_weights
+    from utils.vertical_health import flatten_kpi_weights
 
     timings: Dict[str, float] = {}
     changed: Set[int] = set()
@@ -159,7 +160,6 @@ def calculate_health_scores(
                 stage = resolve_account_stage(acct_by_id[aid], month, lifecycle)
                 pillar_overrides, kpi_overrides = get_stage_weights(stage)
                 if kpi_overrides:
-                    from utils.vertical_health import flatten_kpi_weights
                     kpi_overrides = flatten_kpi_weights(kpi_overrides)   # the stage's KPI weights were computed and discarded before 2026-09-05
             try:
                 r = calculate_fn(
