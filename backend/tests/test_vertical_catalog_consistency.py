@@ -348,6 +348,35 @@ def test_every_vertical_role_resolves_to_own_catalog_or_none():
     assert role('dc2_s', 'expansion') == 'P5'
 
 
+def test_pillar_roles_notes_documents_every_unmapped_pillar():
+    """`pillar_roles_notes` (role_name -> reason string) has been write-only documentation
+    since Tier 1 — every catalog that leaves a pillar unmapped in `pillar_roles` also
+    explains why there, but nothing read it back until roi/measured.py's by_pillar started
+    citing it for a vertical's unmapped attribution rows (see
+    test_power_of_1_roi.py::test_by_pillar_surfaces_reason_for_unmapped_but_never_for_a_real_pillar).
+    This guards the loader itself: every registered vertical's notes block, if present, is a
+    dict of strings, and it never raises for a vertical with no JSON catalog at all."""
+    from utils.vertical_registry import SUPPORTED_VERTICALS, get_pillar_roles_notes
+
+    for vertical in sorted(SUPPORTED_VERTICALS):
+        notes = get_pillar_roles_notes(vertical)
+        assert isinstance(notes, dict)
+        for key, text in notes.items():
+            assert isinstance(key, str) and isinstance(text, str) and text.strip()
+
+    # healthcare_provider is the documented case this was written for: pillar_roles only
+    # fills 'compliance' -> P4, leaving P1/P2/P3 (75% of the vertical's weight_l2) unmapped
+    # by deliberate design, not omission — the note says so explicitly.
+    hc_notes = get_pillar_roles_notes('healthcare_provider')
+    assert hc_notes and any(
+        'no clean match in the shared vocabulary' in text and 'rather than force-fit' in text
+        for text in hc_notes.values()
+    )
+
+    # never raises for an unregistered vertical; just returns {}
+    assert get_pillar_roles_notes('not_a_real_vertical') == {}
+
+
 if __name__ == "__main__":
     test_every_registered_vertical_has_complete_pillar_data()
     print("PASS: every registered vertical has complete pillar data")
