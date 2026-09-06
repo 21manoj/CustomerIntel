@@ -3,7 +3,10 @@
 // the HTTP call + typed response.
 import type {
   InterventionsResponse,
+  MeasuredRoiResponse,
   PortfolioResponse,
+  PowerOfOneResponse,
+  PrioritiesResponse,
   ReviewQueueResponse,
   ReviewSignalRequest,
   ReviewSignalResult,
@@ -111,4 +114,17 @@ export function reviewSignal(body: ReviewSignalRequest) {
     method: 'POST',
     body: JSON.stringify(body),
   })
+}
+
+// cfo/cro/admin only — the backend 403s every other role on all three (_finance_guard in http.py).
+export function getInvestmentPriorities(customerId: number) {
+  return request<PrioritiesResponse>(`/app/api/roi/priorities?customer_id=${customerId}`)
+}
+
+export function getPowerOfOne(customerId: number) {
+  return request<PowerOfOneResponse>(`/app/api/roi/power-of-1?customer_id=${customerId}`)
+}
+
+export function getMeasuredRoi(customerId: number) {
+  return request<MeasuredRoiResponse>(`/app/api/roi?customer_id=${customerId}`)
 }

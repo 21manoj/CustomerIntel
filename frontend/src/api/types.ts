@@ -188,6 +188,330 @@ export interface InterventionsResponse {
   tenant: Record<string, unknown>
 }
 
+// ── ROI / Power-of-1 (backend/roi/{priorities,power_of_1,measured}.py) ──
+// Every dollar figure on these three endpoints is a `Money` object, never a bare number
+// (roi/basis.py's `money()`): value can be null (see `note` for why), basis is the
+// weakest link in basis_chain — measured | derived | assumed. Always render basis
+// alongside the value; never print money.value alone.
+
+export interface Money {
+  value: number | null
+  basis: 'measured' | 'derived' | 'assumed' | string
+  basis_chain: string[]
+  note?: string
+}
+
+// -- priorities.py --
+
+export interface PriorityFactorLeading {
+  label: string | null
+  basis: string
+  factor: number
+  month: string | null
+  qual: number | null
+  kpi_only: number | null
+  divergence: number | null
+}
+
+export interface PriorityFactorUrgency {
+  level: string
+  factor: number
+  evidence_nodes: number
+  basis: string
+}
+
+export interface PriorityRow {
+  account_id: number
+  account_name: string
+  lens: string
+  secondary_lens: string | null
+  risk_factor: number
+  opportunity_factor: number
+  priority_factor: number
+  revenue: Money
+  revenue_weighted: Money
+  factors: {
+    phase: { phase: string; factor: number; basis?: string; note?: string }
+    leading: PriorityFactorLeading
+    urgency: PriorityFactorUrgency
+    renewal: { days: number | null; band: string; factor: number }
+    weights: Record<string, number>
+  }
+  opportunity: {
+    factor: number
+    roles: Record<string, number>
+    open_expansion_interventions: number[]
+    basis: string
+  }
+  arc_type: string | null
+  state: string | null
+  as_of: string | null
+  open_interventions: Array<{
+    intervention_id: number
+    playbook_id: string
+    state: string
+    action_class: string
+    urgency: string | null
+    pending_approval: boolean
+  }>
+  pending_approvals: number
+  cites: { episode_ids: string[]; node_ids: number[]; quote: string | null }
+}
+
+export interface PrioritiesPortfolio {
+  accounts: number
+  listed: number
+  revenue_total: Money
+  revenue_in_protect_lens: Money
+  revenue_in_grow_lens: Money
+  exposure_weighted: Money
+  opportunity_weighted: Money
+  by_lens: Record<string, number>
+  pending_approvals: number
+}
+
+export type PrioritiesResponse = OriginBlock & {
+  customer_id: number
+  vertical: string
+  account_id: number | null
+  weights: Record<string, number>
+  list_floor: number
+  note: string
+  status: 'ok' | 'no_journeys' | string
+  rows: PriorityRow[]
+  listed: PriorityRow[]
+  portfolio: PrioritiesPortfolio | null
+  hint?: string
+}
+
+// -- power_of_1.py --
+
+export interface Po1PillarRow {
+  pillar: string
+  name: string | null
+  weight: number
+  weight_source: string
+  current_score: number | null
+  health_points_per_pillar_point: number
+  revenue_per_pillar_point: Money
+  revenue_per_one_pct_move: Money
+  kpis_in_scope: number
+}
+
+export interface Po1KpiRow {
+  kpi: string
+  name?: string
+  pillar: string
+  unit?: string
+  weight_l1: number
+  health_points_per_kpi_point: number
+  revenue_per_kpi_score_point: Money
+  one_pct_value_move: {
+    value_now: number
+    value_after: number
+    direction: string
+    score_now: number
+    score_after: number
+    score_delta: number
+    health_delta: number
+    revenue_delta: Money
+  } | null
+}
+
+export interface BandView {
+  health_now: number
+  band: string
+  measurement_month: string
+  revenue_at_risk: Money
+  next_band: string | null
+  points_to_next_band: number | null
+  revenue_protected_if_next_band: Money | null
+  pillar_points_to_next_band: Record<string, number> | null
+}
+
+export interface AccountPo1 {
+  account_id: number
+  account_name: string
+  revenue: Money
+  health_now: number | null
+  weight_source: string
+  weights_basis: string
+  revenue_per_health_point: Money
+  pillars: Po1PillarRow[]
+  kpis: Po1KpiRow[]
+  kpi_scope: string
+  measured_kpis: number
+  band_view: BandView | null
+}
+
+export interface Po1PortfolioPillar {
+  pillar: string
+  name: string | null
+  accounts: number
+  weight_sources: Record<string, number>
+  current_score_revenue_weighted: number | null
+  revenue_per_pillar_point: Money
+  revenue_per_one_pct_move: Money
+}
+
+export interface Po1PortfolioKpi {
+  kpi: string
+  name?: string
+  pillar: string
+  unit?: string
+  accounts: number
+  measured_accounts: number
+  revenue_per_kpi_score_point: Money
+  one_pct_value_move_revenue: Money
+}
+
+export interface Po1PortfolioBand {
+  band: string
+  accounts: number
+  share_at_risk: number
+  revenue: Money
+  revenue_at_risk: Money
+}
+
+export interface Po1Scenario {
+  cs_investment_share_of_revenue: number
+  investment: Money
+  break_even_health_points: number
+  basis: string
+}
+
+export interface Po1Portfolio {
+  accounts: number
+  unscored_accounts: number
+  revenue_base: Money
+  revenue_per_health_point: Money
+  weight_sources: Record<string, number>
+  pillars: Po1PortfolioPillar[]
+  kpis: Po1PortfolioKpi[]
+  bands: Po1PortfolioBand[]
+  scenarios: Po1Scenario[]
+}
+
+export type PowerOfOneResponse = OriginBlock & {
+  customer_id: number
+  vertical: string
+  account_id: number | null
+  economics: {
+    file: string
+    basis: string
+    horizon_months: number
+    retention_sensitivity_per_health_point: { value: number; basis: string }
+    revenue_at_risk_share_by_band: Record<string, number | string>
+  }
+  note: string
+  status: 'ok' | 'no_accounts' | string
+  portfolio: Po1Portfolio | null
+  accounts: AccountPo1[]
+}
+
+// -- measured.py --
+
+export interface PlaybookRoiRow {
+  playbook_id: string
+  proposed: number
+  approved: number
+  sent: number
+  closed_done: number
+  closed_failed: number
+  closed_cancelled: number
+  delivery_problems: number
+  stuck: number
+  outcomes_reported: number
+  outcomes_in_window: number
+  outcomes_expected: number
+  intervention_ids: number[]
+  outcome_node_ids: number[]
+  realized_revenue: Money
+  exposure_revenue: Money
+  note: string
+}
+
+// pillar === 'unmapped' means the vertical has no pillar for these roles;
+// `name` carries the human-readable reason in that case — render it, don't just say "unmapped".
+export interface PillarRoiRow {
+  pillar: string
+  name: string
+  interventions: number
+  closed_done: number
+  outcomes_reported: number
+  intervention_ids: number[]
+  outcome_node_ids: number[]
+  roles: string[]
+  realized_revenue: Money
+  exposure_revenue: Money
+  note: string
+}
+
+export interface LedgerBucketRow {
+  bucket: string
+  outcomes: number
+  with_revenue: number
+  node_ids: Array<number | null>
+  linked_to_interventions: number
+  revenue: Money
+  linked_revenue: Money
+}
+
+export interface Ledger {
+  by_bucket: LedgerBucketRow[]
+  outside_buckets: { outcomes: number; subtypes: string[] }
+  note: string
+}
+
+export interface Hindsight {
+  status: 'ok' | 'no_run' | string
+  hint?: string
+  run_id?: string
+  generated_at?: string
+  evidence_label?: string
+  interventions?: {
+    basis: string
+    n: number
+    with_health_lift_share: number
+    median_lift_pts: number
+    followed_by_protected_or_expansion_share: number
+  }
+  intervention_rows?: Array<{
+    account: string
+    date: string
+    title: string
+    lift_pts: number
+    outcomes_after: string[]
+    revenue_after_protected: number | null
+  }>
+  realized_nrr?: Record<string, unknown>
+  realized_nrr_basis?: string
+  journeys?: number
+}
+
+export interface Sensitivity {
+  minimum_interventions: number
+  qualifying_interventions: number
+  pairs: Array<{ intervention_id: number; outcome_node_id: number; lift_pts: number; revenue: number; bucket: string }>
+  assumed_revenue_share_per_health_point: { value: number; basis: string }
+  note: string
+  status: 'ok' | 'insufficient_data' | string
+  measured_revenue_per_health_point: Money
+}
+
+export type MeasuredRoiResponse = OriginBlock & {
+  customer_id: number
+  vertical: string
+  revenue_base: Money
+  interventions: { count: number; stuck: unknown[]; source: string }
+  by_playbook: PlaybookRoiRow[]
+  by_pillar: PillarRoiRow[]
+  ledger: Ledger
+  hindsight: Hindsight
+  sensitivity: Sensitivity
+  note: string
+}
+
 // backend/signal_engine/ingest_api.py review_queue() — one QualitativeSignal flagged
 // requires_review, truncated to the UI-safe shape the route returns.
 export interface ReviewQueueItem {

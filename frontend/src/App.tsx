@@ -5,6 +5,7 @@ import Interventions from './pages/Interventions'
 import Login from './pages/Login'
 import Portfolio from './pages/Portfolio'
 import ReviewQueue from './pages/ReviewQueue'
+import Roi from './pages/Roi'
 
 export default function App() {
   return (
@@ -15,6 +16,7 @@ export default function App() {
           <Route path="/portfolio" element={<Portfolio />} />
           <Route path="/interventions" element={<Interventions />} />
           <Route path="/review-queue" element={<ReviewQueue />} />
+          <Route path="/roi" element={<Roi />} />
           <Route path="/" element={<Navigate to="/portfolio" replace />} />
         </Route>
       </Route>
