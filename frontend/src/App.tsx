@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import ProtectedRoute from './components/ProtectedRoute'
 import Shell from './components/Shell'
+import AccountDetail from './pages/AccountDetail'
 import Login from './pages/Login'
 import Portfolio from './pages/Portfolio'
 
@@ -11,6 +12,7 @@ export default function App() {
       <Route element={<ProtectedRoute />}>
         <Route element={<Shell />}>
           <Route path="/portfolio" element={<Portfolio />} />
+          <Route path="/accounts/:accountId" element={<AccountDetail />} />
           <Route path="/" element={<Navigate to="/portfolio" replace />} />
         </Route>
       </Route>

@@ -1,7 +1,7 @@
 // Thin fetch wrapper over /app/api/* — session-cookie auth (credentials: 'include'),
 // same functions the design doc's route table names. No business logic here, just
 // the HTTP call + typed response.
-import type { PortfolioResponse, SessionUser } from './types'
+import type { Intervention, InterventionsResponse, Journey, PortfolioResponse, ReportState, SessionUser } from './types'
 
 const BASE = import.meta.env.VITE_API_BASE ?? ''
 
@@ -50,4 +50,44 @@ export function me() {
 
 export function getPortfolio(customerId: number) {
   return request<PortfolioResponse>(`/app/api/portfolio?customer_id=${customerId}`)
+}
+
+export function getAccount(customerId: number, accountId: number) {
+  return request<Journey>(`/app/api/accounts/${accountId}?customer_id=${customerId}`)
+}
+
+export function listInterventions(customerId: number, accountId?: number, state?: string) {
+  const params = new URLSearchParams({ customer_id: String(customerId) })
+  if (accountId != null) params.set('account_id', String(accountId))
+  if (state) params.set('state', state)
+  return request<InterventionsResponse>(`/app/api/interventions?${params.toString()}`)
+}
+
+export function approveIntervention(interventionId: number, customerId: number, note?: string) {
+  return request<Intervention & { payload?: unknown; journeys_rebuilt?: number }>(
+    `/app/api/interventions/${interventionId}/approve`,
+    { method: 'POST', body: JSON.stringify({ customer_id: customerId, note }) },
+  )
+}
+
+export function reportIntervention(
+  interventionId: number,
+  customerId: number,
+  state: ReportState,
+  opts?: { note?: string; outcomeType?: string; outcomeDate?: string; revenue?: number },
+) {
+  return request<Intervention & { outcome?: unknown; journeys_rebuilt?: number }>(
+    `/app/api/interventions/${interventionId}/report`,
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        customer_id: customerId,
+        state,
+        note: opts?.note,
+        outcome_type: opts?.outcomeType,
+        outcome_date: opts?.outcomeDate,
+        revenue: opts?.revenue,
+      }),
+    },
+  )
 }
