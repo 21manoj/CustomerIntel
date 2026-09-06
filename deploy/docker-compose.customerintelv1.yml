@@ -55,6 +55,7 @@ services:
       MCP_TRANSPORT: http
       MCP_AUTH_REQUIRED: ${MCP_AUTH_REQUIRED:-true}
       MCP_SERVER_API_KEY: ${MCP_SERVER_API_KEY:?set in .env}
+      SESSION_SECRET: ${SESSION_SECRET:?set in .env}
       PORT: "8101"
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       # Signal engine LLM extraction — without the key free text falls to the keyword stub (requires_review)
