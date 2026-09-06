@@ -449,10 +449,10 @@ def propose(customer_id: int, actor: Optional[dict] = None) -> dict:
         _audit(customer_id, 'superseded', actor, f'#{old.id} superseded by #{row.id}')
     _audit(customer_id, 'propose', actor,
            f"#{row.id} {vertical} outcomes={counts['total']} (+{counts['positive']}/-{counts['negative']}, {counts['accounts']} accounts) "
-           f"adjusted={adjusted} mean_delta={impact['summary']['mean_delta']} by {actor['label']}")
+           f"adjusted={adjusted} from={current['origin']} mean_delta={impact['summary']['mean_delta']} by {actor['label']}")
     logger.info('wizard_c customer=%s proposal #%s: %d adjustments from %d outcomes', customer_id, row.id, adjusted, counts['total'])
-    return {**base, 'status': 'proposed', 'proposal_id': row.id, 'adjusted': adjusted, 'superseded': [o.id for o in open_rows],
-            **row_view(row)}
+    # row_view carries the row's `current` (weights only); base's `current` also says where they came from — base wins
+    return {**row_view(row), **base, 'status': 'proposed', 'proposal_id': row.id, 'adjusted': adjusted, 'superseded': [o.id for o in open_rows]}
 
 
 # ── read ──────────────────────────────────────────────────────────────

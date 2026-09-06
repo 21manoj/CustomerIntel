@@ -355,7 +355,9 @@ def test_process_data_never_runs_wizard_c(tenants):
         assert len(_rows(C['cid'])) + WizardRun.query.filter_by(customer_id=C['cid'], wizard='c').count() == before
     pipeline = (BACKEND / 'mcp_server' / 'process_data_pipeline.py').read_text()
     impl = (BACKEND / 'mcp_server' / 'cs_pulse_onboarding.py').read_text().split('def _process_data_impl')[1].split('\n@mcp.tool')[0]
-    assert 'wizard_c' not in pipeline and 'calibration' not in pipeline and 'wizard_c' not in impl
+    # the pipeline may *name* the wizard_c weight_source label in its provenance docstring; it must never import or call the wizard
+    for src in (pipeline, impl):
+        assert 'wizard_c_calibration' not in src and 'propose(' not in src and 'trigger_wizard(' not in src
 
 
 def test_tools_are_keyed_and_approve_reject_need_write_scope(monkeypatch):
@@ -386,6 +388,53 @@ def test_routes_are_pinned_and_registered():
     assert 'import mcp_server.cs_pulse_wizard_c' in server and 'register_calibration_routes(mcp)' in server
     from mcp_server.cs_pulse_onboarding import _WIZARDS
     assert 'c' in _WIZARDS
+
+
+class TestHttpRoutes:
+    """The Starlette routes beside /mcp: the same Bearer keys, read scope for GET, write scope for the POSTs."""
+
+    @pytest.fixture(scope='class')
+    def client(self, tenants):
+        key = 'wizardc-server-key-' + uuid.uuid4().hex
+        os.environ['MCP_SERVER_API_KEY'] = key
+        import mcp_server.auth as auth
+        auth.MCP_SERVER_API_KEY = key
+        from server import build_asgi_app
+        asgi = build_asgi_app(TEST_DB, create_schema=False)
+        from starlette.testclient import TestClient
+        with TestClient(asgi) as c:
+            c.key = key
+            yield c
+        os.environ['MCP_TRANSPORT'] = 'stdio'
+
+    def test_get_and_propose_over_http(self, client, tenants, monkeypatch):
+        import mcp_server.auth as auth
+        monkeypatch.setattr(auth, 'MCP_AUTH_REQUIRED', True)
+        C = tenants['C']
+        h = {'Authorization': f'Bearer {client.key}'}
+        assert client.get('/api/calibrations', params={'customer_id': C['cid']}).status_code == 401           # no key
+        assert client.get('/api/calibrations', headers=h).status_code == 400                                    # no customer_id
+        r = client.get('/api/calibrations', headers=h, params={'customer_id': C['cid']})
+        assert r.status_code == 200, r.text
+        body = r.json()
+        assert body['proposal'] is None and body['count'] == 0 and body['gate']['min_outcomes_total'] and body['in_force']['pillar_weights']
+        assert client.post('/api/calibrations/propose', json={'customer_id': C['cid']}).status_code == 401
+        r = client.post('/api/calibrations/propose', headers=h, json={'customer_id': C['cid']})
+        assert r.status_code == 200, r.text
+        assert r.json()['status'] == 'insufficient_outcomes' and r.json()['proposal_id'] is None and r.json()['outcome_counts']['total'] == 2
+        with app.app_context():
+            assert _rows(C['cid']) == []                                                                          # still no row
+        r = client.post('/api/calibrations/999999/approve', headers=h, json={'customer_id': C['cid'], 'note': 'x'})
+        assert r.status_code == 400 and 'not found' in r.json()['error']
+        # a decided proposal on tenant B cannot be re-decided over HTTP either
+        B = tenants['B']
+        with app.app_context():
+            rejected = [x.id for x in _rows(B['cid']) if x.state == 'rejected']
+        assert rejected
+        r = client.post(f'/api/calibrations/{rejected[0]}/reject', headers=h, json={'customer_id': B['cid']})
+        assert r.status_code == 400 and 'only a proposed one' in r.json()['error']
+        r = client.get('/api/calibrations', headers=h, params={'customer_id': B['cid'], 'proposal_id': rejected[0]})
+        assert r.status_code == 200 and r.json()['proposal']['state'] == 'rejected' and r.json()['proposal']['decided_by']
 
 
 # ── the migration back-fill ───────────────────────────────────────────
