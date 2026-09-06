@@ -362,6 +362,60 @@ def test_roles_without_a_pillar_in_the_vertical_land_in_unmapped():
     assert _pillars_for_roles('saas_premium', ['routine']) == {'unmapped': ['routine']}
 
 
+def test_unmapped_reason_distinguishes_no_pillar_from_no_attribution_entry_and_cites_catalog_notes():
+    """A bare 'unmapped' status is ambiguous between three different situations; the 'reason'
+    block by_pillar attaches (via _unmapped_reason) must tell them apart and, when the
+    catalog documents its own design decision (pillar_roles_notes), surface it verbatim
+    rather than dropping it -- this is the fix for the healthcare_provider gap: P1/P2/P3
+    (Patient Outcomes/Operational Efficiency/Provider Satisfaction) are deliberately left
+    unmapped in pillar_roles, not missing data or a bug."""
+    from roi.measured import _unmapped_reason
+
+    # healthcare_provider's pillar_roles only fills 'compliance' -> P4; every signal role
+    # in power_of_1.json's attribution table maps to one of adoption/engagement/reliability/
+    # capacity/revenue/expansion/partner, none of which healthcare_provider fills, so any
+    # attributed intervention lands here with a full, real attribution entry but nowhere to go.
+    r = _unmapped_reason('healthcare_provider', ['champion_change', 'infra_incident', 'commercial_pressure'])
+    assert r['pillar_roles_with_no_pillar'] == ['engagement', 'reliability', 'revenue']
+    assert 'signal_roles_with_no_attribution_entry' not in r
+    notes = r['catalog_pillar_roles_notes']
+    assert any('no clean match in the shared vocabulary' in v and 'rather than force-fit' in v for v in notes.values())
+
+    # a signal role with no attribution entry at all (a different cause) is reported separately,
+    # never conflated with "the vertical has no pillar for this role"
+    r2 = _unmapped_reason('saas_premium', ['routine'])
+    assert r2['signal_roles_with_no_attribution_entry'] == ['routine']
+    assert 'pillar_roles_with_no_pillar' not in r2
+    assert 'catalog_pillar_roles_notes' in r2  # saas_premium documents its own P3/P5 decisions too
+
+    # a vertical with no JSON catalog at all still returns a well-formed (empty) reason, never raises
+    assert _unmapped_reason('not_a_real_vertical', ['champion_change']) == {'pillar_roles_with_no_pillar': ['engagement']}
+
+
+def test_by_pillar_surfaces_reason_for_unmapped_but_never_for_a_real_pillar():
+    """End-to-end through roi.measured.by_pillar (not just the _unmapped_reason helper): the
+    unmapped row carries 'reason'; a resolved pillar row never does -- additive, scoped to
+    exactly the ambiguous case. healthcare_provider is the real-world trigger: its
+    pillar_roles only fills 'compliance' -> P4, and no signal role in power_of_1.json's
+    attribution table maps to 'compliance', so every attributed intervention lands in
+    'unmapped' today -- this is the fix for that gap, not a synthetic edge case."""
+    from roi.measured import by_pillar
+    from utils.vertical_registry import get_pillars
+
+    hc_views = [{'trigger': {'roles': ['champion_change']}, 'intervention_id': 1, 'state': 'open',
+                 'closed_state': None, 'exposure_revenue': 500_000.0, 'outcome': None}]
+    hc_rows = {r['pillar']: r for r in by_pillar('healthcare_provider', hc_views, get_pillars('healthcare_provider'))}
+    assert set(hc_rows) == {'unmapped'}
+    reason = hc_rows['unmapped']['reason']
+    assert reason['pillar_roles_with_no_pillar'] == ['engagement']
+    assert any('no clean match in the shared vocabulary' in v for v in reason['catalog_pillar_roles_notes'].values())
+
+    saas_views = [{'trigger': {'roles': ['champion_change']}, 'intervention_id': 2, 'state': 'open',
+                   'closed_state': None, 'exposure_revenue': 100.0, 'outcome': None}]
+    saas_rows = {r['pillar']: r for r in by_pillar('saas_premium', saas_views, get_pillars('saas_premium'))}
+    assert set(saas_rows) == {'P2'} and 'reason' not in saas_rows['P2']
+
+
 def test_measured_sensitivity_gate_opens_at_the_minimum(tenants):
     """The gate must be shown to open (guard-never-fires class): five closed interventions with a lift and a
     positive revenue outcome on the journeys' hooks → a measured $ per health point, cited."""

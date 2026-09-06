@@ -9,7 +9,12 @@ per playbook (two numbers, never summed) and adds:
                    (power_of_1.json attribution) → the vertical's pillar via
                    vertical_registry.role(); an intervention citing roles in two
                    pillars is counted under both (do not sum pillars); roles the
-                   vertical has no pillar for land in 'unmapped', visibly
+                   vertical has no pillar for land in 'unmapped', visibly, with a
+                   'reason' block (which roles had nowhere to go, and the catalog's
+                   own pillar_roles_notes when it documents the decision — e.g.
+                   healthcare_provider's Patient Outcomes/Operational Efficiency/
+                   Provider Satisfaction pillars are deliberately unmapped, not
+                   a bug) so a bare 'unmapped' status doesn't read as broken
   ledger           every OUTCOME on the journeys by revenue bucket, and the subset
                    linked to interventions — cited by node id
   hindsight        Wizard B's latest run: intervention lift rows, realized NRR,
@@ -43,6 +48,39 @@ def _pillars_for_roles(vertical: str, roles: List[str]) -> Dict[str, List[str]]:
     return out
 
 
+def _unmapped_reason(vertical: str, roles: List[str]) -> dict:
+    """Why these signal roles landed in 'unmapped' for this vertical, so a reader doesn't
+    mistake a deliberate catalog design decision (e.g. healthcare_provider's Patient
+    Outcomes/Operational Efficiency/Provider Satisfaction pillars, which the catalog's own
+    pillar_roles_notes says have "no clean match in the shared vocabulary ... left unmapped
+    rather than force-fit") for missing data or a bug. Distinguishes two distinct causes:
+      pillar_roles_with_no_pillar          the signal role resolves to a pillar role
+                                            (power_of_1.json attribution) that this vertical's
+                                            catalog simply has no pillar for
+      signal_roles_with_no_attribution_entry  the signal role isn't in the attribution map at all
+    and, when the catalog documents its own reasoning (pillar_roles_notes), includes it verbatim
+    rather than trying to guess which note applies to which role.
+    """
+    from utils.vertical_registry import role as pillar_for, get_pillar_roles_notes
+    amap = settings.get('attribution', 'signal_role_to_pillar_role')
+    no_attribution, no_pillar = set(), set()
+    for r in roles:
+        pr = amap.get(r)
+        if pr is None:
+            no_attribution.add(r)
+        elif pillar_for(vertical, pr) is None:
+            no_pillar.add(pr)
+    reason: Dict[str, object] = {}
+    if no_pillar:
+        reason['pillar_roles_with_no_pillar'] = sorted(no_pillar)
+    if no_attribution:
+        reason['signal_roles_with_no_attribution_entry'] = sorted(no_attribution)
+    notes = get_pillar_roles_notes(vertical)
+    if notes:
+        reason['catalog_pillar_roles_notes'] = notes
+    return reason
+
+
 def by_pillar(vertical: str, views: List[dict], pillars: dict) -> List[dict]:
     rows: Dict[str, dict] = {}
     for v in views:
@@ -65,12 +103,18 @@ def by_pillar(vertical: str, views: List[dict], pillars: dict) -> List[dict]:
                     s['realized_revenue'] += float(oc['revenue'])
     out = []
     for s in sorted(rows.values(), key=lambda x: (x['pillar'] == UNMAPPED, x['pillar'])):
-        out.append({**{k: v for k, v in s.items() if k not in ('realized_revenue', 'exposure_revenue', 'roles')},
-                    'roles': sorted(s['roles']),
-                    'realized_revenue': money(s['realized_revenue'], 'measured', [f"measured: outcome nodes {s['outcome_node_ids']}"]) if s['outcome_node_ids']
-                    else money(None, 'measured', note='no outcome reported yet'),
-                    'exposure_revenue': money(s['exposure_revenue'], 'derived', ['derived: account revenue on the intervention rows']),
-                    'note': 'an intervention citing roles in two pillars is counted under both; do not sum pillars'})
+        row = {**{k: v for k, v in s.items() if k not in ('realized_revenue', 'exposure_revenue', 'roles')},
+               'roles': sorted(s['roles']),
+               'realized_revenue': money(s['realized_revenue'], 'measured', [f"measured: outcome nodes {s['outcome_node_ids']}"]) if s['outcome_node_ids']
+               else money(None, 'measured', note='no outcome reported yet'),
+               'exposure_revenue': money(s['exposure_revenue'], 'derived', ['derived: account revenue on the intervention rows']),
+               'note': 'an intervention citing roles in two pillars is counted under both; do not sum pillars'}
+        if s['pillar'] == UNMAPPED:
+            # A bare 'unmapped' status reads as broken; attach why, so a catalog's deliberate
+            # design decision (e.g. a vertical with no clean shared-vocabulary match for a
+            # pillar) isn't mistaken for missing data.
+            row['reason'] = _unmapped_reason(vertical, sorted(s['roles']))
+        out.append(row)
     return out
 
 

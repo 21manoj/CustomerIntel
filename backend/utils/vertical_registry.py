@@ -33,6 +33,7 @@ log = logging.getLogger(__name__)
 _pillars_cache: Dict[str, Dict] = {}
 _kpis_cache: Dict[str, Dict] = {}
 _pillar_roles_cache: Dict[str, Dict[str, str]] = {}
+_pillar_roles_notes_cache: Dict[str, Dict[str, str]] = {}
 
 # Directory where JSON catalogs live
 _CATALOG_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'config')
@@ -128,6 +129,28 @@ def get_pillar_roles(vertical: str) -> Dict[str, str]:
         _pillar_roles_cache[vertical] = _load_pillar_roles(vertical)
 
     return _pillar_roles_cache[vertical]
+
+
+def get_pillar_roles_notes(vertical: str) -> Dict[str, str]:
+    """Get the `pillar_roles_notes` block (pillar_code(s) -> human-readable reason) for a vertical.
+
+    Several catalogs (healthcare_provider, manufacturing_iot, datacenter_v1, dc2_s,
+    saas_premium) document, per unmapped or low-confidence pillar, *why* it was left
+    that way in `pillar_roles` — e.g. "no clean match in the shared vocabulary,
+    left unmapped rather than force-fit". Until now nothing read this block back;
+    it was write-only documentation. Callers that report an unmapped pillar/role to
+    a human (e.g. roi/measured.py's by_pillar) should surface it here instead of a
+    bare 'unmapped' status, so a deliberate design decision doesn't read as a bug.
+
+    Returns {} if the vertical has no JSON catalog, or the catalog has no
+    `pillar_roles_notes` block — never raises.
+    """
+    vertical = normalize_vertical(vertical)
+
+    if vertical not in _pillar_roles_notes_cache:
+        _pillar_roles_notes_cache[vertical] = _load_pillar_roles_notes(vertical)
+
+    return _pillar_roles_notes_cache[vertical]
 
 
 def role(vertical: str, role_name: str) -> Optional[str]:
@@ -268,6 +291,28 @@ def _load_pillar_roles(vertical: str) -> Dict[str, str]:
         return roles
     except Exception as e:
         log.warning(f"vertical_registry: failed to load pillar_roles from {path}: {e}")
+        return {}
+
+
+def _load_pillar_roles_notes(vertical: str) -> Dict[str, str]:
+    """
+    Load the `pillar_roles_notes` block (pillar_code(s) -> reason string) from a
+    vertical's JSON catalog file. Returns {} if there's no JSON catalog for this
+    vertical, or the catalog has no `pillar_roles_notes` block.
+    """
+    path = _find_json_catalog_path(vertical)
+    if not path:
+        return {}
+    try:
+        with open(path, 'r') as f:
+            data = json.load(f)
+        notes = data.get('pillar_roles_notes') or {}
+        if not isinstance(notes, dict):
+            log.warning(f"vertical_registry: {path} has a non-dict pillar_roles_notes block, ignoring")
+            return {}
+        return notes
+    except Exception as e:
+        log.warning(f"vertical_registry: failed to load pillar_roles_notes from {path}: {e}")
         return {}
 
 
