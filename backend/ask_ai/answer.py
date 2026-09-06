@@ -16,7 +16,8 @@ Flow
               ANTHROPIC_API_KEY a deterministic stub answers from the
               narrative block (model 'stub_narrative_v1').
   4. validate every sentence must cite ids that resolve to the context it
-              was given (episode ids, evidence node ids, 'row:<account_id>');
+              was given (episode ids, evidence node ids, 'row:<account_id>',
+              'journey:<account_id>' for the arc/phases/series/forecast block);
               a sentence with no citation, or with one that does not
               resolve, is dropped and listed under `unsupported` — the same
               rule journeys/narrative.validate_narrative applies to the
@@ -47,13 +48,14 @@ logger = logging.getLogger(__name__)
 GENERATOR = 'ask_v1'
 STUB_MODEL = 'stub_narrative_v1'
 TOOL_NAME = 'answer_with_citations'
-CITATION_RULE = ('every sentence cites >=1 id shown to the model (episode id, evidence node id, or row:<account_id>); '
+CITATION_RULE = ('every sentence cites >=1 id shown to the model (episode id, evidence node id, row:<account_id>, '
+                 'or journey:<account_id> for the arc/phases/series/forecast block); '
                  'a sentence with no citation or an unresolved citation is dropped and listed under unsupported')
 
 SYSTEM_PROMPT = """You are Ask AI for a B2B Customer Success platform. You answer questions about one account's journey, or a portfolio of accounts, using ONLY the context blocks in the user message. The blocks come from the platform's evidence read layer: a cited narrative, a journey (arc, phases, leading-vs-trailing series), its episodes, the evidence index behind them, and — for portfolio questions — one row per account.
 
 RULES (the product contract; the validator enforces them after you answer)
-1. Every sentence cites. Each answer sentence lists the ids it was built from: episode ids (sig:N, out:N, dec:N, hs:N, renewal), evidence node ids (the bare node_id), or row:<account_id>. Cite only ids that appear in the blocks. A sentence that cannot cite is not written.
+1. Every sentence cites. Each answer sentence lists the ids it was built from: episode ids (sig:N, out:N, dec:N, hs:N, renewal), evidence node ids (the bare node_id), row:<account_id>, or journey:<account_id> (the arc, phases, leading/trailing series, forecast and state fields in the [journey] block — cite this for arc confidence, lead_days, qual/kpi_only values, and similar). Cite only ids that appear in the blocks. A sentence that cannot cite is not written.
 2. Numbers are read, never computed. Quote scores, dates, counts, revenue and lead days exactly as they appear in the cited blocks. Do not add, average, subtract or estimate. If the answer needs a number the blocks do not contain, say that it is not in the evidence.
 3. "Why" states its evidence tier. When you explain a cause, say what kind of evidence backs it: observed evidence (a quote from a named source, its evidence_tier, confidence, whether it still requires review) versus system-derived facts (health transitions, arc hypotheses with their confidence semantics). Rejected or unreviewed evidence is said to be so.
 4. Absence of evidence is an answer. If the blocks do not support a claim, say so plainly and list what is missing under evidence_gaps (e.g. no outcome recorded after the renewal date, no evidence since a month, an arc left unclassified). Never fill a gap with general knowledge or a plausible story.
@@ -258,7 +260,7 @@ def account_context(customer_id: int, account_id: int, question: str, as_of: Opt
 
     lvt = j.get('leading_vs_trailing') or {}
     series = (lvt.get('series') or [])[-settings.get('context', 'series_months'):]
-    ctx.add('journey', {
+    journey_block = {
         'account_id': j.get('account_id'), 'account_name': j.get('account_name'), 'vertical': j.get('vertical'),
         'as_of': j.get('as_of'), 'last_scored_month': j.get('last_scored_month'), 'live_months': j.get('live_months'),
         'last_evidence_at': j.get('last_evidence_at'), 'state': j.get('state'), 'current_phase': j.get('current_phase'),
@@ -266,7 +268,12 @@ def account_context(customer_id: int, account_id: int, question: str, as_of: Opt
         'phases': j.get('phases'), 'counterfactual_hooks': j.get('counterfactual_hooks'),
         'leading_vs_trailing': {k: v for k, v in lvt.items() if k != 'series'} | {'series': series},
         'forecast': j.get('forecast'),          # Foresight block: basis, label counts, probabilities with ranges, expected ARR
-    })
+    }
+    # Cited like `row` below (journey:<id>) — without this, every true number that lives only here
+    # (arc confidence, lead_days, the leading/trailing series, phase state) can never legally be
+    # cited, so an honest sentence stating one is always flagged as unverified. Found via a live
+    # Ask AI eval (scripts/eval_ask_ai_questions.py) against a real model, not assumed.
+    ctx.add('journey', journey_block, cite_id=f"journey:{j.get('account_id')}", citation=journey_block)
     if row:
         ctx.add('row', _row_compact(row), cite_id=f"row:{row['account_id']}", citation=row)
 
@@ -340,7 +347,8 @@ def answer_tool() -> dict:
                     'properties': {
                         'text': {'type': 'string', 'description': 'one sentence, numbers copied verbatim from the cited blocks'},
                         'cites': {'type': 'array', 'items': {'type': 'string'},
-                                  'description': 'ids from the context: episode ids (sig:N, out:N, dec:N, hs:N, renewal), evidence node ids, or row:<account_id>'},
+                                  'description': 'ids from the context: episode ids (sig:N, out:N, dec:N, hs:N, renewal), evidence node ids, row:<account_id>, '
+                                                  'or journey:<account_id> for the arc/phases/series/forecast block'},
                     }}},
                 'evidence_gaps': {'type': 'array', 'items': {'type': 'string'},
                                   'description': 'what the evidence could not say about this question'},

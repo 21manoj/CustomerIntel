@@ -37,9 +37,9 @@ def load_questions() -> dict:
     return {k: v for k, v in data.items() if not k.startswith('_')}
 
 
-def run_one(client: httpx.Client, customer_id: int, question: str, account_id: int | None) -> dict:
+def run_one(client: httpx.Client, customer_id: int, question: str, account_id: int | None, route: str) -> dict:
     try:
-        r = client.post('/app/api/ask', json={'customer_id': customer_id, 'question': question, 'account_id': account_id}, timeout=30)
+        r = client.post(route, json={'customer_id': customer_id, 'question': question, 'account_id': account_id}, timeout=60)
     except httpx.HTTPError as e:
         return {'error': f'transport: {e}'}
     if r.status_code != 200:
@@ -59,39 +59,63 @@ def run_one(client: httpx.Client, customer_id: int, question: str, account_id: i
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('--url', default='http://localhost:8101')
-    ap.add_argument('--email', required=True, help='an admin login — admin sees every tenant, simplest for a cross-tenant eval')
-    ap.add_argument('--password', required=True)
+    ap.add_argument('--email', help='session-cookie mode: an admin login (admin sees every tenant)')
+    ap.add_argument('--password', help='session-cookie mode password')
+    ap.add_argument('--bearer', help='Bearer-key mode instead of login: MCP_SERVER_API_KEY or a customer key; uses /api/ask + the ask MCP tool for the account list')
     ap.add_argument('--customer-id', type=int, action='append', required=True, dest='customer_ids')
     ap.add_argument('--report', help='write the full per-question JSON here')
     args = ap.parse_args(argv)
+    if not args.bearer and not (args.email and args.password):
+        print('need either --bearer or --email/--password')
+        return 1
 
     questions = load_questions()
     client = httpx.Client(base_url=args.url)
-    login = client.post('/app/api/auth/login', json={'email': args.email, 'password': args.password})
-    if login.status_code != 200:
-        print(f'login failed: HTTP {login.status_code}: {login.text[:200]}')
-        return 1
+    route = '/api/ask' if args.bearer else '/app/api/ask'
+    if args.bearer:
+        client.headers['Authorization'] = f'Bearer {args.bearer}'
+    else:
+        login = client.post('/app/api/auth/login', json={'email': args.email, 'password': args.password})
+        if login.status_code != 200:
+            print(f'login failed: HTTP {login.status_code}: {login.text[:200]}')
+            return 1
+
+    def list_accounts(cid: int) -> list:
+        if not args.bearer:
+            r = client.get('/app/api/portfolio', params={'customer_id': cid})
+            return r.json().get('accounts') or [] if r.status_code == 200 else []
+        import asyncio
+        from fastmcp import Client as MCPClient
+        from fastmcp.client.transports import StreamableHttpTransport
+
+        async def _fetch():
+            transport = StreamableHttpTransport(f'{args.url}/mcp', headers={'Authorization': f'Bearer {args.bearer}'})
+            async with MCPClient(transport) as c:
+                r = await c.call_tool('list_journeys', {'customer_id': cid}, raise_on_error=False)
+                data = getattr(r, 'data', None) or {}
+                return data.get('journeys') or []
+        rows = asyncio.run(_fetch())
+        return [{'account_id': r['account_id'], 'account_name': r['account_name']} for r in rows]
 
     rows = []
     flags = []
     for cid in args.customer_ids:
-        r = client.get('/app/api/portfolio', params={'customer_id': cid})
-        if r.status_code != 200:
-            print(f'! customer {cid}: could not load portfolio ({r.status_code}) — skipping')
+        accounts = list_accounts(cid)
+        if not accounts:
+            print(f'! customer {cid}: no accounts found (or portfolio load failed) — skipping')
             continue
-        accounts = r.json().get('accounts') or []
         print(f'\n== customer_id={cid} — {len(accounts)} accounts ==')
         for role, qs in questions.items():
             for q in qs:
                 if q['scope'] == 'portfolio':
-                    res = run_one(client, cid, q['text'], None)
+                    res = run_one(client, cid, q['text'], None, route)
                     res.update(role=role, question_id=q['id'], customer_id=cid, account_id=None, account_name=None)
                     rows.append(res)
                     if 'error' in res or res.get('answer_empty'):
                         flags.append(res)
                 else:
                     for a in accounts:
-                        res = run_one(client, cid, q['text'], a['account_id'])
+                        res = run_one(client, cid, q['text'], a['account_id'], route)
                         res.update(role=role, question_id=q['id'], customer_id=cid, account_id=a['account_id'], account_name=a['account_name'])
                         rows.append(res)
                         if 'error' in res:
