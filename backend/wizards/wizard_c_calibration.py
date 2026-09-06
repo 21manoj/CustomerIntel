@@ -48,7 +48,7 @@ def config() -> dict:
     if missing:
         raise WizardCConfigError(f'config/wizard_c.json is missing {missing}')
     for section, keys in (('gate', ('min_outcomes_total', 'min_outcomes_per_class', 'min_accounts_with_outcomes')),
-                          ('confidence', ('min_samples_per_side', 'tiers', 'flat_effect_pts')),
+                          ('confidence', ('min_samples_per_side', 'tiers', 'flat_effect_pts', 'separated_d')),
                           ('adjustment', ('adjust_from_confidence', 'gain', 'd_cap', 'min_pillar_weight',
                                           'max_kpi_weight_within_pillar', 'kpi_cap_min_kpis', 'weight_decimals')),
                           ('label_buckets', ('negative', 'positive'))):
@@ -263,11 +263,10 @@ def _effect(pos: List[Tuple[int, float]], neg: List[Tuple[int, float]]) -> dict:
         return out
     effect = statistics.mean(ps) - statistics.mean(ns)
     sd = _pooled_sd(ps, ns)
-    cap = float(config()['adjustment']['d_cap'])
     if sd > 0:
         d = effect / sd
-    else:   # perfectly separated (or constant): a clear effect is at least the cap, no effect is 0
-        d = math.copysign(cap * 2, effect) if abs(effect) >= float(c['flat_effect_pts']) else 0.0
+    else:   # perfectly separated (or constant): d is undefined; a clear effect gets config's separated_d, no effect 0
+        d = math.copysign(float(c['separated_d']), effect) if abs(effect) >= float(c['flat_effect_pts']) else 0.0
     out.update({'effect_pts': round(effect, 2), 'sd': round(sd, 2), 'd': round(d, 3)})
     if abs(effect) < float(c['flat_effect_pts']):
         out['direction'] = 'flat'

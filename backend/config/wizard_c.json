@@ -16,7 +16,9 @@
     "_doc": "Tier by standardised effect |d| (difference in mean KPI score before positive vs negative outcomes, over the pooled sd). A tier also needs n_pos and n_neg >= min_samples_per_side; below that the tier is 'none' whatever the effect.",
     "min_samples_per_side": 3,
     "tiers": {"low": 0.2, "medium": 0.5, "high": 0.8},
-    "flat_effect_pts": 1.0
+    "flat_effect_pts": 1.0,
+    "separated_d": 2.0,
+    "_separated_doc": "|d| assigned when the pooled sd is 0 (every sample on a side identical: perfect separation or a constant) and the effect clears flat_effect_pts; d is undefined there. Above every tier and above d_cap, so the adjustment is the capped maximum; the count floor still applies."
   },
   "adjustment": {
     "adjust_from_confidence": "medium",
