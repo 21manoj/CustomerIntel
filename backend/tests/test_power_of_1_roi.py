@@ -180,7 +180,7 @@ def test_po1_is_derived_on_the_tenants_own_base_and_applied_weights(tenants):
         assert out['portfolio']['revenue_per_health_point']['value'] == pytest.approx(total * sens)
         nor = next(a for a in out['accounts'] if a['account_id'] == ids['NOR'])
         hs = HealthScore.query.filter_by(account_id=ids['NOR']).order_by(HealthScore.measurement_month.desc()).first()
-        assert nor['weight_source'] == hs.weight_source and hs.weight_source in ('customer_config', 'catalog', 'lifecycle')
+        assert nor['weight_source'] == hs.weight_source and hs.weight_source in ('vertical_default', 'customer_config', 'catalog', 'lifecycle')
         assert nor['revenue_per_health_point']['value'] == pytest.approx(1_200_000 * sens)
         # the weights actually applied on the row, normalised, drive the per-pillar figure; they sum to one health point
         wsum = sum(float(w) for w in hs.pillar_weights.values())

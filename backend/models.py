@@ -863,6 +863,7 @@ class AccountForecast(db.Model):
 
     __table_args__ = (
         db.UniqueConstraint('run_id', 'account_id', name='uq_account_forecast_run'),
+    )
 
 
 class WeightCalibration(db.Model):
