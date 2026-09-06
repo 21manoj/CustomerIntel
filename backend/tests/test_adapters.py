@@ -251,7 +251,7 @@ def test_receiver_config_is_validated_and_read_from_env(tmp_path, monkeypatch):
     for k, v in {'secret': 's3', 'platform_url': 'http://platform.test/', 'platform_key': 'k3', 'customer_id': '10',
                  'policy': 'manual', 'auto_done_after_seconds': '7', 'log_path': str(tmp_path / 'e.jsonl')}.items():
         monkeypatch.setenv(env[k], v)
-    cfg = ReceiverConfig.from_env(port=None)
+    cfg = ReceiverConfig.from_env()
     assert (cfg.secret, cfg.platform_url, cfg.customer_id, cfg.policy, cfg.auto_done_after_seconds) == ('s3', 'http://platform.test', 10, 'manual', 7.0)
     assert ReceiverConfig.from_env(policy='auto_done').policy == 'auto_done'          # explicit wins
 
@@ -533,6 +533,11 @@ def test_gainsight_sample_imports_end_to_end_and_is_idempotent_by_source_ref(mon
             import_from_source(cid + 100000, 'gainsight_timeline', content)
         headerless = import_from_source(cid, 'gainsight_timeline', 'Foo,Bar\n1,2\n', dry_run=True)
         assert headerless['received'] == 0 and 'missing required columns' in headerless['parse']['rejected'][0]['reason']
+        assert dry['items_preview'][0]['row'] == 1 and '_row' not in dry['items_preview'][0]
+        from adapters import settings
+        too_many = 'Activity Date,Company Name,Subject\n' + ''.join(f'2026-01-01,Acme,row {i}\n' for i in range(settings.get('sources', 'max_rows') + 1))
+        with pytest.raises(ToolError, match='at most'):
+            import_from_source(cid, 'gainsight_timeline', too_many, dry_run=True)
         db.session.remove()
 
 

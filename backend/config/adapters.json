@@ -46,10 +46,9 @@
     "user_agent": "CustomerIntelV1-slack-notify/1.0"
   },
   "sources": {
-    "_doc": "Inbound source adapters → the communications lane (adapters/sources). process_batch = signals per process_pending pass when process_now is set; import_batch = items per import_communications call (≤ its own IMPORT_BATCH_MAX).",
+    "_doc": "Inbound source adapters → the communications lane (adapters/sources). process_batch = signals per process_pending pass when process_now is set; items go to import_communications in batches of its own IMPORT_BATCH_MAX. preview_rows = items returned by dry_run.",
     "max_rows": 5000,
     "max_content_bytes": 5242880,
-    "import_batch": 500,
     "process_batch": 200,
     "gainsight_timeline": {
       "_doc": "Gainsight Timeline activity export (CSV). columns: our field -> the export's header names, matched case- and space-insensitively, first hit wins. activity_type_map: Gainsight 'Activity Type' -> signal_engine source_type; anything else -> default_source_type. Dates without a zone are taken as UTC; date_formats are tried after ISO-8601.",

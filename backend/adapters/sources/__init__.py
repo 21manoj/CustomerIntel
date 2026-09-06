@@ -46,7 +46,7 @@ def import_from_source(customer_id: int, source: str, content: str, process_now:
     """Parse → skip rows already imported (by source_ref) → import_communications in batches →
     process once at the end. dry_run parses and reports only. Raises ValueError on an unknown source,
     an oversized export, or a malformed one."""
-    from signal_engine.pipeline import import_communications, process_pending
+    from signal_engine.pipeline import import_communications, process_pending, IMPORT_BATCH_MAX
     from mcp_server import audit
     mod = SOURCES.get(source)
     if mod is None:
@@ -64,7 +64,8 @@ def import_from_source(customer_id: int, source: str, content: str, process_now:
            'received': len(items), 'already_imported': 0, 'queued': 0, 'duplicates': 0,
            'unknown_accounts': [], 'rejected': [], 'signal_ids': [], 'by_ref': {}}
     if dry_run:
-        out['items_preview'] = items[: int(settings.get('sources', 'preview_rows'))]
+        out['items_preview'] = [{**{k: v for k, v in it.items() if k != '_row'}, 'row': it['_row']}
+                                for it in items[: int(settings.get('sources', 'preview_rows'))]]
         return out
     existing = _existing_refs(customer_id, [it['source_ref'] for it in items if it.get('source_ref')])
     fresh = []                                   # (index among the parsed items, item)
@@ -75,7 +76,7 @@ def import_from_source(customer_id: int, source: str, content: str, process_now:
             out['by_ref'][ref] = existing[ref]
         else:
             fresh.append((i, it))
-    batch = int(settings.get('sources', 'import_batch'))
+    batch = IMPORT_BATCH_MAX                     # the lane's own limit; one number, not a second copy here
     for start in range(0, len(fresh), batch):
         chunk = fresh[start:start + batch]
         res = import_communications(int(customer_id), [it for _, it in chunk], process_now=False)
