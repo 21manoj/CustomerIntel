@@ -26,6 +26,13 @@ def weakest(*bases: str) -> str:
     return max(present, key=order.index)
 
 
+def assumed_link(sentence: str) -> str:
+    """A chain link for an economics-file basis sentence: labelled 'assumed: …' exactly once
+    (the files already write their sentences that way; the label is not doubled)."""
+    s = str(sentence).strip()
+    return s if s.lower().startswith('assumed') else f'assumed: {s}'
+
+
 def money(value: Optional[float], basis: str, chain: Optional[Iterable[str]] = None, note: Optional[str] = None) -> dict:
     """One labelled dollar figure. value None = not computable (the note says why)."""
     if basis not in rank():

@@ -204,9 +204,12 @@ def compact_for_rows(customer_id: int, vertical: str, pairs: List[tuple]) -> Dic
 
 def investment_priorities(customer_id: int, account_id: Optional[int] = None) -> dict:
     from models import Account, JourneyData
-    from utils.vertical_registry import get_vertical_for_customer
+    from utils.vertical_registry import get_vertical_for_customer, get_pillars
     from journeys.read import origin_block
     vertical = get_vertical_for_customer(customer_id)          # raises: no fallback vertical
+    # raises for a vertical with no catalog — before any work: a tenant without journeys would otherwise return
+    # 'no_journeys' for a vertical that does not exist, and get_taxonomy() silently serves the base taxonomy
+    get_pillars(vertical)
     q = (JourneyData.query.filter_by(customer_id=int(customer_id))
          .join(Account, Account.account_id == JourneyData.account_id).add_entity(Account))
     if account_id is not None:

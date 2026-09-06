@@ -16,7 +16,6 @@ import os
 import re
 import sys
 import uuid
-from datetime import date, datetime
 from pathlib import Path
 
 import pytest
@@ -97,9 +96,8 @@ def _rebuild(cid):
 def tenants():
     with app.app_context():
         db.create_all()
-        from datetime import timedelta
-        renewal = (date.today() + timedelta(days=20)).isoformat()
-        scid, sids = _tenant('Po1Saas', 'saas_premium', SAAS_ACCOUNTS.format(renewal=renewal), SAAS_KPIS)
+        # the journey's as_of is the end of the last scored month (2026-07-31); renewal 20 days after it → band 0-30
+        scid, sids = _tenant('Po1Saas', 'saas_premium', SAAS_ACCOUNTS.format(renewal='2026-08-20'), SAAS_KPIS)
         # Northstar: champion departure (critical) + budget pressure (high), renewal in 20 days → protect
         _sig(scid, sids['NOR'], 'champion_departure', '2026-07-20T10:00:00Z', 'Dana Whitfield is leaving at the end of the month')
         _sig(scid, sids['NOR'], 'budget_pressure', '2026-07-24T10:00:00Z', 'Procurement wants a 20% reduction at renewal')
@@ -237,7 +235,8 @@ def test_po1_band_view_and_scenarios(tenants):
         bv = nor['band_view']
         assert bv['band'] == ht.classify(bv['health_now'])
         assert bv['revenue_at_risk'] == {'value': pytest.approx(1_200_000 * shares[bv['band']]), 'basis': 'assumed',
-                                         'basis_chain': ['derived: Account.revenue', f"assumed: {shares['basis']}"]}
+                                         'basis_chain': ['derived: Account.revenue', shares['basis']]}     # the file's sentence, labelled once
+        assert not any('assumed: assumed' in c for a in out['accounts'] for p in a['pillars'] for c in p['revenue_per_pillar_point']['basis_chain'])
         if bv['band'] != 'healthy':
             assert bv['next_band'] and bv['points_to_next_band'] > 0
             assert bv['revenue_protected_if_next_band']['value'] == pytest.approx(1_200_000 * (shares[bv['band']] - shares[bv['next_band']]))

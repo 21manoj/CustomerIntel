@@ -25,7 +25,7 @@ from __future__ import annotations
 from typing import Dict, List, Optional
 
 from roi import settings
-from roi.basis import money
+from roi.basis import assumed_link, money
 
 UNMAPPED = 'unmapped'
 INSUFFICIENT = 'insufficient_data'
@@ -158,7 +158,7 @@ def _sensitivity(customer_id: int, views: List[dict], econ: dict) -> dict:
                       'revenue': float(oc['revenue']), 'bucket': bucket})
     assumed = econ['retention_sensitivity_per_health_point']
     out = {'minimum_interventions': need, 'qualifying_interventions': len(pairs), 'pairs': pairs,
-           'assumed_revenue_share_per_health_point': {'value': float(assumed['value']), 'basis': f"assumed: {assumed['basis']}"},
+           'assumed_revenue_share_per_health_point': {'value': float(assumed['value']), 'basis': assumed_link(assumed['basis'])},
            'note': 'measured and assumed sit side by side; the assumed figure is never scaled by, blended with, or replaced by a '
                    'measured one below the minimum'}
     if len(pairs) < need:

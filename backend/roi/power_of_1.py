@@ -21,7 +21,7 @@ from typing import Dict, List, Optional
 
 import utils.health_thresholds as ht
 from roi import settings
-from roi.basis import money
+from roi.basis import assumed_link, money
 
 WEIGHT_SOURCE_HEALTH_ROW = 'health_row'
 WEIGHT_SOURCE_CUSTOMER_CONFIG = 'customer_config'
@@ -89,7 +89,7 @@ def account_power_of_1(account, customer_id: int, vertical: str, pillars: dict, 
     from mcp_server.common import get_account_arr
     from models import CustomerConfig
     sens = float(econ['retention_sensitivity_per_health_point']['value'])
-    sens_basis = f"assumed: {econ['retention_sensitivity_per_health_point']['basis']}"
+    sens_basis = assumed_link(econ['retention_sensitivity_per_health_point']['basis'])
     shares = econ['revenue_at_risk_share_by_band']
     revenue = get_account_arr(account)
     pw = _pillar_weights(account.account_id, customer_id, pillars)
@@ -152,10 +152,10 @@ def account_power_of_1(account, customer_id: int, vertical: str, pillars: dict, 
         boundary = _band_boundary(band)
         band_view = {
             'health_now': health_now, 'band': band, 'measurement_month': hs.measurement_month.isoformat(),
-            'revenue_at_risk': money(revenue * float(shares[band]), 'assumed', ['derived: Account.revenue', f"assumed: {shares['basis']}"]),
+            'revenue_at_risk': money(revenue * float(shares[band]), 'assumed', ['derived: Account.revenue', assumed_link(shares['basis'])]),
             'next_band': nxt, 'points_to_next_band': round(boundary - health_now, 2) if boundary is not None else None,
             'revenue_protected_if_next_band': money(revenue * (float(shares[band]) - float(shares[nxt])), 'assumed',
-                                                    ['derived: Account.revenue', f"assumed: {shares['basis']}"]) if nxt else None,
+                                                    ['derived: Account.revenue', assumed_link(shares['basis'])]) if nxt else None,
             'pillar_points_to_next_band': ({p: round((boundary - health_now) / w, 2) for p, w in pw['weights'].items() if w > 0}
                                            if boundary is not None else None),
         }
@@ -215,9 +215,9 @@ def power_of_1(customer_id: int, account_id: Optional[int] = None) -> dict:
             'pillar': p['pillar'], 'name': p['name'], 'accounts': p['accounts'], 'weight_sources': p['weight_sources'],
             'current_score_revenue_weighted': score,
             'revenue_per_pillar_point': money(p['revenue_per_pillar_point'], 'assumed',
-                                              ['derived: Σ over accounts of revenue × pillar weight', f"assumed: {sens['basis']}"]),
+                                              ['derived: Σ over accounts of revenue × pillar weight', assumed_link(sens['basis'])]),
             'revenue_per_one_pct_move': money(p['revenue_per_pillar_point'] * score * float(settings.get('one_pct')), 'assumed',
-                                              ['derived: Σ revenue × pillar weight × 1% of the revenue-weighted pillar score', f"assumed: {sens['basis']}"])
+                                              ['derived: Σ revenue × pillar weight × 1% of the revenue-weighted pillar score', assumed_link(sens['basis'])])
             if score is not None else money(None, 'assumed', note='no pillar score on any account yet'),
         })
     kagg: Dict[str, dict] = {}
@@ -232,9 +232,9 @@ def power_of_1(customer_id: int, account_id: Optional[int] = None) -> dict:
                 a['one_pct_value_move_revenue'] += k['one_pct_value_move']['revenue_delta']['value']
     kpi_rows = [{
         'kpi': a['kpi'], 'name': a['name'], 'pillar': a['pillar'], 'unit': a['unit'], 'accounts': a['accounts'], 'measured_accounts': a['measured_accounts'],
-        'revenue_per_kpi_score_point': money(a['revenue_per_kpi_score_point'], 'assumed', ['derived: Σ revenue × pillar weight × KPI weight', f"assumed: {sens['basis']}"]),
+        'revenue_per_kpi_score_point': money(a['revenue_per_kpi_score_point'], 'assumed', ['derived: Σ revenue × pillar weight × KPI weight', assumed_link(sens['basis'])]),
         'one_pct_value_move_revenue': money(a['one_pct_value_move_revenue'], 'assumed',
-                                            ['derived: Σ over measured accounts of the catalog-curve score delta × weights × revenue', f"assumed: {sens['basis']}"])
+                                            ['derived: Σ over measured accounts of the catalog-curve score delta × weights × revenue', assumed_link(sens['basis'])])
         if a['measured_accounts'] else money(None, 'assumed', note='no measurement on any account'),
     } for a in sorted(kagg.values(), key=lambda x: (-x['one_pct_value_move_revenue'], -x['revenue_per_kpi_score_point'], x['kpi']))]
 
@@ -252,7 +252,7 @@ def power_of_1(customer_id: int, account_id: Optional[int] = None) -> dict:
         b['revenue_at_risk'] += bv['revenue_at_risk']['value']
     band_rows = [{'band': b['band'], 'accounts': b['accounts'], 'share_at_risk': float(shares[b['band']]),
                   'revenue': money(b['revenue'], 'derived', ['derived: Σ Account.revenue in band']),
-                  'revenue_at_risk': money(b['revenue_at_risk'], 'assumed', ['derived: Σ Account.revenue in band', f"assumed: {shares['basis']}"])}
+                  'revenue_at_risk': money(b['revenue_at_risk'], 'assumed', ['derived: Σ Account.revenue in band', assumed_link(shares['basis'])])}
                  for b in by_band.values()]
 
     sens_v = float(sens['value'])
@@ -268,7 +268,7 @@ def power_of_1(customer_id: int, account_id: Optional[int] = None) -> dict:
         'portfolio': {
             'accounts': len(rows), 'unscored_accounts': unscored,
             'revenue_base': money(total, 'derived', ['derived: Σ Account.revenue (get_account_arr)']),
-            'revenue_per_health_point': money(per_point_total, 'assumed', ['derived: Σ Account.revenue', f"assumed: {sens['basis']}"]),
+            'revenue_per_health_point': money(per_point_total, 'assumed', ['derived: Σ Account.revenue', assumed_link(sens['basis'])]),
             'weight_sources': {src: sum(1 for r in rows if r['weight_source'] == src) for src in sorted({r['weight_source'] for r in rows})},
             'pillars': pillar_rows, 'kpis': kpi_rows, 'bands': band_rows, 'scenarios': scenarios,
         },
