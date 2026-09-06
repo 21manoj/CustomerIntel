@@ -1,0 +1,92 @@
+# Reference webhook receivers for the two showcase tenants (docs/design/showcase/README.md,
+# docs/design/adapters.md §4) — optional, demo-only infrastructure, kept as a sibling compose
+# file rather than folded into docker-compose.customerintelv1.yml so it can be started/stopped
+# independently of the platform itself.
+#
+# One process per tenant (adapters/receiver is single-tenant by design: it refuses payloads
+# for any other customer_id). Reuses the already-built customerintelv1-app image — it already
+# has starlette/uvicorn/httpx (backend/requirements.txt + requirements-dev.txt) and the
+# adapters/ package on its tree — just overrides the command to run the receiver module
+# instead of server.py.
+#
+# Joins Caddy's external network (cspulse_cspulse-net) so the Caddyfile can reverse_proxy to
+# each receiver by container name under its own sslip.io hostname (real HTTPS, not the
+# PLAYBOOK_WEBHOOK_ALLOW_HTTP escape hatch — that switch's own docstring in
+# backend/playbooks/definitions.py says "never set on the box"). Host ports bound to
+# 127.0.0.1 only, matching the platform compose file's convention.
+#
+#   cd ~/CustomerIntel/deploy
+#   cp .env.receivers.example .env.receivers   (fill in the two secrets + two platform keys)
+#   docker compose -p customerintelv1-receivers --env-file .env.receivers \
+#     -f docker-compose.receivers.yml up -d
+#
+# Reversible: `docker compose -p customerintelv1-receivers -f docker-compose.receivers.yml down`
+# stops both; configure_playbooks can be called again to clear/change webhook_url on either tenant.
+
+name: customerintelv1-receivers
+
+services:
+  ci-receiver-10:
+    image: customerintelv1-app
+    container_name: customerintelv1-receiver-10
+    restart: unless-stopped
+    command: ["python", "-m", "adapters.receiver", "--host", "0.0.0.0", "--port", "8210"]
+    environment:
+      CI_RECEIVER_SECRET: ${CI_RECEIVER_SECRET_10:?set in .env.receivers}
+      CI_PLATFORM_URL: ${CI_PLATFORM_URL:-https://customerintelv1.3-218-251-181.sslip.io}
+      CI_PLATFORM_KEY: ${CI_PLATFORM_KEY_10:?set in .env.receivers}
+      CI_CUSTOMER_ID: "10"
+      CI_RECEIVER_LOG: /var/log/ci_receiver/events.jsonl
+    volumes:
+      - ci-receiver-10-log:/var/log/ci_receiver
+    ports:
+      - "127.0.0.1:8210:8210"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8210/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+    networks:
+      - cspulse-net
+
+  ci-receiver-11:
+    image: customerintelv1-app
+    container_name: customerintelv1-receiver-11
+    restart: unless-stopped
+    command: ["python", "-m", "adapters.receiver", "--host", "0.0.0.0", "--port", "8211"]
+    environment:
+      CI_RECEIVER_SECRET: ${CI_RECEIVER_SECRET_11:?set in .env.receivers}
+      CI_PLATFORM_URL: ${CI_PLATFORM_URL:-https://customerintelv1.3-218-251-181.sslip.io}
+      CI_PLATFORM_KEY: ${CI_PLATFORM_KEY_11:?set in .env.receivers}
+      CI_CUSTOMER_ID: "11"
+      CI_RECEIVER_LOG: /var/log/ci_receiver/events.jsonl
+    volumes:
+      - ci-receiver-11-log:/var/log/ci_receiver
+    ports:
+      - "127.0.0.1:8211:8211"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8211/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+    networks:
+      - cspulse-net
+
+volumes:
+  ci-receiver-10-log:
+  ci-receiver-11-log:
+
+networks:
+  cspulse-net:
+    external: true
+    name: cspulse_cspulse-net

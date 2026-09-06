@@ -1,0 +1,13 @@
+# Appended to ~/caddy/Caddyfile once (see deploy/docker-compose.receivers.yml). Public HTTPS
+# fronts for the two showcase-tenant reference webhook receivers — real TLS via sslip.io, not
+# the PLAYBOOK_WEBHOOK_ALLOW_HTTP escape hatch, per backend/playbooks/definitions.py's own
+# "never set on the box" docstring. /health and /received are unauthenticated on the receiver
+# itself (docs/design/adapters.md §6 known gap) — only /hook matters for the demo; nothing
+# sensitive is exposed by the other two reads (counts and an ack log, no raw signal text).
+ci-receiver-10.3-218-251-181.sslip.io {
+	reverse_proxy customerintelv1-receiver-10:8210
+}
+
+ci-receiver-11.3-218-251-181.sslip.io {
+	reverse_proxy customerintelv1-receiver-11:8211
+}
