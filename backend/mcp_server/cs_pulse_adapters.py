@@ -36,11 +36,7 @@ def import_from_source(customer_id: int, source: str, content: str, process_now:
     _check_mcp_enabled()
     app = _get_flask_app()
     with app.app_context():
-        from models import Customer
-        from extensions import db
         from adapters.sources import import_from_source as _imp
-        if not db.session.get(Customer, int(customer_id)):
-            raise ToolError(f'Customer {customer_id} not found.')
         try:
             return _imp(int(customer_id), source, content, process_now=process_now, dry_run=dry_run)
         except ValueError as e:

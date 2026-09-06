@@ -206,6 +206,8 @@ def test_receiver_refuses_missing_bad_and_stale_signatures(tmp_path, fast_receiv
             assert r.status_code == 401 and r.json() == {'error': reason}, reason
         # a signature made with the platform's own sign() over a tampered body is refused too
         assert client.post('/hook', content=body.replace('"intervention_id":303', '"intervention_id":304'), headers=headers).status_code == 401
+        # a header value compare_digest cannot compare is a refusal, not a 500
+        assert client.post('/hook', content=body, headers={**headers, c['signature_header']: 'sha256=é'.encode('latin-1')}).status_code == 401
         # authentic but unusable payload / wrong tenant
         b2, h2 = _signed(cfg.secret, {'hello': 'world'})
         assert client.post('/hook', content=b2, headers=h2).status_code == 400
@@ -400,6 +402,8 @@ def test_receiver_closes_the_loop_with_the_real_governance_layer(tenant, platfor
         r = httpx.post(f'{base}/api/sources/gainsight_timeline/import', json={'customer_id': cid, 'content': SAMPLE.read_text(), 'dry_run': True}, headers=auth)
         assert r.status_code == 200 and r.json()['dry_run'] and r.json()['received'] == 6
         assert httpx.post(f'{base}/api/sources/no_such/import', json={'customer_id': cid, 'content': 'x'}, headers=auth).status_code == 400
+        r = httpx.post(f'{base}/api/sources/gainsight_timeline/import', json={'customer_id': cid + 100000, 'content': 'x'}, headers=auth)
+        assert r.status_code == 400 and 'not found' in r.json()['error']          # the route is gated the way the tool is
     finally:
         rstop()
 
@@ -507,6 +511,7 @@ def test_gainsight_sample_imports_end_to_end_and_is_idempotent_by_source_ref(mon
         assert cols['mapped']['activity_id'] == 'Activity ID' and cols['mapped']['company_name'] == 'Company Name' and cols['missing'] == []
         assert cols['unmapped'] == ['Milestone Type', 'Scorecard Health']
         assert out['processed']['processed'] == 5 and out['processed']['journeys_rebuilt'] == 2 and out['processed']['nodes_written'] >= 4
+        assert out['processed']['still_pending'] == 0 and out['processed']['errors'] == 0
         sigs = QualitativeSignal.query.filter_by(customer_id=cid).order_by(QualitativeSignal.occurred_at).all()
         assert len(sigs) == 5 and all(s.source_ref.startswith('gainsight:timeline:') for s in sigs)
         assert {s.source_type for s in sigs} == {'email', 'meeting', 'crm_activity'}

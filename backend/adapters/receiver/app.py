@@ -91,6 +91,7 @@ class Receiver:
         self.seen: dict = {}                 # intervention_id → record
         self._lock = threading.Lock()
         self._threads: list = []
+        os.makedirs(os.path.dirname(os.path.abspath(self.cfg.log_path)), exist_ok=True)
         self._reload_log()
 
     # ── the log is the memory ─────────────────────────────────────────
@@ -130,7 +131,11 @@ class Receiver:
             return {'status': 401, 'reason': 'bad_timestamp'}
         if abs(int(time.time()) - ts_int) > self.cfg.timestamp_tolerance_seconds:
             return {'status': 401, 'reason': 'stale_timestamp'}
-        if not verify_signature(self.cfg.secret, ts, body, sig):
+        try:
+            authentic = verify_signature(self.cfg.secret, ts, body, sig)
+        except TypeError:                        # compare_digest refuses a non-ASCII header value
+            authentic = False
+        if not authentic:
             return {'status': 401, 'reason': 'bad_signature'}
         return None
 

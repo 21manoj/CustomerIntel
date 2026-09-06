@@ -19,7 +19,7 @@ import glob
 import json
 import os
 from functools import lru_cache
-from typing import Dict, List, Optional
+from typing import List, Optional
 
 _CONFIG_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'config')
 GOVERNANCE_PATH = os.path.join(_CONFIG_DIR, 'playbook_governance.json')
@@ -155,6 +155,12 @@ def tenant_secret(customer_id: int) -> Optional[str]:
     return ((t.config or {}).get('webhook_secret') or None) if t else None
 
 
+def insecure_http_allowed() -> bool:
+    """The one switch that lets a plain-http target through (webhook_url, the Slack URL): the env named
+    by governance → webhook.insecure_http_env. Tests and a local fake endpoint; never set on the box."""
+    return os.environ.get(governance()['webhook']['insecure_http_env'], '').lower() in ('true', '1', 'yes')
+
+
 def tenant_slack_url(customer_id: int) -> Optional[str]:
     """The Slack incoming-webhook URL (adapters/slack_notify) — for the send path only, never a read surface."""
     t = _toggle(customer_id)
@@ -180,7 +186,7 @@ def configure_tenant(customer_id: int, *, webhook_url=None, webhook_secret=None,
         if url:
             u = urlparse(url)
             allowed = list(gov['webhook']['allowed_schemes'])
-            if os.environ.get(gov['webhook']['insecure_http_env'], '').lower() in ('true', '1', 'yes'):
+            if insecure_http_allowed():
                 allowed.append('http')
             if u.scheme not in allowed or not u.netloc:
                 raise ValueError(f'webhook_url must be an absolute {"/".join(allowed)} URL')

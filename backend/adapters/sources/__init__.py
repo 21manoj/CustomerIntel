@@ -44,10 +44,16 @@ def _existing_refs(customer_id: int, refs: list) -> dict:
 
 def import_from_source(customer_id: int, source: str, content: str, process_now: bool = True, dry_run: bool = False) -> dict:
     """Parse → skip rows already imported (by source_ref) → import_communications in batches →
-    process once at the end. dry_run parses and reports only. Raises ValueError on an unknown source,
-    an oversized export, or a malformed one."""
+    process once at the end (journeys rebuilt once, for every account touched). dry_run parses and
+    reports only. Raises ValueError on an unknown customer or source, an oversized export, or a
+    malformed one. `processed.still_pending` = signals this import queued that no pass materialised
+    (an enrichment error leaves a signal queued; the next process_pending picks it up)."""
+    from models import Customer, QualitativeSignal
+    from extensions import db
     from signal_engine.pipeline import import_communications, process_pending, IMPORT_BATCH_MAX
     from mcp_server import audit
+    if not db.session.get(Customer, int(customer_id)):
+        raise ValueError(f'Customer {customer_id} not found.')
     mod = SOURCES.get(source)
     if mod is None:
         raise ValueError(f'unknown source {source!r}; one of {sorted(SOURCES)}')
@@ -89,13 +95,26 @@ def import_from_source(customer_id: int, source: str, content: str, process_now:
                 idx, item = chunk[e['index']]
                 out[k].append({**e, 'index': idx, 'row': item['_row']})
     if process_now and out['queued']:
-        totals = {'processed': 0, 'nodes_written': 0, 'unclassified': 0, 'errors': 0, 'journeys_rebuilt': 0}
-        while True:
-            res = process_pending(customer_id=int(customer_id), limit=int(settings.get('sources', 'process_batch')), rebuild_journeys=True)
+        # Bounded by what this import queued: process_pending leaves an errored signal queued, so
+        # "processed == 0" alone cannot tell "nothing left" from "the head of the queue is stuck".
+        totals = {'processed': 0, 'nodes_written': 0, 'unclassified': 0, 'errors': 0}
+        per_pass = int(settings.get('sources', 'process_batch'))
+        touched: set = set()
+        for _ in range(-(-out['queued'] // per_pass) + 1):
+            res = process_pending(customer_id=int(customer_id), limit=per_pass, rebuild_journeys=False)
             for k in totals:
                 totals[k] += res.get(k, 0)
+            touched.update(res.get('accounts') or [])
             if not res['processed']:
                 break
+        totals['journeys_rebuilt'] = 0
+        if touched:
+            from journeys.wizard_a import run_wizard_a
+            totals['journeys_rebuilt'] = run_wizard_a(int(customer_id), sorted(touched)).get('processed', 0)
+        totals['still_pending'] = (QualitativeSignal.query
+                                   .filter(QualitativeSignal.customer_id == int(customer_id),
+                                           QualitativeSignal.signal_id.in_(out['signal_ids']), QualitativeSignal.cg_node_id.is_(None))
+                                   .count())
         out['processed'] = totals
     audit.record('adapter', f'import_from_source.{source}', customer_id, key_kind='n/a', outcome='allowed',
                  detail=f"rows={parsed['rows']} queued={out['queued']} already={out['already_imported']} dup={out['duplicates']} "
