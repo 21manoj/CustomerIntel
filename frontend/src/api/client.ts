@@ -2,6 +2,9 @@
 // same functions the design doc's route table names. No business logic here, just
 // the HTTP call + typed response.
 import type {
+  CalibrationProposal,
+  CalibrationProposeResult,
+  CalibrationResponse,
   InterventionsResponse,
   InviteUserResponse,
   MeasuredRoiResponse,
@@ -177,4 +180,33 @@ export function configurePlaybooks(payload: {
   kill_switch?: boolean
 }) {
   return request<TenantPlaybookConfig>('/app/api/playbooks/config', { method: 'POST', body: JSON.stringify(payload) })
+}
+
+// ── Calibrations (Wizard C, admin) ──
+
+export function getCalibrations(customerId: number, proposalId?: number) {
+  const q = new URLSearchParams({ customer_id: String(customerId) })
+  if (proposalId != null) q.set('proposal_id', String(proposalId))
+  return request<CalibrationResponse>(`/app/api/calibrations?${q.toString()}`)
+}
+
+export function proposeCalibration(customerId: number) {
+  return request<CalibrationProposeResult>('/app/api/calibrations/propose', {
+    method: 'POST',
+    body: JSON.stringify({ customer_id: customerId }),
+  })
+}
+
+export function approveCalibration(proposalId: number, customerId: number, note?: string) {
+  return request<CalibrationProposal>(`/app/api/calibrations/${proposalId}/approve`, {
+    method: 'POST',
+    body: JSON.stringify({ customer_id: customerId, note }),
+  })
+}
+
+export function rejectCalibration(proposalId: number, customerId: number, note?: string) {
+  return request<CalibrationProposal>(`/app/api/calibrations/${proposalId}/reject`, {
+    method: 'POST',
+    body: JSON.stringify({ customer_id: customerId, note }),
+  })
 }

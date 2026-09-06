@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import ProtectedRoute from './components/ProtectedRoute'
 import Shell from './components/Shell'
+import Calibrations from './pages/Calibrations'
 import Interventions from './pages/Interventions'
 import Login from './pages/Login'
 import Portfolio from './pages/Portfolio'
@@ -19,6 +20,7 @@ export default function App() {
           <Route path="/review-queue" element={<ReviewQueue />} />
           <Route path="/roi" element={<Roi />} />
           <Route path="/settings" element={<Settings />} />
+          <Route path="/calibrations" element={<Calibrations />} />
           <Route path="/" element={<Navigate to="/portfolio" replace />} />
         </Route>
       </Route>

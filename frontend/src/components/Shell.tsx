@@ -10,7 +10,8 @@ const NAV_ITEMS: { to: string; label: string; roles?: string[] }[] = [
   { to: '/review-queue', label: 'Review Queue', roles: ['csm', 'admin'] },
   { to: '/roi', label: 'ROI & Power-of-1', roles: ['cfo', 'cro', 'admin'] },
   { to: '/settings', label: 'Settings', roles: ['admin'] },
-  // Account/Journey Canvas, Calibrations — added as their own pages land.
+  { to: '/calibrations', label: 'Calibrations', roles: ['admin'] },
+  // Account/Journey Canvas — added as its own page lands.
 ]
 
 export default function Shell() {
