@@ -157,7 +157,7 @@ class TestTriggerWizard:
         m, reg = tenants['demo_silent_displacement_dc']
         from mcp_server.cs_pulse_onboarding import trigger_wizard
         with pytest.raises(ToolError, match="Available in this build"):
-            trigger_wizard(reg['customer_id'], 'c')
+            trigger_wizard(reg['customer_id'], 'd')      # 'c' is in this build now (wizard_c_calibration)
 
     def test_too_few_journeys_is_skipped_not_failed(self):
         from mcp_server.cs_pulse_onboarding import create_customer, trigger_wizard

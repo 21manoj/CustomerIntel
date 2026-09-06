@@ -63,6 +63,10 @@ KEYED_TOOLS = frozenset({
     'get_forecast',
     # adapters (adapters/sources, mcp_server/cs_pulse_adapters.py)
     'import_from_source',
+    # Wizard C (mcp_server/cs_pulse_wizard_c.py)
+    'get_calibration',
+    'approve_calibration',
+    'reject_calibration',
 })
 
 ALL_TOOLS = ONBOARDING_TOOLS | KEYED_TOOLS

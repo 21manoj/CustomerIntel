@@ -98,6 +98,8 @@ WRITE_TOOLS = {
     'report_intervention',
     'configure_playbooks',
     'import_from_source',
+    'approve_calibration',
+    'reject_calibration',
 }
 
 

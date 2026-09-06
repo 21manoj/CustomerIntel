@@ -115,4 +115,4 @@ def test_pre_alembic_drift_is_reconciled(scratch):
     assert len(_diff(scratch)) == 4
     res = migrate(scratch)
     assert res['action'] == 'stamped_then_upgraded' and res['to'] == head_revision()
-    assert _diff(scratch) == []           # the drift 0002 reconciles is gone; every later revision is at head too
+    assert _diff(scratch) == []           # whatever head is: later revisions must be idempotent on a create_all DB

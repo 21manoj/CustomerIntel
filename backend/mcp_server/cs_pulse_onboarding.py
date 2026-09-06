@@ -93,6 +93,7 @@ def _apply_kpi_tier(customer_config, tier_def: dict) -> dict:
             if diff != 0:
                 pw[active_pillars[-1]] = round(pw[active_pillars[-1]] + diff, 4)
             customer_config.pillar_weights = pw
+            customer_config.weights_origin = 'vertical_default'   # the tier's default, not a person's choice — HealthScore.weight_source says so
 
     return {
         'name': tier_def.get('display_name'),
@@ -588,6 +589,7 @@ _WIZARDS = {
     'a': 'Journeys (Wizard A v2 — evidence-cited arcs, leading layer)',
     'b': 'Hindsight (Wizard B — patterns, transitions, realized NRR, backtest)',
     'd': 'Foresight (Wizard D — per-account retention / expansion / expected ARR with basis + interval, portfolio roll-up)',
+    'c': 'Calibration (Wizard C — weight proposal from logged outcomes, human-approved)',
 }
 
 
@@ -609,12 +611,16 @@ def trigger_wizard(customer_id: int, wizard: str) -> dict:
       revenue-weighted portfolio roll-up with the range propagated. Stored
       as a ForecastRun and embedded in each journey as `forecast`; read
       with get_forecast.
-
-    Wizard 'c' (weight calibration) is not in this build yet.
+    - 'c': Calibration — labels every logged OUTCOME by its revenue bucket,
+      scores the account's KPIs in the window before it, and proposes
+      pillar/KPI weights with per-weight evidence and a before/after on
+      every account. Writes a proposal only; nothing changes until
+      approve_calibration. Below the outcome gate the result is
+      insufficient_outcomes with the counts. Never runs from process_data.
 
     Args:
         customer_id: The customer ID
-        wizard: 'a', 'b' or 'd'
+        wizard: 'a', 'b', 'c' or 'd'
     """
     _require_auth_if_key_present('trigger_wizard', customer_id)
     _check_mcp_enabled()
@@ -648,6 +654,13 @@ def trigger_wizard(customer_id: int, wizard: str) -> dict:
                     'portfolio': {k: result['portfolio'][k] for k in ('arr', 'expected_arr_end', 'low', 'high', 'nrr', 'nrr_low', 'nrr_high',
                                                                       'headline_assumption', 'basis')},
                 }
+            elif wizard == 'c':
+                from wizards.wizard_c_calibration import propose
+                result = propose(customer_id)
+                summary = {k: result.get(k) for k in ('status', 'proposal_id', 'outcome_counts', 'adjusted', 'short_by', 'note') if k in result}
+                if result.get('status') == 'proposed':
+                    summary['impact'] = result['impact']['summary']
+                    summary['proposed_pillar_weights'] = result['proposed']['pillar_weights']
             else:
                 from wizards.wizard_b_hindsight import run_wizard_b
                 result = run_wizard_b(customer_id, persist=False)
@@ -659,7 +672,7 @@ def trigger_wizard(customer_id: int, wizard: str) -> dict:
                     'h1': {k: v for k, v in result['backtest']['results']['H1_retention'].items() if k != 'per_event'},
                     'rules': len(result['early_warning_rules']),
                 }
-            status = 'completed' if result.get('status') in ('completed', 'skipped') else 'failed'
+            status = 'completed' if result.get('status') in ('completed', 'skipped', 'proposed', 'insufficient_outcomes', 'no_confident_effect') else 'failed'
             run = WizardRun(run_id=run_id, customer_id=customer_id, wizard=wizard, status=status,
                             config={'triggered_via': 'mcp_trigger_wizard'}, results=result,
                             completed_at=_dt.utcnow(), created_by='trigger_wizard')
@@ -1205,7 +1218,7 @@ def delete_customer(customer_id: int, confirm_domain: str, reason: str) -> dict:
         from extensions import db
         from models import (Customer, CustomerConfig, User, Account, KPIMeasurement, HealthScore, QualitativeSignal,
                             ContextNode, ContextEdge, JourneyData, CsvUpload, CsvUploadStaging, ProcessRun, SignalReview,
-                            WizardRun, CustomerApiKey, FeatureToggle, Intervention, ForecastRun, AccountForecast)
+                            WizardRun, CustomerApiKey, FeatureToggle, Intervention, ForecastRun, AccountForecast, WeightCalibration)
         from mcp_server import audit as _audit
         c = db.session.get(Customer, int(customer_id))
         if not c:
@@ -1220,6 +1233,7 @@ def delete_customer(customer_id: int, confirm_domain: str, reason: str) -> dict:
         _del(Intervention, Intervention.query.filter_by(customer_id=c.customer_id))
         _del(AccountForecast, AccountForecast.query.filter_by(customer_id=c.customer_id))
         _del(ForecastRun, ForecastRun.query.filter_by(customer_id=c.customer_id))
+        _del(WeightCalibration, WeightCalibration.query.filter_by(customer_id=c.customer_id))
         _del(ContextEdge, ContextEdge.query.filter_by(customer_id=c.customer_id))
         _del(ContextNode, ContextNode.query.filter_by(customer_id=c.customer_id))
         _del(JourneyData, JourneyData.query.filter_by(customer_id=c.customer_id))
