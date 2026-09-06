@@ -93,3 +93,63 @@ export type PortfolioResponse = OriginBlock & { accounts: PortfolioRow[] }
 export interface ApiError {
   error: string
 }
+
+// ── Settings: users (backend/app_api/users.py) ──────────────────────────
+
+export interface UserView {
+  user_id: number
+  customer_id: number
+  name: string | null
+  email: string
+  role: Role
+  active: boolean
+  allowed_customer_ids: number[] | null
+  allowed_account_ids: number[] | null
+  last_login: string | null
+  has_password: boolean
+}
+
+export interface SetupTokenResponse {
+  setup_token: string
+  setup_token_note: string
+}
+
+export interface InviteUserResponse extends SetupTokenResponse {
+  user: UserView
+}
+
+// ── Settings: playbook config (backend/playbooks/definitions.py) ────────
+
+export interface PlaybookDef {
+  id: string
+  label: string
+  trigger: {
+    roles: string[]
+    roles_match: string
+    urgency_floor: string | null
+    renewal_within_days: number | null
+  }
+  action_class: string
+  approval: string
+  expected_outcome: { types: string[]; window_days: number }
+}
+
+export interface TenantPlaybookConfig {
+  webhook_url: string | null
+  webhook_secret_set: boolean
+  slack_webhook_url_set: boolean
+  disabled_playbooks: string[]
+  automation_level: number
+  automation_level_meaning: string
+  kill_switch: boolean
+}
+
+export interface PlaybookConfigResponse {
+  vertical: string
+  version: string | null
+  source: string | null
+  note?: string | null
+  playbooks: PlaybookDef[]
+  disabled: string[]
+  tenant: TenantPlaybookConfig
+}
