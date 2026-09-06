@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import ProtectedRoute from './components/ProtectedRoute'
 import Shell from './components/Shell'
+import AccountDetail from './pages/AccountDetail'
 import Calibrations from './pages/Calibrations'
 import Interventions from './pages/Interventions'
 import Login from './pages/Login'
@@ -21,6 +22,7 @@ export default function App() {
           <Route path="/roi" element={<Roi />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/calibrations" element={<Calibrations />} />
+          <Route path="/accounts/:accountId" element={<AccountDetail />} />
           <Route path="/" element={<Navigate to="/portfolio" replace />} />
         </Route>
       </Route>

@@ -7,6 +7,7 @@ import type {
   CalibrationResponse,
   InterventionsResponse,
   InviteUserResponse,
+  Journey,
   MeasuredRoiResponse,
   PlaybookConfigResponse,
   PortfolioResponse,
@@ -69,6 +70,10 @@ export function me() {
 
 export function getPortfolio(customerId: number) {
   return request<PortfolioResponse>(`/app/api/portfolio?customer_id=${customerId}`)
+}
+
+export function getAccount(customerId: number, accountId: number) {
+  return request<Journey>(`/app/api/accounts/${accountId}?customer_id=${customerId}`)
 }
 
 export function getInterventions(customerId: number, opts?: { accountId?: number; state?: string }) {

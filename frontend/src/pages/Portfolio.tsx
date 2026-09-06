@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { ApiError, getPortfolio } from '../api/client'
 import type { PortfolioResponse } from '../api/types'
 import { useAuth } from '../auth/AuthContext'
@@ -90,7 +91,11 @@ export default function Portfolio() {
                 <tbody className="divide-y divide-slate-100">
                   {data.accounts.map((row) => (
                     <tr key={row.account_id} className="hover:bg-slate-50">
-                      <td className="px-4 py-3 font-medium text-slate-900">{row.account_name}</td>
+                      <td className="px-4 py-3 font-medium text-slate-900">
+                        <Link to={`/accounts/${row.account_id}?customer_id=${customerId}`} className="hover:underline">
+                          {row.account_name}
+                        </Link>
+                      </td>
                       <td className="px-4 py-3">{stateBadge(row.state)}</td>
                       <td className="px-4 py-3 text-slate-600">{row.arc_type ?? '—'}</td>
                       <td className="px-4 py-3 text-slate-600">
