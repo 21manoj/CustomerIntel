@@ -3,7 +3,8 @@ import { useAuth } from '../auth/AuthContext'
 
 const NAV_ITEMS: { to: string; label: string; roles?: string[] }[] = [
   { to: '/portfolio', label: 'Portfolio' },
-  // Account/Journey Canvas, Interventions, ROI & Power-of-1, Review Queue,
+  { to: '/interventions', label: 'Interventions' },
+  // Account/Journey Canvas, ROI & Power-of-1, Review Queue,
   // Calibrations, Settings — added as their own pages land.
 ]
 

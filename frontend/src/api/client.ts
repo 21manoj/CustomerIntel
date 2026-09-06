@@ -1,7 +1,7 @@
 // Thin fetch wrapper over /app/api/* — session-cookie auth (credentials: 'include'),
 // same functions the design doc's route table names. No business logic here, just
 // the HTTP call + typed response.
-import type { PortfolioResponse, SessionUser } from './types'
+import type { InterventionsResponse, PortfolioResponse, SessionUser } from './types'
 
 const BASE = import.meta.env.VITE_API_BASE ?? ''
 
@@ -50,4 +50,36 @@ export function me() {
 
 export function getPortfolio(customerId: number) {
   return request<PortfolioResponse>(`/app/api/portfolio?customer_id=${customerId}`)
+}
+
+export function getInterventions(customerId: number, opts?: { accountId?: number; state?: string }) {
+  const params = new URLSearchParams({ customer_id: String(customerId) })
+  if (opts?.accountId != null) params.set('account_id', String(opts.accountId))
+  if (opts?.state) params.set('state', opts.state)
+  return request<InterventionsResponse>(`/app/api/interventions?${params.toString()}`)
+}
+
+export function approveIntervention(interventionId: number, customerId: number, note?: string) {
+  return request<{ intervention_id: number; state: string }>(`/app/api/interventions/${interventionId}/approve`, {
+    method: 'POST',
+    body: JSON.stringify({ customer_id: customerId, note }),
+  })
+}
+
+export function reportIntervention(
+  interventionId: number,
+  customerId: number,
+  opts: { state: string; note?: string; outcomeType?: string; outcomeDate?: string; revenue?: number },
+) {
+  return request<{ intervention_id: number; state: string }>(`/app/api/interventions/${interventionId}/report`, {
+    method: 'POST',
+    body: JSON.stringify({
+      customer_id: customerId,
+      state: opts.state,
+      note: opts.note,
+      outcome_type: opts.outcomeType,
+      outcome_date: opts.outcomeDate,
+      revenue: opts.revenue,
+    }),
+  })
 }

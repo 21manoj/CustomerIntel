@@ -93,3 +93,97 @@ export type PortfolioResponse = OriginBlock & { accounts: PortfolioRow[] }
 export interface ApiError {
   error: string
 }
+
+// Shape for /app/api/interventions — hand-written from backend/playbooks/governance.py's
+// row_view() (per-row fields) and list_interventions() (adds account_name + the by_playbook
+// rollup; account_name IS present on the list response, no client-side join needed).
+
+export type InterventionState = 'proposed' | 'approved' | 'sent' | 'closed'
+export type ClosedState = 'done' | 'failed' | 'cancelled'
+export type ReportState = 'started' | 'done' | 'failed' | 'cancelled'
+
+export interface InterventionTrigger {
+  episode_ids: string[] | null
+  node_ids: number[] | null
+  roles: string[] | null
+  quote: string | null
+  evaluated_as_of: string | null
+}
+
+export interface InterventionOutcome {
+  node_id: number
+  in_window: boolean | null
+  expected: boolean | null
+  outcome_type?: string
+  revenue?: number | null
+  occurred_at?: string | null
+}
+
+export interface InterventionNote {
+  at: string
+  by: string
+  transition: string
+  note?: string | null
+}
+
+export interface Intervention {
+  intervention_id: number
+  customer_id: number
+  account_id: number
+  account_name: string | null
+  playbook_id: string
+  playbook_version: string | number | null
+  action_class: string
+  approval_mode: string
+  state: InterventionState
+  closed_state: ClosedState | null
+  urgency: string | number | null
+  trigger: InterventionTrigger
+  expected_outcome: { types: string[] | null; window_days: number | null }
+  exposure_revenue: number | null
+  proposed_at: string | null
+  proposed_by: string | null
+  approved_at: string | null
+  approved_by: string | null
+  approved_by_key_id: number | null
+  sent_at: string | null
+  delivery: Record<string, unknown> | null
+  delivery_problem: boolean
+  started_at: string | null
+  last_report_at: string | null
+  closed_at: string | null
+  closed_by: string | null
+  outcome: InterventionOutcome | null
+  node_id: number | null
+  stuck: boolean
+  stuck_days: number | null
+  notes: InterventionNote[]
+}
+
+export interface PlaybookRollup {
+  playbook_id: string
+  proposed: number
+  approved: number
+  sent: number
+  closed_done: number
+  closed_failed: number
+  closed_cancelled: number
+  delivery_problems: number
+  stuck: number
+  outcomes_reported: number
+  outcomes_in_window: number
+  outcomes_expected: number
+  realized_revenue: number
+  exposure_revenue: number
+  note?: string
+}
+
+export interface InterventionsResponse {
+  customer_id: number
+  count: number
+  interventions: Intervention[]
+  stuck: number[]
+  stuck_after_days: number
+  by_playbook: PlaybookRollup[]
+  tenant: Record<string, unknown>
+}
