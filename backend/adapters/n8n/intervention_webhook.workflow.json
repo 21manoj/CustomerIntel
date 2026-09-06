@@ -1,0 +1,203 @@
+{
+  "name": "CustomerIntelV1 — intervention webhook receiver",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "customerintel/intervention",
+        "responseMode": "responseNode",
+        "options": {
+          "rawBody": true
+        }
+      },
+      "id": "a1b2c3d4-0001-4000-8000-000000000001",
+      "name": "Webhook (intervention.approved)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 300],
+      "webhookId": "customerintel-intervention"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Verify X-CI-Signature = 'sha256=' + HMAC_SHA256(secret, '<X-CI-Timestamp>.<raw body>')\n// and refuse a timestamp outside the tolerance. Requires NODE_FUNCTION_ALLOW_BUILTIN=crypto and\n// N8N_BLOCK_ENV_ACCESS_IN_NODE=false (README).\nconst crypto = require('crypto');\nconst secret = $env.CI_WEBHOOK_SECRET;\nconst toleranceSeconds = Number($env.CI_TIMESTAMP_TOLERANCE_SECONDS || '300');\nconst headers = $input.item.json.headers || {};\nconst signature = headers['x-ci-signature'] || '';\nconst timestamp = headers['x-ci-timestamp'] || '';\nlet raw = '';\nif ($input.item.binary && $input.item.binary.data) {\n  raw = Buffer.from(await this.helpers.getBinaryDataBuffer(0, 'data')).toString('utf8');\n} else {\n  raw = JSON.stringify($input.item.json.body);\n}\nconst fail = (reason) => ({ json: { verified: false, reason, intervention_id: null } });\nif (!secret) return fail('no_secret_configured');\nif (!signature || !timestamp) return fail('missing_signature');\nif (!/^\\d+$/.test(timestamp)) return fail('bad_timestamp');\nif (Math.abs(Math.floor(Date.now() / 1000) - Number(timestamp)) > toleranceSeconds) return fail('stale_timestamp');\nconst expected = 'sha256=' + crypto.createHmac('sha256', secret).update(timestamp + '.' + raw).digest('hex');\nconst a = Buffer.from(expected), b = Buffer.from(signature);\nif (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return fail('bad_signature');\nlet payload;\ntry { payload = JSON.parse(raw); } catch (e) { return fail('bad_payload'); }\nreturn { json: { verified: true, reason: 'ok', intervention_id: payload.intervention_id, customer_id: payload.customer_id, playbook_id: payload.playbook && payload.playbook.id, action_class: payload.playbook && payload.playbook.action_class, account: payload.account, trigger: payload.trigger, callback: payload.callback } };"
+      },
+      "id": "a1b2c3d4-0002-4000-8000-000000000002",
+      "name": "Verify signature",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "c0000000-0000-4000-8000-000000000001",
+              "leftValue": "={{ $json.verified }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "a1b2c3d4-0003-4000-8000-000000000003",
+      "name": "IF verified",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [480, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { status: 'accepted', intervention_id: $json.intervention_id } }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "a1b2c3d4-0004-4000-8000-000000000004",
+      "name": "Respond 200",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [720, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { error: $json.reason } }}",
+        "options": {
+          "responseCode": 401
+        }
+      },
+      "id": "a1b2c3d4-0005-4000-8000-000000000005",
+      "name": "Respond 401",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [720, 440]
+    },
+    {
+      "parameters": {
+        "amount": 1,
+        "unit": "seconds"
+      },
+      "id": "a1b2c3d4-0006-4000-8000-000000000006",
+      "name": "Wait for the platform to commit sent",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [960, 200],
+      "webhookId": "customerintel-wait-sent"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.CI_PLATFORM_URL }}/api/interventions/{{ $('Verify signature').item.json.intervention_id }}/report",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { customer_id: $('Verify signature').item.json.customer_id, state: 'started', note: 'n8n workflow started' } }}",
+        "options": {
+          "retryOnFail": true,
+          "maxTries": 4,
+          "waitBetweenTries": 1000
+        }
+      },
+      "id": "a1b2c3d4-0007-4000-8000-000000000007",
+      "name": "report_intervention started",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1200, 200],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_WITH_CREDENTIAL_ID",
+          "name": "CustomerIntelV1 platform key"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 4,
+      "waitBetweenTries": 1000
+    },
+    {
+      "parameters": {
+        "amount": 60,
+        "unit": "seconds"
+      },
+      "id": "a1b2c3d4-0008-4000-8000-000000000008",
+      "name": "Do the work (replace with your steps)",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [1440, 200],
+      "webhookId": "customerintel-wait-work"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.CI_PLATFORM_URL }}/api/interventions/{{ $('Verify signature').item.json.intervention_id }}/report",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { customer_id: $('Verify signature').item.json.customer_id, state: 'done', note: 'n8n workflow completed' } }}",
+        "options": {}
+      },
+      "id": "a1b2c3d4-0009-4000-8000-000000000009",
+      "name": "report_intervention done",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1680, 200],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_WITH_CREDENTIAL_ID",
+          "name": "CustomerIntelV1 platform key"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook (intervention.approved)": {
+      "main": [[{ "node": "Verify signature", "type": "main", "index": 0 }]]
+    },
+    "Verify signature": {
+      "main": [[{ "node": "IF verified", "type": "main", "index": 0 }]]
+    },
+    "IF verified": {
+      "main": [
+        [{ "node": "Respond 200", "type": "main", "index": 0 }],
+        [{ "node": "Respond 401", "type": "main", "index": 0 }]
+      ]
+    },
+    "Respond 200": {
+      "main": [[{ "node": "Wait for the platform to commit sent", "type": "main", "index": 0 }]]
+    },
+    "Wait for the platform to commit sent": {
+      "main": [[{ "node": "report_intervention started", "type": "main", "index": 0 }]]
+    },
+    "report_intervention started": {
+      "main": [[{ "node": "Do the work (replace with your steps)", "type": "main", "index": 0 }]]
+    },
+    "Do the work (replace with your steps)": {
+      "main": [[{ "node": "report_intervention done", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": false,
+  "pinData": {},
+  "versionId": "1",
+  "meta": {
+    "instanceId": "customerintelv1-reference"
+  },
+  "tags": []
+}

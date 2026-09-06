@@ -97,6 +97,7 @@ WRITE_TOOLS = {
     'approve_intervention',
     'report_intervention',
     'configure_playbooks',
+    'import_from_source',
 }
 
 

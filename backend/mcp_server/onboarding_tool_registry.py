@@ -57,6 +57,8 @@ KEYED_TOOLS = frozenset({
     'get_playbooks',
     # Wizard D — Foresight (mcp_server/cs_pulse_wizard_d.py)
     'get_forecast',
+    # adapters (adapters/sources, mcp_server/cs_pulse_adapters.py)
+    'import_from_source',
 })
 
 ALL_TOOLS = ONBOARDING_TOOLS | KEYED_TOOLS
