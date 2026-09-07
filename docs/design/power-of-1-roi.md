@@ -4,13 +4,14 @@
 
 ## 1. What it is for, and who reads it
 
-CRO / CFO: **where do the next CS dollars (or the CSM's next hour) go, what is a point of health worth on our own revenue, and what did the last interventions return.** Three reads, one package (`backend/roi/`), three tools + three routes:
+CRO / CFO: **where do the next CS dollars (or the CSM's next hour) go, what is a point of health worth on our own revenue, what did the last interventions return, and — added 2026-09-07 — what does it cost to run the playbook that would move it.** Four reads, one package (`backend/roi/`), four tools + three routes (`get_investment_cost` is MCP + Ask AI only; no HTTP route was requested):
 
 | Read | Question | Basis of every $ |
 |---|---|---|
 | `get_investment_priorities` | which accounts now, protect or grow, on what evidence | `derived` — the tenant's revenue × a journey-derived factor |
 | `get_power_of_1` | what a 1-point / 1 % move in each pillar and KPI is worth | `derived` × `assumed` (labelled) |
 | `get_roi` | realized $ vs exposure $ per playbook and per pillar; Wizard B's lift | `measured` (cited) next to `derived`, never summed |
+| `get_investment_cost` | what it costs to run a playbook, and the $ per health point that buys | `assumed` — no cost-tracking model exists, by design |
 
 ## 2. What the old one did (measured before designing)
 
@@ -34,7 +35,7 @@ Re-measured on this build (2026-09-05, read tools only; journeys, evidence and i
 
 - No table, no migration: everything is a read over journeys, interventions, health rows and Wizard B runs. Snapshots stay optional.
 - Economics are per vertical and *assumed* by construction; five files ship (one per catalog) so the loader can fail closed on anything else. Signal-role → pillar-role attribution is one map, vertical-agnostic, resolved through `pillar_roles`.
-- Per-playbook costs are not modelled (memory: Po1 scaling, not per-playbook costs). Investment is a share of revenue; the return side is measured or it is not claimed.
+- Per-playbook costs: not modelled at ship time (memory: Po1 scaling, not per-playbook costs); investment was a share of revenue, and the return side measured or not claimed. **Superseded 2026-09-07**: `config/investment/<vertical>.json` (one per catalog vertical, same discipline as `config/economics/`) + `roi.investment.investment_cost` now model per-playbook cost at `assumed` basis only — `csm_hourly_cost` (one blended rate) × each playbook's `estimated_csm_hours` = `estimated_cost_per_execution`; deliberately not a real cost-tracking system (no Intervention/playbook schema change, no per-execution cost logging — that stays a separate, deferred decision). `cost_per_health_point` is computed at query time (cost ÷ lift), preferring a measured lift from `roi.measured.playbook_health_lift` once ≥5 closed instances of that specific playbook exist (the same minimum §3's sensitivity gate uses), else the file's own estimated placeholder — cost itself is never measured, so the ratio's basis stays `assumed` either way (weakest-link rule). A playbook whose expected outcome is pure expansion revenue, or that has no pillar to attribute a lift to (real, mechanically-confirmed gaps in some verticals — see each investment file's own notes, e.g. `healthcare_provider` has no revenue-adjacent pillar at all, protect or grow), carries no `cost_per_health_point`, never guessed.
 - `list_journeys` gains `priority` (compact) — an addition inside the contract; Ask AI reads it as any other row field.
 - `investment_priorities` validates the vertical against the catalog before any work: `get_taxonomy()` silently serves the base taxonomy for an unknown vertical, so a tenant without journeys used to answer `no_journeys` for a vertical that does not exist (guard-never-fires).
 - The protect override came from the live read, not from design: with lens = larger factor, a deteriorating exec-sponsor-change account with an expansion ask in the same month read as `grow`. A datacenter account under capacity pressure (taxonomy polarity −1, so the journey's own `early_warning`) with an expansion ask now reads `protect` + `secondary_lens: grow` with its open expansion proposals listed — the journey's verdict, not Po1's.

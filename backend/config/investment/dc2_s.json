@@ -1,0 +1,127 @@
+{
+  "_doc": "Investment-cost model for dc2_s, grounded in the real playbook config (config/playbooks/dc2_s.json, 4 of 4 covered) and the real pillar catalog (config/dc2s_kpi_catalog.json). Companion to config/economics/dc2_s.json. Same {value, basis} discipline as config/investment/saas_premium.json: every figure carries {value, basis}, and a figure computed from two assumed inputs is itself 'assumed' (roi.basis.money()'s weakest-link rule), never 'derived' just because arithmetic was involved.",
+  "version": "1.0",
+  "vertical": "dc2_s",
+  "basis": "assumed",
+
+  "csm_hourly_cost": {
+    "value": 85,
+    "basis": "assumed: blended fully-loaded CSM/CS-ops hourly cost, same figure as every other vertical's file — CSM cost doesn't vary by vertical the way retention sensitivity does (config/investment/saas_premium.json's own basis sentence)."
+  },
+
+  "_playbooks_doc": "Grounded in config/playbooks/dc2_s.json's 4 real playbooks. targets_pillars is resolved mechanically (power_of_1.json's attribution.signal_role_to_pillar_role crossed with config/dc2s_kpi_catalog.json's pillar_roles) and cross-checked by hand. estimated_health_point_lift_per_execution is a placeholder ONLY until roi.measured's per-playbook sensitivity (>=5 closed interventions with both a health lift and a revenue outcome) exists for that playbook.",
+  "playbooks": {
+    "thermal_escalation": {
+      "targets_pillars": ["P2"],
+      "targets_kpis": ["P2-KPI5"],
+      "estimated_csm_hours": {
+        "value": 6,
+        "basis": "assumed: thermal-incident triage with the facilities/hardware team + a customer exec update call + resolution follow-through + a wrap-up report, 'escalate' action_class"
+      },
+      "estimated_cost_per_execution": {
+        "value": 510,
+        "basis": "assumed: estimated_csm_hours (assumed) x csm_hourly_cost (assumed) — both links assumed, so the product is assumed, not derived"
+      },
+      "estimated_health_point_lift_per_execution": {
+        "value": 4,
+        "basis": "assumed: informal CS-leadership estimate for a resolved thermal incident's effect on P2 (Operational Stability); no dc2_s tenant yet has >=5 closed instances of this playbook with both a measured lift and a revenue outcome — replace with roi.measured's sensitivity figure once one does"
+      }
+    },
+    "capacity_expansion_offer": {
+      "targets_pillars": ["P3", "P5"],
+      "targets_kpis": [],
+      "estimated_csm_hours": {
+        "value": 5,
+        "basis": "assumed: capacity/GPU-utilization analysis + a pricing proposal for additional hardware + a presentation call + a follow-up, 'offer' action_class"
+      },
+      "estimated_cost_per_execution": {
+        "value": 425,
+        "basis": "assumed: estimated_csm_hours (assumed) x csm_hourly_cost (assumed)"
+      },
+      "estimated_health_point_lift_per_execution": {
+        "value": null,
+        "basis": "assumed",
+        "note": "this playbook's expected_outcome is entirely expansion/commercial (expansion_closed, expansion_opportunity, repeat_order) — no health-score outcome type. Left null rather than forced, mirroring saas_premium's expansion_intent_handoff, even though it also touches P3 conceptually via its capacity_pressure trigger role."
+      }
+    },
+    "refresh_at_risk_save": {
+      "targets_pillars": [],
+      "targets_kpis": [],
+      "estimated_csm_hours": {
+        "value": 4,
+        "basis": "assumed: a hardware-refresh usage review + a renewal/refresh-terms conversation under commercial pressure + a follow-up, 'schedule' action_class"
+      },
+      "estimated_cost_per_execution": {
+        "value": 340,
+        "basis": "assumed: estimated_csm_hours (assumed) x csm_hourly_cost (assumed)"
+      },
+      "estimated_health_point_lift_per_execution": {
+        "value": null,
+        "basis": "assumed",
+        "note": "this playbook's trigger role (commercial_pressure) resolves to the 'revenue' pillar_role in power_of_1.json's attribution map, but config/dc2s_kpi_catalog.json's pillar_roles has no 'revenue' entry at all (unlike datacenter_v1, which maps 'revenue' to P1) — there is no pillar to attribute a health-point lift to. This is a real, mechanically-confirmed gap (verified by cross-referencing the attribution map against this catalog directly), not a guess; the playbook still gets real cost figures above since those don't depend on a pillar mapping."
+      }
+    },
+    "expansion_intent_handoff": {
+      "targets_pillars": ["P5"],
+      "targets_kpis": ["P5-KPI7"],
+      "estimated_csm_hours": {
+        "value": 2,
+        "basis": "assumed: qualify the signal + warm handoff to sales, 'notify' action_class — the lightest-touch playbook in this catalog"
+      },
+      "estimated_cost_per_execution": {
+        "value": 170,
+        "basis": "assumed: estimated_csm_hours (assumed) x csm_hourly_cost (assumed)"
+      },
+      "estimated_health_point_lift_per_execution": {
+        "value": null,
+        "basis": "assumed",
+        "note": "this playbook's expected_outcome is expansion revenue, not a health-score lift — same shape as saas_premium's expansion_intent_handoff."
+      }
+    }
+  },
+
+  "_pillars_doc": "Pillar-level cost rolls up from the playbooks that target it. A pillar with no targeting playbook is shown as not_covered, not guessed.",
+  "pillars": {
+    "P1": {
+      "name": "Deployment Velocity",
+      "playbooks": [],
+      "status": "not_covered",
+      "note": "no playbook in config/playbooks/dc2_s.json targets the 'adoption' role this pillar plays — none of the 4 real playbooks fire on a deployment/onboarding-velocity signal (delivery_stall, usage_decline). Absent, not guessed."
+    },
+    "P2": {
+      "name": "Operational Stability",
+      "playbooks": ["thermal_escalation"],
+      "note": "one playbook covers this pillar, targeting Thermal Management Score (P2-KPI5) specifically — the playbook is literally the thermal-incident response"
+    },
+    "P3": {
+      "name": "AI Workload Performance",
+      "playbooks": ["capacity_expansion_offer"],
+      "note": "one playbook touches this pillar conceptually (capacity_pressure is one of its two trigger roles, and this catalog's own pillar_roles_notes maps AI Workload Performance to 'capacity') but its tracked outcome is expansion revenue, not a health-point lift — see the playbook's own null lift note"
+    },
+    "P4": {
+      "name": "Channel & Partner Health",
+      "playbooks": [],
+      "status": "not_covered",
+      "note": "no playbook in config/playbooks/dc2_s.json targets the 'partner' role this pillar plays — none of the 4 real playbooks fire on a channel/partner signal. Absent, not guessed."
+    },
+    "P5": {
+      "name": "Expansion Readiness",
+      "playbooks": ["capacity_expansion_offer", "expansion_intent_handoff"],
+      "note": "two playbooks target this pillar; both are grow-lens plays with expansion-revenue outcomes, not health-point lifts — costs reported side by side, not summed, same as saas_premium's P5 rule. refresh_at_risk_save (the protect-lens commercial play) deliberately does NOT target this pillar — see its own note: 'Expansion Readiness' measures growth propensity, not renewal protection, and this vertical has no separate revenue-protection pillar for it to land on instead."
+    }
+  },
+
+  "_kpis_doc": "KPI-level entries exist only for KPIs a playbook actually names in targets_kpis.",
+  "kpis": {
+    "P2-KPI5": {
+      "name": "Thermal Management Score",
+      "playbooks": ["thermal_escalation"],
+      "note": "inherits its one playbook's cost/lift figures directly; no KPI-specific override authored yet"
+    },
+    "P5-KPI7": {
+      "name": "Expansion Probability (90d)",
+      "playbooks": ["expansion_intent_handoff"],
+      "note": "inherits its one playbook's cost figures; no health-point lift (this KPI moves on the expansion-revenue side, not a health score)"
+    }
+  }
+}

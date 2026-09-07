@@ -244,6 +244,32 @@ class TestInvestmentContext:
         assert '[priority]' in seen['user'] and '[po1]' in seen['user']
         assert 'priority:' in seen['system'] and 'po1:' in seen['system'] and 'roi:portfolio' in seen['system']
 
+    def test_account_scope_always_shows_investment_cost(self, tenant, monkeypatch):
+        """investment_cost is unconditional in account scope, same as priority/po1 — the block is
+        vertical-level (no ARR scaling), so it's cheap regardless of which account is asked about."""
+        cid, aid, _, _, _ = tenant
+        seen = {}
+
+        def fake_model(customer_id, system, user):
+            seen['system'], seen['user'] = system, user
+            return {'answer_sentences': [
+                {'text': 'The champion-departure playbook costs an estimated $510 to run.', 'cites': [f'investment_cost:{aid}']},
+            ], 'evidence_gaps': [], 'confidence': 0.8}, 'fake-model'
+
+        monkeypatch.setenv('ANTHROPIC_API_KEY', 'test-key')
+        monkeypatch.setattr('ask_ai.answer._call_model', fake_model)
+        with app.app_context():
+            res = ask(cid, 'what would it cost to intervene on this account?', account_id=aid)
+        assert res['unsupported'] == [], res['unsupported']
+        assert f'investment_cost:{aid}' in res['citations']
+        ic = res['citations'][f'investment_cost:{aid}']
+        assert ic['vertical'] == 'saas_premium' and ic['basis'] == 'assumed'
+        by_id = {p['playbook_id']: p for p in ic['playbooks']}
+        assert by_id['champion_departure_sponsor_rebuild']['estimated_cost_per_execution']['value'] == 510.0
+        assert by_id['champion_departure_sponsor_rebuild']['estimated_cost_per_execution']['basis'] == 'assumed'
+        assert '[investment_cost]' in seen['user']
+        assert 'investment_cost:' in seen['system'] and 'assumed' in seen['system']
+
     def test_row_now_carries_priority_the_piece_a_fix(self, tenant):
         cid, aid, bid, _, _ = tenant
         with app.app_context():
@@ -271,6 +297,26 @@ class TestInvestmentContext:
             res = ask(cid, 'which account has the highest investment priority?')
         assert 'priority:portfolio' in res['citations']
         assert '[priority_portfolio]' in seen['user'] and '[po1_portfolio]' in seen['user'] and '[roi_portfolio]' in seen['user']
+        assert '[investment_cost_portfolio]' in seen['user']
+
+    def test_portfolio_cost_question_pulls_investment_cost(self, tenant, monkeypatch):
+        """'cost'/'how much' are new gating phrases (config/ask_ai.json scope.investment_phrases) added
+        alongside investment_cost — a plain cost question must trigger the same four-block gate as an
+        'investment priority' question does, not just the phrases that predate this block."""
+        cid, *_ = tenant
+        seen = {}
+
+        def fake_model(customer_id, system, user):
+            seen['user'] = user
+            return {'answer_sentences': [{'text': 'Running the relevant playbooks costs an estimated amount per execution.',
+                                          'cites': ['investment_cost:portfolio']}], 'evidence_gaps': [], 'confidence': 0.6}, 'fake-model'
+
+        monkeypatch.setenv('ANTHROPIC_API_KEY', 'test-key')
+        monkeypatch.setattr('ask_ai.answer._call_model', fake_model)
+        with app.app_context():
+            res = ask(cid, 'how much would it cost to fix the accounts at risk?')
+        assert 'investment_cost:portfolio' in res['citations']
+        assert '[investment_cost_portfolio]' in seen['user']
 
     def test_portfolio_plain_question_skips_investment_blocks(self, tenant, monkeypatch):
         cid, *_ = tenant
@@ -281,6 +327,7 @@ class TestInvestmentContext:
         with app.app_context():
             ask(cid, 'which accounts are most at risk?')
         assert '[priority_portfolio]' not in seen['user'] and '[po1_portfolio]' not in seen['user'] and '[roi_portfolio]' not in seen['user']
+        assert '[investment_cost_portfolio]' not in seen['user']
 
     def test_missing_economics_degrades_to_evidence_gap_not_a_crash(self, tenant, monkeypatch):
         """account_context() directly, not ask() — the stub never cites priority:/po1: (it doesn't
@@ -298,6 +345,23 @@ class TestInvestmentContext:
         assert f'priority:{aid}' in ctx.citable                               # investment_priorities doesn't need economics — unaffected
         assert f'po1:{aid}' not in ctx.citable
 
+    def test_missing_investment_file_degrades_to_evidence_gap_not_a_crash(self, tenant, monkeypatch):
+        """Same shape as the missing-economics test above, for roi.investment.investment_cost(): a
+        missing/invalid config/investment/<vertical>.json must not crash Ask AI — priority/po1/roi are
+        unaffected (a different config file), only investment_cost degrades to an evidence_gap."""
+        cid, aid, *_ = tenant
+        import roi.settings as roi_settings
+        from ask_ai.answer import account_context
+
+        def boom(vertical):
+            raise roi_settings.InvestmentConfigError(f'no investment file for vertical {vertical!r} (test)')
+        monkeypatch.setattr(roi_settings, 'investment', boom)
+        with app.app_context():
+            ctx, gaps, meta, narrative = account_context(cid, aid, 'what happened?', None, None)
+        assert any('investment cost not available' in g for g in gaps)
+        assert f'priority:{aid}' in ctx.citable and f'po1:{aid}' in ctx.citable    # unaffected — different config file
+        assert f'investment_cost:{aid}' not in ctx.citable
+
     def test_new_curated_questions_resolve_scope_and_dont_crash(self, tenant):
         """Stub-mode smoke test only: the stub never cites the new aggregate blocks (it doesn't know
         about them), so this proves scope resolution and no crash — real content quality is what
@@ -306,7 +370,7 @@ class TestInvestmentContext:
         import json as _json
         from pathlib import Path
         qs = _json.loads(Path(__file__).resolve().parent.parent.joinpath('config/ask_ai_questions.json').read_text())
-        new_ids = {'cfo-13', 'cfo-14', 'cfo-15', 'cro-13', 'cro-14'}
+        new_ids = {'cfo-13', 'cfo-14', 'cfo-15', 'cro-13', 'cro-14', 'cfo-16', 'cfo-17', 'cro-15'}
         found = {q['id']: q for role in ('cfo', 'cro') for q in qs[role] if q['id'] in new_ids}
         assert set(found) == new_ids
         for qid, q in found.items():

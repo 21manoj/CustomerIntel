@@ -4,10 +4,13 @@ CS Pulse MCP — Power-of-1 / ROI read tools (docs/design/power-of-1-roi.md).
     get_investment_priorities(customer_id, account_id=None)
     get_power_of_1(customer_id, account_id=None)
     get_roi(customer_id)
+    get_investment_cost(customer_id)
 
 Reads only. Keyed over HTTP (onboarding_tool_registry.KEYED_TOOLS); the
 computation lives in roi/ and is shared with the /api/roi/* routes and the
-portfolio row in list_journeys.
+portfolio row in list_journeys (get_investment_cost is MCP + Ask AI only —
+no HTTP route yet, matching what was asked for; add one alongside the others
+in roi/http.py if a caller needs it).
 """
 from mcp_server.cs_pulse_mcp_server import mcp, _check_mcp_enabled, _get_flask_app, ToolError
 from mcp_server.auth import require_auth_if_key_present as _require_auth_if_key_present
@@ -87,3 +90,23 @@ def get_roi(customer_id: int) -> dict:
     _require_auth_if_key_present('get_roi', customer_id)
     from roi.measured import roi
     return _read(customer_id, lambda: roi(int(customer_id)))
+
+
+@mcp.tool
+def get_investment_cost(customer_id: int) -> dict:
+    """What it costs to run this tenant's real playbooks, and the $ per health point that buys:
+    config/investment/<vertical>.json's blended CSM hourly cost x each playbook's estimated hours =
+    estimated cost per execution, rolled up by pillar and by KPI exactly as that file defines coverage
+    (a pillar or KPI no playbook targets is 'not_covered', never guessed). cost_per_health_point is
+    computed at query time (cost / lift) — the lift prefers a measured average from that playbook's own
+    closed interventions (>=5 qualifying) over the file's estimated placeholder, but the ratio's basis
+    stays 'assumed' either way, since cost itself is never measured (no cost-tracking model exists, by
+    design). A playbook whose expected outcome is pure expansion revenue, or that has no pillar to
+    attribute a lift to, carries no cost_per_health_point — never forced into a shape that doesn't fit.
+
+    Args:
+        customer_id: The customer ID
+    """
+    _require_auth_if_key_present('get_investment_cost', customer_id)
+    from roi.investment import investment_cost
+    return _read(customer_id, lambda: investment_cost(int(customer_id)))

@@ -1,0 +1,118 @@
+{
+  "_doc": "Investment-cost model for healthcare_provider, grounded in the real playbook config (config/playbooks/healthcare_provider.json, 4 of 4 covered) and the real pillar catalog (config/healthcare_provider_kpi_catalog.json). This vertical's pillar taxonomy (Patient Outcomes / Operational Efficiency / Provider Satisfaction / Compliance & Risk) has NO revenue-adjacent pillar at all — not just no growth pillar (already an established finding: see this catalog's own pillar_roles_notes and power_of_1.json's attribution map), but no 'protect revenue' pillar either. commercial_pressure_save (a renewal-save play) and expansion_intent_handoff (a growth play) both get real cost figures below since cost doesn't depend on a pillar mapping, but neither targets a pillar — this vertical tracks revenue protection and revenue growth as raw dollars, never through a health pillar, for both directions alike. Companion to config/economics/healthcare_provider.json. Same {value, basis} discipline as config/investment/saas_premium.json.",
+  "version": "1.0",
+  "vertical": "healthcare_provider",
+  "basis": "assumed",
+
+  "csm_hourly_cost": {
+    "value": 85,
+    "basis": "assumed: blended fully-loaded CSM/CS-ops hourly cost, same figure as every other vertical's file — CSM cost doesn't vary by vertical the way retention sensitivity does (config/investment/saas_premium.json's own basis sentence)."
+  },
+
+  "_playbooks_doc": "Grounded in config/playbooks/healthcare_provider.json's 4 real playbooks. Three of the four (rollout_stall_recovery, commercial_pressure_save, expansion_intent_handoff) resolve to no pillar at all through power_of_1.json's attribution map crossed with this catalog's pillar_roles ({'compliance': 'P4'} only) — a mechanically-confirmed gap, not a guess (verified by direct cross-reference, 2026-09-07). The fourth (escalation_clinical_response) is targeted to P3 by name-level reasoning (its infra_incident trigger role is an EHR/clinical-systems outage, and P3-KPI2 is literally 'EHR System Uptime'), the same style of judgment call saas_premium's own escalation_exec_response makes for CSAT (P3) despite an identical mechanical gap there.",
+  "playbooks": {
+    "escalation_clinical_response": {
+      "targets_pillars": ["P3"],
+      "targets_kpis": ["P3-KPI2"],
+      "estimated_csm_hours": {
+        "value": 5,
+        "basis": "assumed: clinical-ops incident triage + an exec-to-exec call with hospital IT/clinical-ops leadership + resolution follow-through + a wrap-up communication, 'escalate' action_class"
+      },
+      "estimated_cost_per_execution": {
+        "value": 425,
+        "basis": "assumed: estimated_csm_hours (assumed) x csm_hourly_cost (assumed) — both links assumed, so the product is assumed, not derived"
+      },
+      "estimated_health_point_lift_per_execution": {
+        "value": 3,
+        "basis": "assumed: informal CS-leadership estimate for EHR-uptime/clinical-ops recovery's effect on P3 (Provider Satisfaction); no healthcare_provider tenant yet has >=5 closed instances of this playbook with both a measured lift and a revenue outcome"
+      }
+    },
+    "rollout_stall_recovery": {
+      "targets_pillars": [],
+      "targets_kpis": [],
+      "estimated_csm_hours": {
+        "value": 5,
+        "basis": "assumed: a rollout/adoption audit + a multi-stakeholder alignment call (clinical staff, IT, project sponsor) + a revised project-plan follow-up, 'schedule' action_class — a stalled hospital implementation typically needs more stakeholder coordination than a single renewal conversation, hence above the 4hr schedule baseline used elsewhere in this file family"
+      },
+      "estimated_cost_per_execution": {
+        "value": 425,
+        "basis": "assumed: estimated_csm_hours (assumed) x csm_hourly_cost (assumed)"
+      },
+      "estimated_health_point_lift_per_execution": {
+        "value": null,
+        "basis": "assumed",
+        "note": "this playbook's trigger role (delivery_stall) resolves to the 'adoption' pillar_role in power_of_1.json's attribution map, but this catalog has no 'adoption' pillar at all (Patient Outcomes / Operational Efficiency / Provider Satisfaction / Compliance & Risk — none play that role; see the catalog's own pillar_roles_notes). No pillar to attribute a health-point lift to. Real, mechanically-confirmed, not guessed."
+      }
+    },
+    "commercial_pressure_save": {
+      "targets_pillars": [],
+      "targets_kpis": [],
+      "estimated_csm_hours": {
+        "value": 4,
+        "basis": "assumed: a budget-pressure conversation with hospital procurement/finance + a follow-up, 'schedule' action_class"
+      },
+      "estimated_cost_per_execution": {
+        "value": 340,
+        "basis": "assumed: estimated_csm_hours (assumed) x csm_hourly_cost (assumed)"
+      },
+      "estimated_health_point_lift_per_execution": {
+        "value": null,
+        "basis": "assumed",
+        "note": "this playbook's trigger role (commercial_pressure) resolves to the 'revenue' pillar_role, and this catalog has no revenue-adjacent pillar at all (see the file-level _doc above) — no pillar to attribute a health-point lift to, same reasoning as rollout_stall_recovery."
+      }
+    },
+    "expansion_intent_handoff": {
+      "targets_pillars": [],
+      "targets_kpis": [],
+      "estimated_csm_hours": {
+        "value": 2,
+        "basis": "assumed: qualify the signal + warm handoff to sales, 'notify' action_class — the lightest-touch playbook in this catalog"
+      },
+      "estimated_cost_per_execution": {
+        "value": 170,
+        "basis": "assumed: estimated_csm_hours (assumed) x csm_hourly_cost (assumed)"
+      },
+      "estimated_health_point_lift_per_execution": {
+        "value": null,
+        "basis": "assumed",
+        "note": "double gap: this playbook's expected_outcome is expansion revenue, not a health-score lift (same shape as saas_premium's expansion_intent_handoff), AND its trigger role has no pillar in this catalog at all (see the file-level _doc above) — this vertical genuinely has no growth pillar, an established finding this project treats as correct, not something to force a parallel structure onto."
+      }
+    }
+  },
+
+  "_pillars_doc": "Pillar-level cost rolls up from the playbooks that target it. A pillar with no targeting playbook is shown as not_covered, not guessed. Coverage here is sparser than every other vertical (1 of 4 pillars, vs. 3-5 of 5-6 pillars elsewhere) — a real finding grounded in this vertical's real playbook catalog, not an authoring gap: see the file-level _doc and _playbooks_doc above.",
+  "pillars": {
+    "P1": {
+      "name": "Patient Outcomes",
+      "playbooks": [],
+      "status": "not_covered",
+      "note": "no playbook in config/playbooks/healthcare_provider.json targets a signal role that maps to Patient Outcomes; none of the 4 real playbooks are clinical-outcome-triggered (they fire on escalation/infra_incident, delivery_stall, commercial_pressure, expansion_intent — operational and commercial signals, not clinical ones)"
+    },
+    "P2": {
+      "name": "Operational Efficiency",
+      "playbooks": [],
+      "status": "not_covered",
+      "note": "rollout_stall_recovery is the closest conceptual fit (a stalled implementation blocks the operational-efficiency gains the system was meant to deliver) but none of P2's three KPIs (Bed Utilization Rate, Average Wait Time, Staff-to-Patient Ratio) specifically measures rollout completeness, so no claim is made here — left not_covered rather than forced onto a KPI it doesn't cleanly move"
+    },
+    "P3": {
+      "name": "Provider Satisfaction",
+      "playbooks": ["escalation_clinical_response"],
+      "note": "one playbook covers this pillar, targeting EHR System Uptime (P3-KPI2) specifically — a clinical-systems incident is escalated precisely because it threatens EHR uptime. Provider NPS (P3-KPI1) is also impact:high in the catalog but no playbook names it directly yet — covered at pillar level only, same pattern as saas_premium's P3-KPI3 (NPS) note"
+    },
+    "P4": {
+      "name": "Compliance & Risk",
+      "playbooks": [],
+      "status": "not_covered",
+      "note": "no playbook in config/playbooks/healthcare_provider.json targets the 'compliance' role this pillar plays (the only role this catalog's pillar_roles maps at all) — none of the 4 real playbooks fire on a compliance signal. Absent, not guessed."
+    }
+  },
+
+  "_kpis_doc": "KPI-level entries exist only for KPIs a playbook actually names in targets_kpis.",
+  "kpis": {
+    "P3-KPI2": {
+      "name": "EHR System Uptime",
+      "playbooks": ["escalation_clinical_response"],
+      "note": "inherits its one playbook's cost/lift figures directly; no KPI-specific override authored yet"
+    }
+  }
+}
