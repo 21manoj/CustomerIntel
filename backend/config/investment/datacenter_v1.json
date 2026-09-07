@@ -1,0 +1,131 @@
+{
+  "_doc": "Investment-cost model for datacenter_v1, grounded in the real playbook config (config/playbooks/datacenter_v1.json, 4 of 4 covered) and the real pillar catalog (config/datacenter_v1_kpi_catalog.json). Companion to config/economics/datacenter_v1.json: economics answers 'what is a point worth', this answers 'what does it cost to move one'. Same discipline as config/investment/saas_premium.json: every figure carries {value, basis}, and a figure computed from two assumed inputs is itself 'assumed' (roi.basis.money()'s weakest-link rule), never 'derived' just because arithmetic was involved.",
+  "version": "1.0",
+  "vertical": "datacenter_v1",
+  "basis": "assumed",
+
+  "csm_hourly_cost": {
+    "value": 85,
+    "basis": "assumed: blended fully-loaded CSM/CS-ops hourly cost (salary + overhead / annual working hours), same figure as every other vertical's file — CSM cost doesn't vary by vertical the way retention sensitivity does (config/investment/saas_premium.json's own basis sentence)."
+  },
+
+  "_playbooks_doc": "Grounded in config/playbooks/datacenter_v1.json's 4 real playbooks and their real action_class/trigger roles. targets_pillars is resolved mechanically where possible (power_of_1.json's attribution.signal_role_to_pillar_role crossed with this catalog's pillar_roles) and cross-checked by hand; where a role names a KPI unambiguously (e.g. an infra incident threatening SLA attainment) a specific targets_kpis entry is claimed, same discipline as saas_premium. estimated_health_point_lift_per_execution is a placeholder ONLY until roi.measured's per-playbook sensitivity (>=5 closed interventions with both a health lift and a revenue outcome) exists for that playbook.",
+  "playbooks": {
+    "incident_escalation": {
+      "targets_pillars": ["P3"],
+      "targets_kpis": ["P3-KPI6"],
+      "estimated_csm_hours": {
+        "value": 6,
+        "basis": "assumed: incident triage with the infra/NOC team + a customer exec update call + resolution follow-through + a wrap-up report, for an 'escalate' action_class playbook on a live infrastructure incident"
+      },
+      "estimated_cost_per_execution": {
+        "value": 510,
+        "basis": "assumed: estimated_csm_hours (assumed) x csm_hourly_cost (assumed) — both links assumed, so the product is assumed, not derived"
+      },
+      "estimated_health_point_lift_per_execution": {
+        "value": 4,
+        "basis": "assumed: informal CS-leadership estimate for a resolved infrastructure incident's effect on P3 (Reliability & SLA Delivery); no datacenter_v1 tenant yet has >=5 closed instances of this playbook with both a measured lift and a revenue outcome — replace with roi.measured's sensitivity figure once one does"
+      }
+    },
+    "capacity_expansion_offer": {
+      "targets_pillars": ["P2", "P5"],
+      "targets_kpis": [],
+      "estimated_csm_hours": {
+        "value": 5,
+        "basis": "assumed: capacity/utilization analysis + a pricing proposal for additional reserved capacity + a presentation call + a follow-up, 'offer' action_class"
+      },
+      "estimated_cost_per_execution": {
+        "value": 425,
+        "basis": "assumed: estimated_csm_hours (assumed) x csm_hourly_cost (assumed)"
+      },
+      "estimated_health_point_lift_per_execution": {
+        "value": null,
+        "basis": "assumed",
+        "note": "this playbook's expected_outcome is entirely expansion/commercial (expansion_closed, expansion_opportunity, repeat_order) — no health-score outcome type. The $ value belongs in expansion revenue, not a point-lift figure, even though the playbook also touches the capacity pillar (P2) conceptually via its capacity_pressure trigger role. Left null rather than forced into a shape that doesn't fit, mirroring saas_premium's expansion_intent_handoff."
+      }
+    },
+    "commercial_pressure_save": {
+      "targets_pillars": ["P1"],
+      "targets_kpis": [],
+      "estimated_csm_hours": {
+        "value": 4,
+        "basis": "assumed: a unit-economics/usage review + a pricing or terms conversation under budget pressure + a follow-up, 'schedule' action_class"
+      },
+      "estimated_cost_per_execution": {
+        "value": 340,
+        "basis": "assumed: estimated_csm_hours (assumed) x csm_hourly_cost (assumed)"
+      },
+      "estimated_health_point_lift_per_execution": {
+        "value": 3,
+        "basis": "assumed: informal CS-leadership estimate — this playbook protects revenue/unit-economics under commercial pressure more than it lifts a health score; treat this figure as low-confidence pending real closed-instance data, same caveat as saas_premium's seat_truedown_save"
+      }
+    },
+    "expansion_intent_handoff": {
+      "targets_pillars": ["P5"],
+      "targets_kpis": ["P5-KPI4"],
+      "estimated_csm_hours": {
+        "value": 2,
+        "basis": "assumed: qualify the signal + warm handoff to sales, 'notify' action_class — the lightest-touch playbook in this catalog"
+      },
+      "estimated_cost_per_execution": {
+        "value": 170,
+        "basis": "assumed: estimated_csm_hours (assumed) x csm_hourly_cost (assumed)"
+      },
+      "estimated_health_point_lift_per_execution": {
+        "value": null,
+        "basis": "assumed",
+        "note": "this playbook's expected_outcome is expansion revenue, not a health-score lift — same shape as saas_premium's expansion_intent_handoff. Left null rather than forced."
+      }
+    }
+  },
+
+  "_pillars_doc": "Pillar-level cost rolls up from the playbooks that target it — no separate flat number. A pillar with no targeting playbook is shown as not_covered, not guessed.",
+  "pillars": {
+    "P1": {
+      "name": "Revenue & Unit Economics",
+      "playbooks": ["commercial_pressure_save"],
+      "note": "one playbook covers this pillar; cost-per-point should be computed at query time as estimated_cost_per_execution / (measured lift if roi.measured has >=5 qualifying closed instances, else estimated_health_point_lift_per_execution) — not pre-computed and stored here"
+    },
+    "P2": {
+      "name": "Fleet Utilization & Goodput",
+      "playbooks": ["capacity_expansion_offer"],
+      "note": "one playbook touches this pillar conceptually (capacity_pressure is one of its two trigger roles) but its tracked outcome is expansion revenue, not a health-point lift — see the playbook's own null lift note"
+    },
+    "P3": {
+      "name": "Reliability & SLA Delivery",
+      "playbooks": ["incident_escalation"],
+      "note": "one playbook covers this pillar, targeting SLA attainment (P3-KPI6) specifically — an infrastructure incident is escalated precisely because it threatens SLA attainment"
+    },
+    "P4": {
+      "name": "Power & Facility",
+      "playbooks": [],
+      "status": "not_covered",
+      "note": "no playbook in config/playbooks/datacenter_v1.json targets a P4 signal role (power/facility/thermal issues are folded into the generic infra_incident role that incident_escalation already covers under P3, not tracked as a separate P4 trigger). This catalog's own pillar_roles_notes confirms P4 is deliberately unmapped from the shared role vocabulary. Absent, not guessed, until a playbook exists or someone authors a standalone assumption for it."
+    },
+    "P5": {
+      "name": "Commercial & Expansion",
+      "playbooks": ["capacity_expansion_offer", "expansion_intent_handoff"],
+      "note": "two playbooks target this pillar; both are grow-lens plays with expansion-revenue outcomes, not health-point lifts — their costs are not summed into one 'P5 cost' figure, report them side by side, same as saas_premium's P5 rule"
+    },
+    "P6": {
+      "name": "Provisioning Velocity",
+      "playbooks": [],
+      "status": "not_covered",
+      "note": "no playbook in config/playbooks/datacenter_v1.json targets the 'adoption' role this pillar plays (config/datacenter_v1_kpi_catalog.json's own pillar_roles_notes already flags P6's adoption mapping as a moderate-confidence analogy, not a firm one) — absent, not guessed."
+    }
+  },
+
+  "_kpis_doc": "KPI-level entries exist only for KPIs a playbook actually names in targets_kpis — same non-guessing rule as pillars.",
+  "kpis": {
+    "P3-KPI6": {
+      "name": "SLA attainment",
+      "playbooks": ["incident_escalation"],
+      "note": "inherits its one playbook's cost/lift figures directly; no KPI-specific override authored yet"
+    },
+    "P5-KPI4": {
+      "name": "Expansion probability (90d)",
+      "playbooks": ["expansion_intent_handoff"],
+      "note": "inherits its one playbook's cost figures; no health-point lift (this KPI moves on the expansion-revenue side, not a health score)"
+    }
+  }
+}

@@ -24,6 +24,13 @@ per playbook (two numbers, never summed) and adds:
                    revenue outcome — only at or above the configured minimum;
                    below it 'insufficient_data' with the count, never a number.
                    The assumed figure sits beside it under its own key.
+
+Also exports intervention_hooks() and playbook_health_lift(): the same
+counterfactual-hook lookup _sensitivity() uses, factored out so
+roi.investment's per-playbook cost-per-point can ask "what health-point lift
+did THIS ONE playbook actually produce" without a revenue requirement
+(unlike sensitivity's $/point, which needs one) and without re-querying
+JourneyData once per playbook.
 """
 from __future__ import annotations
 
@@ -164,30 +171,78 @@ def _hindsight(customer_id: int) -> dict:
     return get_hindsight(customer_id)
 
 
-def _sensitivity(customer_id: int, views: List[dict], econ: dict) -> dict:
-    """Measured $ per health point: closed-done interventions with a revenue outcome in a positive bucket and a
-    positive health lift on the journey's counterfactual hook. Gated on the configured minimum."""
+def intervention_hooks(customer_id: int) -> Dict[int, dict]:
+    """{intervention node_id: counterfactual_hook} across every journey for this customer — every
+    intervention has at most one hook (episode_id 'int:<node_id>' on the journey that carries it).
+    The one JourneyData scan _sensitivity() and playbook_health_lift() both need; built once per
+    caller (roi.measured.roi and roi.investment.investment_cost each call this at most once), not
+    once per playbook or per pillar."""
     from models import JourneyData
-    cfg = settings.get('measured')
-    positive = set(cfg['revenue_buckets_positive'])
-    need = int(cfg['min_interventions_for_sensitivity'])
     hooks: Dict[int, dict] = {}
     for jd in JourneyData.query.filter_by(customer_id=int(customer_id)).all():
         for h in (jd.journey_json or {}).get('counterfactual_hooks', []):
             if str(h.get('episode_id', '')).startswith('int:'):
                 hooks[int(h['episode_id'][4:])] = h
+    return hooks
+
+
+def _health_lift(v: dict, hooks: Dict[int, dict]) -> Optional[float]:
+    """Points gained on v's counterfactual hook (health_after.last - health_before.last), or None
+    when v isn't closed-done, has no hook, or the hook lacks both readings."""
+    if not (v['state'] == 'closed' and v['closed_state'] == 'done' and v.get('node_id')):
+        return None
+    h = hooks.get(v['node_id'])
+    if not h:
+        return None
+    before, after = (h.get('health_before') or {}).get('last'), (h.get('health_after') or {}).get('last')
+    return float(after) - float(before) if before is not None and after is not None else None
+
+
+def playbook_health_lift(playbook_id: str, views: List[dict], hooks: Dict[int, dict], min_n: Optional[int] = None) -> dict:
+    """Measured average health-point lift for ONE playbook's closed-done interventions — the same unit
+    as config/investment/<vertical>.json's estimated_health_point_lift_per_execution (raw points, no
+    revenue requirement, unlike _sensitivity's $/point below). Gated on min_n (default
+    power_of_1.json measured.min_interventions_for_sensitivity — the same '>=5 closed instances'
+    threshold this platform already uses for $/point, applied here per playbook instead of portfolio-wide).
+    Below the minimum: 'insufficient_data' with the count, never a number — the caller falls back to
+    the config file's estimated placeholder, it never averages the two."""
+    need = int(min_n) if min_n is not None else int(settings.get('measured', 'min_interventions_for_sensitivity'))
+    pairs = []
+    for v in views:
+        if v.get('playbook_id') != playbook_id:
+            continue
+        lift = _health_lift(v, hooks)
+        if lift is None or lift <= 0:
+            continue
+        pairs.append({'intervention_id': v['intervention_id'], 'lift_pts': round(lift, 2)})
+    out = {'playbook_id': playbook_id, 'minimum_interventions': need, 'qualifying_interventions': len(pairs),
+           'intervention_ids': [p['intervention_id'] for p in pairs],
+           'note': 'a positive health-point lift on a closed-done intervention\'s counterfactual hook, no revenue '
+                   'requirement (unlike sensitivity\'s $/point) — this is the same unit as estimated_health_point_lift_per_execution'}
+    if len(pairs) < need:
+        out.update({'status': INSUFFICIENT, 'measured_health_point_lift': None})
+        return out
+    avg = sum(p['lift_pts'] for p in pairs) / len(pairs)
+    out.update({'status': 'ok', 'measured_health_point_lift': round(avg, 2)})
+    return out
+
+
+def _sensitivity(customer_id: int, views: List[dict], econ: dict) -> dict:
+    """Measured $ per health point: closed-done interventions with a revenue outcome in a positive bucket and a
+    positive health lift on the journey's counterfactual hook. Gated on the configured minimum."""
+    cfg = settings.get('measured')
+    positive = set(cfg['revenue_buckets_positive'])
+    need = int(cfg['min_interventions_for_sensitivity'])
+    hooks = intervention_hooks(customer_id)
     pairs = []
     for v in views:
         oc = v.get('outcome') or {}
-        if not (v['state'] == 'closed' and v['closed_state'] == 'done' and v.get('node_id') and oc.get('revenue') is not None):
+        if oc.get('revenue') is None:
+            continue
+        lift = _health_lift(v, hooks)
+        if lift is None:
             continue
         h = hooks.get(v['node_id'])
-        if not h:
-            continue
-        before, after = (h.get('health_before') or {}).get('last'), (h.get('health_after') or {}).get('last')
-        if before is None or after is None:
-            continue
-        lift = float(after) - float(before)
         bucket = next((o.get('bucket') for o in h.get('outcomes_after') or [] if o.get('episode_id') == f"out:{oc['node_id']}"), None)
         if lift <= 0 or bucket not in positive:
             continue

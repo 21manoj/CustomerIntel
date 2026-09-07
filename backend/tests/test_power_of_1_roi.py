@@ -457,19 +457,26 @@ def test_measured_sensitivity_gate_opens_at_the_minimum(tenants):
 def test_tools_are_keyed_reads_and_round_trip(tenants):
     from mcp_server.onboarding_tool_registry import KEYED_TOOLS, ONBOARDING_TOOLS
     from mcp_server.auth import WRITE_TOOLS
-    for t in ('get_investment_priorities', 'get_power_of_1', 'get_roi'):
+    for t in ('get_investment_priorities', 'get_power_of_1', 'get_roi', 'get_investment_cost'):
         assert t in KEYED_TOOLS and t not in ONBOARDING_TOOLS and t not in WRITE_TOOLS
     src = (BACKEND / 'mcp_server' / 'cs_pulse_roi.py').read_text()
-    assert set(re.findall(r"_require_auth_if_key_present\('([a-z_0-9]+)'", src)) == {'get_investment_priorities', 'get_power_of_1', 'get_roi'}
+    assert set(re.findall(r"_require_auth_if_key_present\('([a-z_0-9]+)'", src)) == \
+        {'get_investment_priorities', 'get_power_of_1', 'get_roi', 'get_investment_cost'}
     cid, ids = tenants['saas']
     with app.app_context():
-        from mcp_server.cs_pulse_roi import get_investment_priorities, get_power_of_1, get_roi
+        from mcp_server.cs_pulse_roi import get_investment_priorities, get_power_of_1, get_roi, get_investment_cost
         from fastmcp.exceptions import ToolError
         assert get_investment_priorities(cid)['portfolio']['accounts'] == 3
         assert get_power_of_1(cid, ids['NOR'])['accounts'][0]['account_name'] == 'Northstar Mutual'
         assert get_roi(cid)['interventions']['source'] == 'list_interventions'
+        ic = get_investment_cost(cid)
+        assert ic['vertical'] == 'saas_premium' and ic['csm_hourly_cost']['value'] == 85
+        assert {p['playbook_id'] for p in ic['playbooks']} == {'champion_departure_sponsor_rebuild', 'expansion_intent_handoff',
+                                                                'escalation_exec_response', 'seat_truedown_save'}
         with pytest.raises(ToolError, match='not found'):
             get_roi(cid + 100_000)
+        with pytest.raises(ToolError, match='not found'):
+            get_investment_cost(cid + 100_000)
 
 
 def test_http_routes_are_keyed(tenants):

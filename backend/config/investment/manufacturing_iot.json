@@ -1,0 +1,51 @@
+{
+  "_doc": "Investment-cost model for manufacturing_iot. Unlike every other vertical, config/playbooks/manufacturing_iot.json does not exist in this codebase (verified 2026-09-07 by direct search: no manufacturing_iot playbook file, and zero references to a manufacturing_iot playbook anywhere in backend/) — playbooks.definitions.load_vertical('manufacturing_iot') returns an empty playbooks list per its own documented 'no file -> no playbooks' behavior (backend/playbooks/definitions.py). This file therefore has zero playbook-level cost figures and every pillar is not_covered — a real, verified absence of playbook config for this vertical, not an authoring gap. csm_hourly_cost is still populated (a vertical-level labor-cost assumption independent of whether playbooks exist yet) so this file is forward-compatible the moment playbooks are authored for manufacturing_iot. Companion to config/economics/manufacturing_iot.json. Same {value, basis} discipline as config/investment/saas_premium.json.",
+  "version": "1.0",
+  "vertical": "manufacturing_iot",
+  "basis": "assumed",
+
+  "csm_hourly_cost": {
+    "value": 85,
+    "basis": "assumed: blended fully-loaded CSM/CS-ops hourly cost, same figure as every other vertical's file — CSM cost doesn't vary by vertical the way retention sensitivity does (config/investment/saas_premium.json's own basis sentence)."
+  },
+
+  "_playbooks_doc": "Empty by construction: no config/playbooks/manufacturing_iot.json exists in this codebase as of 2026-09-07. When playbooks are authored for this vertical, this map should be filled in following the same discipline as the other 4 investment files (targets_pillars/targets_kpis grounded in the real playbook's trigger roles and expected_outcome, estimated_csm_hours from its real action_class, health-point lift left null when the expected_outcome is a non-health revenue type).",
+  "playbooks": {},
+
+  "_pillars_doc": "Every pillar is not_covered: with zero playbooks configured for this vertical, none can be covered. Not guessed.",
+  "pillars": {
+    "P1": {
+      "name": "Equipment Uptime & Reliability",
+      "playbooks": [],
+      "status": "not_covered",
+      "note": "no config/playbooks/manufacturing_iot.json exists; nothing targets this pillar"
+    },
+    "P2": {
+      "name": "Production Throughput",
+      "playbooks": [],
+      "status": "not_covered",
+      "note": "no config/playbooks/manufacturing_iot.json exists; nothing targets this pillar"
+    },
+    "P3": {
+      "name": "Quality & Defect Management",
+      "playbooks": [],
+      "status": "not_covered",
+      "note": "no config/playbooks/manufacturing_iot.json exists; nothing targets this pillar"
+    },
+    "P4": {
+      "name": "Safety & Compliance",
+      "playbooks": [],
+      "status": "not_covered",
+      "note": "no config/playbooks/manufacturing_iot.json exists; nothing targets this pillar"
+    },
+    "P5": {
+      "name": "Contract Renewals & Expansion",
+      "playbooks": [],
+      "status": "not_covered",
+      "note": "no config/playbooks/manufacturing_iot.json exists; nothing targets this pillar"
+    }
+  },
+
+  "_kpis_doc": "Empty by construction: no playbook names a KPI to claim.",
+  "kpis": {}
+}

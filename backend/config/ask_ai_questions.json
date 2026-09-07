@@ -1,5 +1,5 @@
 {
-  "_doc": "Curated 'ask this' prompts shown in the Ask AI UI, one set per role. Each question is written to be answerable from ask_ai/answer.py's actual context blocks (arc, phases, leading_vs_trailing, forecast, narrative, episodes, evidence, portfolio rows, investment priority, Power-of-1, measured ROI) — not aspirational. A portfolio question that needs priority/Power-of-1/ROI must contain one of settings.scope.investment_phrases or those blocks are not pulled. scope 'account' means it needs an account picked in the UI; 'portfolio' runs with no account_id. Quality-checked by scripts/eval_ask_ai_questions.py — see that script's README block for what 'checked' means and its limits (stub mode only, no ANTHROPIC_API_KEY in this environment).",
+  "_doc": "Curated 'ask this' prompts shown in the Ask AI UI, one set per role. Each question is written to be answerable from ask_ai/answer.py's actual context blocks (arc, phases, leading_vs_trailing, forecast, narrative, episodes, evidence, portfolio rows, investment priority, Power-of-1, measured ROI, investment cost) — not aspirational. A portfolio question that needs priority/Power-of-1/ROI/investment-cost must contain one of settings.scope.investment_phrases or those blocks are not pulled. scope 'account' means it needs an account picked in the UI; 'portfolio' runs with no account_id. Quality-checked by scripts/eval_ask_ai_questions.py — see that script's README block for what 'checked' means and its limits (stub mode only, no ANTHROPIC_API_KEY in this environment).",
   "csm": [
     {"id": "csm-1", "scope": "account", "text": "What is this account's current arc, and how confident is the classification?"},
     {"id": "csm-2", "scope": "account", "text": "What evidence supports this account's arc classification?"},
@@ -29,7 +29,9 @@
     {"id": "cfo-12", "scope": "portfolio", "text": "Across the portfolio, how many accounts have a calibrated forecast versus a template-only prior?"},
     {"id": "cfo-13", "scope": "portfolio", "text": "Which account currently has the highest investment priority, and how much revenue is at stake?"},
     {"id": "cfo-14", "scope": "account", "text": "What is a one percent improvement in this account's health worth in revenue?"},
-    {"id": "cfo-15", "scope": "portfolio", "text": "How much revenue has been realized versus exposed from CS interventions so far?"}
+    {"id": "cfo-15", "scope": "portfolio", "text": "How much revenue has been realized versus exposed from CS interventions so far?"},
+    {"id": "cfo-16", "scope": "account", "text": "What would it cost in CS hours and dollars to intervene on this account, and what would that buy in health points?"},
+    {"id": "cfo-17", "scope": "portfolio", "text": "Across the portfolio, what does each playbook cost to run, and which gives the most health-point lift per dollar?"}
   ],
   "cro": [
     {"id": "cro-1", "scope": "portfolio", "text": "Which accounts show an expansion or land-and-expand arc?"},
@@ -45,7 +47,8 @@
     {"id": "cro-11", "scope": "account", "text": "What outcomes has this account recorded so far?"},
     {"id": "cro-12", "scope": "account", "text": "What does the evidence say about this account's renewal risk?"},
     {"id": "cro-13", "scope": "portfolio", "text": "Which accounts should get the next dollar or hour of attention right now — protect or grow?"},
-    {"id": "cro-14", "scope": "account", "text": "Is this account currently a protect priority or a grow priority, and why?"}
+    {"id": "cro-14", "scope": "account", "text": "Is this account currently a protect priority or a grow priority, and why?"},
+    {"id": "cro-15", "scope": "account", "text": "If we intervened on this account right now, what would it cost and what would it be worth?"}
   ],
   "admin": [
     {"id": "admin-1", "scope": "portfolio", "text": "Which accounts are currently unclassified?"},

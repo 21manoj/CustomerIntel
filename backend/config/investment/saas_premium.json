@@ -1,0 +1,129 @@
+{
+  "_doc": "Investment-cost model for saas_premium — covers every real playbook in config/playbooks/saas_premium.json (4 of 4) and the pillars they reach (P1, P2, P3, P5) plus one deliberately-uncovered pillar (P4, no playbook targets it) shown for contrast. Companion to config/economics/<vertical>.json: economics answers 'what is a point worth', this answers 'what does it cost to move one'. Same discipline: every figure carries {value, basis}, and a figure computed from two assumed inputs is itself 'assumed' (roi.basis.money()'s weakest-link rule), never 'derived' just because arithmetic was involved. Loaded by roi.settings.investment(); read by roi.investment.investment_cost() and the get_investment_cost MCP tool.",
+  "version": "1.0",
+  "vertical": "saas_premium",
+  "basis": "assumed",
+
+  "csm_hourly_cost": {
+    "value": 85,
+    "basis": "assumed: blended fully-loaded CSM/CS-ops hourly cost (salary + overhead / annual working hours). One number for the whole vertical unless a customer's own team cost is configured later — CSM cost doesn't vary by vertical the way retention sensitivity does."
+  },
+
+  "_playbooks_doc": "Grounded in the real playbook config (config/playbooks/saas_premium.json) — cost is estimated per playbook, not per pillar directly, so it stays traceable to an actual action. estimated_health_point_lift_per_execution is a placeholder ONLY until roi.measured's per-playbook sensitivity (>=5 closed interventions with both a health lift and a revenue outcome) exists for that playbook — at that point this field should be ignored in favor of the measured one, not averaged with it.",
+  "playbooks": {
+    "champion_departure_sponsor_rebuild": {
+      "targets_pillars": ["P2"],
+      "targets_kpis": ["P2-KPI1"],
+      "estimated_csm_hours": {
+        "value": 6,
+        "basis": "assumed: 1 discovery call + stakeholder-mapping + an executive-to-executive introduction + 2 follow-ups, for an 'escalate' action_class playbook"
+      },
+      "estimated_cost_per_execution": {
+        "value": 510,
+        "basis": "assumed: estimated_csm_hours (assumed) x csm_hourly_cost (assumed) — both links assumed, so the product is assumed, not derived"
+      },
+      "estimated_health_point_lift_per_execution": {
+        "value": 4,
+        "basis": "assumed: informal CS-leadership estimate for a successful sponsor rebuild on P2 (Executive Sponsor Engagement); no saas_premium tenant yet has >=5 closed instances of this playbook with both a measured lift and a revenue outcome — replace with roi.measured's sensitivity figure once one does"
+      }
+    },
+    "expansion_intent_handoff": {
+      "targets_pillars": ["P5"],
+      "targets_kpis": ["P5-KPI1"],
+      "estimated_csm_hours": {
+        "value": 2,
+        "basis": "assumed: qualify the signal + warm handoff to sales, 'notify' action_class — the lightest-touch playbook in this catalog"
+      },
+      "estimated_cost_per_execution": {
+        "value": 170,
+        "basis": "assumed: estimated_csm_hours (assumed) x csm_hourly_cost (assumed)"
+      },
+      "estimated_health_point_lift_per_execution": {
+        "value": null,
+        "basis": "assumed",
+        "note": "this playbook's expected_outcome is expansion revenue, not a health-score lift — the $ value belongs in expansion_closed/expansion_opportunity revenue, not a point-lift figure. Left null rather than forced into a shape that doesn't fit, per this platform's own no-single-number discipline."
+      }
+    },
+    "escalation_exec_response": {
+      "targets_pillars": ["P3"],
+      "targets_kpis": ["P3-KPI2"],
+      "estimated_csm_hours": {
+        "value": 5,
+        "basis": "assumed: incident triage + an exec-to-exec call + resolution follow-through + a wrap-up communication, 'escalate' action_class"
+      },
+      "estimated_cost_per_execution": {
+        "value": 425,
+        "basis": "assumed: estimated_csm_hours (assumed) x csm_hourly_cost (assumed)"
+      },
+      "estimated_health_point_lift_per_execution": {
+        "value": 3,
+        "basis": "assumed: informal CS-leadership estimate for CSAT recovery after a resolved executive escalation; no saas_premium tenant yet has >=5 closed instances of this playbook with both a measured lift and a revenue outcome"
+      }
+    },
+    "seat_truedown_save": {
+      "targets_pillars": ["P1", "P5"],
+      "targets_kpis": [],
+      "estimated_csm_hours": {
+        "value": 4,
+        "basis": "assumed: usage review + a pricing/seat-count conversation + a follow-up, 'schedule' action_class"
+      },
+      "estimated_cost_per_execution": {
+        "value": 340,
+        "basis": "assumed: estimated_csm_hours (assumed) x csm_hourly_cost (assumed)"
+      },
+      "estimated_health_point_lift_per_execution": {
+        "value": 3,
+        "basis": "assumed: informal CS-leadership estimate — this playbook protects revenue under commercial pressure more than it lifts a health score; treat this figure as low-confidence pending real closed-instance data"
+      }
+    }
+  },
+
+  "_pillars_doc": "Pillar-level cost rolls up from the playbooks that target it — no separate flat number, so it can't drift out of sync with the playbook data above. A pillar with no targeting playbook is shown as not_covered, not guessed.",
+  "pillars": {
+    "P1": {
+      "name": "Product Adoption & Usage",
+      "playbooks": ["seat_truedown_save"],
+      "note": "pillar-level attribution only — seat_truedown_save's trigger (usage_decline) doesn't cleanly point to one specific P1 KPI over another (DAU Rate vs. Golden Path Velocity are both plausible), so no targets_kpis entry was claimed for it. Shares this playbook's cost/lift with P5 below rather than duplicating a second cost estimate for the same execution."
+    },
+    "P2": {
+      "name": "Customer Engagement",
+      "playbooks": ["champion_departure_sponsor_rebuild"],
+      "note": "one playbook covers this pillar; cost-per-point should be computed at query time as estimated_cost_per_execution / (measured lift if roi.measured has >=5 qualifying closed instances, else estimated_health_point_lift_per_execution) — not pre-computed and stored here, matching how Po1 itself never stores revenue_per_pillar_point permanently."
+    },
+    "P3": {
+      "name": "Customer Sentiment & Support",
+      "playbooks": ["escalation_exec_response"],
+      "note": "one playbook covers this pillar, targeting CSAT (P3-KPI2) specifically; NPS (P3-KPI3) is also impact:high in the catalog but no playbook names it directly yet — covered at pillar level only."
+    },
+    "P5": {
+      "name": "Revenue & Growth",
+      "playbooks": ["expansion_intent_handoff", "seat_truedown_save"],
+      "note": "two playbooks target this pillar from opposite lenses (grow vs. protect, matching roi.priorities' own lens split) — their costs are not summed into one 'P5 cost' figure; report them side by side, same as this platform's realized-vs-exposure rule for revenue."
+    },
+    "P4": {
+      "name": "Partner & Ecosystem Health",
+      "playbooks": [],
+      "status": "not_covered",
+      "note": "no playbook in config/playbooks/saas_premium.json currently targets a P4 signal role. P4-KPI1 (Partner-Sourced Revenue Rate) is impact:high in the catalog but has no investment estimate here — absent, not guessed, until a playbook exists or someone authors a standalone assumption for it."
+    }
+  },
+
+  "_kpis_doc": "KPI-level entries exist only for KPIs a playbook actually names in targets_kpis — same non-guessing rule as pillars. Every other KPI (including some impact:high ones, e.g. P1-KPI1, P1-KPI10, P3-KPI3) has no playbook naming it specifically yet; they're covered at the pillar level only, or not at all.",
+  "kpis": {
+    "P2-KPI1": {
+      "name": "Executive Sponsor Engagement",
+      "playbooks": ["champion_departure_sponsor_rebuild"],
+      "note": "inherits its one playbook's cost/lift figures directly; no KPI-specific override authored yet"
+    },
+    "P3-KPI2": {
+      "name": "CSAT Score",
+      "playbooks": ["escalation_exec_response"],
+      "note": "inherits its one playbook's cost/lift figures directly; no KPI-specific override authored yet"
+    },
+    "P5-KPI1": {
+      "name": "Net Revenue Retention (NRR)",
+      "playbooks": ["expansion_intent_handoff", "seat_truedown_save"],
+      "note": "same two-playbook, grow-vs-protect split as pillar P5 above"
+    }
+  }
+}
