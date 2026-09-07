@@ -6,7 +6,7 @@
     "module": "ask_ai"
   },
   "context": {
-    "_doc": "Character budget for what the model is shown. Blocks are added in priority order (question scope → narrative → journey summary → episodes newest-first → evidence index → portfolio rows) and the first block that would overflow the budget is cut; only ids actually shown to the model are citable.",
+    "_doc": "Character budget for what the model is shown. Account scope adds, in order: journey summary, row, investment priority, Power-of-1, narrative, episodes newest-first, evidence index, role evidence. Portfolio scope adds: portfolio summary, one row per account (each carrying its own compact priority), then — only when the question is investment-shaped (scope.investment_phrases) — portfolio-level priority/Power-of-1/measured-ROI totals. The first block that would overflow the budget is cut; only ids actually shown to the model are citable.",
     "max_chars": 24000,
     "quote_chars": 240,
     "series_months": 12,
@@ -20,7 +20,8 @@
     "stub_min_keyword_chars": 4
   },
   "scope": {
-    "_doc": "Without an account_id the question is read for scope: an account name from the portfolio in the text selects that account; otherwise these phrases (or no match at all) mean portfolio.",
-    "portfolio_phrases": ["portfolio", "which accounts", "all accounts", "across accounts", "how many accounts", "every account", "top accounts", "most at risk", "at-risk accounts", "book of business"]
+    "_doc": "Without an account_id the question is read for scope: an account name from the portfolio in the text selects that account; otherwise these phrases (or no match at all) mean portfolio. investment_phrases gates whether a portfolio question also pulls priority/Power-of-1/measured-ROI totals (account scope always includes the per-account versions — one account is cheap).",
+    "portfolio_phrases": ["portfolio", "which accounts", "all accounts", "across accounts", "how many accounts", "every account", "top accounts", "most at risk", "at-risk accounts", "book of business"],
+    "investment_phrases": ["invest", "investment", "roi", "return on investment", "power of 1", "power-of-1", "power of one", "1%", "one percent", "1 percent", "worth", "payback", "break even", "break-even", "revenue at risk", "priority", "prioriti", "protect or grow", "next dollar", "next hour", "realized", "exposure", "exposed"]
   }
 }

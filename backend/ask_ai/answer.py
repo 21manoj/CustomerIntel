@@ -9,6 +9,11 @@ Flow
   2. gather   ONLY from journeys.read: get_journey (journey + evidence index
               + narrative) for an account, list_journeys rows for the
               portfolio, get_evidence for a taxonomy role the question names.
+              Also roi.priorities/roi.power_of_1/roi.measured, always for one
+              account, keyword-gated (settings.scope.investment_phrases) for
+              the portfolio — see 'priority'/'po1'/'roi' below. A missing
+              economics file or unresolved vertical is caught and listed
+              under evidence_gaps, never a crash.
               A char budget (config) decides what the model is shown; only
               ids actually shown are citable.
   3. model    one forced tool call, `answer_with_citations`, metered through
@@ -17,7 +22,11 @@ Flow
               narrative block (model 'stub_narrative_v1').
   4. validate every sentence must cite ids that resolve to the context it
               was given (episode ids, evidence node ids, 'row:<account_id>',
-              'journey:<account_id>' for the arc/phases/series/forecast block);
+              'journey:<account_id>' for the arc/phases/series/forecast block,
+              'priority:<account_id>'/'priority:portfolio' for investment
+              priority (protect/grow, risk/opportunity factors), 'po1:<...>'
+              for Power-of-1 ($ per point/percent, revenue-at-risk by band),
+              'roi:portfolio' for realized vs. exposure $ and Wizard B lift);
               a sentence with no citation, or with one that does not
               resolve, is dropped and listed under `unsupported` — the same
               rule journeys/narrative.validate_narrative applies to the
@@ -49,19 +58,21 @@ GENERATOR = 'ask_v1'
 STUB_MODEL = 'stub_narrative_v1'
 TOOL_NAME = 'answer_with_citations'
 CITATION_RULE = ('every sentence cites >=1 id shown to the model (episode id, evidence node id, row:<account_id>, '
-                 'or journey:<account_id> for the arc/phases/series/forecast block); '
-                 'a sentence with no citation or an unresolved citation is dropped and listed under unsupported')
+                 'journey:<account_id> for the arc/phases/series/forecast block, priority:<account_id>/priority:portfolio '
+                 'for investment priority, po1:<account_id>/po1:portfolio for Power-of-1, or roi:portfolio for realized '
+                 'vs. exposure $); a sentence with no citation or an unresolved citation is dropped and listed under unsupported')
 
 SYSTEM_PROMPT = """You are Ask AI for a B2B Customer Success platform. You answer questions about one account's journey, or a portfolio of accounts, using ONLY the context blocks in the user message. The blocks come from the platform's evidence read layer: a cited narrative, a journey (arc, phases, leading-vs-trailing series), its episodes, the evidence index behind them, and — for portfolio questions — one row per account.
 
 RULES (the product contract; the validator enforces them after you answer)
-1. Every sentence cites. Each answer sentence lists the ids it was built from: episode ids (sig:N, out:N, dec:N, hs:N, renewal), evidence node ids (the bare node_id), row:<account_id>, or journey:<account_id> (the arc, phases, leading/trailing series, forecast and state fields in the [journey] block — cite this for arc confidence, lead_days, qual/kpi_only values, and similar). Cite only ids that appear in the blocks. A sentence that cannot cite is not written.
+1. Every sentence cites. Each answer sentence lists the ids it was built from: episode ids (sig:N, out:N, dec:N, hs:N, renewal), evidence node ids (the bare node_id), row:<account_id>, journey:<account_id> (arc, phases, leading/trailing series, forecast, state — cite for arc confidence, lead_days, qual/kpi_only values), priority:<account_id> or priority:portfolio (lens, risk_factor, opportunity_factor, revenue_weighted — cite for who should get the next dollar/hour and why), po1:<account_id> or po1:portfolio (revenue per pillar/KPI point, revenue at risk by band — cite for what a 1-point or 1% move is worth), or roi:portfolio (realized vs. exposure $ by playbook/pillar, the outcome ledger, Wizard B's lift — cite for what past interventions actually returned). Cite only ids that appear in the blocks. A sentence that cannot cite is not written.
 2. Numbers are read, never computed. Quote scores, dates, counts, revenue and lead days exactly as they appear in the cited blocks. Do not add, average, subtract or estimate. If the answer needs a number the blocks do not contain, say that it is not in the evidence.
 3. "Why" states its evidence tier. When you explain a cause, say what kind of evidence backs it: observed evidence (a quote from a named source, its evidence_tier, confidence, whether it still requires review) versus system-derived facts (health transitions, arc hypotheses with their confidence semantics). Rejected or unreviewed evidence is said to be so.
 4. Absence of evidence is an answer. If the blocks do not support a claim, say so plainly and list what is missing under evidence_gaps (e.g. no outcome recorded after the renewal date, no evidence since a month, an arc left unclassified). Never fill a gap with general knowledge or a plausible story.
 5. Never invent: no people, quotes, dates, causes, playbooks or outcomes beyond the blocks. Do not speculate about what the customer "probably" feels.
 6. Time travel. If the context is marked as_of, answer as of that instant only — nothing later exists.
-7. Portfolio questions aggregate the same objects: every account you mention cites its row:<account_id>; rank or compare only on values present in the rows.
+7. Portfolio questions aggregate the same objects: every account you mention cites its row:<account_id>; rank or compare only on values present in the rows. priority:portfolio, po1:portfolio and roi:portfolio (when shown) already are portfolio totals — cite those directly rather than summing per-account rows yourself.
+8. Money has a basis, and this platform prices value, not cost. Every dollar figure in a priority/po1/roi block carries a basis: measured (cited to a real outcome), derived (computed from the tenant's own data), or assumed (a configured economics estimate) — state which when it matters, the way you already state an evidence tier for a cause. risk_factor, opportunity_factor and revenue_weighted are a prioritization ranking, not a computed ROI — never call them "ROI" or "return". There is no investment-cost or per-playbook-cost model here: if asked what something would cost to achieve, say plainly that cost is not modeled, and offer what is (the $ value of the move, or the priority ranking) instead of estimating a cost.
 
 Write plain, specific sentences. Prefer the narrative's own wording when it already says the thing. Keep to at most {max_sentences} sentences. confidence (0-1) is your confidence that the kept sentences answer the question from the cited evidence — low when the evidence is thin or unreviewed."""
 
@@ -232,7 +243,103 @@ def _evidence_compact(v: dict, quote_chars: int) -> dict:
 def _row_compact(r: dict) -> dict:
     return {k: r.get(k) for k in ('account_id', 'account_name', 'revenue', 'arc_type', 'state', 'arc_confidence', 'current_phase',
                                   'last_scored_month', 'live_months', 'last_evidence_at', 'latest', 'first_leading_warning_at',
-                                  'lead_days', 'episodes', 'open_review_count', 'forecast')}
+                                  'lead_days', 'episodes', 'open_review_count', 'forecast',
+                                  'priority')}          # list_journeys already attaches this (roi.priorities.compact); it was
+                                                         # dropped here silently — nothing upstream of this whitelist filters it
+
+
+def _trim_money(m: Optional[dict]) -> Optional[dict]:
+    """A roi.basis.money() dict, minus its basis_chain (the derivation sentence) — the model needs
+    the value and the basis tier (measured/derived/assumed), not the chain of config keys behind it."""
+    if not isinstance(m, dict):
+        return m
+    return {k: v for k, v in m.items() if k in ('value', 'basis', 'note')}
+
+
+def _priority_account_compact(row: dict) -> dict:
+    """One account's full roi.priorities.score_account() row, trimmed for context (drop the static
+    weights config — it's the same for every account and adds nothing per-account)."""
+    factors = {k: v for k, v in (row.get('factors') or {}).items() if k != 'weights'}
+    return {'lens': row.get('lens'), 'secondary_lens': row.get('secondary_lens'), 'risk_factor': row.get('risk_factor'),
+            'opportunity_factor': row.get('opportunity_factor'), 'priority_factor': row.get('priority_factor'),
+            'revenue': _trim_money(row.get('revenue')), 'revenue_weighted': _trim_money(row.get('revenue_weighted')),
+            'factors': factors, 'opportunity': row.get('opportunity'),
+            'open_interventions': row.get('open_interventions'), 'pending_approvals': row.get('pending_approvals'),
+            'cites': row.get('cites')}
+
+
+def _priority_portfolio_compact(portfolio: dict) -> dict:
+    return {k: (_trim_money(v) if k in ('revenue_total', 'revenue_in_protect_lens', 'revenue_in_grow_lens',
+                                        'exposure_weighted', 'opportunity_weighted') else v)
+            for k, v in (portfolio or {}).items()}
+
+
+def _po1_pillar_compact(p: dict) -> dict:
+    return {'pillar': p.get('pillar'), 'name': p.get('name'), 'weight': p.get('weight'), 'weight_source': p.get('weight_source'),
+            'current_score': p.get('current_score'), 'revenue_per_pillar_point': _trim_money(p.get('revenue_per_pillar_point')),
+            'revenue_per_one_pct_move': _trim_money(p.get('revenue_per_one_pct_move'))}
+
+
+def _po1_account_compact(acct: dict) -> dict:
+    """One account's power_of_1.account_power_of_1() row: pillars in full (a handful), KPIs trimmed to
+    the top-10-by-revenue-impact of the ones with a real measurement. A catalog can carry 40+ KPIs
+    (measured live on a real datacenter_v1 account: 38 kpis, all measured, 18KB serialized — 75% of the
+    whole 24000-char context budget for one block) — an unmeasured KPI's $/point is config arithmetic
+    and the rest are long-tail next to the top movers, so both are worth cutting before the model sees it."""
+    scored = [{'kpi': k['kpi'], 'name': k.get('name'), 'pillar': k.get('pillar'), 'unit': k.get('unit'),
+              'revenue_per_kpi_score_point': _trim_money(k.get('revenue_per_kpi_score_point')),
+              'one_pct_value_move': {**k['one_pct_value_move'], 'revenue_delta': _trim_money(k['one_pct_value_move'].get('revenue_delta'))}}
+             for k in (acct.get('kpis') or []) if k.get('one_pct_value_move')]
+    kpis = sorted(scored, key=lambda k: -abs((k['one_pct_value_move'].get('revenue_delta') or {}).get('value') or 0))[:10]
+    return {'revenue': _trim_money(acct.get('revenue')), 'health_now': acct.get('health_now'), 'weight_source': acct.get('weight_source'),
+            'revenue_per_health_point': _trim_money(acct.get('revenue_per_health_point')),
+            'pillars': [_po1_pillar_compact(p) for p in (acct.get('pillars') or [])],
+            'kpis': kpis, 'kpis_measured_total': len(scored), 'band_view': acct.get('band_view')}
+
+
+def _po1_portfolio_compact(portfolio: dict) -> dict:
+    """Portfolio-level power_of_1() aggregate — kpis capped to the top 5 movers by revenue impact
+    (not 10: this block sits alongside priority_portfolio/roi_portfolio, all three competing for
+    budget against the per-account rows a portfolio question also needs — see portfolio_context)."""
+    kpis = sorted((portfolio.get('kpis') or []), key=lambda k: -((k.get('one_pct_value_move_revenue') or {}).get('value') or 0))[:5]
+    return {'accounts': portfolio.get('accounts'), 'unscored_accounts': portfolio.get('unscored_accounts'),
+            'revenue_base': _trim_money(portfolio.get('revenue_base')), 'revenue_per_health_point': _trim_money(portfolio.get('revenue_per_health_point')),
+            'pillars': [{**{k: v for k, v in p.items() if k not in ('revenue_per_pillar_point', 'revenue_per_one_pct_move')},
+                        'revenue_per_pillar_point': _trim_money(p.get('revenue_per_pillar_point')),
+                        'revenue_per_one_pct_move': _trim_money(p.get('revenue_per_one_pct_move'))} for p in (portfolio.get('pillars') or [])],
+            'kpis_measured_total': len(portfolio.get('kpis') or []),
+            'kpis': [{**{k: v for k, v in k_.items() if k not in ('revenue_per_kpi_score_point', 'one_pct_value_move_revenue')},
+                     'revenue_per_kpi_score_point': _trim_money(k_.get('revenue_per_kpi_score_point')),
+                     'one_pct_value_move_revenue': _trim_money(k_.get('one_pct_value_move_revenue'))} for k_ in kpis],
+            'bands': [{**b, 'revenue': _trim_money(b.get('revenue')), 'revenue_at_risk': _trim_money(b.get('revenue_at_risk'))}
+                     for b in (portfolio.get('bands') or [])],
+            'scenarios': [{k: v for k, v in s.items() if k != 'basis'} for s in (portfolio.get('scenarios') or [])]}
+
+
+def _roi_compact(r: dict) -> dict:
+    by_pillar = [{**{k: v for k, v in row.items() if k not in ('realized_revenue', 'exposure_revenue')},
+                 'realized_revenue': _trim_money(row.get('realized_revenue')), 'exposure_revenue': _trim_money(row.get('exposure_revenue'))}
+                for row in (r.get('by_pillar') or [])]
+    ledger = r.get('ledger') or {}
+    by_bucket = [{**{k: v for k, v in row.items() if k not in ('revenue', 'linked_revenue')},
+                 'revenue': _trim_money(row.get('revenue')), 'linked_revenue': _trim_money(row.get('linked_revenue'))}
+                for row in (ledger.get('by_bucket') or [])]
+    hindsight = r.get('hindsight') or {}
+    sensitivity = r.get('sensitivity') or {}
+    return {'revenue_base': _trim_money(r.get('revenue_base')), 'interventions': r.get('interventions'), 'by_pillar': by_pillar,
+            'ledger': {'by_bucket': by_bucket, 'outside_buckets': ledger.get('outside_buckets')},
+            'hindsight': {'status': hindsight.get('status'), 'run_id': hindsight.get('run_id'), 'evidence_label': hindsight.get('evidence_label'),
+                         'interventions': hindsight.get('interventions'), 'realized_nrr': hindsight.get('realized_nrr'),
+                         'realized_nrr_basis': hindsight.get('realized_nrr_basis'), 'hint': hindsight.get('hint')},
+            'sensitivity': {k: v for k, v in sensitivity.items() if k != 'pairs'}}
+
+
+def detect_investment_intent(question: str) -> bool:
+    """Whether a portfolio question is shaped like it needs priority/po1/roi context — keyword-gated
+    (same pattern as decide_scope's portfolio_phrases) so the common portfolio question does not pay
+    for three extra reads and a bigger context block it will never cite."""
+    q = (question or '').lower()
+    return any(p in q for p in settings.get('scope', 'investment_phrases'))
 
 
 def _narrative_gaps(narrative: dict) -> List[str]:
@@ -277,6 +384,23 @@ def account_context(customer_id: int, account_id: int, question: str, as_of: Opt
     if row:
         ctx.add('row', _row_compact(row), cite_id=f"row:{row['account_id']}", citation=row)
 
+    try:
+        from roi.priorities import investment_priorities
+        pr = investment_priorities(int(customer_id), int(account_id))
+        if pr.get('status') == 'ok' and pr.get('rows'):
+            prow = pr['rows'][0]
+            ctx.add('priority', _priority_account_compact(prow), cite_id=f"priority:{account_id}", citation=prow)
+    except ValueError as e:
+        gaps.append(f'investment priority not available: {e}')
+    try:
+        from roi.power_of_1 import power_of_1
+        p1 = power_of_1(int(customer_id), int(account_id))
+        if p1.get('status') == 'ok' and p1.get('accounts'):
+            arow = p1['accounts'][0]
+            ctx.add('po1', _po1_account_compact(arow), cite_id=f"po1:{account_id}", citation=arow)
+    except ValueError as e:
+        gaps.append(f'power_of_1 not available: {e}')
+
     narrative = j.get('narrative') or {}
     chapters = [{'phase': ch.get('phase'), 'from': ch.get('from'), 'to': ch.get('to'),
                  'sentences': [{'text': s['text'], 'cites': s['cites']} for s in ch.get('sentences') or []]}
@@ -312,23 +436,52 @@ def account_context(customer_id: int, account_id: int, question: str, as_of: Opt
     return ctx, gaps, meta, narrative
 
 
-def portfolio_context(rows: List[dict], as_of: Optional[datetime]) -> Tuple[Context, List[str], dict]:
+def portfolio_context(customer_id: int, question: str, rows: List[dict], as_of: Optional[datetime]) -> Tuple[Context, List[str], dict]:
     ctx = Context(settings.get('context', 'max_chars'))
     gaps = []
     cap = settings.get('context', 'portfolio_max_rows')
     ctx.add('portfolio', {'accounts': len(rows), 'shown': min(len(rows), cap),
                           'note': 'one row per account, computed from cited evidence; latest = last month of the leading-vs-trailing series'})
+    if not rows:
+        gaps.append('no journeys for this customer yet — run process_data')
+    if as_of:
+        gaps.append('as_of applies to one account\'s journey; portfolio rows are as of their last build')
+
+    # Investment blocks are added BEFORE the rows loop, on purpose: measured live on a real 12-account
+    # tenant, the three portfolio aggregates alone run ~11000 of the 24000-char budget, and rows are
+    # capped by count (portfolio_max_rows) but not by size — a tenant with more accounts would let rows
+    # exhaust the budget first and silently starve the very blocks an investment question is asking for.
+    # Added first, the CFO's actual answer survives even on a large portfolio; rows fill what's left.
+    if rows and detect_investment_intent(question):
+        try:
+            from roi.priorities import investment_priorities
+            pr = investment_priorities(int(customer_id))
+            if pr.get('status') == 'ok' and pr.get('portfolio'):
+                ctx.add('priority_portfolio', _priority_portfolio_compact(pr['portfolio']), cite_id='priority:portfolio', citation=pr['portfolio'])
+        except ValueError as e:
+            gaps.append(f'investment priority not available: {e}')
+        try:
+            from roi.power_of_1 import power_of_1
+            p1 = power_of_1(int(customer_id))
+            if p1.get('status') == 'ok' and p1.get('portfolio'):
+                ctx.add('po1_portfolio', _po1_portfolio_compact(p1['portfolio']), cite_id='po1:portfolio', citation=p1['portfolio'])
+        except ValueError as e:
+            gaps.append(f'power_of_1 not available: {e}')
+        try:
+            from roi.measured import roi as measured_roi
+            rr = measured_roi(int(customer_id))
+            ctx.add('roi_portfolio', _roi_compact(rr), cite_id='roi:portfolio', citation=rr)
+        except ValueError as e:
+            gaps.append(f'roi not available: {e}')
+
     for r in rows[:cap]:
         if not ctx.add('row', _row_compact(r), cite_id=f"row:{r['account_id']}", citation=r):
             break
     if len(rows) > cap:
         gaps.append(f'portfolio has {len(rows)} accounts; only the first {cap} rows (by name) were shown')
-    if not rows:
-        gaps.append('no journeys for this customer yet — run process_data')
-    if as_of:
-        gaps.append('as_of applies to one account\'s journey; portfolio rows are as of their last build')
+
     if ctx.truncated:
-        gaps.append('context budget reached; not every row was shown to the model')
+        gaps.append(f"context budget reached; not every block was shown to the model ({', '.join(ctx.truncated)})")
     return ctx, gaps, {'accounts': len(rows), 'shown': min(len(rows), cap)}
 
 
@@ -348,7 +501,8 @@ def answer_tool() -> dict:
                         'text': {'type': 'string', 'description': 'one sentence, numbers copied verbatim from the cited blocks'},
                         'cites': {'type': 'array', 'items': {'type': 'string'},
                                   'description': 'ids from the context: episode ids (sig:N, out:N, dec:N, hs:N, renewal), evidence node ids, row:<account_id>, '
-                                                  'or journey:<account_id> for the arc/phases/series/forecast block'},
+                                                  'journey:<account_id> for the arc/phases/series/forecast block, priority:<account_id>/priority:portfolio, '
+                                                  'po1:<account_id>/po1:portfolio, or roi:portfolio'},
                     }}},
                 'evidence_gaps': {'type': 'array', 'items': {'type': 'string'},
                                   'description': 'what the evidence could not say about this question'},
@@ -503,7 +657,7 @@ def ask(customer_id: int, question: str, account_id: Optional[int] = None, as_of
         ctx, gaps, meta, narrative = account_context(customer_id, aid, question, when, row)
         scope_line = f"one account — {meta.get('account_name')} (account_id {aid})" + (f", as of {meta['as_of']}" if when else '')
     else:
-        ctx, gaps, meta = portfolio_context(rows, when)
+        ctx, gaps, meta = portfolio_context(customer_id, question, rows, when)
         scope_line = f"portfolio — {meta['shown']} of {meta['accounts']} accounts shown"
 
     max_sentences = settings.get('answer', 'max_sentences')
