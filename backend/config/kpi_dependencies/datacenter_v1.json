@@ -1,0 +1,102 @@
+{
+  "_description": "KPI dependency map for datacenter_v1 (GPU-rental neocloud) — which downstream engines depend on each KPI/pillar. Used by configure_customer_kpis to warn when disabling load-bearing KPIs. One file per vertical (config/kpi_dependencies/<vertical>.json), matching config/economics/<vertical>.json and config/investment/<vertical>.json.",
+  "_generation_note": "2026-09-07: generated from config/datacenter_v1_kpi_catalog.json directly (not copied from dc2_s or any other vertical). This catalog has no per-KPI 'impact' field (unlike dc2_s/saas_premium/healthcare_provider/manufacturing_iot), so KPI selection uses the top 2 KPIs per pillar by weight_l1 instead (ties broken by catalog listing order) — 12 of 38 KPIs covered. 'metrics' uses the shared cross-vertical pillar_roles vocabulary (adoption/reliability/capacity/revenue/expansion/partner/compliance) from this catalog's own pillar_roles block, resolved the same way utils/vertical_registry.py's role() does — not the old SaaS-parity names (TTFV/GRR/NRR/etc.) from dc2_s's file, which don't apply here (datacenter_v1 is a rental-hours business, not installed-base hardware or subscription SaaS). 'arc_classifier' is attached only to the capacity-role pillar (P2) and expansion-role pillar (P5), matching journeys/arc_classifier.py's rules where capacity_pressure directly drives stalled_deployment and expansion_intent/expansion_realized/advocacy directly drive expansion_champion/land_and_expand (via config/power_of_1.json's attribution.signal_role_to_pillar_role) — the same two roles dc2_s's own (preserved) file ties to arc_classifier, for consistency. P4 (Power & Facility) has no role in this vertical's pillar_roles — the catalog's own pillar_roles_notes says so explicitly ('not partner... not compliance... left unmapped') — so P4 entries get roi_engine only, and their warning text says so rather than silently guessing a role.",
+  "_source": "config/datacenter_v1_kpi_catalog.json (KPI names, weights, pillar_roles, pillar_roles_notes) + config/power_of_1.json (attribution.signal_role_to_pillar_role) + journeys/arc_classifier.py (rule roles)",
+  "vertical": "datacenter_v1",
+
+  "dependencies": {
+    "P1-KPI1": {
+      "engines": ["roi_engine"],
+      "metrics": ["revenue"],
+      "warning": "Disabling P1-KPI1 (Realized $/GPU-hour) removes ROI engine's primary revenue-role yield signal for this account — the top-weighted KPI in Revenue & Unit Economics"
+    },
+    "P1-KPI2": {
+      "engines": ["roi_engine"],
+      "metrics": ["revenue"],
+      "warning": "Disabling P1-KPI2 (Effective-utilization revenue capture) degrades ROI engine's read on how much allocated capacity is actually converting to billed revenue"
+    },
+    "P2-KPI1": {
+      "engines": ["roi_engine", "arc_classifier"],
+      "metrics": ["capacity"],
+      "warning": "Disabling P2-KPI1 (GPU Utilization (allocated)) removes the core capacity-role signal ROI engine and arc classification use to detect under-utilized fleets (stalled_deployment evidence)"
+    },
+    "P2-KPI2": {
+      "engines": ["roi_engine", "arc_classifier"],
+      "metrics": ["capacity"],
+      "warning": "Disabling P2-KPI2 (Effective utilization (goodput)) degrades ROI engine's and arc classification's read on real throughput vs. allocated capacity"
+    },
+    "P3-KPI1": {
+      "engines": ["roi_engine"],
+      "metrics": ["reliability"],
+      "warning": "Disabling P3-KPI1 (Training-job completion rate) degrades ROI engine's reliability-role signal for this account's workload delivery"
+    },
+    "P3-KPI2": {
+      "engines": ["roi_engine"],
+      "metrics": ["reliability"],
+      "warning": "Disabling P3-KPI2 (Job interruption / preemption rate) removes a leading reliability-role risk signal from ROI engine"
+    },
+    "P4-KPI1": {
+      "engines": ["roi_engine"],
+      "metrics": ["power_facility"],
+      "warning": "Disabling P4-KPI1 (Sellable MW / power-capacity utilization) removes ROI engine's read on facility headroom backing this account's fleet; Power & Facility plays no partner or compliance role in datacenter_v1 (see the catalog's own pillar_roles_notes), so no other role picks this signal up"
+    },
+    "P4-KPI2": {
+      "engines": ["roi_engine"],
+      "metrics": ["power_facility"],
+      "warning": "Disabling P4-KPI2 (Stranded power (provisioned-unsellable)) removes ROI engine's read on facility capacity going unbilled — same unmapped-pillar caveat as Sellable MW"
+    },
+    "P5-KPI1": {
+      "engines": ["roi_engine", "arc_classifier"],
+      "metrics": ["expansion"],
+      "warning": "Disabling P5-KPI1 (Reserved commitment coverage) removes ROI engine's and arc classification's primary commercial-commitment signal — high impact on the expansion story (expansion_champion / land_and_expand evidence)"
+    },
+    "P5-KPI2": {
+      "engines": ["roi_engine", "arc_classifier"],
+      "metrics": ["expansion"],
+      "warning": "Disabling P5-KPI2 (Ramp-to-commit) degrades ROI engine's and arc classification's read on whether usage is ramping toward the reserved commitment — a leading expansion indicator"
+    },
+    "P6-KPI1": {
+      "engines": ["roi_engine"],
+      "metrics": ["adoption"],
+      "warning": "Disabling P6-KPI1 (Time-to-first-job) removes ROI engine's onboarding-velocity signal — the datacenter_v1 analogue of TTFV (adoption role, moderate-confidence mapping — see the catalog's own pillar_roles_notes)"
+    },
+    "P6-KPI2": {
+      "engines": ["roi_engine"],
+      "metrics": ["adoption"],
+      "warning": "Disabling P6-KPI2 (Provisioning / quota-grant time) degrades ROI engine's read on onboarding friction before first workload"
+    }
+  },
+
+  "pillar_dependencies": {
+    "P1": {
+      "engines": ["roi_engine"],
+      "metrics": ["revenue"],
+      "warning": "Disabling P1 (Revenue & Unit Economics) removes the revenue-role pillar entirely from ROI engine's health-band and risk-factor computation for this account"
+    },
+    "P2": {
+      "engines": ["roi_engine", "arc_classifier"],
+      "metrics": ["capacity"],
+      "warning": "Disabling P2 (Fleet Utilization & Goodput) removes the capacity-role pillar from ROI engine and weakens arc classification's stalled_deployment / capacity_pressure evidence"
+    },
+    "P3": {
+      "engines": ["roi_engine"],
+      "metrics": ["reliability"],
+      "warning": "Disabling P3 (Reliability & SLA Delivery) removes the reliability-role pillar from ROI engine's health-band computation"
+    },
+    "P4": {
+      "engines": ["roi_engine"],
+      "metrics": ["power_facility"],
+      "warning": "Disabling P4 (Power & Facility) removes this pillar from ROI engine; it plays no partner or compliance role in datacenter_v1 — facility/power infrastructure, not a channel or compliance concern (see the catalog's own pillar_roles_notes) — so nothing else absorbs this signal"
+    },
+    "P5": {
+      "engines": ["roi_engine", "arc_classifier"],
+      "metrics": ["expansion"],
+      "warning": "Disabling P5 (Commercial & Expansion) removes the expansion-role pillar from ROI engine and weakens arc classification's expansion_champion / land_and_expand evidence — major ROI impact"
+    },
+    "P6": {
+      "engines": ["roi_engine"],
+      "metrics": ["adoption"],
+      "warning": "Disabling P6 (Provisioning Velocity) removes the adoption-role pillar (moderate-confidence mapping — see the catalog's own pillar_roles_notes) from ROI engine's onboarding-speed read"
+    }
+  }
+}

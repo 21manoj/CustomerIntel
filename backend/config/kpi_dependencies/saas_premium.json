@@ -1,0 +1,77 @@
+{
+  "_description": "KPI dependency map for saas_premium — which downstream engines depend on each KPI/pillar. Used by configure_customer_kpis to warn when disabling load-bearing KPIs. One file per vertical (config/kpi_dependencies/<vertical>.json), matching config/economics/<vertical>.json and config/investment/<vertical>.json.",
+  "_generation_note": "2026-09-07: generated from config/saas_premium_kpi_catalog.json directly. This is the vertical the OLD flat kpi_dependencies.json's P1-KPI1/P3-KPI1/etc. codes were silently misapplied to before this fix (P1-KPI1 there was dc2_s's 'Time-to-First-Workload'; here it is genuinely 'Daily Active Users (DAU) Rate' — a completely different KPI under the same code). KPI selection: every KPI with impact=='high' in its own catalog entry (8 of 43 KPIs). 'metrics' uses the shared cross-vertical pillar_roles vocabulary (adoption/engagement/partner/revenue/expansion) from this catalog's own pillar_roles block — NOT a mechanical copy of dc2_s's TTFV/GRR/NRR/product_adoption/ticket_resolution_time/expansion_rate labels. Two of those six old names (GRR, NRR) DO happen to be real, literal KPI names in this catalog's own P5 (Gross/Net Revenue Retention) — cited by name in the P5-KPI1 warning below, but that's because they are genuinely this vertical's own KPIs, not because the label was carried over from dc2_s. saas_premium has no 'capacity'-role pillar at all (unlike dc2_s/datacenter_v1/manufacturing_iot) — Product Adoption & Usage (P1) maps to 'adoption', not 'capacity' — so arc_classifier (whose stalled_deployment rule needs capacity_pressure) is attached only to P5 (revenue+expansion dual-mapped per the catalog's own pillar_roles_notes; expansion_intent/expansion_realized/advocacy directly drive arc_classifier's expansion_champion/land_and_expand rules). P3 (Customer Sentiment & Support) has no role in this vertical's shared vocabulary — the catalog's own pillar_roles_notes says so explicitly — so its entries get roi_engine only.",
+  "_source": "config/saas_premium_kpi_catalog.json (KPI names, weights, impact, pillar_roles, pillar_roles_notes) + config/power_of_1.json (attribution.signal_role_to_pillar_role) + journeys/arc_classifier.py (rule roles)",
+  "vertical": "saas_premium",
+
+  "dependencies": {
+    "P1-KPI1": {
+      "engines": ["roi_engine"],
+      "metrics": ["adoption"],
+      "warning": "Disabling P1-KPI1 (Daily Active Users (DAU) Rate) removes ROI engine's core adoption-role usage signal for this account — the saas_premium analogue of what dc2_s tracks as deployment velocity, not a hardware-deployment metric"
+    },
+    "P1-KPI10": {
+      "engines": ["roi_engine"],
+      "metrics": ["adoption"],
+      "warning": "Disabling P1-KPI10 (Golden Path Velocity) removes a leading adoption-role indicator from ROI engine — the catalog's own description flags it as detecting workflow stalling before DAU drops"
+    },
+    "P2-KPI1": {
+      "engines": ["roi_engine"],
+      "metrics": ["engagement"],
+      "warning": "Disabling P2-KPI1 (Executive Sponsor Engagement) removes ROI engine's primary engagement-role relationship signal for this account"
+    },
+    "P2-KPI8": {
+      "engines": ["roi_engine"],
+      "metrics": ["engagement"],
+      "warning": "Disabling P2-KPI8 (Persona Breadth) removes a structural engagement-role signal from ROI engine — the catalog flags low breadth with high champion engagement as a top-heavy-account risk (silent-churn exposure)"
+    },
+    "P3-KPI2": {
+      "engines": ["roi_engine"],
+      "metrics": ["customer_sentiment_support"],
+      "warning": "Disabling P3-KPI2 (CSAT Score) removes a high-weight support-sentiment signal from ROI engine; Customer Sentiment & Support has no partner/expansion/adoption/engagement role in saas_premium's shared vocabulary (left unmapped by design — see the catalog's own pillar_roles_notes), so no other role absorbs this signal"
+    },
+    "P3-KPI3": {
+      "engines": ["roi_engine"],
+      "metrics": ["customer_sentiment_support"],
+      "warning": "Disabling P3-KPI3 (Net Promoter Score (NPS)) removes ROI engine's relationship-sentiment signal — same unmapped-pillar caveat as CSAT Score"
+    },
+    "P4-KPI1": {
+      "engines": ["roi_engine"],
+      "metrics": ["partner"],
+      "warning": "Disabling P4-KPI1 (Partner-Sourced Revenue Rate) removes ROI engine's primary partner-role revenue-attribution signal for this account"
+    },
+    "P5-KPI1": {
+      "engines": ["roi_engine", "arc_classifier"],
+      "metrics": ["revenue", "expansion"],
+      "warning": "Disabling P5-KPI1 (Net Revenue Retention (NRR)) removes ROI engine's and arc classification's headline revenue/expansion signal — Revenue & Growth plays both roles in saas_premium (see the catalog's own pillar_roles_notes), so this is the widest-blast-radius KPI to disable in this vertical"
+    }
+  },
+
+  "pillar_dependencies": {
+    "P1": {
+      "engines": ["roi_engine"],
+      "metrics": ["adoption"],
+      "warning": "Disabling P1 (Product Adoption & Usage) removes the adoption-role pillar from ROI engine's health-band computation — the highest-weighted pillar in saas_premium (weight_l2 0.30)"
+    },
+    "P2": {
+      "engines": ["roi_engine"],
+      "metrics": ["engagement"],
+      "warning": "Disabling P2 (Customer Engagement) removes the engagement-role pillar from ROI engine"
+    },
+    "P3": {
+      "engines": ["roi_engine"],
+      "metrics": ["customer_sentiment_support"],
+      "warning": "Disabling P3 (Customer Sentiment & Support) removes this pillar from ROI engine; it has no partner/expansion/adoption/engagement role in saas_premium's shared vocabulary — left unmapped by design (see the catalog's own pillar_roles_notes), so no other role absorbs this signal"
+    },
+    "P4": {
+      "engines": ["roi_engine"],
+      "metrics": ["partner"],
+      "warning": "Disabling P4 (Partner & Ecosystem Health) removes the partner-role pillar from ROI engine"
+    },
+    "P5": {
+      "engines": ["roi_engine", "arc_classifier"],
+      "metrics": ["revenue", "expansion"],
+      "warning": "Disabling P5 (Revenue & Growth) removes BOTH the revenue-role and expansion-role pillar from ROI engine and weakens arc classification's expansion_champion / land_and_expand evidence — saas_premium deliberately conflates these two roles in one pillar (see the catalog's own pillar_roles_notes), so this is the single highest-impact pillar to disable"
+    }
+  }
+}

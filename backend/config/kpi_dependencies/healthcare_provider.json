@@ -1,0 +1,67 @@
+{
+  "_description": "KPI dependency map for healthcare_provider — which downstream engines depend on each KPI/pillar. Used by configure_customer_kpis to warn when disabling load-bearing KPIs. One file per vertical (config/kpi_dependencies/<vertical>.json), matching config/economics/<vertical>.json and config/investment/<vertical>.json.",
+  "_generation_note": "2026-09-07: generated from config/healthcare_provider_kpi_catalog.json directly. KPI selection: every KPI with impact=='high' in its own catalog entry (7 of 10 KPIs). This vertical genuinely has no GRR/NRR/expansion_rate/product_adoption/ticket_resolution_time concept at all — it has no partner or expansion pillar by design (no channel/reseller motion, no commercial-expansion pillar; see the catalog's own pillar_roles_notes) — so none of dc2_s's six old SaaS-parity metric names were mechanically relabeled here. 'metrics' uses the shared cross-vertical pillar_roles vocabulary where this catalog defines one (only 'compliance', mapped to P4); P1/P2/P3 (Patient Outcomes, Operational Efficiency, Provider Satisfaction) are explicitly left unmapped by the catalog itself ('no clean match... this vertical has no partner or expansion pillar at all, by design'), so their entries use a vertical-local tag (patient_outcomes / operational_efficiency / provider_satisfaction) instead of a shared role, and say so in the warning text rather than silently guessing a role. Because none of P1/P2/P3/P4 maps to 'capacity' or 'expansion' — the two roles arc_classifier's rules key off most directly (capacity_pressure -> stalled_deployment; expansion_intent/expansion_realized/advocacy -> expansion_champion/land_and_expand, per config/power_of_1.json's attribution.signal_role_to_pillar_role) — NO entry in this file attaches arc_classifier. That is a real, grounded conclusion about this vertical's pillar structure, not an oversight: healthcare_provider simply has no pillar that arc_classifier's capacity/expansion rules were written against.",
+  "_source": "config/healthcare_provider_kpi_catalog.json (KPI names, weights, impact, pillar_roles, pillar_roles_notes) + config/power_of_1.json (attribution.signal_role_to_pillar_role) + journeys/arc_classifier.py (rule roles)",
+  "vertical": "healthcare_provider",
+
+  "dependencies": {
+    "P1-KPI1": {
+      "engines": ["roi_engine"],
+      "metrics": ["patient_outcomes"],
+      "warning": "Disabling P1-KPI1 (Patient Satisfaction Score) removes ROI engine's primary patient-outcomes signal; Patient Outcomes has no partner/expansion/adoption/engagement role in healthcare_provider's shared vocabulary — left unmapped by design (no channel or software-onboarding concept in this vertical — see the catalog's own pillar_roles_notes), so no other role absorbs this signal"
+    },
+    "P1-KPI2": {
+      "engines": ["roi_engine"],
+      "metrics": ["patient_outcomes"],
+      "warning": "Disabling P1-KPI2 (Readmission Rate) removes a high-weight patient-outcomes signal from ROI engine — same unmapped-pillar caveat as Patient Satisfaction Score"
+    },
+    "P2-KPI1": {
+      "engines": ["roi_engine"],
+      "metrics": ["operational_efficiency"],
+      "warning": "Disabling P2-KPI1 (Bed Utilization Rate) removes ROI engine's primary operational-efficiency signal; Operational Efficiency is unmapped in healthcare_provider's shared role vocabulary (no partner/expansion/adoption/engagement concept applies here)"
+    },
+    "P3-KPI1": {
+      "engines": ["roi_engine"],
+      "metrics": ["provider_satisfaction"],
+      "warning": "Disabling P3-KPI1 (Provider NPS) removes ROI engine's provider-satisfaction relationship signal; unmapped in the shared role vocabulary, same as this pillar's other KPI (EHR System Uptime)"
+    },
+    "P3-KPI2": {
+      "engines": ["roi_engine"],
+      "metrics": ["provider_satisfaction"],
+      "warning": "Disabling P3-KPI2 (EHR System Uptime) removes a high-weight provider-satisfaction reliability signal from ROI engine — same unmapped-pillar caveat as Provider NPS"
+    },
+    "P4-KPI1": {
+      "engines": ["roi_engine"],
+      "metrics": ["compliance"],
+      "warning": "Disabling P4-KPI1 (HIPAA Compliance Score) removes ROI engine's primary compliance-role signal for this account — the only role-mapped pillar in healthcare_provider"
+    },
+    "P4-KPI2": {
+      "engines": ["roi_engine"],
+      "metrics": ["compliance"],
+      "warning": "Disabling P4-KPI2 (Incident Response Time) removes a high-weight compliance-role signal from ROI engine"
+    }
+  },
+
+  "pillar_dependencies": {
+    "P1": {
+      "engines": ["roi_engine"],
+      "metrics": ["patient_outcomes"],
+      "warning": "Disabling P1 (Patient Outcomes) removes this pillar entirely from ROI engine; Patient Outcomes, Operational Efficiency, and Provider Satisfaction all have no partner/expansion/adoption/engagement role in healthcare_provider's shared vocabulary — this vertical has no channel/reseller motion and no software-onboarding concept, by design (see the catalog's own pillar_roles_notes)"
+    },
+    "P2": {
+      "engines": ["roi_engine"],
+      "metrics": ["operational_efficiency"],
+      "warning": "Disabling P2 (Operational Efficiency) removes this pillar from ROI engine — unmapped role, same design rationale as Patient Outcomes"
+    },
+    "P3": {
+      "engines": ["roi_engine"],
+      "metrics": ["provider_satisfaction"],
+      "warning": "Disabling P3 (Provider Satisfaction) removes this pillar from ROI engine — unmapped role, same design rationale as Patient Outcomes"
+    },
+    "P4": {
+      "engines": ["roi_engine"],
+      "metrics": ["compliance"],
+      "warning": "Disabling P4 (Compliance & Risk) removes healthcare_provider's only role-mapped pillar (compliance) from ROI engine — tied for the highest weight_l2 in this vertical (0.25, tied with Operational Efficiency) and its sole tie to the shared cross-vertical role vocabulary"
+    }
+  }
+}

@@ -182,14 +182,85 @@ class TestSaasKpiTier:
 
 
 class TestCheckKpiDependencies:
+    """config/kpi_dependencies/<vertical>.json — one file per vertical (2026-09-07; was a
+    single dc2_s-only flat file silently read for every vertical before this). vertical
+    is now a required first argument, actually used to pick the file."""
+
     def test_no_warnings_when_using_defaults(self):
         from mcp_server.cs_pulse_onboarding import _check_kpi_dependencies
-        assert _check_kpi_dependencies() == []
+        assert _check_kpi_dependencies('dc2_s') == []
 
     def test_warns_on_disabled_dependent_pillar(self):
         from mcp_server.cs_pulse_onboarding import _check_kpi_dependencies
-        warnings = _check_kpi_dependencies(enabled_pillars=['P1', 'P2', 'P3', 'P5'])  # P4 disabled
+        warnings = _check_kpi_dependencies('dc2_s', enabled_pillars=['P1', 'P2', 'P3', 'P5'])  # P4 disabled
         assert len(warnings) == 1
+
+    def test_warns_on_disabled_dependent_pillar_saas_premium_not_dc2s_text(self):
+        """Same call shape as the dc2_s case above, different vertical — must return
+        saas_premium's own warning, never dc2_s's P4 (Channel & Partner Health) text."""
+        from mcp_server.cs_pulse_onboarding import _check_kpi_dependencies
+        warnings = _check_kpi_dependencies('saas_premium', enabled_pillars=['P1', 'P2', 'P4', 'P5'])  # P3 disabled
+        assert len(warnings) == 1
+        assert 'Customer Sentiment & Support' in warnings[0]
+        assert 'Channel & Partner Health' not in warnings[0] and 'GRR' not in warnings[0]
+
+    def test_missing_vertical_file_fails_closed_not_silently_dc2s(self):
+        """A vertical with no config/kpi_dependencies/<vertical>.json yet (e.g. a brand-new
+        vertical added to the catalogs but not yet mapped here) must return no warnings —
+        never silently fall back to dc2_s's or any other vertical's file.
+
+        Uses a dedicated handler instead of caplog, and explicitly resets logger.disabled:
+        full-suite-only failure, root-caused empirically (a debug run showed
+        logger.disabled=True here even though level/propagate were fine, and it
+        reproduces only in full-suite position, never in isolation or file-alone).
+        Cause: tests/test_migrations.py runs Alembic in-process (same pattern as
+        utils/schema.migrate()), which runs migrations/env.py — whose fileConfig() call
+        (line 20) was never given disable_existing_loggers=False, so it uses Python's
+        default of True, which sets .disabled=True on every logger that already existed
+        and isn't named in alembic.ini's [loggers] section — including this one. That's
+        a real, pre-existing bug (flagged separately, not fixed here — it also fires on
+        every real server boot: server.py's build_asgi_app() imports every mcp_server/*
+        module, creating their loggers, THEN calls utils.schema.migrate(), which hits
+        the same fileConfig() call and would silently kill application-level logging
+        for the life of that process). This test resets .disabled for itself rather
+        than depend on that bug being fixed or on some other file's teardown being clean."""
+        import logging
+        from mcp_server.cs_pulse_onboarding import _check_kpi_dependencies
+        messages = []
+        collector = logging.Handler()
+        collector.emit = lambda record: messages.append(record.getMessage())
+        logger = logging.getLogger('mcp_server.cs_pulse_onboarding')
+        logger.addHandler(collector)
+        prev_level, prev_disabled = logger.level, logger.disabled
+        logger.setLevel(logging.WARNING)               # pin THIS logger's own level so no ancestor's
+        logger.disabled = False                        # level can suppress it, and undo dictConfig's
+        prev_manager_disable = logging.root.manager.disable   # disable_existing_loggers=True poisoning.
+        logging.disable(logging.NOTSET)                # Also neutralize the separate global kill-switch
+        try:                                           # (Logger.manager.disable) in case anything set it.
+            warnings = _check_kpi_dependencies('totally_unmapped_vertical_xyz', enabled_pillars=['P1'])
+        finally:
+            logger.removeHandler(collector)
+            logger.setLevel(prev_level)
+            logger.disabled = prev_disabled
+            logging.disable(prev_manager_disable)
+        assert warnings == []
+        assert any('no dependency map yet' in m for m in messages)
+
+    def test_vertical_key_mismatch_fails_closed(self, monkeypatch, tmp_path):
+        """A defensive guard against exactly this task's bug class: a file that exists but
+        whose own declared 'vertical' doesn't match the one asked for (e.g. a copy-paste
+        mistake when adding a new vertical's file) must not be trusted."""
+        import json
+        import mcp_server.cs_pulse_onboarding as onboarding
+        bogus = tmp_path / 'mismatched.json'
+        bogus.write_text(json.dumps({
+            'vertical': 'dc2_s',  # declares dc2_s...
+            'dependencies': {}, 'pillar_dependencies': {'P1': {'warning': 'wrong-vertical warning'}},
+        }))
+        monkeypatch.setattr(onboarding, '_kpi_dependencies_path', lambda vertical: str(bogus))
+        # ...but is being loaded for a different vertical than it declares
+        warnings = onboarding._check_kpi_dependencies('saas_premium', enabled_pillars=['P2'])
+        assert warnings == []
 
 
 if __name__ == '__main__':

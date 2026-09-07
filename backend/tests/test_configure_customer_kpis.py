@@ -20,8 +20,10 @@ Covers:
     exactly 0 (the scorer treats that as *unset*, not zero — a real footgun)
   * a tenant previously labelled 'wizard_c' can be overwritten by a direct call, and
     Wizard C's own bookkeeping (WeightCalibration rows) is untouched by it
-  * kpi_dependencies.json warnings fire for dc2_s (the vertical it's written for) and
-    are suppressed for a vertical whose same KPI codes mean something else
+  * kpi_dependencies/<vertical>.json warnings are vertical-correct: dc2_s, saas_premium
+    and healthcare_provider each get their OWN vocabulary for the same P1-KPI1-style
+    codes (dc2_s: Time-to-First-Workload/TTFV; saas_premium: Daily Active Users/DAU;
+    healthcare_provider: Patient Outcomes) — never another vertical's flavour
   * the tool is registered onboarding+write and keyed like every other write tool
 """
 import os
@@ -84,12 +86,16 @@ def _make_tenant(vertical: str, codes: list, exts=('A1', 'A2')) -> dict:
 def tenants():
     with app.app_context():
         db.create_all()
-        # dc2_s: kpi_dependencies.json is written against this vertical's own codes/names.
+        # dc2_s: kpi_dependencies/dc2_s.json is written against this vertical's own codes/names.
         D = _make_tenant('dc2_s', ['P1-KPI1', 'P2-KPI1', 'P3-KPI1', 'P4-KPI1', 'P5-KPI1'])
         # saas_premium: same P1-KPI1/P3-KPI1 codes exist but mean different KPIs entirely —
-        # the dependency-warning guard must not fire dc2_s-flavoured text here.
+        # kpi_dependencies/saas_premium.json must fire ITS OWN text here, never dc2_s's.
         S = _make_tenant('saas_premium', ['P1-KPI1', 'P1-KPI3', 'P3-KPI1'])
-        yield {'D': D, 'S': S}
+        # healthcare_provider: a second non-dc2_s, non-saas_premium vertical — no partner/
+        # expansion pillar at all, and P1-P3 are unmapped in the shared role vocabulary
+        # (only P4/compliance is mapped) — a structurally different case from saas_premium's.
+        H = _make_tenant('healthcare_provider', ['P1-KPI1', 'P2-KPI1', 'P3-KPI1', 'P4-KPI1'])
+        yield {'D': D, 'S': S, 'H': H}
         db.session.remove()
         db.drop_all()
 
@@ -247,16 +253,60 @@ def test_overwrites_wizard_c_label_without_touching_calibration_rows(tenants):
         assert {h.weight_source for h in rows} == {'customer_config'}
 
 
-# ── dependency warnings: dc2_s-scoped, not a false positive elsewhere ─
+# ── dependency warnings: vertical-correct, never cross-contaminated ───
 
-def test_dependency_warnings_fire_for_dc2s_only(tenants):
-    D, S = tenants['D'], tenants['S']
+def test_dependency_warnings_fire_dc2s_unchanged(tenants):
+    """Regression guard: dc2_s's own behavior (the vertical kpi_dependencies/dc2_s.json
+    was always written for) must be byte-for-byte unchanged by the vertical-scoping fix."""
+    D = tenants['D']
     with app.app_context():
         from mcp_server.cs_pulse_onboarding import _configure_customer_kpis_impl
         out = _configure_customer_kpis_impl(D['cid'], pillar_weights={'P1': 0.34, 'P2': 0.33, 'P3': 0.33})
         assert any('P4' in w or 'P5' in w for w in out['warnings']) and out['warnings']
-        out_s = _configure_customer_kpis_impl(S['cid'], pillar_weights={'P1': 1.0})
-        assert out_s['warnings'] == []          # same P1/P3 codes exist on saas_premium but mean different KPIs — no dc2_s warning leaks in
+        assert any('Channel & Partner Health' in w for w in out['warnings'])
+        assert any('Expansion Readiness' in w for w in out['warnings'])
+
+
+def test_dependency_warnings_saas_premium_names_dau_not_dc2s_language(tenants):
+    """The exact bug this fix closes: disabling saas_premium's real P1-KPI1 (Daily Active
+    Users (DAU) Rate) must produce a DAU-flavoured warning, not dc2_s's Time-to-First-
+    Workload/TTFV text — same KPI code, genuinely different KPI."""
+    S = tenants['S']
+    with app.app_context():
+        from mcp_server.cs_pulse_onboarding import _configure_customer_kpis_impl
+        # every OTHER saas_premium KPI this file tracks stays enabled; only P1-KPI1 (DAU) is dropped
+        out = _configure_customer_kpis_impl(S['cid'], enabled_kpis=[
+            'P1-KPI10', 'P2-KPI1', 'P2-KPI8', 'P3-KPI2', 'P3-KPI3', 'P4-KPI1', 'P5-KPI1',
+        ])
+        assert len(out['warnings']) == 1
+        w = out['warnings'][0]
+        assert 'Daily Active Users' in w or 'DAU' in w
+        assert 'Time-to-First-Workload' not in w and 'TTFV' not in w and 'GPU' not in w
+
+
+def test_dependency_warnings_saas_premium_pillar_scoped_not_dc2s(tenants):
+    S = tenants['S']
+    with app.app_context():
+        from mcp_server.cs_pulse_onboarding import _configure_customer_kpis_impl
+        out_s = _configure_customer_kpis_impl(S['cid'], pillar_weights={'P1': 1.0})  # P2-P5 disabled
+        assert out_s['warnings']                              # no longer suppressed to []
+        assert any('Revenue & Growth' in w for w in out_s['warnings'])
+        assert not any('Channel & Partner Health' in w or 'Expansion Readiness' in w or 'GPU' in w
+                       for w in out_s['warnings'])              # dc2_s's own pillar names never leak in
+
+
+def test_dependency_warnings_healthcare_provider_own_language(tenants):
+    """A second non-dc2_s, non-saas_premium vertical: healthcare_provider has no partner/
+    expansion pillar and P1-P3 are unmapped in the shared role vocabulary — a structurally
+    different case from saas_premium's, still must get its own correct text."""
+    H = tenants['H']
+    with app.app_context():
+        from mcp_server.cs_pulse_onboarding import _configure_customer_kpis_impl
+        out = _configure_customer_kpis_impl(H['cid'], pillar_weights={'P4': 1.0})  # P1-P3 disabled
+        assert len(out['warnings']) == 3
+        joined = ' '.join(out['warnings'])
+        assert 'Patient Outcomes' in joined and 'Operational Efficiency' in joined and 'Provider Satisfaction' in joined
+        assert not any(bad in joined for bad in ('TTFV', 'DAU', 'GPU', 'GRR', 'NRR', 'Time-to-First-Workload'))
 
 
 # ── registration: onboarding + write scope, keyed like every other write tool ─

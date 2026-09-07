@@ -27,6 +27,12 @@ Two changes made relative to the old repo's create_customer, not cosmetic:
 2. _check_kpi_dependencies() dropped its cust_vertical parameter — grep
    confirmed it was never referenced inside the function body in the old
    repo either, a genuinely unused parameter, not just an unused default.
+   UPDATE (2026-09-07): a vertical parameter is back, for a different and
+   now-real reason — config/kpi_dependencies.json was a single dc2_s-only
+   file silently read for every vertical (P1-KPI1 there is "Time-to-First-
+   Workload"; the same code is "Daily Active Users" on saas_premium). It's
+   now config/kpi_dependencies/<vertical>.json, one real file per vertical,
+   and the parameter is actually read this time — see the function itself.
 
 All tools register on the shared `mcp` instance from cs_pulse_mcp_server.
 """
@@ -838,24 +844,54 @@ def configure_signal_engine(customer_id: int, enabled: bool = True, slack_team_i
         return {'customer_id': customer_id, 'signal_engine_enabled': t.enabled, 'config': cfg}
 
 
-def _check_kpi_dependencies(enabled_kpis=None, enabled_pillars=None):
-    """Check if disabled KPIs/pillars affect downstream engines (ROI, arc classifier).
+def _kpi_dependencies_path(vertical: str) -> str:
+    """config/kpi_dependencies/<vertical>.json — same one-file-per-vertical convention as
+    config/economics/<vertical>.json and config/investment/<vertical>.json. A separate
+    function (not inlined) so tests can monkeypatch it to point at a fixture file."""
+    import os
+    return os.path.join(os.path.dirname(__file__), '..', 'config', 'kpi_dependencies', f'{vertical}.json')
+
+
+def _check_kpi_dependencies(vertical: str, enabled_kpis=None, enabled_pillars=None):
+    """Check if disabled KPIs/pillars affect downstream engines (ROI, arc classifier),
+    using `vertical`'s OWN dependency map — config/kpi_dependencies/<vertical>.json.
 
     Returns list of warning strings. Empty list = no issues.
     Only warns when the customer has EXPLICITLY selected a subset of KPIs/pillars
     (not when using defaults = all enabled).
+
+    Fails closed on anything short of a validated, matching file: no file yet for this
+    vertical, an unparseable file, or a file whose own declared 'vertical' key doesn't
+    match the one asked for (a copy-paste-wrong-vertical guard — exactly the bug class
+    this function used to have when one dc2_s-flavoured file was read for every
+    vertical). Every case logs clearly and returns [] — never another vertical's
+    warnings, and never an exception, since this is advisory UX, not a hard gate on
+    configure_customer_kpis.
     """
     if not enabled_kpis and not enabled_pillars:
         return []  # Using all defaults — no warnings needed
 
     import json
+    import logging
     import os
-    deps_path = os.path.join(os.path.dirname(__file__), '..', 'config', 'kpi_dependencies.json')
+    log = logging.getLogger(__name__)
+    deps_path = _kpi_dependencies_path(vertical)
+    if not os.path.exists(deps_path):
+        log.warning("_check_kpi_dependencies: no dependency map yet for vertical %r (expected %s) — "
+                    "skipping dependency warnings for this call, NOT falling back to another "
+                    "vertical's data", vertical, deps_path)
+        return []
     try:
         with open(deps_path) as f:
             deps = json.load(f)
-    except Exception:
-        return []  # Can't load deps file — skip silently
+    except Exception as e:
+        log.warning("_check_kpi_dependencies: %s failed to load (%s) — skipping dependency warnings", deps_path, e)
+        return []
+    if deps.get('vertical') != vertical:
+        log.warning("_check_kpi_dependencies: %s declares vertical=%r, expected %r — refusing to use it "
+                    "(skipping dependency warnings rather than risk showing another vertical's content)",
+                    deps_path, deps.get('vertical'), vertical)
+        return []
 
     warnings = []
 
@@ -992,18 +1028,17 @@ def _configure_customer_kpis_impl(customer_id: int, pillar_weights: dict = None,
             raise ValueError(f'unknown KPI codes for vertical {vertical!r}: {unknown} (known: {sorted(kpis)})')
         new_kpi_overrides = dict(kpi_overrides)
 
-    # Dependency warnings (non-fatal): config/kpi_dependencies.json is written against
-    # dc2_s's own pillar/KPI codes and names (P1-KPI1 there is "Time-to-First-Workload";
-    # the same code means "Daily Active Users" on saas_premium and something else again
-    # on datacenter_v1 — checked directly against both catalogs, not assumed) — firing it
-    # for another vertical would attach a wrong, dc2_s-flavoured warning to the customer's
-    # own KPI codes. Scoped to dc2_s until the dependency map is made vertical-generic.
-    warnings = []
-    if vertical == 'dc2_s':
-        warnings = _check_kpi_dependencies(
-            enabled_kpis=new_enabled_kpis,
-            enabled_pillars=sorted(new_pillar_weights) if new_pillar_weights is not None else None,
-        )
+    # Dependency warnings (non-fatal): config/kpi_dependencies/<vertical>.json is scoped
+    # to this customer's own vertical (P1-KPI1 is "Time-to-First-Workload" on dc2_s but
+    # "Daily Active Users" on saas_premium — same code, different KPI) — no longer a
+    # single dc2_s-only file read for every vertical. _check_kpi_dependencies fails
+    # closed (returns [], logs) for a vertical with no dependency file yet rather than
+    # falling back to dc2_s's or any other vertical's content.
+    warnings = _check_kpi_dependencies(
+        vertical,
+        enabled_kpis=new_enabled_kpis,
+        enabled_pillars=sorted(new_pillar_weights) if new_pillar_weights is not None else None,
+    )
 
     actor = current_actor()
     label = (customized_by or '').strip() or actor['label']

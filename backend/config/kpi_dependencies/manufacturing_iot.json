@@ -1,0 +1,72 @@
+{
+  "_description": "KPI dependency map for manufacturing_iot — which downstream engines depend on each KPI/pillar. Used by configure_customer_kpis to warn when disabling load-bearing KPIs. One file per vertical (config/kpi_dependencies/<vertical>.json), matching config/economics/<vertical>.json and config/investment/<vertical>.json.",
+  "_generation_note": "2026-09-07: generated from config/manufacturing_iot_kpi_catalog.json directly. KPI selection: every KPI with impact=='high' in its own catalog entry (7 of 13 KPIs). This vertical has no adoption/engagement/partner concept (no channel/reseller motion, no software-onboarding concept — a physical-operations vertical, per the catalog's own pillar_roles_notes), so none of dc2_s's SaaS-parity metric names (TTFV/product_adoption/ticket_resolution_time) were relabeled here. 'metrics' uses the shared cross-vertical pillar_roles vocabulary from this catalog's own pillar_roles block (reliability/capacity/compliance/revenue/expansion); P3 (Quality & Defect Management) is explicitly left unmapped by the catalog itself ('no clean match... left unmapped rather than force-fit onto reliability, which this vertical already uses for a distinct concept'), so its entries use a vertical-local tag (quality_defect_management) and say so in the warning text. arc_classifier is attached only to the capacity-role pillar (P2 Production Throughput) and the expansion-role pillar (P5 Contract Renewals & Expansion, dual-mapped to revenue+expansion just like saas_premium's P5 — structurally the same pattern, not copied from it) — the same two roles dc2_s's own (preserved) file ties to arc_classifier, per config/power_of_1.json's attribution.signal_role_to_pillar_role and journeys/arc_classifier.py's rules (capacity_pressure -> stalled_deployment; expansion_intent/expansion_realized/advocacy -> expansion_champion/land_and_expand).",
+  "_source": "config/manufacturing_iot_kpi_catalog.json (KPI names, weights, impact, pillar_roles, pillar_roles_notes) + config/power_of_1.json (attribution.signal_role_to_pillar_role) + journeys/arc_classifier.py (rule roles)",
+  "vertical": "manufacturing_iot",
+
+  "dependencies": {
+    "P1-KPI1": {
+      "engines": ["roi_engine"],
+      "metrics": ["reliability"],
+      "warning": "Disabling P1-KPI1 (Overall Equipment Effectiveness (OEE)) removes ROI engine's headline reliability-role signal — the standard composite uptime/performance/quality measure for this account's equipment"
+    },
+    "P1-KPI2": {
+      "engines": ["roi_engine"],
+      "metrics": ["reliability"],
+      "warning": "Disabling P1-KPI2 (Unplanned Downtime Rate) removes a high-weight reliability-role signal from ROI engine"
+    },
+    "P2-KPI1": {
+      "engines": ["roi_engine", "arc_classifier"],
+      "metrics": ["capacity"],
+      "warning": "Disabling P2-KPI1 (Units Produced vs Target) removes ROI engine's and arc classification's primary capacity-role throughput signal — the manufacturing_iot analogue of dc2_s's GPU Utilization, not a software-usage metric"
+    },
+    "P3-KPI1": {
+      "engines": ["roi_engine"],
+      "metrics": ["quality_defect_management"],
+      "warning": "Disabling P3-KPI1 (Defect Rate) removes ROI engine's primary quality signal; Quality & Defect Management has no partner/expansion/adoption/engagement/reliability role in manufacturing_iot's shared vocabulary — left unmapped by design (reliability here is reserved for equipment uptime, a distinct concept — see the catalog's own pillar_roles_notes), so no other role absorbs this signal"
+    },
+    "P3-KPI2": {
+      "engines": ["roi_engine"],
+      "metrics": ["quality_defect_management"],
+      "warning": "Disabling P3-KPI2 (First Pass Yield) removes a high-weight quality signal from ROI engine — same unmapped-pillar caveat as Defect Rate"
+    },
+    "P4-KPI1": {
+      "engines": ["roi_engine"],
+      "metrics": ["compliance"],
+      "warning": "Disabling P4-KPI1 (Safety Incident Rate) removes ROI engine's primary compliance-role signal for this account"
+    },
+    "P5-KPI1": {
+      "engines": ["roi_engine", "arc_classifier"],
+      "metrics": ["revenue", "expansion"],
+      "warning": "Disabling P5-KPI1 (Contract Renewal Rate) removes ROI engine's and arc classification's headline revenue/expansion signal — Contract Renewals & Expansion plays both roles in manufacturing_iot (same pattern as saas_premium's Revenue & Growth), so this is the widest-blast-radius KPI to disable in this vertical"
+    }
+  },
+
+  "pillar_dependencies": {
+    "P1": {
+      "engines": ["roi_engine"],
+      "metrics": ["reliability"],
+      "warning": "Disabling P1 (Equipment Uptime & Reliability) removes the reliability-role pillar from ROI engine's health-band computation — the highest-weighted pillar in this vertical (weight_l2 0.25)"
+    },
+    "P2": {
+      "engines": ["roi_engine", "arc_classifier"],
+      "metrics": ["capacity"],
+      "warning": "Disabling P2 (Production Throughput) removes the capacity-role pillar from ROI engine and weakens arc classification's stalled_deployment / capacity_pressure evidence"
+    },
+    "P3": {
+      "engines": ["roi_engine"],
+      "metrics": ["quality_defect_management"],
+      "warning": "Disabling P3 (Quality & Defect Management) removes this pillar from ROI engine; it has no clean match in manufacturing_iot's shared role vocabulary — left unmapped rather than force-fit onto 'reliability', which this vertical already uses for equipment uptime, a distinct concept (see the catalog's own pillar_roles_notes)"
+    },
+    "P4": {
+      "engines": ["roi_engine"],
+      "metrics": ["compliance"],
+      "warning": "Disabling P4 (Safety & Compliance) removes the compliance-role pillar from ROI engine"
+    },
+    "P5": {
+      "engines": ["roi_engine", "arc_classifier"],
+      "metrics": ["revenue", "expansion"],
+      "warning": "Disabling P5 (Contract Renewals & Expansion) removes BOTH the revenue-role and expansion-role pillar from ROI engine and weakens arc classification's expansion_champion / land_and_expand evidence — manufacturing_iot conflates these two roles in one pillar, the same pattern saas_premium uses for Revenue & Growth"
+    }
+  }
+}
