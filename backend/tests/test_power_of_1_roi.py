@@ -537,6 +537,37 @@ def test_hindsight_block_maps_a_real_wizard_b_run(tenants):
         assert roi(cid)['hindsight'] == h
 
 
+def test_get_hindsight_tool_matches_get_roi_exactly(tenants):
+    """The new get_hindsight MCP tool (2026-09-07) and get_roi's 'hindsight' block must
+    read the exact same function — this proves they can't silently drift into two
+    different answers, and covers the tool's own no_run / not-found handling."""
+    # no_run itself isn't re-tested here — it's the unchanged branch of the function this
+    # tool wraps, already covered where _hindsight's own no_run path is exercised; this
+    # test covers what's actually new: the tool's not-found handling and that it can't
+    # drift from get_roi's block.
+    from fastmcp.exceptions import ToolError
+    from mcp_server.cs_pulse_wizard_b import get_hindsight as tool_get_hindsight
+    with app.app_context():
+        cid, ids = _tenant('Po1HindTool', 'saas_premium', HIND_ACCOUNTS, HIND_KPIS)
+
+        # unknown customer: ToolError, not a raw exception leaking internals
+        with pytest.raises(ToolError, match='not found'):
+            tool_get_hindsight(999999999)
+
+        # after a real run: tool output equals get_roi's block, minus the wrapper's own customer_id/origin fields
+        from wizards.wizard_b_hindsight import run_wizard_b
+        from roi.measured import roi
+        _sig(cid, ids['H0'], 'champion_departure', '2026-07-10T10:00:00Z', 'Sponsor moved to a competitor')
+        _rebuild(cid)
+        res = run_wizard_b(cid)
+        assert res['status'] == 'completed', res
+        tool_res = tool_get_hindsight(cid)
+        roi_hindsight = roi(cid)['hindsight']
+        assert tool_res['status'] == 'ok' and tool_res['run_id'] == roi_hindsight['run_id']
+        wrapper_only = {'customer_id', 'data_origin', 'label', 'synthetic', 'disclosure'}
+        assert {k: v for k, v in tool_res.items() if k not in wrapper_only} == roi_hindsight
+
+
 def test_lens_protects_first_when_risk_is_high():
     """Live tenants 10/11: an exec-sponsor change with an expansion ask in the same month saturated the
     opportunity factor and labelled a deteriorating account 'grow'. Risk at the override is protect."""

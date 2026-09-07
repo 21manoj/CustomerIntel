@@ -157,18 +157,11 @@ def _ledger(customer_id: int, linked_outcome_ids: set) -> dict:
 
 
 def _hindsight(customer_id: int) -> dict:
-    from models import WizardRun
-    run = (WizardRun.query.filter_by(customer_id=int(customer_id), wizard='b', status='completed')
-           .order_by(WizardRun.created_at.desc()).first())
-    if run is None or not run.results:
-        return {'status': 'no_run', 'hint': "trigger_wizard(customer_id, 'b') — needs at least five journeys"}
-    res = run.results
-    iv = res.get('interventions') or {}
-    return {'status': 'ok', 'run_id': run.run_id, 'generated_at': res.get('generated_at'), 'evidence_label': res.get('evidence_label'),
-            'interventions': {k: iv.get(k) for k in ('basis', 'n', 'with_health_lift_share', 'median_lift_pts', 'followed_by_protected_or_expansion_share')},
-            'intervention_rows': [{k: r.get(k) for k in ('account', 'date', 'title', 'lift_pts', 'outcomes_after', 'revenue_after_protected')} for r in iv.get('rows') or []],
-            'realized_nrr': (res.get('realized_nrr') or {}).get('portfolio'), 'realized_nrr_basis': (res.get('realized_nrr') or {}).get('basis'),
-            'journeys': res.get('journeys')}
+    """Delegates to wizards.wizard_b_hindsight.get_hindsight — the canonical home for
+    this lookup since 2026-09-07, so get_roi's block and the get_hindsight MCP tool
+    can never drift into two different answers for the same question."""
+    from wizards.wizard_b_hindsight import get_hindsight
+    return get_hindsight(customer_id)
 
 
 def _sensitivity(customer_id: int, views: List[dict], econ: dict) -> dict:

@@ -308,3 +308,24 @@ def run_wizard_b(customer_id: int, *, horizon_days: int = 180, min_events: int =
         db.session.commit()
         results['run_id'] = run.run_id
     return results
+
+
+def get_hindsight(customer_id: int) -> dict:
+    """The latest completed Wizard B run, read-shaped for get_hindsight/get_roi.
+    {'status': 'no_run', 'hint': ...} when none exists — never a raise, never a guess.
+
+    Canonical home for this lookup: roi.measured's own _hindsight() delegates here
+    rather than keeping a second copy, since get_roi's 'hindsight' block and this
+    function's caller (the get_hindsight MCP tool) must never be able to drift."""
+    from models import WizardRun
+    run = (WizardRun.query.filter_by(customer_id=int(customer_id), wizard='b', status='completed')
+           .order_by(WizardRun.created_at.desc()).first())
+    if run is None or not run.results:
+        return {'status': 'no_run', 'hint': "trigger_wizard(customer_id, 'b') — needs at least five journeys"}
+    res = run.results
+    iv = res.get('interventions') or {}
+    return {'status': 'ok', 'run_id': run.run_id, 'generated_at': res.get('generated_at'), 'evidence_label': res.get('evidence_label'),
+            'interventions': {k: iv.get(k) for k in ('basis', 'n', 'with_health_lift_share', 'median_lift_pts', 'followed_by_protected_or_expansion_share')},
+            'intervention_rows': [{k: r.get(k) for k in ('account', 'date', 'title', 'lift_pts', 'outcomes_after', 'revenue_after_protected')} for r in iv.get('rows') or []],
+            'realized_nrr': (res.get('realized_nrr') or {}).get('portfolio'), 'realized_nrr_basis': (res.get('realized_nrr') or {}).get('basis'),
+            'journeys': res.get('journeys')}

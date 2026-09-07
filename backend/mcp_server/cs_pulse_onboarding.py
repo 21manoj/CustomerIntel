@@ -750,6 +750,39 @@ def submit_signal(customer_id: int, account_id: int, raw_text: str, source_type:
 
 
 @mcp.tool
+def research_account_external_signals(customer_id: int, account_id: int, process_now: bool = True) -> dict:
+    """Research an account's real-world company for recent public signals — funding,
+    leadership changes, layoffs, hiring shifts, competitor adoption — via live web
+    search, then record findings the same way any other evidence enters the graph
+    (source_type='external').
+
+    On-demand only, never automatic: each call is a real, metered LLM request with
+    live web search, gated by the customer's own LLM budget (get_llm_cost_summary
+    shows current spend; the call raises if the budget circuit breaker is tripped).
+    External findings are structurally weaker evidence than a customer's own
+    communication — the research is prompted to hedge anything not confirmed by an
+    official source, and unreviewed/low-confidence findings surface in the review
+    queue the same way any other uncertain signal does, not silently trusted.
+
+    Args:
+        customer_id: The customer ID
+        account_id: The account ID (must belong to the customer)
+        process_now: Classify + write the evidence node + rebuild the journey now (default true)
+    """
+    _require_auth_if_key_present('research_account_external_signals', customer_id)
+    _check_mcp_enabled()
+    app = _get_flask_app()
+    with app.app_context():
+        from signal_engine.external_research import research_and_ingest
+        try:
+            return research_and_ingest(customer_id, account_id, process_now=process_now)
+        except (ValueError, RuntimeError) as e:
+            raise ToolError(str(e))
+        except PermissionError as e:
+            raise ToolError(f'budget check failed: {e}')
+
+
+@mcp.tool
 def process_signals(customer_id: int, limit: int = 50) -> dict:
     """Turn every pending signal for a customer into evidence (classify,
     reconcile polarity, resolve people, write the node) and rebuild the

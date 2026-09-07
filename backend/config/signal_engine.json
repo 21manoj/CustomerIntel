@@ -26,6 +26,12 @@
     "max_calls_per_account_per_day": 50,
     "confidence_threshold": 0.6
   },
+  "external_research": {
+    "_doc": "signal_engine/external_research.py — on-demand only, never scheduled. claude-opus-5, not the extraction model above: low-volume, high-value research benefits from stronger reasoning more than high-frequency extraction does. Gated by utils.llm_budget_controller's per-customer daily/monthly $ circuit breaker (CustomerConfig.llm_budget, or the controller's own defaults), not a separate cap here.",
+    "model": "claude-opus-5",
+    "max_tokens": 2048,
+    "max_web_searches": 5
+  },
   "urgency": {
     "_doc": "structural_by_role: floor per taxonomy signal role (keys must be signal_roles in taxonomy_base.json). perceived_bands: LLM urgency_score → level. Effective = max(structural, perceived), escalation_probability ≥ boost_threshold lifts perceived one level. Floors cover risk AND opportunity: expansion_intent is high because a stalled expansion is lost revenue, not just a missed nicety.",
     "structural_by_role": {

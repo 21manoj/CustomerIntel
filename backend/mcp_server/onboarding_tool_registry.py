@@ -34,6 +34,7 @@ ONBOARDING_TOOLS = frozenset({
 
 KEYED_TOOLS = frozenset({
     'submit_signal',
+    'research_account_external_signals',
     'process_signals',
     'configure_signal_engine',
     'list_journeys',
@@ -61,6 +62,8 @@ KEYED_TOOLS = frozenset({
     'get_roi',
     # Wizard D — Foresight (mcp_server/cs_pulse_wizard_d.py)
     'get_forecast',
+    # Wizard B — Hindsight (mcp_server/cs_pulse_wizard_b.py)
+    'get_hindsight',
     # adapters (adapters/sources, mcp_server/cs_pulse_adapters.py)
     'import_from_source',
     # Wizard C (mcp_server/cs_pulse_wizard_c.py)
