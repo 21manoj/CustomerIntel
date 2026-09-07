@@ -372,11 +372,35 @@ def _investment_cost_compact(ic: dict) -> dict:
 
 
 def detect_investment_intent(question: str) -> bool:
-    """Whether a portfolio question is shaped like it needs priority/po1/roi/investment_cost context —
-    keyword-gated (same pattern as decide_scope's portfolio_phrases) so the common portfolio question
-    does not pay for four extra reads and a bigger context block it will never cite."""
+    """Whether a question is shaped like it needs priority/po1/roi/investment_cost context —
+    keyword-gated (same pattern as decide_scope's portfolio_phrases) so the common question
+    does not pay for extra reads and a bigger context block it will never cite. Both scopes
+    gate on this: portfolio for all four aggregates, account for investment_cost."""
     q = (question or '').lower()
     return any(p in q for p in settings.get('scope', 'investment_phrases'))
+
+
+def _narrative_for_context(narrative: dict, citable: Dict[str, dict]) -> Tuple[List[dict], int]:
+    """The narrative's chapters with every sentence whose citations the model could not
+    legally reuse removed → (chapters, sentences dropped).
+
+    The narrative is prose ABOUT the episodes; its `cites` are episode ids. Whatever it
+    names, the model will cite — and validate_answer keeps a sentence only when every
+    citation resolves. So a narrative sentence citing an episode that did not fit the
+    budget is not merely useless, it is a trap: it produces a fluent answer that is then
+    dropped whole. Call this AFTER the episode blocks have been added."""
+    chapters, dropped = [], 0
+    for ch in narrative.get('chapters') or []:
+        kept = []
+        for s in ch.get('sentences') or []:
+            cites = [c for c in (s.get('cites') or []) if str(c) in citable]
+            if not cites:
+                dropped += 1
+                continue
+            kept.append({'text': s['text'], 'cites': cites})
+        if kept:
+            chapters.append({'phase': ch.get('phase'), 'from': ch.get('from'), 'to': ch.get('to'), 'sentences': kept})
+    return chapters, dropped
 
 
 def _narrative_gaps(narrative: dict) -> List[str]:
@@ -437,20 +461,22 @@ def account_context(customer_id: int, account_id: int, question: str, as_of: Opt
             ctx.add('po1', _po1_account_compact(arow), cite_id=f"po1:{account_id}", citation=arow)
     except ValueError as e:
         gaps.append(f'power_of_1 not available: {e}')
-    try:
-        from roi.investment import investment_cost
-        ic = investment_cost(int(customer_id))
-        ctx.add('investment_cost', _investment_cost_compact(ic), cite_id=f"investment_cost:{account_id}", citation=ic)
-    except ValueError as e:
-        gaps.append(f'investment cost not available: {e}')
+    # Gated on the question, as the portfolio path gates its own investment blocks and for the same
+    # budget reason: this is by far the largest optional block (every playbook plus the pillar and KPI
+    # rollups), and on a NON-investment question it bought nothing while pushing episodes out of the
+    # budget entirely — which silently emptied the whole answer (see the narrative filter below).
+    if detect_investment_intent(question):
+        try:
+            from roi.investment import investment_cost
+            ic = investment_cost(int(customer_id))
+            ctx.add('investment_cost', _investment_cost_compact(ic), cite_id=f"investment_cost:{account_id}", citation=ic)
+        except ValueError as e:
+            gaps.append(f'investment cost not available: {e}')
 
-    narrative = j.get('narrative') or {}
-    chapters = [{'phase': ch.get('phase'), 'from': ch.get('from'), 'to': ch.get('to'),
-                 'sentences': [{'text': s['text'], 'cites': s['cites']} for s in ch.get('sentences') or []]}
-                for ch in narrative.get('chapters') or []]
-    ctx.add('narrative', {'citation_rule': narrative.get('citation_rule'), 'chapters': chapters, 'omitted': narrative.get('omitted')})
-    gaps.extend(_narrative_gaps(narrative))
-
+    # Episodes and evidence FIRST, narrative second. The narrative's own sentences carry episode ids,
+    # so it teaches the model the citation vocabulary; added before the episodes it names, it can teach
+    # ids that never made the budget. The model then cites them faithfully, validate_answer drops every
+    # such sentence as unresolved_citation, and the caller gets a confident, empty answer.
     episodes = sorted(j.get('episodes') or [], key=lambda e: str(e.get('date') or ''), reverse=True)
     for e in episodes:
         if not ctx.add('episode', _episode_compact(e, quote_chars), cite_id=e['episode_id'], citation=e):
@@ -458,6 +484,14 @@ def account_context(customer_id: int, account_id: int, question: str, as_of: Opt
     for nid, v in (j.get('evidence') or {}).items():
         if not ctx.add('evidence', _evidence_compact(v, quote_chars), cite_id=str(nid), citation=v):
             break
+
+    narrative = j.get('narrative') or {}
+    chapters, dropped = _narrative_for_context(narrative, ctx.citable)
+    ctx.add('narrative', {'citation_rule': narrative.get('citation_rule'), 'chapters': chapters, 'omitted': narrative.get('omitted')})
+    gaps.extend(_narrative_gaps(narrative))
+    if dropped:
+        gaps.append(f'{dropped} narrative sentence(s) were not shown to the model: the episodes they cite did not '
+                    f'fit the context budget, and a sentence the model cannot legally cite must not be put in front of it')
 
     role = detect_role(question, j.get('vertical'))
     if role:
@@ -733,9 +767,16 @@ def ask(customer_id: int, question: str, account_id: Optional[int] = None, as_of
         confidence = None
     from journeys.read import origin_block
     origin = origin_block(customer_id)
+    if not sentences and unsupported:
+        # Never hand back a blank string with a confident-looking score: say which rule emptied it.
+        # (The reasons are in `unsupported`, but nothing above the fold said the answer was dropped.)
+        reasons = sorted({u['reason'] for u in unsupported})
+        gaps.append(f'the model answered but every sentence was dropped by the citation rule ({", ".join(reasons)}); '
+                    f'see "unsupported" for the text and the ids that did not resolve')
     answer = ' '.join(s['text'] for s in sentences)
     if origin['synthetic']:
         answer = f"[{origin['label']}] " + answer            # disclosure travels with the answer, not beside it
+    answer = answer.strip()
     return {
         'question': question, 'scope': scope, 'scope_detail': meta, **origin,
         'answer': answer,

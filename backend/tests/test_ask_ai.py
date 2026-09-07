@@ -129,6 +129,44 @@ class TestValidator:
         assert 'Every sentence cites' in seen['system'] and '[narrative]' in seen['user'] and f'"id":"{good}"' in seen['user']
         assert 'row:' in seen['user']                                     # the account's own portfolio row is citable too
 
+    def test_narrative_never_teaches_a_citation_the_model_cannot_use(self):
+        """The narrative is prose ABOUT the episodes and its `cites` are episode ids, so whatever it
+        names the model will cite — and validate_answer keeps a sentence only when every citation
+        resolves. A narrative sentence citing an episode that did not fit the context budget produced
+        a fluent answer that was then dropped whole, i.e. a confident empty string."""
+        from ask_ai.answer import _narrative_for_context
+        narrative = {'chapters': [
+            {'phase': 'deterioration', 'from': '2025-10', 'to': '2025-12', 'sentences': [
+                {'text': 'The fabric failed three times.', 'cites': ['sig:1', 'sig:999']},   # one shown, one not
+                {'text': 'Nobody could say why.', 'cites': ['sig:999']},                     # none shown
+            ]},
+            {'phase': 'resolution', 'from': '2026-01', 'to': '2026-02', 'sentences': [
+                {'text': 'Goodput came back.', 'cites': ['sig:998']},                        # none shown
+            ]},
+        ]}
+        chapters, dropped = _narrative_for_context(narrative, {'sig:1': {}})
+        assert dropped == 2
+        assert len(chapters) == 1 and chapters[0]['phase'] == 'deterioration'  # an emptied chapter is dropped whole
+        assert chapters[0]['sentences'] == [{'text': 'The fabric failed three times.', 'cites': ['sig:1']}]
+        assert all(c in {'sig:1'} for ch in chapters for s in ch['sentences'] for c in s['cites'])
+
+    def test_an_answer_emptied_by_the_citation_rule_says_so(self, tenant, monkeypatch):
+        cid, aid, _, _, _ = tenant
+
+        def fake_model(customer_id, system, user):
+            return {'answer_sentences': [
+                {'text': 'Everything here cites an episode that was never shown.', 'cites': ['sig:999999']},
+            ], 'evidence_gaps': [], 'confidence': 0.86}, 'fake-model'
+
+        monkeypatch.setenv('ANTHROPIC_API_KEY', 'test-key')
+        monkeypatch.setattr('ask_ai.answer._call_model', fake_model)
+        with app.app_context():
+            res = ask(cid, 'what happened here?', account_id=aid)
+        assert res['sentences'] == [] and res['unsupported']
+        assert res['answer'] == '[Test fixture]'                     # no dangling whitespace after the label
+        assert any('every sentence was dropped by the citation rule' in g for g in res['evidence_gaps'])
+        assert any('unresolved_citation' in g for g in res['evidence_gaps'])
+
     def test_validate_answer_flags_numbers_not_in_cited_blocks(self):
         citable = {'sig:1': {'episode_id': 'sig:1', 'title': 'health 62.0 in March 2026'}}
         kept, unsupported = validate_answer({'answer_sentences': [
@@ -244,9 +282,10 @@ class TestInvestmentContext:
         assert '[priority]' in seen['user'] and '[po1]' in seen['user']
         assert 'priority:' in seen['system'] and 'po1:' in seen['system'] and 'roi:portfolio' in seen['system']
 
-    def test_account_scope_always_shows_investment_cost(self, tenant, monkeypatch):
-        """investment_cost is unconditional in account scope, same as priority/po1 — the block is
-        vertical-level (no ARR scaling), so it's cheap regardless of which account is asked about."""
+    def test_account_scope_shows_investment_cost_for_a_cost_question(self, tenant, monkeypatch):
+        """investment_cost is gated on the question in account scope, as it already was in portfolio
+        scope: it is the largest optional block, and on a non-investment question it bought nothing
+        while pushing episodes out of the budget (test_a_plain_account_question_skips_investment_cost)."""
         cid, aid, _, _, _ = tenant
         seen = {}
 
@@ -269,6 +308,22 @@ class TestInvestmentContext:
         assert by_id['champion_departure_sponsor_rebuild']['estimated_cost_per_execution']['basis'] == 'assumed'
         assert '[investment_cost]' in seen['user']
         assert 'investment_cost:' in seen['system'] and 'assumed' in seen['system']
+
+    def test_a_plain_account_question_skips_investment_cost(self, tenant, monkeypatch):
+        cid, aid, _, _, _ = tenant
+        seen = {}
+
+        def fake_model(customer_id, system, user):
+            seen['user'] = user
+            return {'answer_sentences': [], 'evidence_gaps': [], 'confidence': 0.5}, 'fake-model'
+
+        monkeypatch.setenv('ANTHROPIC_API_KEY', 'test-key')
+        monkeypatch.setattr('ask_ai.answer._call_model', fake_model)
+        with app.app_context():
+            res = ask(cid, 'walk me through what went wrong at this account', account_id=aid)
+        assert '[investment_cost]' not in seen['user']
+        assert f'investment_cost:{aid}' not in res['citations']
+        assert '[episode]' in seen['user']                     # the budget it freed goes to the evidence
 
     def test_row_now_carries_priority_the_piece_a_fix(self, tenant):
         cid, aid, bid, _, _ = tenant
@@ -357,7 +412,8 @@ class TestInvestmentContext:
             raise roi_settings.InvestmentConfigError(f'no investment file for vertical {vertical!r} (test)')
         monkeypatch.setattr(roi_settings, 'investment', boom)
         with app.app_context():
-            ctx, gaps, meta, narrative = account_context(cid, aid, 'what happened?', None, None)
+            # a cost-shaped question: account scope only reaches investment_cost when the question asks for it
+            ctx, gaps, meta, narrative = account_context(cid, aid, 'what would this cost?', None, None)
         assert any('investment cost not available' in g for g in gaps)
         assert f'priority:{aid}' in ctx.citable and f'po1:{aid}' in ctx.citable    # unaffected — different config file
         assert f'investment_cost:{aid}' not in ctx.citable
