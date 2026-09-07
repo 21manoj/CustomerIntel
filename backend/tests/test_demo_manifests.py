@@ -99,6 +99,136 @@ class TestInversion:
                     assert abs(score_kpi(v, kdef) - h) < 0.5, (vertical, code, h, v)
 
 
+class TestWaypointCurves:
+    """The `waypoints` health shape — the curve a multi-phase story needs when
+    one dip and one recovery (dip_recover) cannot express it."""
+
+    def test_interpolates_between_points_and_holds_flat_outside_them(self):
+        from demo.generate import health_at
+        spec = {'shape': 'waypoints', 'points': [[-400, 70], [-200, 40], [0, 80]]}
+        at = lambda d: health_at(d, spec, -400, 50)
+        assert at(-500) == 70 and at(-400) == 70                     # held before the first point
+        assert at(0) == 80 and at(100) == 80                         # held after the last
+        assert abs(at(-300) - 55) < 0.01                             # midpoint of the fall
+        assert abs(at(-100) - 60) < 0.01                             # midpoint of the rise
+        assert at(-200) == 40                                        # the trough itself
+
+    def test_unsorted_points_are_walked_in_day_order(self):
+        from demo.generate import health_at
+        jumbled = {'shape': 'waypoints', 'points': [[0, 80], [-400, 70], [-200, 40]]}
+        ordered = {'shape': 'waypoints', 'points': [[-400, 70], [-200, 40], [0, 80]]}
+        assert [health_at(d, jumbled, -400, 50) for d in range(-400, 1, 25)] == \
+               [health_at(d, ordered, -400, 50) for d in range(-400, 1, 25)]
+
+    @pytest.mark.parametrize('bad, msg', [
+        ({'shape': 'waypoints'}, "needs ['points']"),
+        ({'shape': 'waypoints', 'points': [[-10, 50]]}, 'at least two'),
+        ({'shape': 'waypoints', 'points': [[-10, 50], [-10, 60]]}, 'duplicate days'),
+        ({'shape': 'waypoints', 'points': [[-10, 50], [0, 140]]}, 'within [0, 100]'),
+        ({'shape': 'waypoints', 'points': [[-10, 50], [0, 60, 70]]}, 'must be [day, health]'),
+        ({'shape': 'sawtooth', 'start': 60}, 'is not one of'),
+    ])
+    def test_a_bad_curve_fails_at_load_with_the_account_named(self, bad, msg):
+        from demo.manifest_v2 import ManifestError, validate_health
+        with pytest.raises(ManifestError) as e:
+            validate_health(bad, 'm/ACCT')
+        assert 'm/ACCT' in str(e.value) and msg in str(e.value)
+
+
+class TestTrancheSlicing:
+    """slice_manifest: the tenant as it stood on a day. Data arrives over time,
+    and a playbook only ever evaluates the latest leading month, so a story with
+    two intervention cycles months apart is fed in slices."""
+
+    def _manifest(self):
+        return load_manifest(MANIFESTS_DIR / 'aurelia_datacenter_portfolio.json')
+
+    def test_drops_everything_after_the_day_and_keeps_everything_before(self):
+        from demo.generate import slice_manifest
+        m = self._manifest()
+        through = -224
+        s = slice_manifest(m, through)
+        assert {a['source_account_id'] for a in s['accounts']} == {a['source_account_id'] for a in m['accounts']}
+        for full, cut in zip(m['accounts'], s['accounts']):
+            kept = [c for c in full['communications'] if c['day'] <= through]
+            assert cut['communications'] == kept                      # prefix, in order, unmodified
+            assert all(e['day'] <= through for e in cut['events'])
+            assert 'crm_flag_day' not in cut or cut['crm_flag_day'] <= through
+
+    def test_kpi_values_are_identical_to_the_full_run_for_the_days_it_emits(self):
+        from demo.generate import slice_manifest
+        m = self._manifest()
+        full = _rows(generate(m)['kpi_measurements.csv'])
+        part = _rows(generate(slice_manifest(m, -224))['kpi_measurements.csv'])
+        key = lambda r: (r['source_account_id'], r['kpi_code'], r['measured_at'])
+        by_key = {key(r): r['value'] for r in full}
+        assert part and len(part) < len(full)
+        assert all(by_key[key(r)] == r['value'] for r in part)        # the curve keeps its anchor
+        assert max(r['measured_at'] for r in part) < max(r['measured_at'] for r in full)
+
+    def test_the_last_slice_reproduces_the_whole_manifest(self):
+        from demo.generate import slice_manifest
+        m = self._manifest()
+        last = max(t['through_day'] for t in m['tranches'])
+        assert generate(slice_manifest(m, last)) == generate(m)
+
+    def test_an_event_cannot_outlive_the_evidence_it_cites(self):
+        from demo.generate import slice_manifest
+        from demo.manifest_v2 import ManifestError
+        m = self._manifest()
+        a = next(x for x in m['accounts'] if x['events'] and x['events'][0].get('linked_communication_index') is not None)
+        ev, idx = a['events'][0], a['events'][0]['linked_communication_index']
+        cut = a['communications'][idx]['day'] - 1                     # keeps the event, drops its citation
+        ev['day'] = cut
+        with pytest.raises(ManifestError) as e:
+            slice_manifest(m, cut)
+        assert 'does not have yet' in str(e.value)
+
+
+class TestStoryDeclaration:
+    """`tranches` + `interventions`: validated at load against this manifest's own
+    accounts and the vertical's own playbooks, so the driver never discovers a typo
+    half way through a tenant it has already created."""
+
+    def _manifest(self):
+        return load_manifest(MANIFESTS_DIR / 'aurelia_datacenter_portfolio.json')
+
+    def test_the_shipped_portfolio_declares_a_coherent_story(self):
+        from playbooks.definitions import load_vertical
+        m = self._manifest()
+        known = {p['id'] for p in load_vertical(m['vertical'])['playbooks']}
+        ids = {a['source_account_id'] for a in m['accounts']}
+        tranches = [t['through_day'] for t in m['tranches']]
+        assert tranches == sorted(set(tranches))
+        for iv in m['interventions']:
+            assert iv['playbook_id'] in known and iv['source_account_id'] in ids
+            assert iv['tranche'] in {t['id'] for t in m['tranches']}
+        # every showcase account runs two cycles on two DIFFERENT playbooks: governance
+        # suppresses a re-fire of the same playbook within window_days of a close
+        cycles = {}
+        for iv in m['interventions']:
+            cycles.setdefault(iv['source_account_id'], []).append(iv['playbook_id'])
+        assert cycles and all(len(v) == 2 and len(set(v)) == 2 for v in cycles.values()), cycles
+
+    @pytest.mark.parametrize('mutate, msg', [
+        (lambda m: m['interventions'][0].update(playbook_id='no_such_playbook'), 'is not a datacenter_v1 playbook'),
+        (lambda m: m['interventions'][0].update(source_account_id='NOBODY'), 'is not an account in this manifest'),
+        (lambda m: m['interventions'][0].update(tranche='t99'), 'is not one of'),
+        (lambda m: m['interventions'][0]['report'].update(outcome_type='free_lunch'), 'not in the datacenter_v1 revenue buckets'),
+        (lambda m: m['interventions'][0]['report'].update(state='maybe'), 'report.state must be'),
+        (lambda m: m['tranches'].append({'id': 't1', 'through_day': 10}), 'duplicate tranche id'),
+        (lambda m: m['tranches'].append({'id': 'tz', 'through_day': -9999}), 'must be after the previous tranche'),
+        (lambda m: m.pop('tranches'), 'needs "tranches"'),
+    ])
+    def test_a_bad_story_fails_at_load(self, mutate, msg):
+        from demo.manifest_v2 import ManifestError, validate_manifest
+        m = self._manifest()
+        mutate(m)
+        with pytest.raises(ManifestError) as e:
+            validate_manifest(m)
+        assert msg in str(e.value), str(e.value)
+
+
 class TestGeneration:
     @pytest.mark.parametrize('path', MANIFESTS, ids=lambda p: p.stem)
     def test_files_are_schema_valid_and_deterministic(self, path):

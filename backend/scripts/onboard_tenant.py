@@ -6,6 +6,11 @@ a tool call the platform audits.
     python scripts/onboard_tenant.py --url https://…/mcp --key $KEY --dir ./files \\
         --name "Lumen Workflows" --domain lumen.demo --vertical saas_premium --data-origin synthetic_demo
 
+`--customer-id N` instead of the create arguments feeds an EXISTING tenant — the periodic
+refresh (this month's KPI rows and communications), which is what a live tenant does far more
+often than it onboards. The steps are the same minus create_customer; KPI rows insert
+on-conflict-do-nothing and the engine dedups communications, so re-sending overlap is safe.
+
 `--dir` holds what a customer would hand over (or what `demo/generate.py --out-dir` wrote):
   account_details.csv                required
   kpi_measurements.csv               optional (absent = signals-only tenant)
@@ -73,15 +78,20 @@ async def run(args) -> dict:
                 raise SystemExit(f'{tool} failed: {body}')
             return body
 
-        c = await call('create_customer', name=args.name, domain=args.domain, vertical=args.vertical,
-                       admin_email=args.admin_email or f'admin@{args.domain}', admin_name=args.admin_name, data_origin=args.data_origin)
-        cid = c['customer_id']
-        receipt.update({'customer_id': cid, 'data_origin': c['data_origin'], 'disclosure': c['disclosure'],
-                        'customer_key_prefix': (c.get('api_key') or '')[:12] + '…' if c.get('api_key') else None})
-        say(f"1 create_customer → customer_id={cid} data_origin={c['data_origin']} key_issued={'yes' if c.get('api_key') else 'no'}")
-        if c.get('api_key') and args.save_key:
-            Path(args.save_key).write_text(c['api_key']); os.chmod(args.save_key, 0o600)
-            say(f"  customer key saved to {args.save_key} (shown once by the server)")
+        if args.customer_id:
+            cid = int(args.customer_id)
+            receipt['customer_id'] = cid
+            say(f"1 existing tenant → customer_id={cid} (no create_customer; this is a data refresh)")
+        else:
+            c = await call('create_customer', name=args.name, domain=args.domain, vertical=args.vertical,
+                           admin_email=args.admin_email or f'admin@{args.domain}', admin_name=args.admin_name, data_origin=args.data_origin)
+            cid = c['customer_id']
+            receipt.update({'customer_id': cid, 'data_origin': c['data_origin'], 'disclosure': c['disclosure'],
+                            'customer_key_prefix': (c.get('api_key') or '')[:12] + '…' if c.get('api_key') else None})
+            say(f"1 create_customer → customer_id={cid} data_origin={c['data_origin']} key_issued={'yes' if c.get('api_key') else 'no'}")
+            if c.get('api_key') and args.save_key:
+                Path(args.save_key).write_text(c['api_key']); os.chmod(args.save_key, 0o600)
+                say(f"  customer key saved to {args.save_key} (shown once by the server)")
 
         for ft, content in files.items():
             u = await call('upload_csv', customer_id=cid, file_type=ft, csv_content=content)
@@ -129,10 +139,14 @@ def main(argv=None):
     ap.add_argument('--url', required=True, help='MCP endpoint, e.g. https://host/mcp')
     ap.add_argument('--key', default=os.environ.get('CI_API_KEY'), help='Bearer key (or env CI_API_KEY)')
     ap.add_argument('--dir', required=True)
-    ap.add_argument('--name', required=True)
-    ap.add_argument('--domain', required=True)
-    ap.add_argument('--vertical', required=True)
-    ap.add_argument('--data-origin', required=True, help='real | synthetic_demo | synthetic_replay | synthetic_test')
+    ap.add_argument('--customer-id', type=int,
+                    help='feed an EXISTING tenant instead of creating one — the monthly/periodic refresh a real '
+                         'customer runs after onboarding. --name/--domain/--vertical/--data-origin are then unused '
+                         '(they belong to create_customer).')
+    ap.add_argument('--name')
+    ap.add_argument('--domain')
+    ap.add_argument('--vertical')
+    ap.add_argument('--data-origin', help='real | synthetic_demo | synthetic_replay | synthetic_test')
     ap.add_argument('--admin-email')
     ap.add_argument('--admin-name', default='Admin')
     ap.add_argument('--save-key', help='write the customer key the server returns (shown once) to this file')
@@ -140,6 +154,10 @@ def main(argv=None):
     args = ap.parse_args(argv)
     if not args.key:
         raise SystemExit('--key or CI_API_KEY is required')
+    if not args.customer_id:
+        missing = [f'--{f.replace("_", "-")}' for f in ('name', 'domain', 'vertical', 'data_origin') if not getattr(args, f)]
+        if missing:
+            raise SystemExit(f'creating a tenant needs {", ".join(missing)} (or pass --customer-id to feed an existing one)')
     asyncio.run(run(args))
 
 

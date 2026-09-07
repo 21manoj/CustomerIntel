@@ -1,0 +1,2421 @@
+{
+  "version": 2,
+  "manifest_id": "aurelia_datacenter_portfolio",
+  "scenario": "Aurelia Compute — 20-account datacenter_v1 portfolio with four two-cycle recovery stories",
+  "narrative": "A GPU-rental neocloud's book of business over 15 months. Four accounts get into real trouble, a real playbook fires on the cited evidence, the intervention closes with a logged outcome, and the KPI layer recovers into a better band — twice each, months apart, driven tranche by tranche so the recovery data did not exist when the loop was closed. The other sixteen are the portfolio around them: steady, sliding, or already gone wrong.",
+  "vertical": "datacenter_v1",
+  "customer_name": "Aurelia Compute",
+  "domain_prefix": "aurelia",
+  "default_product": "H100 Reserved Cluster",
+  "default_csm": "Dana Okafor",
+  "csm_manager": "Sam Rivera",
+  "seed": 20260907,
+  "timeline": {
+    "t0": "2026-09-07",
+    "history_days": 406,
+    "future_days": 0,
+    "kpi_cadence_days": 14
+  },
+  "tranches": [
+    {
+      "id": "t1",
+      "through_day": -294
+    },
+    {
+      "id": "t2",
+      "through_day": -224
+    },
+    {
+      "id": "t3",
+      "through_day": -140
+    },
+    {
+      "id": "t4",
+      "through_day": -56
+    },
+    {
+      "id": "t5",
+      "through_day": 0
+    }
+  ],
+  "interventions": [
+    {
+      "tranche": "t1",
+      "source_account_id": "CEREBRIX",
+      "playbook_id": "incident_escalation",
+      "approve_note": "Third fabric incident in five weeks on the reserved cluster. Assigning a named network engineer and a daily bridge until goodput is back above spec.",
+      "report": {
+        "state": "done",
+        "outcome_type": "revenue_protected",
+        "outcome_day": -268,
+        "revenue": 8400000,
+        "note": "Spine replaced and NCCL topology re-pinned. Goodput back over 92%, credits applied, reservation held."
+      }
+    },
+    {
+      "tranche": "t3",
+      "source_account_id": "CEREBRIX",
+      "playbook_id": "commercial_pressure_save",
+      "approve_note": "Written competitor offer ~30% under our reserved rate with a test workload already moved. Renewal desk to build a re-based multi-year proposal.",
+      "report": {
+        "state": "done",
+        "outcome_type": "renewal_secured",
+        "outcome_day": -70,
+        "revenue": 8400000,
+        "note": "Renewed 24 months at a re-based committed rate with a reliability credit schedule. Test workload returned to our fabric."
+      }
+    },
+    {
+      "tranche": "t1",
+      "source_account_id": "HALCYON",
+      "playbook_id": "incident_escalation",
+      "approve_note": "Thermal trips on two racks are killing long molecular-dynamics runs. Escalating to DC operations for cooling remediation.",
+      "report": {
+        "state": "done",
+        "outcome_type": "escalation_resolved",
+        "outcome_day": -262,
+        "revenue": 3600000,
+        "note": "Rear-door heat exchangers serviced and the affected rows re-balanced; no thermal trip in six weeks."
+      }
+    },
+    {
+      "tranche": "t4",
+      "source_account_id": "HALCYON",
+      "playbook_id": "commercial_pressure_save",
+      "approve_note": "Second provider qualified ahead of an August renewal. Booking a commercial review before the board pack is written.",
+      "report": {
+        "state": "done",
+        "outcome_type": "renewal_secured",
+        "outcome_day": -14,
+        "revenue": 3600000,
+        "note": "Renewed 18 months with a committed-ramp schedule they can actually hit."
+      }
+    },
+    {
+      "tranche": "t2",
+      "source_account_id": "REDSHIFT",
+      "playbook_id": "incident_escalation",
+      "approve_note": "Preemption rate on the shared pool is breaking their nightly perception training. Escalating to scheduling engineering.",
+      "report": {
+        "state": "done",
+        "outcome_type": "escalation_resolved",
+        "outcome_day": -206,
+        "revenue": 5200000,
+        "note": "Moved to a dedicated partition with preemption disabled; job completion back over 96%."
+      }
+    },
+    {
+      "tranche": "t4",
+      "source_account_id": "REDSHIFT",
+      "playbook_id": "commercial_pressure_save",
+      "approve_note": "They are costing out a self-built cluster against our renewal. Need the TCO conversation with their CFO before the August decision.",
+      "report": {
+        "state": "done",
+        "outcome_type": "renewal_secured",
+        "outcome_day": -21,
+        "revenue": 5200000,
+        "note": "Renewed 24 months. The build-versus-rent model landed in our favour once power and staffing were priced in."
+      }
+    },
+    {
+      "tranche": "t2",
+      "source_account_id": "TESSELLATE",
+      "playbook_id": "commercial_pressure_save",
+      "approve_note": "Spot pricing collapse has their finance team questioning the March renewal. Renewal desk to re-base the committed rate.",
+      "report": {
+        "state": "done",
+        "outcome_type": "renewal_secured",
+        "outcome_day": -180,
+        "revenue": 4800000,
+        "note": "Renewed at a re-based rate with a burst allowance instead of a discount."
+      }
+    },
+    {
+      "tranche": "t4",
+      "source_account_id": "TESSELLATE",
+      "playbook_id": "incident_escalation",
+      "approve_note": "Fabric error rate on the verification cluster is above the SLA line and their tape-out window is fixed. Escalating with a named owner.",
+      "report": {
+        "state": "done",
+        "outcome_type": "revenue_protected",
+        "outcome_day": -30,
+        "revenue": 4800000,
+        "note": "Two leaf switches replaced and the cluster re-qualified before the tape-out window. SLA attainment back over 99.5%."
+      }
+    }
+  ],
+  "accounts": [
+    {
+      "source_account_id": "CEREBRIX",
+      "name": "Cerebrix AI",
+      "arr": 8400000,
+      "industry": "AI/ML",
+      "region": "North America",
+      "champion": "Rhea Mensah",
+      "champion_title": "Head of ML Infrastructure",
+      "executive_sponsor": "Daniel Okonkwo",
+      "renewal_day": -70,
+      "tier": "Strategic",
+      "use_cases": [
+        "frontier model pre-training",
+        "large-scale RLHF"
+      ],
+      "role": "featured",
+      "health": {
+        "shape": "waypoints",
+        "noise": 1.3,
+        "points": [
+          [
+            -406,
+            76
+          ],
+          [
+            -340,
+            68
+          ],
+          [
+            -300,
+            46
+          ],
+          [
+            -294,
+            45
+          ],
+          [
+            -240,
+            58
+          ],
+          [
+            -200,
+            64
+          ],
+          [
+            -170,
+            54
+          ],
+          [
+            -140,
+            52
+          ],
+          [
+            -90,
+            66
+          ],
+          [
+            -30,
+            74
+          ],
+          [
+            0,
+            78
+          ]
+        ]
+      },
+      "communications": [
+        {
+          "day": -338,
+          "source_type": "ticket",
+          "source_ref": "ticket:cerebrix:9114",
+          "participants": [
+            {
+              "name": "Rhea Mensah",
+              "title": "Head of ML Infrastructure"
+            }
+          ],
+          "text": "Ticket 9114: we lost three pre-training runs overnight to InfiniBand fabric errors on the 1024-GPU reservation. SLA attainment is down to 96.8% against a 99.5% commitment and this is the third fabric incident in five weeks. We need a named engineering owner, not another credit note.",
+          "expected_subtypes": [
+            "reliability_sla_breach",
+            "interconnect_bottleneck"
+          ],
+          "expected_sentiment": -0.8
+        },
+        {
+          "day": -312,
+          "source_type": "meeting",
+          "source_ref": "meeting:cerebrix:incident-review",
+          "participants": [
+            {
+              "name": "Rhea Mensah",
+              "title": "Head of ML Infrastructure"
+            },
+            {
+              "name": "Dana Okafor",
+              "title": "CSM"
+            }
+          ],
+          "text": "Incident review with Rhea: measured goodput is sitting near 70% against the 90% spec and the team has dropped to 30-minute checkpoints just to survive the interruptions. She was direct that another month like this puts the reservation itself in question.",
+          "expected_subtypes": [
+            "throughput_below_spec",
+            "checkpoint_restart_pain"
+          ],
+          "expected_sentiment": -0.75
+        },
+        {
+          "day": -262,
+          "source_type": "email",
+          "source_ref": "email:cerebrix:fabric-restored",
+          "participants": [
+            {
+              "name": "Rhea Mensah",
+              "title": "Head of ML Infrastructure"
+            }
+          ],
+          "text": "Confirming the spine replacement has held for three weeks. Goodput is back over 92%, we have not lost a run since the swap, and the SLA credits were applied to the December invoice. Consider the incident closed from our side.",
+          "expected_subtypes": [
+            "goodput_restored",
+            "sla_credit_resolved"
+          ],
+          "expected_sentiment": 0.7
+        },
+        {
+          "day": -186,
+          "source_type": "slack",
+          "source_ref": "slack:cerebrix:C31:1772001",
+          "participants": [
+            {
+              "name": "Daniel Okonkwo",
+              "title": "VP Engineering"
+            }
+          ],
+          "text": "Ahead of renewal talks you should know we have a written offer from another provider at roughly 30% under our current reserved rate for comparable H100 capacity. Finance is asking why we would re-sign at list after the first-quarter reliability record.",
+          "expected_subtypes": [
+            "competitor_capacity_offer",
+            "spot_price_pressure"
+          ],
+          "expected_sentiment": -0.7
+        },
+        {
+          "day": -158,
+          "source_type": "meeting",
+          "source_ref": "meeting:cerebrix:rate-review",
+          "participants": [
+            {
+              "name": "Daniel Okonkwo",
+              "title": "VP Engineering"
+            },
+            {
+              "name": "Dana Okafor",
+              "title": "CSM"
+            }
+          ],
+          "text": "Daniel confirmed they have qualified the second provider and already moved one inference workload across as a test. He will not take the renewal to his CFO without a rate conversation first.",
+          "expected_subtypes": [
+            "multicloud_diversification",
+            "competitor_capacity_offer"
+          ],
+          "expected_sentiment": -0.7
+        },
+        {
+          "day": -96,
+          "source_type": "email",
+          "source_ref": "email:cerebrix:renewed",
+          "participants": [
+            {
+              "name": "Daniel Okonkwo",
+              "title": "VP Engineering"
+            }
+          ],
+          "text": "Signed. The re-based committed rate plus the reliability credit schedule made the internal case straightforward, and we are pulling the test inference workload back onto your fabric this month.",
+          "expected_subtypes": [
+            "goodput_restored"
+          ],
+          "expected_sentiment": 0.75
+        },
+        {
+          "day": -24,
+          "source_type": "meeting",
+          "source_ref": "meeting:cerebrix:capacity-plan",
+          "participants": [
+            {
+              "name": "Rhea Mensah",
+              "title": "Head of ML Infrastructure"
+            }
+          ],
+          "text": "Rhea walked us through next year's training plan: they expect to need roughly 40% more reserved capacity from Q1 and want to talk about locking a second cluster before the silicon refresh. Utilization on the current reservation has been over 80% for two months.",
+          "expected_subtypes": [
+            "reservation_expansion_interest",
+            "utilization_ramp"
+          ],
+          "expected_sentiment": 0.65
+        }
+      ],
+      "events": []
+    },
+    {
+      "source_account_id": "HALCYON",
+      "name": "Halcyon Bio",
+      "arr": 3600000,
+      "industry": "Biotechnology",
+      "region": "North America",
+      "champion": "Ana Beltrán",
+      "champion_title": "Director of Computational Biology",
+      "executive_sponsor": "Peter Nadel",
+      "renewal_day": -14,
+      "tier": "Enterprise",
+      "use_cases": [
+        "molecular dynamics",
+        "protein structure prediction"
+      ],
+      "role": "featured",
+      "health": {
+        "shape": "waypoints",
+        "noise": 1.3,
+        "points": [
+          [
+            -406,
+            71
+          ],
+          [
+            -350,
+            62
+          ],
+          [
+            -300,
+            44
+          ],
+          [
+            -294,
+            44
+          ],
+          [
+            -230,
+            57
+          ],
+          [
+            -180,
+            66
+          ],
+          [
+            -120,
+            62
+          ],
+          [
+            -80,
+            51
+          ],
+          [
+            -56,
+            52
+          ],
+          [
+            -20,
+            68
+          ],
+          [
+            0,
+            75
+          ]
+        ]
+      },
+      "communications": [
+        {
+          "day": -334,
+          "source_type": "ticket",
+          "source_ref": "ticket:halcyon:7742",
+          "participants": [
+            {
+              "name": "Ana Beltrán",
+              "title": "Director of Computational Biology"
+            }
+          ],
+          "text": "Ticket 7742: racks 14 and 15 have thermally tripped four times this month and each trip kills a molecular-dynamics run that has been going for six days. We are losing more compute to heat than to anything else and the SLA numbers do not reflect how bad this is for us.",
+          "expected_subtypes": [
+            "thermal_event",
+            "reliability_sla_breach"
+          ],
+          "expected_sentiment": -0.8
+        },
+        {
+          "day": -306,
+          "source_type": "meeting",
+          "source_ref": "meeting:halcyon:thermal-review",
+          "participants": [
+            {
+              "name": "Ana Beltrán",
+              "title": "Director of Computational Biology"
+            },
+            {
+              "name": "Dana Okafor",
+              "title": "CSM"
+            }
+          ],
+          "text": "Ana showed the run log: effective throughput on the affected rows is roughly 30% below what the same job gets on the healthy rows, and her team has started manually avoiding those racks. She asked whether the cooling design can actually support the density we sold her.",
+          "expected_subtypes": [
+            "throughput_below_spec"
+          ],
+          "expected_sentiment": -0.7
+        },
+        {
+          "day": -258,
+          "source_type": "email",
+          "source_ref": "email:halcyon:cooling-fixed",
+          "participants": [
+            {
+              "name": "Ana Beltrán",
+              "title": "Director of Computational Biology"
+            }
+          ],
+          "text": "Six weeks without a thermal trip since the heat exchangers were serviced and the rows re-balanced. Throughput on 14 and 15 now matches the rest of the fleet. Thank you for taking it seriously.",
+          "expected_subtypes": [
+            "goodput_restored",
+            "sla_credit_resolved"
+          ],
+          "expected_sentiment": 0.7
+        },
+        {
+          "day": -196,
+          "source_type": "meeting",
+          "source_ref": "meeting:halcyon:qbr-q1",
+          "participants": [
+            {
+              "name": "Ana Beltrán",
+              "title": "Director of Computational Biology"
+            }
+          ],
+          "text": "Quarterly review with Ana: nothing outstanding, utilization tracking to plan, and the team has started a second screening programme on the same reservation.",
+          "expected_subtypes": [
+            "routine_review"
+          ],
+          "expected_sentiment": 0.3
+        },
+        {
+          "day": -92,
+          "source_type": "slack",
+          "source_ref": "slack:halcyon:C88:1780014",
+          "participants": [
+            {
+              "name": "Peter Nadel",
+              "title": "CFO"
+            }
+          ],
+          "text": "Our August renewal is going to get scrutiny. We have a quote from another provider that is materially cheaper per GPU-hour and spot pricing in the market has fallen a long way since we signed. I need a defensible reason to stay.",
+          "expected_subtypes": [
+            "competitor_capacity_offer",
+            "spot_price_pressure"
+          ],
+          "expected_sentiment": -0.7
+        },
+        {
+          "day": -64,
+          "source_type": "meeting",
+          "source_ref": "meeting:halcyon:renewal-prep",
+          "participants": [
+            {
+              "name": "Peter Nadel",
+              "title": "CFO"
+            },
+            {
+              "name": "Dana Okafor",
+              "title": "CSM"
+            }
+          ],
+          "text": "Peter confirmed they have opened an account with a second provider and are running one screening pipeline there to benchmark cost. He wants the commercial conversation before the board pack is written in July.",
+          "expected_subtypes": [
+            "multicloud_diversification"
+          ],
+          "expected_sentiment": -0.65
+        },
+        {
+          "day": -18,
+          "source_type": "email",
+          "source_ref": "email:halcyon:renewal-signed",
+          "participants": [
+            {
+              "name": "Ana Beltrán",
+              "title": "Director of Computational Biology"
+            }
+          ],
+          "text": "Renewal is signed for 18 months. The committed-ramp schedule is one we can actually hit, and the reliability record since the cooling work made the case internally. We are consolidating the benchmark pipeline back onto your platform.",
+          "expected_subtypes": [
+            "goodput_restored"
+          ],
+          "expected_sentiment": 0.75
+        }
+      ],
+      "events": []
+    },
+    {
+      "source_account_id": "REDSHIFT",
+      "name": "Redshift Robotics",
+      "arr": 5200000,
+      "industry": "Robotics",
+      "region": "North America",
+      "champion": "Ingrid Sollis",
+      "champion_title": "VP Autonomy Platform",
+      "executive_sponsor": "Marcus Feld",
+      "renewal_day": -21,
+      "tier": "Strategic",
+      "use_cases": [
+        "perception model training",
+        "simulation fleet"
+      ],
+      "role": "featured",
+      "health": {
+        "shape": "waypoints",
+        "noise": 1.3,
+        "points": [
+          [
+            -406,
+            74
+          ],
+          [
+            -330,
+            70
+          ],
+          [
+            -260,
+            47
+          ],
+          [
+            -224,
+            46
+          ],
+          [
+            -170,
+            59
+          ],
+          [
+            -130,
+            65
+          ],
+          [
+            -90,
+            55
+          ],
+          [
+            -56,
+            53
+          ],
+          [
+            -20,
+            70
+          ],
+          [
+            0,
+            76
+          ]
+        ]
+      },
+      "communications": [
+        {
+          "day": -330,
+          "source_type": "meeting",
+          "source_ref": "meeting:redshift:qbr-autumn",
+          "participants": [
+            {
+              "name": "Ingrid Sollis",
+              "title": "VP Autonomy Platform"
+            }
+          ],
+          "text": "Autumn review with Ingrid: the simulation fleet is running to plan and the perception training schedule is stable. No open escalations.",
+          "expected_subtypes": [
+            "routine_review"
+          ],
+          "expected_sentiment": 0.3
+        },
+        {
+          "day": -272,
+          "source_type": "ticket",
+          "source_ref": "ticket:redshift:5510",
+          "participants": [
+            {
+              "name": "Ingrid Sollis",
+              "title": "VP Autonomy Platform"
+            }
+          ],
+          "text": "Ticket 5510: our nightly perception training keeps getting preempted off the shared pool. We are seeing an interruption rate around 9% against the 2% we were told to expect, and a preempted run costs us the whole night. Job completion is down to 84%.",
+          "expected_subtypes": [
+            "job_preemption_complaint",
+            "reliability_sla_breach"
+          ],
+          "expected_sentiment": -0.8
+        },
+        {
+          "day": -240,
+          "source_type": "meeting",
+          "source_ref": "meeting:redshift:scheduling",
+          "participants": [
+            {
+              "name": "Ingrid Sollis",
+              "title": "VP Autonomy Platform"
+            },
+            {
+              "name": "Dana Okafor",
+              "title": "CSM"
+            }
+          ],
+          "text": "Ingrid brought the numbers: effective throughput is roughly 25% under spec once restarts are counted, and her engineers now checkpoint every twenty minutes, which costs another chunk of the run. She said the scheduling behaviour, not the hardware, is the problem.",
+          "expected_subtypes": [
+            "throughput_below_spec",
+            "checkpoint_restart_pain"
+          ],
+          "expected_sentiment": -0.75
+        },
+        {
+          "day": -196,
+          "source_type": "email",
+          "source_ref": "email:redshift:dedicated-partition",
+          "participants": [
+            {
+              "name": "Ingrid Sollis",
+              "title": "VP Autonomy Platform"
+            }
+          ],
+          "text": "The dedicated partition has been clean for a month. Job completion is back over 96% and we have stopped defensive checkpointing. This is what we thought we bought.",
+          "expected_subtypes": [
+            "goodput_restored"
+          ],
+          "expected_sentiment": 0.7
+        },
+        {
+          "day": -150,
+          "source_type": "meeting",
+          "source_ref": "meeting:redshift:qbr-spring",
+          "participants": [
+            {
+              "name": "Ingrid Sollis",
+              "title": "VP Autonomy Platform"
+            }
+          ],
+          "text": "Spring review: steady quarter, utilization on the dedicated partition is over 80%, and the simulation fleet is being expanded internally.",
+          "expected_subtypes": [
+            "routine_review"
+          ],
+          "expected_sentiment": 0.35
+        },
+        {
+          "day": -90,
+          "source_type": "slack",
+          "source_ref": "slack:redshift:C12:1783300",
+          "participants": [
+            {
+              "name": "Marcus Feld",
+              "title": "CFO"
+            }
+          ],
+          "text": "We have a competitive quote in hand at a meaningfully lower reserved rate, and spot prices for the same silicon have kept falling. Before August I need to understand why our committed rate has not moved.",
+          "expected_subtypes": [
+            "competitor_capacity_offer",
+            "spot_price_pressure"
+          ],
+          "expected_sentiment": -0.7
+        },
+        {
+          "day": -62,
+          "source_type": "meeting",
+          "source_ref": "meeting:redshift:build-vs-rent",
+          "participants": [
+            {
+              "name": "Marcus Feld",
+              "title": "CFO"
+            },
+            {
+              "name": "Dana Okafor",
+              "title": "CSM"
+            }
+          ],
+          "text": "Marcus is costing out a self-built cluster in their own colo space against renewing with us. He has a board-level mandate to look at it seriously and wants our total-cost model before the August decision.",
+          "expected_subtypes": [
+            "byo_cluster_intent"
+          ],
+          "expected_sentiment": -0.7
+        },
+        {
+          "day": -12,
+          "source_type": "email",
+          "source_ref": "email:redshift:renewed",
+          "participants": [
+            {
+              "name": "Marcus Feld",
+              "title": "CFO"
+            }
+          ],
+          "text": "Renewed for 24 months. Once power, staffing and refresh risk were priced properly the build case did not hold up, and the reliability record on the dedicated partition settled the rest.",
+          "expected_subtypes": [
+            "goodput_restored"
+          ],
+          "expected_sentiment": 0.7
+        }
+      ],
+      "events": []
+    },
+    {
+      "source_account_id": "TESSELLATE",
+      "name": "Tessellate Semiconductor",
+      "arr": 4800000,
+      "industry": "Semiconductors",
+      "region": "APAC",
+      "champion": "Hyun-woo Baek",
+      "champion_title": "Director of Design Infrastructure",
+      "executive_sponsor": "Grace Lam",
+      "renewal_day": -180,
+      "tier": "Enterprise",
+      "use_cases": [
+        "RTL verification",
+        "physical design signoff"
+      ],
+      "role": "featured",
+      "health": {
+        "shape": "waypoints",
+        "noise": 1.3,
+        "points": [
+          [
+            -406,
+            73
+          ],
+          [
+            -340,
+            67
+          ],
+          [
+            -250,
+            48
+          ],
+          [
+            -224,
+            47
+          ],
+          [
+            -190,
+            55
+          ],
+          [
+            -150,
+            63
+          ],
+          [
+            -100,
+            57
+          ],
+          [
+            -56,
+            51
+          ],
+          [
+            -20,
+            69
+          ],
+          [
+            0,
+            74
+          ]
+        ]
+      },
+      "communications": [
+        {
+          "day": -336,
+          "source_type": "meeting",
+          "source_ref": "meeting:tessellate:qbr-h2",
+          "participants": [
+            {
+              "name": "Hyun-woo Baek",
+              "title": "Director of Design Infrastructure"
+            }
+          ],
+          "text": "Half-year review with Hyun-woo: verification throughput is on plan and the signoff cluster has been stable through the last two tape-outs.",
+          "expected_subtypes": [
+            "routine_review"
+          ],
+          "expected_sentiment": 0.3
+        },
+        {
+          "day": -276,
+          "source_type": "slack",
+          "source_ref": "slack:tessellate:C44:1768800",
+          "participants": [
+            {
+              "name": "Grace Lam",
+              "title": "VP Finance"
+            }
+          ],
+          "text": "Spot pricing for this class of silicon has fallen by nearly half since we signed, and a regional provider has quoted us well under our committed rate. With the March renewal coming I cannot defend our current pricing to the board.",
+          "expected_subtypes": [
+            "spot_price_pressure",
+            "competitor_capacity_offer"
+          ],
+          "expected_sentiment": -0.75
+        },
+        {
+          "day": -236,
+          "source_type": "meeting",
+          "source_ref": "meeting:tessellate:renewal-pressure",
+          "participants": [
+            {
+              "name": "Grace Lam",
+              "title": "VP Finance"
+            },
+            {
+              "name": "Dana Okafor",
+              "title": "CSM"
+            }
+          ],
+          "text": "Grace confirmed they have moved a portion of the regression suite to the regional provider to prove the price difference is real. She wants a rate proposal before the March renewal date, not after.",
+          "expected_subtypes": [
+            "multicloud_diversification"
+          ],
+          "expected_sentiment": -0.7
+        },
+        {
+          "day": -178,
+          "source_type": "email",
+          "source_ref": "email:tessellate:renewal-closed",
+          "participants": [
+            {
+              "name": "Grace Lam",
+              "title": "VP Finance"
+            }
+          ],
+          "text": "Renewal executed at the re-based rate. The burst allowance was the piece that made it work for us, and the regression suite is coming back onto your cluster this month.",
+          "expected_subtypes": [
+            "goodput_restored"
+          ],
+          "expected_sentiment": 0.65
+        },
+        {
+          "day": -142,
+          "source_type": "meeting",
+          "source_ref": "meeting:tessellate:qbr-q2",
+          "participants": [
+            {
+              "name": "Hyun-woo Baek",
+              "title": "Director of Design Infrastructure"
+            }
+          ],
+          "text": "Quarterly review: the consolidated regression suite is running well and queue times are inside target. Nothing escalated.",
+          "expected_subtypes": [
+            "routine_review"
+          ],
+          "expected_sentiment": 0.3
+        },
+        {
+          "day": -94,
+          "source_type": "ticket",
+          "source_ref": "ticket:tessellate:6621",
+          "participants": [
+            {
+              "name": "Hyun-woo Baek",
+              "title": "Director of Design Infrastructure"
+            }
+          ],
+          "text": "Ticket 6621: fabric error counters on the verification cluster have climbed past the SLA line for the third week running and two signoff jobs died mid-run last night. Our tape-out window is fixed and we cannot absorb this.",
+          "expected_subtypes": [
+            "reliability_sla_breach",
+            "interconnect_bottleneck"
+          ],
+          "expected_sentiment": -0.85
+        },
+        {
+          "day": -60,
+          "source_type": "meeting",
+          "source_ref": "meeting:tessellate:signoff-risk",
+          "participants": [
+            {
+              "name": "Hyun-woo Baek",
+              "title": "Director of Design Infrastructure"
+            },
+            {
+              "name": "Dana Okafor",
+              "title": "CSM"
+            }
+          ],
+          "text": "Hyun-woo showed the impact: effective throughput on the signoff cluster is roughly 20% below spec and every failed job forces a full restart from the last checkpoint. He needs a fix committed to a date, not an investigation.",
+          "expected_subtypes": [
+            "throughput_below_spec",
+            "checkpoint_restart_pain"
+          ],
+          "expected_sentiment": -0.8
+        },
+        {
+          "day": -16,
+          "source_type": "email",
+          "source_ref": "email:tessellate:cluster-requalified",
+          "participants": [
+            {
+              "name": "Hyun-woo Baek",
+              "title": "Director of Design Infrastructure"
+            }
+          ],
+          "text": "The two leaf switches were replaced and the cluster re-qualified with a week to spare before our window. SLA attainment is back over 99.5% and the tape-out went out on schedule.",
+          "expected_subtypes": [
+            "goodput_restored",
+            "sla_credit_resolved"
+          ],
+          "expected_sentiment": 0.8
+        }
+      ],
+      "events": []
+    },
+    {
+      "source_account_id": "NORTHWIND",
+      "name": "Northwind Aerospace",
+      "arr": 6100000,
+      "industry": "Aerospace",
+      "region": "North America",
+      "champion": "Colin Rafferty",
+      "champion_title": "Head of Simulation",
+      "renewal_day": 120,
+      "tier": "Strategic",
+      "role": "steady_healthy",
+      "health": {
+        "shape": "waypoints",
+        "noise": 1.4,
+        "points": [
+          [
+            -406,
+            78
+          ],
+          [
+            -200,
+            81
+          ],
+          [
+            0,
+            83
+          ]
+        ]
+      },
+      "communications": [
+        {
+          "day": -300,
+          "source_type": "meeting",
+          "source_ref": "meeting:northwind:qbr-1",
+          "participants": [
+            {
+              "name": "Colin Rafferty",
+              "title": "Head of Simulation"
+            }
+          ],
+          "text": "Quarterly review with Colin: CFD simulation hours are tracking slightly ahead of the committed ramp and queue times are comfortably inside target.",
+          "expected_subtypes": [
+            "routine_review"
+          ],
+          "expected_sentiment": 0.35
+        },
+        {
+          "day": -186,
+          "source_type": "email",
+          "source_ref": "email:northwind:reference",
+          "participants": [
+            {
+              "name": "Colin Rafferty",
+              "title": "Head of Simulation"
+            }
+          ],
+          "text": "Happy to act as a reference. Another aerospace group asked us about large-scale CFD on rented GPU capacity and I am comfortable telling them what our experience has been.",
+          "expected_subtypes": [
+            "advocacy"
+          ],
+          "expected_sentiment": 0.7
+        },
+        {
+          "day": -30,
+          "source_type": "meeting",
+          "source_ref": "meeting:northwind:qbr-2",
+          "participants": [
+            {
+              "name": "Colin Rafferty",
+              "title": "Head of Simulation"
+            }
+          ],
+          "text": "Steady quarter. Utilization is holding above 80%, no open escalations, and the team has started planning next year's simulation programme on the same footprint.",
+          "expected_subtypes": [
+            "routine_review"
+          ],
+          "expected_sentiment": 0.4
+        }
+      ],
+      "events": [
+        {
+          "day": -240,
+          "type": "renewal_secured",
+          "amount": 6100000,
+          "title": "Northwind Aerospace renewal",
+          "evidence": "36-month renewal executed on the existing footprint."
+        }
+      ]
+    },
+    {
+      "source_account_id": "ARCLIGHT",
+      "name": "Arclight Genomics",
+      "arr": 2900000,
+      "industry": "Biotechnology",
+      "region": "EMEA",
+      "champion": "Sofia Lindqvist",
+      "champion_title": "Head of Bioinformatics",
+      "renewal_day": 240,
+      "role": "steady_healthy",
+      "health": {
+        "shape": "waypoints",
+        "noise": 1.4,
+        "points": [
+          [
+            -406,
+            74
+          ],
+          [
+            -180,
+            77
+          ],
+          [
+            0,
+            79
+          ]
+        ]
+      },
+      "communications": [
+        {
+          "day": -280,
+          "source_type": "meeting",
+          "source_ref": "meeting:arclight:qbr-1",
+          "participants": [
+            {
+              "name": "Sofia Lindqvist",
+              "title": "Head of Bioinformatics"
+            }
+          ],
+          "text": "Review with Sofia: the variant-calling pipeline is running to schedule and the reserved capacity is well matched to their sequencing throughput.",
+          "expected_subtypes": [
+            "routine_review"
+          ],
+          "expected_sentiment": 0.3
+        },
+        {
+          "day": -120,
+          "source_type": "email",
+          "source_ref": "email:arclight:exec-join",
+          "participants": [
+            {
+              "name": "Sofia Lindqvist",
+              "title": "Head of Bioinformatics"
+            }
+          ],
+          "text": "Our new Chief Scientific Officer would like to join the monthly platform update from now on. She is keen to understand how we are using the reserved capacity across programmes.",
+          "expected_subtypes": [
+            "executive_engagement"
+          ],
+          "expected_sentiment": 0.5
+        },
+        {
+          "day": -22,
+          "source_type": "meeting",
+          "source_ref": "meeting:arclight:qbr-2",
+          "participants": [
+            {
+              "name": "Sofia Lindqvist",
+              "title": "Head of Bioinformatics"
+            }
+          ],
+          "text": "Nothing outstanding this quarter. Queue times are good, the pipeline has been stable, and the team is comfortable with the current reservation size.",
+          "expected_subtypes": [
+            "routine_review"
+          ],
+          "expected_sentiment": 0.35
+        }
+      ],
+      "events": []
+    },
+    {
+      "source_account_id": "SOLSTICE",
+      "name": "Solstice Vision",
+      "arr": 1800000,
+      "industry": "AI/ML",
+      "region": "North America",
+      "champion": "Tobias Reyner",
+      "champion_title": "CTO",
+      "renewal_day": 300,
+      "tier": "Growth",
+      "role": "steady_healthy",
+      "health": {
+        "shape": "waypoints",
+        "noise": 1.5,
+        "points": [
+          [
+            -406,
+            72
+          ],
+          [
+            -150,
+            75
+          ],
+          [
+            0,
+            76
+          ]
+        ]
+      },
+      "communications": [
+        {
+          "day": -262,
+          "source_type": "meeting",
+          "source_ref": "meeting:solstice:qbr-1",
+          "participants": [
+            {
+              "name": "Tobias Reyner",
+              "title": "CTO"
+            }
+          ],
+          "text": "Review with Tobias: their vision model training is on a steady cadence and the burst capacity has covered the two spikes they had this quarter.",
+          "expected_subtypes": [
+            "routine_review"
+          ],
+          "expected_sentiment": 0.3
+        },
+        {
+          "day": -110,
+          "source_type": "email",
+          "source_ref": "email:solstice:happy",
+          "participants": [
+            {
+              "name": "Tobias Reyner",
+              "title": "CTO"
+            }
+          ],
+          "text": "The team is happy with where things are. Scheduling latency has been consistently under a minute and we have not had a failed run in months.",
+          "expected_subtypes": [
+            "health_improvement"
+          ],
+          "expected_sentiment": 0.6
+        },
+        {
+          "day": -34,
+          "source_type": "meeting",
+          "source_ref": "meeting:solstice:qbr-2",
+          "participants": [
+            {
+              "name": "Tobias Reyner",
+              "title": "CTO"
+            }
+          ],
+          "text": "Quiet quarter, nothing escalated, and utilization has settled around 75% which is where they want it.",
+          "expected_subtypes": [
+            "routine_review"
+          ],
+          "expected_sentiment": 0.3
+        }
+      ],
+      "events": []
+    },
+    {
+      "source_account_id": "VANTAGE",
+      "name": "Vantage Weather Systems",
+      "arr": 2200000,
+      "industry": "Climate Analytics",
+      "region": "EMEA",
+      "champion": "Aled Morgan",
+      "champion_title": "Director of Numerical Prediction",
+      "renewal_day": 165,
+      "role": "steady_healthy",
+      "health": {
+        "shape": "waypoints",
+        "noise": 1.4,
+        "points": [
+          [
+            -406,
+            76
+          ],
+          [
+            -200,
+            74
+          ],
+          [
+            0,
+            77
+          ]
+        ]
+      },
+      "communications": [
+        {
+          "day": -292,
+          "source_type": "meeting",
+          "source_ref": "meeting:vantage:qbr-1",
+          "participants": [
+            {
+              "name": "Aled Morgan",
+              "title": "Director of Numerical Prediction"
+            }
+          ],
+          "text": "Review with Aled: the ensemble forecast runs land inside their delivery window every cycle and the reserved block is sized correctly.",
+          "expected_subtypes": [
+            "routine_review"
+          ],
+          "expected_sentiment": 0.3
+        },
+        {
+          "day": -128,
+          "source_type": "email",
+          "source_ref": "email:vantage:advocacy",
+          "participants": [
+            {
+              "name": "Aled Morgan",
+              "title": "Director of Numerical Prediction"
+            }
+          ],
+          "text": "We are presenting our forecasting stack at a conference next month and are glad to name the platform as the compute layer. It has been dependable.",
+          "expected_subtypes": [
+            "advocacy"
+          ],
+          "expected_sentiment": 0.65
+        },
+        {
+          "day": -26,
+          "source_type": "meeting",
+          "source_ref": "meeting:vantage:qbr-2",
+          "participants": [
+            {
+              "name": "Aled Morgan",
+              "title": "Director of Numerical Prediction"
+            }
+          ],
+          "text": "Steady quarter with no incidents. They are evaluating a higher-resolution model for next season but nothing has been committed.",
+          "expected_subtypes": [
+            "routine_review"
+          ],
+          "expected_sentiment": 0.3
+        }
+      ],
+      "events": []
+    },
+    {
+      "source_account_id": "BLUEFIN",
+      "name": "Bluefin Analytics",
+      "arr": 1400000,
+      "industry": "Financial Services",
+      "region": "North America",
+      "champion": "Nadia Corliss",
+      "champion_title": "Head of Quantitative Research",
+      "renewal_day": 285,
+      "tier": "Growth",
+      "role": "steady_healthy",
+      "health": {
+        "shape": "waypoints",
+        "noise": 1.5,
+        "points": [
+          [
+            -406,
+            73
+          ],
+          [
+            -160,
+            74
+          ],
+          [
+            0,
+            75
+          ]
+        ]
+      },
+      "communications": [
+        {
+          "day": -248,
+          "source_type": "meeting",
+          "source_ref": "meeting:bluefin:qbr-1",
+          "participants": [
+            {
+              "name": "Nadia Corliss",
+              "title": "Head of Quantitative Research"
+            }
+          ],
+          "text": "Review with Nadia: backtesting workloads are running to plan and the overnight window has been comfortably met every night this quarter.",
+          "expected_subtypes": [
+            "routine_review"
+          ],
+          "expected_sentiment": 0.3
+        },
+        {
+          "day": -98,
+          "source_type": "email",
+          "source_ref": "email:bluefin:steady",
+          "participants": [
+            {
+              "name": "Nadia Corliss",
+              "title": "Head of Quantitative Research"
+            }
+          ],
+          "text": "No issues from our side. The research team has been getting the throughput they need and the cost per backtest has come down as we tuned the batch sizes.",
+          "expected_subtypes": [
+            "health_improvement"
+          ],
+          "expected_sentiment": 0.55
+        },
+        {
+          "day": -20,
+          "source_type": "meeting",
+          "source_ref": "meeting:bluefin:qbr-2",
+          "participants": [
+            {
+              "name": "Nadia Corliss",
+              "title": "Head of Quantitative Research"
+            }
+          ],
+          "text": "Quiet quarter. Nothing escalated and the reservation is sized about right for the research calendar.",
+          "expected_subtypes": [
+            "routine_review"
+          ],
+          "expected_sentiment": 0.3
+        }
+      ],
+      "events": []
+    },
+    {
+      "source_account_id": "IRONBARK",
+      "name": "Ironbark Materials",
+      "arr": 3100000,
+      "industry": "Industrial R&D",
+      "region": "APAC",
+      "champion": "Mei Tanaka",
+      "champion_title": "Head of Computational Materials",
+      "renewal_day": 200,
+      "role": "steady_healthy",
+      "health": {
+        "shape": "waypoints",
+        "noise": 1.4,
+        "points": [
+          [
+            -406,
+            71
+          ],
+          [
+            -180,
+            74
+          ],
+          [
+            0,
+            78
+          ]
+        ]
+      },
+      "communications": [
+        {
+          "day": -286,
+          "source_type": "meeting",
+          "source_ref": "meeting:ironbark:qbr-1",
+          "participants": [
+            {
+              "name": "Mei Tanaka",
+              "title": "Head of Computational Materials"
+            }
+          ],
+          "text": "Review with Mei: the simulation programme is running to plan and they have started using the burst pool for the larger DFT runs.",
+          "expected_subtypes": [
+            "routine_review"
+          ],
+          "expected_sentiment": 0.3
+        },
+        {
+          "day": -140,
+          "source_type": "email",
+          "source_ref": "email:ironbark:improving",
+          "participants": [
+            {
+              "name": "Mei Tanaka",
+              "title": "Head of Computational Materials"
+            }
+          ],
+          "text": "Since the scheduler tuning session our queue times have halved and the team is getting noticeably more done in the same window. The earlier friction is gone.",
+          "expected_subtypes": [
+            "health_improvement"
+          ],
+          "expected_sentiment": 0.6
+        },
+        {
+          "day": -28,
+          "source_type": "meeting",
+          "source_ref": "meeting:ironbark:qbr-2",
+          "participants": [
+            {
+              "name": "Mei Tanaka",
+              "title": "Head of Computational Materials"
+            }
+          ],
+          "text": "Good quarter. Utilization is up, nothing escalated, and they are planning to keep the same reservation through the next programme.",
+          "expected_subtypes": [
+            "routine_review"
+          ],
+          "expected_sentiment": 0.4
+        }
+      ],
+      "events": []
+    },
+    {
+      "source_account_id": "LUMINA",
+      "name": "Lumina Health AI",
+      "arr": 3800000,
+      "industry": "Healthcare AI",
+      "region": "North America",
+      "champion": "Ravi Shanbhag",
+      "champion_title": "VP Engineering",
+      "renewal_day": 150,
+      "tier": "Strategic",
+      "role": "expansion",
+      "health": {
+        "shape": "waypoints",
+        "noise": 1.4,
+        "points": [
+          [
+            -406,
+            68
+          ],
+          [
+            -200,
+            74
+          ],
+          [
+            0,
+            82
+          ]
+        ]
+      },
+      "communications": [
+        {
+          "day": -274,
+          "source_type": "meeting",
+          "source_ref": "meeting:lumina:qbr-1",
+          "participants": [
+            {
+              "name": "Ravi Shanbhag",
+              "title": "VP Engineering"
+            }
+          ],
+          "text": "Review with Ravi: imaging model training is ramping and they are consuming ahead of the committed schedule for the first time.",
+          "expected_subtypes": [
+            "routine_review"
+          ],
+          "expected_sentiment": 0.35
+        },
+        {
+          "day": -160,
+          "source_type": "email",
+          "source_ref": "email:lumina:ramp",
+          "participants": [
+            {
+              "name": "Ravi Shanbhag",
+              "title": "VP Engineering"
+            }
+          ],
+          "text": "We have gone from about 55% to 88% utilization on the reservation in two months as the second imaging programme came online, and we are starting to queue at peak.",
+          "expected_subtypes": [
+            "utilization_ramp"
+          ],
+          "expected_sentiment": 0.5
+        },
+        {
+          "day": -76,
+          "source_type": "email",
+          "source_ref": "email:lumina:series-c",
+          "participants": [
+            {
+              "name": "Ravi Shanbhag",
+              "title": "VP Engineering"
+            }
+          ],
+          "text": "We closed our Series C last week. There is budget for a materially larger training footprint next year and I would like to talk about expanding the reservation before the silicon refresh.",
+          "expected_subtypes": [
+            "funding_raised",
+            "reservation_expansion_interest"
+          ],
+          "expected_sentiment": 0.75
+        },
+        {
+          "day": -16,
+          "source_type": "meeting",
+          "source_ref": "meeting:lumina:expansion-plan",
+          "participants": [
+            {
+              "name": "Ravi Shanbhag",
+              "title": "VP Engineering"
+            }
+          ],
+          "text": "Ravi wants to add a second cluster in the first quarter and is already bursting into the on-demand pool most weeks to cover peak. He asked for a proposal covering both the reservation increase and the refresh path.",
+          "expected_subtypes": [
+            "reservation_expansion_interest",
+            "burst_overflow"
+          ],
+          "expected_sentiment": 0.7
+        }
+      ],
+      "events": [
+        {
+          "day": -70,
+          "type": "expansion_closed",
+          "amount": 900000,
+          "linked_communication_index": 2,
+          "title": "Lumina Health AI reservation increase",
+          "evidence": "Reservation increased following the Series C close."
+        }
+      ]
+    },
+    {
+      "source_account_id": "TOROID",
+      "name": "Toroid Systems",
+      "arr": 7300000,
+      "industry": "Server OEM",
+      "region": "North America",
+      "champion": "Dieter Falk",
+      "champion_title": "Director of Platform Validation",
+      "renewal_day": 190,
+      "tier": "Strategic",
+      "role": "expansion",
+      "health": {
+        "shape": "waypoints",
+        "noise": 1.4,
+        "points": [
+          [
+            -406,
+            70
+          ],
+          [
+            -220,
+            76
+          ],
+          [
+            0,
+            81
+          ]
+        ]
+      },
+      "communications": [
+        {
+          "day": -268,
+          "source_type": "meeting",
+          "source_ref": "meeting:toroid:qbr-1",
+          "participants": [
+            {
+              "name": "Dieter Falk",
+              "title": "Director of Platform Validation"
+            }
+          ],
+          "text": "Review with Dieter: their validation suite for the next server generation is running steadily and the reserved block has been sized well.",
+          "expected_subtypes": [
+            "routine_review"
+          ],
+          "expected_sentiment": 0.3
+        },
+        {
+          "day": -172,
+          "source_type": "email",
+          "source_ref": "email:toroid:more-capacity",
+          "participants": [
+            {
+              "name": "Dieter Falk",
+              "title": "Director of Platform Validation"
+            }
+          ],
+          "text": "Validation volume has grown with the new platform programme and we are now bursting past the reservation most weeks. We should talk about a larger committed block.",
+          "expected_subtypes": [
+            "burst_overflow",
+            "utilization_ramp"
+          ],
+          "expected_sentiment": 0.5
+        },
+        {
+          "day": -60,
+          "source_type": "meeting",
+          "source_ref": "meeting:toroid:refresh",
+          "participants": [
+            {
+              "name": "Dieter Falk",
+              "title": "Director of Platform Validation"
+            }
+          ],
+          "text": "Dieter confirmed they want early access to the next-generation silicon for validation work and are willing to commit to a larger reservation to get it.",
+          "expected_subtypes": [
+            "silicon_refresh_interest"
+          ],
+          "expected_sentiment": 0.65
+        },
+        {
+          "day": -14,
+          "source_type": "email",
+          "source_ref": "email:toroid:steady-growth",
+          "participants": [
+            {
+              "name": "Dieter Falk",
+              "title": "Director of Platform Validation"
+            }
+          ],
+          "text": "The expanded block has absorbed the validation growth well and queueing at peak has stopped. We expect another step up when the next platform programme starts.",
+          "expected_subtypes": [
+            "utilization_ramp"
+          ],
+          "expected_sentiment": 0.6
+        }
+      ],
+      "events": [
+        {
+          "day": -110,
+          "type": "expansion_closed",
+          "amount": 1400000,
+          "linked_communication_index": 1,
+          "title": "Toroid Systems reservation increase",
+          "evidence": "Committed block increased to absorb validation growth."
+        }
+      ]
+    },
+    {
+      "source_account_id": "KESTREL",
+      "name": "Kestrel Autonomy",
+      "arr": 4400000,
+      "industry": "Automotive",
+      "region": "EMEA",
+      "champion": "Émile Rousseau",
+      "champion_title": "Head of Compute Platform",
+      "renewal_day": 95,
+      "role": "steady_at_risk",
+      "health": {
+        "shape": "waypoints",
+        "noise": 1.5,
+        "points": [
+          [
+            -406,
+            72
+          ],
+          [
+            -260,
+            64
+          ],
+          [
+            -120,
+            58
+          ],
+          [
+            0,
+            56
+          ]
+        ]
+      },
+      "communications": [
+        {
+          "day": -290,
+          "source_type": "meeting",
+          "source_ref": "meeting:kestrel:qbr-1",
+          "participants": [
+            {
+              "name": "Émile Rousseau",
+              "title": "Head of Compute Platform"
+            }
+          ],
+          "text": "Review with Émile: the reserved cluster has been running at about 45% against a 70% plan since the autonomy programme was re-scoped. He does not expect to catch up this quarter.",
+          "expected_subtypes": [
+            "reserved_cluster_idle",
+            "commitment_ramp_miss"
+          ],
+          "expected_sentiment": -0.5
+        },
+        {
+          "day": -190,
+          "source_type": "email",
+          "source_ref": "email:kestrel:reorg",
+          "participants": [
+            {
+              "name": "Émile Rousseau",
+              "title": "Head of Compute Platform"
+            }
+          ],
+          "text": "Our programme lead has moved to another division and the replacement has not been named yet. I have not been able to get the right people into the monthly review for two cycles.",
+          "expected_subtypes": [
+            "stakeholder_departure",
+            "engagement_gap"
+          ],
+          "expected_sentiment": -0.55
+        },
+        {
+          "day": -84,
+          "source_type": "meeting",
+          "source_ref": "meeting:kestrel:ramp-miss",
+          "participants": [
+            {
+              "name": "Émile Rousseau",
+              "title": "Head of Compute Platform"
+            }
+          ],
+          "text": "Émile confirmed they have consumed roughly 60% of the committed capacity against an 85% plan for the year and asked whether the commitment can be restructured at renewal.",
+          "expected_subtypes": [
+            "commitment_ramp_miss"
+          ],
+          "expected_sentiment": -0.55
+        },
+        {
+          "day": -20,
+          "source_type": "slack",
+          "source_ref": "slack:kestrel:C9:1789000",
+          "participants": [
+            {
+              "name": "Émile Rousseau",
+              "title": "Head of Compute Platform"
+            }
+          ],
+          "text": "Fair warning before renewal: idle share on the reservation is still around 35% and my finance team wants the committed block cut rather than renewed as it stands.",
+          "expected_subtypes": [
+            "reserved_cluster_idle"
+          ],
+          "expected_sentiment": -0.6
+        }
+      ],
+      "events": [
+        {
+          "day": -150,
+          "type": "contraction",
+          "amount": 600000,
+          "title": "Kestrel Autonomy partial contraction",
+          "evidence": "Committed block reduced after the autonomy programme was re-scoped."
+        }
+      ]
+    },
+    {
+      "source_account_id": "PINEWOOD",
+      "name": "Pinewood Media AI",
+      "arr": 1900000,
+      "industry": "Media",
+      "region": "North America",
+      "champion": "Della Whitmore",
+      "champion_title": "Head of Content Engineering",
+      "renewal_day": 60,
+      "tier": "Growth",
+      "role": "steady_at_risk",
+      "health": {
+        "shape": "waypoints",
+        "noise": 1.5,
+        "points": [
+          [
+            -406,
+            68
+          ],
+          [
+            -220,
+            60
+          ],
+          [
+            0,
+            54
+          ]
+        ]
+      },
+      "communications": [
+        {
+          "day": -256,
+          "source_type": "email",
+          "source_ref": "email:pinewood:slowdown",
+          "participants": [
+            {
+              "name": "Della Whitmore",
+              "title": "Head of Content Engineering"
+            }
+          ],
+          "text": "Our generative video programme has been paused while the rights questions get worked through, so the reserved capacity is going to sit largely unused for a while.",
+          "expected_subtypes": [
+            "reserved_cluster_idle"
+          ],
+          "expected_sentiment": -0.5
+        },
+        {
+          "day": -132,
+          "source_type": "meeting",
+          "source_ref": "meeting:pinewood:check-in",
+          "participants": [
+            {
+              "name": "Della Whitmore",
+              "title": "Head of Content Engineering"
+            }
+          ],
+          "text": "Della has not been in the console much herself and the team's engagement with the platform has dropped along with the programme. She could not commit to a restart date.",
+          "expected_subtypes": [
+            "engagement_gap",
+            "commitment_ramp_miss"
+          ],
+          "expected_sentiment": -0.55
+        },
+        {
+          "day": -26,
+          "source_type": "slack",
+          "source_ref": "slack:pinewood:C5:1789400",
+          "participants": [
+            {
+              "name": "Della Whitmore",
+              "title": "Head of Content Engineering"
+            }
+          ],
+          "text": "Still no restart date. Utilization is under 30% and my director is asking why we are carrying a reservation we are not using.",
+          "expected_subtypes": [
+            "reserved_cluster_idle"
+          ],
+          "expected_sentiment": -0.6
+        }
+      ],
+      "events": []
+    },
+    {
+      "source_account_id": "QUANTAFORGE",
+      "name": "Quanta Forge",
+      "arr": 2600000,
+      "industry": "AI/ML",
+      "region": "EMEA",
+      "champion": "Lars Bekker",
+      "champion_title": "Head of Infrastructure",
+      "renewal_day": 135,
+      "role": "steady_at_risk",
+      "health": {
+        "shape": "waypoints",
+        "noise": 1.5,
+        "points": [
+          [
+            -406,
+            70
+          ],
+          [
+            -240,
+            63
+          ],
+          [
+            -90,
+            57
+          ],
+          [
+            0,
+            59
+          ]
+        ]
+      },
+      "communications": [
+        {
+          "day": -264,
+          "source_type": "meeting",
+          "source_ref": "meeting:quantaforge:qbr-1",
+          "participants": [
+            {
+              "name": "Lars Bekker",
+              "title": "Head of Infrastructure"
+            }
+          ],
+          "text": "Review with Lars: training volume is below plan while they re-architect the data pipeline, and the reservation is running well under the committed ramp.",
+          "expected_subtypes": [
+            "commitment_ramp_miss"
+          ],
+          "expected_sentiment": -0.45
+        },
+        {
+          "day": -148,
+          "source_type": "ticket",
+          "source_ref": "ticket:quantaforge:3320",
+          "participants": [
+            {
+              "name": "Lars Bekker",
+              "title": "Head of Infrastructure"
+            }
+          ],
+          "text": "Ticket 3320: queue times at peak have been over fifteen minutes for the last two weeks against a five-minute target, and it is disrupting the research team's iteration loop.",
+          "expected_subtypes": [
+            "throughput_below_spec"
+          ],
+          "expected_sentiment": -0.5
+        },
+        {
+          "day": -32,
+          "source_type": "meeting",
+          "source_ref": "meeting:quantaforge:qbr-2",
+          "participants": [
+            {
+              "name": "Lars Bekker",
+              "title": "Head of Infrastructure"
+            }
+          ],
+          "text": "Pipeline rework is finishing and Lars expects volume to recover next quarter, but the reservation is still under-consumed and he has not committed to a ramp.",
+          "expected_subtypes": [
+            "commitment_ramp_miss"
+          ],
+          "expected_sentiment": -0.4
+        }
+      ],
+      "events": []
+    },
+    {
+      "source_account_id": "SABLE",
+      "name": "Sable Networks",
+      "arr": 3300000,
+      "industry": "Telecommunications",
+      "region": "North America",
+      "champion": "Priya Raman",
+      "champion_title": "Director of Network Intelligence",
+      "renewal_day": 220,
+      "role": "steady_at_risk",
+      "health": {
+        "shape": "waypoints",
+        "noise": 1.5,
+        "points": [
+          [
+            -406,
+            69
+          ],
+          [
+            -200,
+            62
+          ],
+          [
+            0,
+            58
+          ]
+        ]
+      },
+      "communications": [
+        {
+          "day": -244,
+          "source_type": "meeting",
+          "source_ref": "meeting:sable:qbr-1",
+          "participants": [
+            {
+              "name": "Priya Raman",
+              "title": "Director of Network Intelligence"
+            }
+          ],
+          "text": "Review with Priya: their anomaly-detection models are in production but the training cadence has slowed and the reserved block is under-used most weeks.",
+          "expected_subtypes": [
+            "reserved_cluster_idle"
+          ],
+          "expected_sentiment": -0.45
+        },
+        {
+          "day": -104,
+          "source_type": "email",
+          "source_ref": "email:sable:champion-move",
+          "participants": [
+            {
+              "name": "Priya Raman",
+              "title": "Director of Network Intelligence"
+            }
+          ],
+          "text": "I am moving to a new role inside the group at the end of the quarter. My replacement has not been appointed and the platform relationship will sit with the general infrastructure team in the meantime.",
+          "expected_subtypes": [
+            "champion_departure"
+          ],
+          "expected_sentiment": -0.65
+        },
+        {
+          "day": -30,
+          "source_type": "meeting",
+          "source_ref": "meeting:sable:handover",
+          "participants": [
+            {
+              "name": "Owen Castellan",
+              "title": "Infrastructure Manager"
+            }
+          ],
+          "text": "First call with Owen, who has picked up the relationship on an interim basis. He is not close to the modelling roadmap and could not say what next year's compute plan looks like.",
+          "expected_subtypes": [
+            "engagement_gap"
+          ],
+          "expected_sentiment": -0.5
+        }
+      ],
+      "events": [
+        {
+          "day": -200,
+          "type": "renewal_secured",
+          "amount": 3300000,
+          "title": "Sable Networks renewal",
+          "evidence": "12-month renewal executed on a flat commitment."
+        }
+      ]
+    },
+    {
+      "source_account_id": "UMBRA",
+      "name": "Umbra Defense Systems",
+      "arr": 5700000,
+      "industry": "Defense",
+      "region": "North America",
+      "champion": "Gail Trescott",
+      "champion_title": "Program Director",
+      "renewal_day": 75,
+      "tier": "Enterprise",
+      "role": "steady_at_risk",
+      "health": {
+        "shape": "waypoints",
+        "noise": 1.5,
+        "points": [
+          [
+            -406,
+            71
+          ],
+          [
+            -230,
+            63
+          ],
+          [
+            -60,
+            55
+          ],
+          [
+            0,
+            53
+          ]
+        ]
+      },
+      "communications": [
+        {
+          "day": -252,
+          "source_type": "meeting",
+          "source_ref": "meeting:umbra:qbr-1",
+          "participants": [
+            {
+              "name": "Gail Trescott",
+              "title": "Program Director"
+            }
+          ],
+          "text": "Review with Gail: the classified programme's compute demand has been re-phased and consumption is running well behind the committed ramp for the year.",
+          "expected_subtypes": [
+            "commitment_ramp_miss"
+          ],
+          "expected_sentiment": -0.5
+        },
+        {
+          "day": -158,
+          "source_type": "email",
+          "source_ref": "email:umbra:sovereignty",
+          "participants": [
+            {
+              "name": "Gail Trescott",
+              "title": "Program Director"
+            }
+          ],
+          "text": "A new sovereignty requirement means part of the workload has to move to accredited infrastructure we control. We are scoping what stays with you and what does not.",
+          "expected_subtypes": [
+            "byo_cluster_intent"
+          ],
+          "expected_sentiment": -0.6
+        },
+        {
+          "day": -66,
+          "source_type": "meeting",
+          "source_ref": "meeting:umbra:scope-review",
+          "participants": [
+            {
+              "name": "Gail Trescott",
+              "title": "Program Director"
+            }
+          ],
+          "text": "Gail confirmed roughly a third of the workload is moving to their accredited environment during the next programme phase. The remainder stays but the reservation will need resizing.",
+          "expected_subtypes": [
+            "multicloud_diversification",
+            "commitment_ramp_miss"
+          ],
+          "expected_sentiment": -0.6
+        },
+        {
+          "day": -18,
+          "source_type": "meeting",
+          "source_ref": "meeting:umbra:renewal-scope",
+          "participants": [
+            {
+              "name": "Gail Trescott",
+              "title": "Program Director"
+            }
+          ],
+          "text": "Ahead of the November renewal Gail wants the committed block re-cut to reflect the reduced scope, and she is under instruction to benchmark alternative providers for the remainder.",
+          "expected_subtypes": [
+            "competitor_capacity_offer"
+          ],
+          "expected_sentiment": -0.65
+        }
+      ],
+      "events": []
+    },
+    {
+      "source_account_id": "WILLOWBROOK",
+      "name": "Willowbrook Retail AI",
+      "arr": 1200000,
+      "industry": "Retail",
+      "region": "EMEA",
+      "champion": "Jonah Priestley",
+      "champion_title": "Head of Data Science",
+      "renewal_day": 45,
+      "tier": "Growth",
+      "role": "steady_at_risk",
+      "health": {
+        "shape": "waypoints",
+        "noise": 1.6,
+        "points": [
+          [
+            -406,
+            66
+          ],
+          [
+            -200,
+            59
+          ],
+          [
+            0,
+            55
+          ]
+        ]
+      },
+      "communications": [
+        {
+          "day": -236,
+          "source_type": "meeting",
+          "source_ref": "meeting:willowbrook:qbr-1",
+          "participants": [
+            {
+              "name": "Jonah Priestley",
+              "title": "Head of Data Science"
+            }
+          ],
+          "text": "Review with Jonah: demand-forecasting models are retrained monthly rather than weekly now, so consumption has dropped well below the committed level.",
+          "expected_subtypes": [
+            "commitment_ramp_miss",
+            "reserved_cluster_idle"
+          ],
+          "expected_sentiment": -0.5
+        },
+        {
+          "day": -118,
+          "source_type": "email",
+          "source_ref": "email:willowbrook:budget",
+          "participants": [
+            {
+              "name": "Jonah Priestley",
+              "title": "Head of Data Science"
+            }
+          ],
+          "text": "Group has cut the data science budget for next year and everything with a committed spend is being reviewed. I cannot promise our renewal survives at the current size.",
+          "expected_subtypes": [
+            "runway_risk"
+          ],
+          "expected_sentiment": -0.7
+        },
+        {
+          "day": -34,
+          "source_type": "meeting",
+          "source_ref": "meeting:willowbrook:renewal-risk",
+          "participants": [
+            {
+              "name": "Jonah Priestley",
+              "title": "Head of Data Science"
+            }
+          ],
+          "text": "Jonah confirmed procurement has asked for quotes from two cheaper providers ahead of the October renewal, and the decision will be made on price.",
+          "expected_subtypes": [
+            "competitor_capacity_offer"
+          ],
+          "expected_sentiment": -0.7
+        }
+      ],
+      "crm_flag_day": -40,
+      "events": []
+    },
+    {
+      "source_account_id": "FERROUS",
+      "name": "Ferrous Compute",
+      "arr": 2100000,
+      "industry": "Digital Infrastructure",
+      "region": "North America",
+      "champion": "Stig Halloran",
+      "champion_title": "VP Operations",
+      "renewal_day": 30,
+      "role": "steady_critical",
+      "health": {
+        "shape": "waypoints",
+        "noise": 1.6,
+        "points": [
+          [
+            -406,
+            58
+          ],
+          [
+            -240,
+            47
+          ],
+          [
+            -100,
+            40
+          ],
+          [
+            0,
+            38
+          ]
+        ]
+      },
+      "communications": [
+        {
+          "day": -270,
+          "source_type": "email",
+          "source_ref": "email:ferrous:pivot",
+          "participants": [
+            {
+              "name": "Stig Halloran",
+              "title": "VP Operations"
+            }
+          ],
+          "text": "We are winding down the mining side of the business and the AI inference pivot is taking longer than planned. Consumption on the reservation is going to stay low for at least two quarters.",
+          "expected_subtypes": [
+            "reserved_cluster_idle",
+            "commitment_ramp_miss"
+          ],
+          "expected_sentiment": -0.6
+        },
+        {
+          "day": -164,
+          "source_type": "email",
+          "source_ref": "email:ferrous:invoices",
+          "participants": [
+            {
+              "name": "Stig Halloran",
+              "title": "VP Operations"
+            }
+          ],
+          "text": "Two invoices are going to be late this quarter while we complete a bridge financing round. We expect to be current by the end of next month but I wanted to flag it rather than have you find out.",
+          "expected_subtypes": [
+            "payment_delinquency",
+            "runway_risk"
+          ],
+          "expected_sentiment": -0.75
+        },
+        {
+          "day": -74,
+          "source_type": "meeting",
+          "source_ref": "meeting:ferrous:restructure",
+          "participants": [
+            {
+              "name": "Stig Halloran",
+              "title": "VP Operations"
+            }
+          ],
+          "text": "Stig confirmed the bridge closed smaller than hoped and they are restructuring every committed contract. He asked what the smallest reservation we would accept is.",
+          "expected_subtypes": [
+            "runway_risk"
+          ],
+          "expected_sentiment": -0.75
+        },
+        {
+          "day": -22,
+          "source_type": "meeting",
+          "source_ref": "meeting:ferrous:renewal-doubt",
+          "participants": [
+            {
+              "name": "Stig Halloran",
+              "title": "VP Operations"
+            }
+          ],
+          "text": "Their board has told them to eliminate committed compute spend entirely until the inference business has revenue. Stig does not expect to renew at any size in October.",
+          "expected_subtypes": [
+            "runway_risk",
+            "competitor_capacity_offer"
+          ],
+          "expected_sentiment": -0.85
+        }
+      ],
+      "crm_flag_day": -60,
+      "events": [
+        {
+          "day": -80,
+          "type": "contraction",
+          "amount": 700000,
+          "title": "Ferrous Compute contraction",
+          "evidence": "Committed block cut during the contract restructuring."
+        }
+      ]
+    },
+    {
+      "source_account_id": "ZEPHYR",
+      "name": "Zephyr Mobility",
+      "arr": 1600000,
+      "industry": "Automotive",
+      "region": "APAC",
+      "champion": "Haruto Ishikawa",
+      "champion_title": "Head of AI Platform",
+      "renewal_day": 20,
+      "tier": "Growth",
+      "role": "steady_critical",
+      "health": {
+        "shape": "waypoints",
+        "noise": 1.6,
+        "points": [
+          [
+            -406,
+            60
+          ],
+          [
+            -250,
+            50
+          ],
+          [
+            -120,
+            44
+          ],
+          [
+            0,
+            42
+          ]
+        ]
+      },
+      "communications": [
+        {
+          "day": -278,
+          "source_type": "meeting",
+          "source_ref": "meeting:zephyr:qbr-1",
+          "participants": [
+            {
+              "name": "Haruto Ishikawa",
+              "title": "Head of AI Platform"
+            }
+          ],
+          "text": "Review with Haruto: the autonomous driving programme has been narrowed to a single city and compute demand has fallen with it. The reservation is roughly twice what they now need.",
+          "expected_subtypes": [
+            "reserved_cluster_idle",
+            "commitment_ramp_miss"
+          ],
+          "expected_sentiment": -0.6
+        },
+        {
+          "day": -172,
+          "source_type": "email",
+          "source_ref": "email:zephyr:champion-exit",
+          "participants": [
+            {
+              "name": "Haruto Ishikawa",
+              "title": "Head of AI Platform"
+            }
+          ],
+          "text": "I am leaving the company at the end of next month. The AI platform team is being folded into the wider engineering group and I do not know who will own this relationship afterwards.",
+          "expected_subtypes": [
+            "champion_departure",
+            "org_change"
+          ],
+          "expected_sentiment": -0.75
+        },
+        {
+          "day": -60,
+          "source_type": "meeting",
+          "source_ref": "meeting:zephyr:new-owner",
+          "participants": [
+            {
+              "name": "Kenji Aramaki",
+              "title": "Engineering Manager"
+            }
+          ],
+          "text": "First call with Kenji since the reorganisation. He was not aware of the committed reservation, has no budget line for it next year, and asked what the exit terms are.",
+          "expected_subtypes": [
+            "engagement_gap",
+            "runway_risk"
+          ],
+          "expected_sentiment": -0.8
+        },
+        {
+          "day": -24,
+          "source_type": "email",
+          "source_ref": "email:zephyr:decommission",
+          "participants": [
+            {
+              "name": "Kenji Aramaki",
+              "title": "Engineering Manager"
+            }
+          ],
+          "text": "We will be decommissioning our reserved cluster at the end of the contract term. The remaining workloads are moving in-house alongside the wider engineering consolidation.",
+          "expected_subtypes": [
+            "cluster_decommissioned"
+          ],
+          "expected_sentiment": -0.9
+        }
+      ],
+      "crm_flag_day": -90,
+      "events": []
+    }
+  ]
+}

@@ -42,6 +42,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import hashlib
 import io
 import json
 import os
@@ -112,8 +113,19 @@ def health_to_kpi_value(h: float, kpi_def: dict) -> float:
 def health_at(day: int, spec: dict, start_day: int, at_risk: float) -> float:
     """Health for a relative day from the account's curve spec.
     shapes: flat | ramp | decline (crosses at-risk at trailing_cross_day) |
-            dip_recover (min at dip_day, back to `end`)."""
+            dip_recover (min at dip_day, back to `end`) |
+            waypoints (piecewise-linear through [[day, health], ...], held flat
+            outside the first/last point — the shape a multi-phase story needs
+            when one dip and one recovery are not enough)."""
     shape = spec.get('shape', 'flat')
+    if shape == 'waypoints':
+        pts = sorted((int(d), float(h)) for d, h in spec['points'])
+        if day <= pts[0][0]:
+            return pts[0][1]
+        for (d0, h0), (d1, h1) in zip(pts, pts[1:]):
+            if day <= d1:
+                return h0 + (h1 - h0) * (day - d0) / max(1, (d1 - d0))
+        return pts[-1][1]
     s, e = float(spec['start']), float(spec.get('end', spec['start']))
     if shape == 'flat':
         return s
@@ -184,6 +196,58 @@ def expand_accounts(manifest: dict) -> List[dict]:
     return accounts
 
 
+def _account_seed(seed, account: dict) -> int:
+    """A stable per-account RNG seed. blake2b, not hash(): PYTHONHASHSEED salts str
+    hashing per process, and a demo tenant must generate identically on every run."""
+    sid = account.get('source_account_id') or account.get('name') or ''
+    return int.from_bytes(hashlib.blake2b(f'{seed}|{sid}'.encode('utf-8'), digest_size=8).digest(), 'big')
+
+
+def slice_manifest(manifest: dict, through_day: int) -> dict:
+    """The manifest as it stood on `through_day` — the tenant's data as of that
+    date, nothing later.
+
+    Real data arrives over time, and so does the product's reaction to it: a
+    playbook evaluates the LATEST leading month (playbooks.governance._match),
+    so a story with two intervention cycles months apart can only be built by
+    feeding the tenant in tranches and closing the loop between them. This is
+    that seam — generate + register a slice, act on it, then the next slice.
+
+    Trailing communications, events and KPI months are dropped; the health curve
+    keeps its original anchor (timeline.history_days), so a slice's KPI values
+    are identical to the full run's for the days it does emit. Background
+    accounts are expanded first so their generated communications slice too.
+    Re-registering an earlier slice's rows is safe by design — KPI rows insert
+    on-conflict-do-nothing and the signal engine dedups communications — so a
+    tranche may simply be the whole story up to its day.
+    """
+    through_day = int(through_day)
+    out = dict(manifest)
+    out.pop('background', None)
+    out['timeline'] = {**manifest['timeline'], 'future_days': through_day}
+    accounts = []
+    for a in expand_accounts(manifest):
+        sid = a.get('source_account_id') or a.get('name')
+        comms = list(a.get('communications') or [])
+        kept = [c for c in comms if int(c['day']) <= through_day]
+        events = []
+        for j, e in enumerate(a.get('events') or []):
+            if int(e['day']) > through_day:
+                continue
+            li = e.get('linked_communication_index')
+            if li is not None and int(li) >= len(kept):
+                raise ManifestError(f'{manifest.get("manifest_id", "<manifest>")}/{sid}/events[{j}]: kept at day '
+                                    f'{e["day"]} but its linked communication [{li}] is after through_day '
+                                    f'{through_day} — an event cannot cite evidence the tenant does not have yet')
+            events.append(e)
+        a = {**a, 'communications': kept, 'events': events}
+        if a.get('crm_flag_day') is not None and int(a['crm_flag_day']) > through_day:
+            a.pop('crm_flag_day')
+        accounts.append(a)
+    out['accounts'] = accounts
+    return out
+
+
 def _account_row(a: dict, manifest: dict, t0: datetime, rng: random.Random) -> dict:
     sid = a.get('source_account_id') or a['name'].upper().replace(' ', '-')[:12]
     renewal = (t0 + timedelta(days=a.get('renewal_day', 180))).date().isoformat()
@@ -219,13 +283,20 @@ def generate(manifest: dict) -> Dict[str, str]:
     start_day = -int(manifest['timeline']['history_days'])
     end_day = int(manifest['timeline'].get('future_days', 14))
     cadence = int(manifest['timeline'].get('kpi_cadence_days', 7))
-    rng = random.Random(manifest.get('seed', 1))
+    seed = manifest.get('seed', 1)
     at_risk = ht.at_risk_min()
 
     accounts = expand_accounts(manifest)
     acct_rows, kpi_rows, sig_rows, out_rows = [], [], [], []
 
     for a in accounts:
+        # One stream PER ACCOUNT, not one for the whole manifest: the KPI loop below draws
+        # day-major, so a slice (slice_manifest) that stops the loop early consumes a strict
+        # prefix of this account's draws and every day it does emit keeps the value the full
+        # run gave it. A single shared stream made an account's noise depend on how many days
+        # the accounts before it happened to emit, so tranche N and tranche N+1 disagreed on
+        # months they both covered.
+        rng = random.Random(_account_seed(seed, a))
         row = _account_row(a, manifest, t0, rng)
         sid = row['source_account_id']
         acct_rows.append(row)
@@ -472,9 +543,14 @@ def main(argv=None):
                     help='v2 only: auto (model with ANTHROPIC_API_KEY, else oracle), model (engine default), '
                          'stub (keyword floor), oracle (manifest labels — not a model result)')
     ap.add_argument('--scorecard-dir', default=str(OUT_DIR), help='v2 only: where the scorecard + labelled JSONL go')
+    ap.add_argument('--through-day', type=int,
+                    help='emit the tenant as it stood on this day relative to t0 (slice_manifest): KPI months, '
+                         'communications and events at or before it. How a multi-tranche story is fed.')
     args = ap.parse_args(argv)
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     manifest = load_manifest(args.manifest)
+    if args.through_day is not None:
+        manifest = slice_manifest(manifest, args.through_day)
     files = generate(manifest)
     if args.out_dir:
         os.makedirs(args.out_dir, exist_ok=True)

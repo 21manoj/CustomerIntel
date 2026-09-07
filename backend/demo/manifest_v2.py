@@ -27,14 +27,29 @@ scorecard compares against. Nothing here writes typed signal rows.
         "crm_flag_day": -40,                              # the CSM's own flag: structured path, stays declared
         "events": [{"day": 0, "type": "contraction", "amount": -144000, "linked_communication_index": 0, ...}]
       }],
-      "background": {...}                                 # as v1; background accounts get generated communications
+      "background": {...},                                # as v1; background accounts get generated communications
+
+      # OPTIONAL — the driven story (scripts/drive_tenant_story.py). A playbook
+      # evaluates the LATEST leading month only, so a tenant loaded in one shot can
+      # fire on its final month and nothing else. Tranches feed it the way a real
+      # tenant lives, and the product reacts to each arrival before the next lands.
+      "tranches":      [{"id": "t1", "through_day": -294}, ...],     # ascending; demo.generate.slice_manifest
+      "interventions": [{"tranche": "t1", "source_account_id": "CEREBRIX",
+                         "playbook_id": "incident_escalation",       # must exist for the vertical
+                         "approve_note": "...",
+                         "report": {"state": "done",                 # done | failed | cancelled
+                                    "outcome_type": "revenue_protected",   # the vertical's revenue vocabulary
+                                    "outcome_day": -268, "revenue": 8400000, "note": "..."}}]
     }
 
 Validation is at load and fails loudly: unknown subtype for the
 vertical, unknown source type, unsorted days, a communication with no
 named participant, duplicate text on one account (the engine would
 dedup it silently), a linked event index out of range, a KPI-layer
-account without a health curve.
+account without a health curve, an unknown or malformed health shape,
+and — for the driven story — a tranche out of order, an intervention
+naming a playbook the vertical does not have, an account the manifest
+does not have, or an outcome type outside the vertical's revenue buckets.
 """
 from __future__ import annotations
 
@@ -82,6 +97,36 @@ def _sentence_count(text: str) -> int:
     return len([s for s in re.split(r'[.!?]+(?:\s|$)', text.strip()) if s.strip()])
 
 
+HEALTH_SHAPES = ('flat', 'ramp', 'decline', 'dip_recover', 'waypoints')
+_SHAPE_REQUIRES = {'decline': ('start', 'trailing_cross_day'), 'dip_recover': ('start', 'dip_day', 'dip'),
+                   'ramp': ('start', 'end'), 'flat': ('start',), 'waypoints': ('points',)}
+
+
+def validate_health(spec: dict, where: str) -> None:
+    """The curve demo.generate.health_at will be asked to walk. Checked here so a
+    bad shape fails at load with the account's name, not mid-generation."""
+    shape = spec.get('shape', 'flat')
+    if shape not in HEALTH_SHAPES:
+        raise ManifestError(f'{where}: health.shape {shape!r} is not one of {list(HEALTH_SHAPES)}')
+    missing = [k for k in _SHAPE_REQUIRES[shape] if k not in spec]
+    if missing:
+        raise ManifestError(f'{where}: health.shape {shape!r} needs {missing}')
+    if shape != 'waypoints':
+        return
+    pts = spec['points']
+    if not isinstance(pts, list) or len(pts) < 2:
+        raise ManifestError(f'{where}: health.points must be a list of at least two [day, health] pairs')
+    days = []
+    for p in pts:
+        if not (isinstance(p, (list, tuple)) and len(p) == 2):
+            raise ManifestError(f'{where}: health.points entries must be [day, health], got {p!r}')
+        if not 0 <= float(p[1]) <= 100:
+            raise ManifestError(f'{where}: health.points health {p[1]!r} must be within [0, 100]')
+        days.append(int(p[0]))
+    if len(set(days)) != len(days):
+        raise ManifestError(f'{where}: health.points has duplicate days {sorted(days)}')
+
+
 def validate_manifest(manifest: dict) -> None:
     """Raise ManifestError on the first problem. v1 manifests pass through."""
     if not is_v2(manifest):
@@ -112,6 +157,8 @@ def validate_manifest(manifest: dict) -> None:
             raise ManifestError(f'{where}/{sid}: arr is required')
         if not signals_only(manifest) and not a.get('health'):
             raise ManifestError(f'{where}/{sid}: health curve is required unless "kpis": "{KPIS_NONE}"')
+        if a.get('health'):
+            validate_health(a['health'], f'{where}/{sid}')
         comms = a.get('communications')
         if comms is None:
             raise ManifestError(f'{where}/{sid}: v2 accounts declare "communications" (an empty list is allowed)')
@@ -159,6 +206,60 @@ def validate_manifest(manifest: dict) -> None:
             for k in ('day', 'type', 'amount'):
                 if k not in e:
                     raise ManifestError(f'{tag}: {k} is required')
+    validate_story(manifest, seen_ids)
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# The driven story — tranches and the intervention cycles between them
+# ═══════════════════════════════════════════════════════════════════════
+
+def validate_story(manifest: dict, account_ids: set) -> None:
+    """`tranches` and `interventions`: the manifest's OWN account ids and the
+    vertical's OWN playbooks, checked at load so the driver
+    (scripts/drive_tenant_story.py) never discovers a typo half way through a
+    tenant it has already created."""
+    where = manifest.get('manifest_id', '<manifest>')
+    tranches = manifest.get('tranches') or []
+    if not tranches:
+        if manifest.get('interventions'):
+            raise ManifestError(f'{where}: "interventions" needs "tranches" — an intervention fires on a tranche')
+        return
+    ids, last = set(), None
+    for i, t in enumerate(tranches):
+        tag = f'{where}/tranches[{i}]'
+        tid = t.get('id')
+        if not tid:
+            raise ManifestError(f'{tag}: id is required')
+        if tid in ids:
+            raise ManifestError(f'{tag}: duplicate tranche id {tid!r}')
+        ids.add(tid)
+        if not isinstance(t.get('through_day'), int):
+            raise ManifestError(f'{tag}: through_day must be an integer (relative to t0)')
+        if last is not None and t['through_day'] <= last:
+            raise ManifestError(f'{tag}: through_day {t["through_day"]} must be after the previous tranche ({last})')
+        last = t['through_day']
+
+    from playbooks.definitions import load_vertical
+    known_pb = {p['id'] for p in load_vertical(manifest['vertical'])['playbooks']}
+    from utils.taxonomy_loader import get_taxonomy
+    taxonomy = get_taxonomy(manifest['vertical'])
+    for i, iv in enumerate(manifest.get('interventions') or []):
+        tag = f'{where}/interventions[{i}]'
+        if iv.get('tranche') not in ids:
+            raise ManifestError(f'{tag}: tranche {iv.get("tranche")!r} is not one of {sorted(ids)}')
+        if iv.get('source_account_id') not in account_ids:
+            raise ManifestError(f'{tag}: source_account_id {iv.get("source_account_id")!r} is not an account in this manifest')
+        if iv.get('playbook_id') not in known_pb:
+            raise ManifestError(f'{tag}: playbook_id {iv.get("playbook_id")!r} is not a {manifest["vertical"]} playbook '
+                                f'(known: {sorted(known_pb)})')
+        rep = iv.get('report') or {}
+        if rep.get('state') not in ('done', 'failed', 'cancelled'):
+            raise ManifestError(f'{tag}: report.state must be done | failed | cancelled (got {rep.get("state")!r})')
+        ot = rep.get('outcome_type')
+        if ot and not taxonomy.revenue_bucket(ot):
+            raise ManifestError(f'{tag}: report.outcome_type {ot!r} is not in the {manifest["vertical"]} revenue buckets')
+        if 'outcome_day' in rep and not isinstance(rep['outcome_day'], int):
+            raise ManifestError(f'{tag}: report.outcome_day must be an integer (relative to t0)')
 
 
 # ═══════════════════════════════════════════════════════════════════════
