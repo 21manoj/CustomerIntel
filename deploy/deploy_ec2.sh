@@ -113,7 +113,15 @@ cat deploy/Caddyfile.customerintelv1.snippet >> "$CADDYFILE.new"
 if cmp -s "$CADDYFILE" "$CADDYFILE.new"; then
   rm -f "$CADDYFILE.new"; echo "Caddy site already current"
 else
-  mv "$CADDYFILE.new" "$CADDYFILE"; echo "Caddy site rewritten from the snippet (previous: $CADDYFILE.bak)"
+  # Write IN PLACE (truncate + copy into the existing inode), not `mv`. cspulse-caddy
+  # bind-mounts this single file at container start; `mv` replaces the inode at this path,
+  # which orphans that bind mount from the new content — found 2026-09-08 the hard way:
+  # the host file, `caddy validate`, and `caddy reload` all reported success, but the
+  # running container kept serving the OLD file (different md5sum from the host copy)
+  # because its mount never followed the rename. `caddy reload` re-reads from the
+  # container's (stale) view, so it silently reloaded the config it already had.
+  cat "$CADDYFILE.new" > "$CADDYFILE"; rm -f "$CADDYFILE.new"
+  echo "Caddy site rewritten from the snippet (previous: $CADDYFILE.bak)"
 fi
 # Validate before reloading. A reload of a broken config leaves the OLD one running, but
 # this Caddy fronts other sites too — fail loudly and put the previous file back rather
@@ -121,11 +129,20 @@ fi
 if ! docker exec -w /etc/caddy cspulse-caddy caddy validate --adapter caddyfile --config /etc/caddy/Caddyfile >/dev/null 2>&1; then
   echo "Caddyfile FAILED validation — restoring $CADDYFILE.bak and aborting:"
   docker exec -w /etc/caddy cspulse-caddy caddy validate --adapter caddyfile --config /etc/caddy/Caddyfile 2>&1 | tail -20
-  cp "$CADDYFILE.bak" "$CADDYFILE"
+  cat "$CADDYFILE.bak" > "$CADDYFILE"
   exit 1
 fi
 docker exec -w /etc/caddy cspulse-caddy caddy reload --config /etc/caddy/Caddyfile 2>/dev/null \
   || docker exec cspulse-caddy caddy reload --config /etc/caddy/Caddyfile
+# Belt and suspenders: prove the container's view actually matches what's on disk now,
+# since `caddy reload` gave no error the day it silently no-op'd (above). A restart
+# re-attaches the bind mount fresh, so it can't have this problem — only pay for it
+# on the rare deploy where reload wasn't enough.
+if [ "$(docker exec cspulse-caddy md5sum /etc/caddy/Caddyfile | cut -d' ' -f1)" != "$(md5sum "$CADDYFILE" | cut -d' ' -f1)" ]; then
+  echo "Caddy container's config still stale after reload — restarting the container"
+  docker restart cspulse-caddy >/dev/null
+  sleep 3
+fi
 
 if [ "$RUN_TESTS" = 1 ]; then
   echo "running the test suite inside the container (customerintel_test) ..."
