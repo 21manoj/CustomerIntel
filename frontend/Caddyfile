@@ -1,0 +1,50 @@
+# Static server for the built SPA — runs as `customerintelv1-web` inside the
+# customerintelv1 compose project (deploy/docker-compose.customerintelv1.yml).
+# The box's shared Caddy fronts it under the existing hostname; see
+# deploy/Caddyfile.customerintelv1.snippet for the split.
+#
+# Deliberately does NOT proxy the API. The shared Caddy sends /mcp, /health,
+# /api/* and /app/api/* straight to customerintelv1-app:8101, exactly as it did
+# before a frontend existed, so this container going down can never take the MCP
+# or API surface with it — it only ever costs the browser app.
+{
+	admin off
+	# TLS terminates at the shared Caddy; this hop is plain HTTP on the internal
+	# docker network. auto_https off also stops it trying to bind :443.
+	auto_https off
+}
+
+:8080 {
+	log {
+		output stdout
+		format console
+	}
+
+	# SPA_ROOT is /srv in the image (frontend/Dockerfile copies dist there). It is
+	# overridable only so this exact file can be run against a local `npm run build`
+	# output when verifying the routing — same config, no separate "local" copy to
+	# drift from the deployed one.
+
+	# Vite writes content-hashed filenames under /assets (index-<hash>.js/.css),
+	# so those are safe to cache forever — a new build is a new URL.
+	handle /assets/* {
+		root * {$SPA_ROOT:/srv}
+		header Cache-Control "public, max-age=31536000, immutable"
+		file_server
+	}
+
+	handle {
+		root * {$SPA_ROOT:/srv}
+		# index.html is NOT content-hashed: cache it and a deploy leaves browsers
+		# asking for asset bundles that no longer exist. Same for the SVGs.
+		header Cache-Control "no-cache"
+		# frontend/src/main.tsx mounts BrowserRouter, so /portfolio, /accounts/64,
+		# /accounts/64/canvas etc. are client-side routes with no file behind them.
+		# Any path that is not a real file gets index.html and react-router resolves
+		# it; without this, reloading or deep-linking any route is a hard 404.
+		try_files {path} /index.html
+		file_server
+	}
+
+	encode zstd gzip
+}

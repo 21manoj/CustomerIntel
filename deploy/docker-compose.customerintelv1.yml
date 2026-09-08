@@ -5,8 +5,9 @@
 #   docker compose -p customerintelv1 -f docker-compose.customerintelv1.yml up -d --build
 #
 # Joins Caddy's network (cspulse_cspulse-net, external) so the existing
-# Caddy can reverse_proxy to customerintelv1-app:8101 under its own
-# hostname; nothing here touches the old stack's containers or ports.
+# Caddy can reverse_proxy to customerintelv1-app:8101 (API/MCP) and
+# customerintelv1-web:8080 (the browser app) under one hostname; nothing
+# here touches the old stack's containers or ports.
 # Host ports are bound to 127.0.0.1 only — 443 stays Caddy's.
 
 name: customerintelv1
@@ -70,6 +71,35 @@ services:
           memory: 1536m
     networks:
       - default
+      - cspulse-net
+
+  # The browser app: ../frontend is built (npm ci && npm run build) inside its own
+  # image and the dist/ served by a small Caddy — see frontend/Dockerfile. No Node
+  # on the box, and no static-file serving bolted onto the Python app.
+  #
+  # Only on cspulse-net: it talks to nothing in this project (the shared Caddy routes
+  # the API straight to customerintelv1-app), it just has to be resolvable BY that
+  # Caddy. Deliberately no depends_on the app — a static bundle has no boot dependency
+  # on the API, and coupling them would let a slow app start hold back the login page.
+  customerintelv1-web:
+    build:
+      context: ../frontend
+    image: customerintelv1-web
+    container_name: customerintelv1-web
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8102:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8080/index.html || exit 1"]
+      interval: 30s
+      timeout: 5s
+      start_period: 5s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 128m
+    networks:
       - cspulse-net
 
 volumes:

@@ -1,8 +1,36 @@
-# Appended to ~/caddy/Caddyfile by deploy_ec2.sh (once). Sibling of the
-# old stack's site; its own certificate via sslip.io.
+# customerintelv1 — managed block, rewritten by deploy_ec2.sh on every deploy.
+# Edit this file in git, never ~/caddy/Caddyfile by hand: the script replaces the
+# whole site block (and these comments) from this snippet. Sibling of the old
+# stack's site; its own certificate via sslip.io.
+#
+# One hostname, two upstreams:
+#   the API/MCP surface  → customerintelv1-app:8101   (uvicorn, unchanged)
+#   everything else      → customerintelv1-web:8080   (built React SPA, its own Caddy)
+#
+# The split is by explicit API prefix rather than "proxy the app and let it 404",
+# because the app serves no static files and the SPA answers no API calls. Keeping
+# the API arm pointed straight at the app means the web container is never in the
+# path of /mcp or /app/api — if it is down or mid-rebuild the API and the claude.ai
+# connector are untouched, only the browser app is.
+#
+# The prefix list below must cover every top-level path backend/server.py registers.
+# backend/tests/test_caddy_site_routes.py reads this file and fails if a route is
+# registered that no prefix here matches, so a new top-level namespace cannot
+# silently start being answered with index.html.
+#
+# Note this shadows the app's own GET / JSON descriptor ({"server":...,"mcp":"/mcp"})
+# behind the SPA — deliberate, that was a placeholder for exactly this. /health still
+# carries the same information and is what every check already uses.
 customerintelv1.3-218-251-181.sslip.io {
-	reverse_proxy customerintelv1-app:8101 {
-		# MCP streamable-HTTP / SSE: no buffering, long-lived streams
-		flush_interval -1
+	@backend path /mcp /mcp/* /health /api /api/* /app/api /app/api/*
+	handle @backend {
+		reverse_proxy customerintelv1-app:8101 {
+			# MCP streamable-HTTP / SSE: no buffering, long-lived streams
+			flush_interval -1
+		}
+	}
+
+	handle {
+		reverse_proxy customerintelv1-web:8080
 	}
 }
