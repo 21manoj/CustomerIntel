@@ -299,8 +299,13 @@ export default function AccountDetail() {
         </dl>
         {acct.use_cases.length > 0 && (
           <div className="mt-3 flex flex-wrap gap-1.5">
-            {acct.use_cases.map((uc) => (
-              <span key={uc} className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">{uc}</span>
+            {acct.use_cases.map((uc, i) => (
+              <span key={`${uc.name}-${i}`} className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">
+                {uc.name}
+                {uc.product ? <span className="text-slate-400"> ({uc.product})</span> : null}
+                {uc.status ? <span className="text-slate-400"> · {uc.status}</span> : null}
+                {uc.target_date ? <span className="text-slate-400"> · target {day(uc.target_date)}</span> : null}
+              </span>
             ))}
           </div>
         )}

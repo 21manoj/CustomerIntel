@@ -57,11 +57,23 @@ export interface DataCoverage {
   contract_shape: string
 }
 
+/** The roster's use_cases column, as utils/csv_ingest.parse_use_cases() emits it:
+ *  always objects, never bare strings — a ';'-separated cell is normalised to
+ *  [{name}] on ingest. Typing this `string[]` crashed AccountDetail on any tenant
+ *  that actually declared use cases. */
+export interface UseCase {
+  name: string
+  product?: string
+  status?: string
+  owner?: string
+  target_date?: string
+}
+
 export interface PortfolioRow {
   account_id: number
   account_name: string
   revenue: number | null
-  use_cases: string[]
+  use_cases: UseCase[]
   contract_type: string | null
   arc_type: string | null
   state: string | null
@@ -297,7 +309,7 @@ export interface EvidenceView {
 }
 
 export interface AccountBlock {
-  use_cases: string[]
+  use_cases: UseCase[]
   contract_type: string | null
   renewal_date: string | null
   refresh_date: string | null
