@@ -22,6 +22,7 @@ from typing import Dict, List, Optional
 import utils.health_thresholds as ht
 from roi import settings
 from roi.basis import assumed_link, money
+from roi.benchmarks import kpi_higher_is_better           # one reading of the catalog's direction, shared with roi.benchmarks
 
 WEIGHT_SOURCE_HEALTH_ROW = 'health_row'
 WEIGHT_SOURCE_CUSTOMER_CONFIG = 'customer_config'
@@ -76,9 +77,7 @@ def _one_pct_value_move(kdef: dict, value: float) -> dict:
     """Score delta for a 1 % move of the KPI's raw value in its better direction, through the catalog curve."""
     from utils.generic_scorer import score_kpi
     pct = float(settings.get('one_pct'))
-    target = kdef.get('target')
-    op = target.get('operator', '>') if isinstance(target, dict) else '>'
-    higher = kdef.get('higher_is_better', op in ('>', '>='))
+    higher = kpi_higher_is_better(kdef)
     after = value * (1 + pct) if higher else value * (1 - pct)
     now_s, after_s = score_kpi(value, kdef), score_kpi(after, kdef)
     return {'value_now': value, 'value_after': round(after, 4), 'direction': 'up' if higher else 'down',

@@ -13,13 +13,22 @@ protect_override_risk, else the larger factor, the other kept as
 secondary_lens. Every row cites the episodes it rests on and lists the
 open interventions (a proposed row is a decision waiting).
 One scoring function serves the tool, the route and the portfolio row.
+
+Ranking (2026-09-08): rows are ordered by `addressable_weighted` =
+revenue_weighted × the account's peer-headroom multiplier (roi.benchmarks),
+read off the industry_benchmark nodes already in the graph — the same
+exposure is worth less to chase where the tenant's KPIs already sit at the
+top of the peer distribution. The multiplier is a floored discount, never a
+boost, and an account with no peer coverage is not discounted at all, so
+addressable_weighted == revenue_weighted and the order is unchanged wherever
+no benchmarks were loaded. revenue_weighted itself is untouched.
 """
 from __future__ import annotations
 
 from typing import Dict, List, Optional, Tuple
 
 import utils.health_thresholds as ht
-from roi import settings
+from roi import benchmarks, settings
 from roi.basis import money
 
 NONE = 'none'
@@ -158,9 +167,11 @@ def _lens(risk: float, opportunity: float, cfg: dict) -> Tuple[str, Optional[str
     return LENS_GROW, (LENS_PROTECT if risk >= floor else None)
 
 
-def score_account(journey: dict, account, urgencies: Dict[int, Optional[str]], open_rows: List[dict], taxonomy) -> dict:
+def score_account(journey: dict, account, urgencies: Dict[int, Optional[str]], open_rows: List[dict], taxonomy,
+                  headroom: Optional[dict] = None) -> dict:
     """The one scoring function. `journey` is the account's journey_json; `urgencies` the effective_urgency
-    of its evidence nodes; `open_rows` its open interventions."""
+    of its evidence nodes; `open_rows` its open interventions; `headroom` its peer-benchmark block
+    (roi.benchmarks) — omitted means not_covered, which discounts nothing."""
     from mcp_server.common import get_account_arr
     cfg = settings.get('priority')
     w = cfg['weights']
@@ -177,15 +188,25 @@ def score_account(journey: dict, account, urgencies: Dict[int, Optional[str]], o
     by_id = {e['episode_id']: e for e in journey.get('episodes', [])}
     cited_nids = list(dict.fromkeys(nids + [n for eid in cited_eids for n in ((by_id.get(eid) or {}).get('evidence_node_ids') or [])]))
     first = by_id.get(eids[0]) if eids else None
+    hr = headroom or dict(benchmarks.NOT_COVERED)        # a copy: the module constant is never handed out to be mutated
+    factor_link = (f'derived: {"risk_factor" if risk >= opp["factor"] else "opportunity_factor"} {round(top, 4)} from the journey '
+                   '(phase, leading layer, cited urgency, renewal proximity | positive roles, open expansion interventions) '
+                   'with weights from power_of_1.json')
+    exposure_chain = ['derived: Account.revenue', factor_link]
+    covered = hr['status'] == benchmarks.STATUS_COVERED
     return {
         'account_id': account.account_id, 'account_name': account.account_name,
         'lens': lens, 'secondary_lens': secondary, 'risk_factor': risk, 'opportunity_factor': opp['factor'], 'priority_factor': round(top, 4),
         'revenue': money(revenue, 'derived', ['derived: Account.revenue (get_account_arr)']),
-        'revenue_weighted': money(revenue * top, 'derived',
-                                  ['derived: Account.revenue',
-                                   f'derived: {"risk_factor" if risk >= opp["factor"] else "opportunity_factor"} {round(top, 4)} from the journey '
-                                   '(phase, leading layer, cited urgency, renewal proximity | positive roles, open expansion interventions) '
-                                   'with weights from power_of_1.json']),
+        'revenue_weighted': money(revenue * top, 'derived', list(exposure_chain)),
+        # exposure the peer benchmarks say is realistically addressable. `assumed` when peer data enters the
+        # chain (weakest link — the percentiles are a population this tenant did not measure), `derived` and
+        # identical to revenue_weighted when nothing covers the account: absence is not a discount.
+        'addressable_weighted': (money(revenue * top * float(hr['multiplier']), 'assumed',
+                                       exposure_chain + [benchmarks.money_chain_link(hr)])
+                                 if covered else
+                                 money(revenue * top, 'derived', list(exposure_chain), note=hr['basis'])),
+        'benchmark_headroom': hr,
         'factors': {'phase': phase, 'leading': leading, 'urgency': urgency, 'renewal': renewal, 'weights': dict(w)},
         'opportunity': opp,
         'arc_type': arc.get('arc_type'), 'state': journey.get('state'), 'as_of': journey.get('as_of'),
@@ -199,19 +220,24 @@ def score_account(journey: dict, account, urgencies: Dict[int, Optional[str]], o
 def compact(row: dict) -> dict:
     return {'lens': row['lens'], 'secondary_lens': row['secondary_lens'], 'risk_factor': row['risk_factor'], 'opportunity_factor': row['opportunity_factor'],
             'revenue_weighted': row['revenue_weighted']['value'], 'basis': row['revenue_weighted']['basis'],
+            'addressable_weighted': row['addressable_weighted']['value'], 'headroom_factor': row['benchmark_headroom']['factor'],
             'pending_approvals': row['pending_approvals'], 'cited_episodes': len(row['cites']['episode_ids'])}
 
 
 # ── batched scoring ───────────────────────────────────────────────────
 
 def score_pairs(customer_id: int, vertical: str, pairs: List[tuple]) -> List[dict]:
-    """pairs: [(journey_json, Account)] → scored rows, with one urgency query and one interventions query."""
+    """pairs: [(journey_json, Account)] → scored rows, with one urgency query, one interventions query
+    and two queries for the whole tenant's peer headroom."""
     from utils.taxonomy_loader import get_taxonomy
     taxonomy = get_taxonomy(vertical)
     node_ids = [n for j, _ in pairs for n in _latest_evidence_nodes(j)[1]]
     urgencies = _node_urgencies(node_ids)
-    open_rows = _open_interventions(customer_id, [a.account_id for _, a in pairs])
-    return [score_account(j, a, urgencies, open_rows.get(a.account_id, []), taxonomy) for j, a in pairs]
+    account_ids = [a.account_id for _, a in pairs]
+    open_rows = _open_interventions(customer_id, account_ids)
+    headroom = benchmarks.headroom_for_accounts(customer_id, vertical, account_ids)
+    return [score_account(j, a, urgencies, open_rows.get(a.account_id, []), taxonomy, headroom.get(a.account_id))
+            for j, a in pairs]
 
 
 def compact_for_rows(customer_id: int, vertical: str, pairs: List[tuple]) -> Dict[int, dict]:
@@ -235,12 +261,15 @@ def investment_priorities(customer_id: int, account_id: Optional[int] = None) ->
     out = {'customer_id': int(customer_id), 'vertical': vertical, 'account_id': int(account_id) if account_id is not None else None,
            **origin_block(customer_id), 'weights': dict(cfg['weights']), 'list_floor': float(cfg['list_floor']),
            'note': 'revenue_weighted = revenue × max(risk_factor, opportunity_factor); both factors are journey-derived with '
-                   'weights from power_of_1.json. Rank, do not sum: the column is exposure-weighted revenue, not a forecast.'}
+                   'weights from power_of_1.json. Rows are RANKED by addressable_weighted = revenue_weighted × the peer-headroom '
+                   'multiplier (industry_benchmark nodes; a floored discount, never a boost, and 1.0 — no discount — where no '
+                   'benchmark covers the account). Rank, do not sum: both columns are exposure-weighted revenue, not a forecast.'}
     if not pairs:
         out.update({'status': 'no_journeys', 'rows': [], 'listed': [], 'portfolio': None,
                     'hint': 'run process_data / trigger_wizard a first'})
         return out
-    rows = sorted(score_pairs(customer_id, vertical, pairs), key=lambda r: (-r['revenue_weighted']['value'], r['account_id']))
+    rows = sorted(score_pairs(customer_id, vertical, pairs),
+                  key=lambda r: (-r['addressable_weighted']['value'], -r['revenue_weighted']['value'], r['account_id']))
     listed = [r for r in rows if r['priority_factor'] >= float(cfg['list_floor'])][:int(cfg['top_n'])]
     total = sum(r['revenue']['value'] for r in rows)
     protect = [r for r in rows if r['lens'] == LENS_PROTECT and r['priority_factor'] >= float(cfg['list_floor'])]
@@ -256,6 +285,12 @@ def investment_priorities(customer_id: int, account_id: Optional[int] = None) ->
             'opportunity_weighted': money(sum(r['revenue_weighted']['value'] for r in grow), 'derived', ['derived: Σ revenue × opportunity_factor over listed grow accounts']),
             'by_lens': {LENS_PROTECT: len(protect), LENS_GROW: len(grow)},
             'pending_approvals': sum(r['pending_approvals'] for r in rows),
+            'benchmark_coverage': {
+                'covered_accounts': sum(1 for r in rows if r['benchmark_headroom']['status'] == benchmarks.STATUS_COVERED),
+                'accounts': len(rows),
+                'benchmarked_kpis': max((r['benchmark_headroom']['benchmarked_kpis'] for r in rows), default=0),
+                'sources': sorted({s for r in rows for s in r['benchmark_headroom']['sources']}),
+            },
         },
     })
     return out
