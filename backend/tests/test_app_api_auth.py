@@ -11,6 +11,12 @@ app_api/auth.py + app_api/users.py — direct calls, real Postgres, no HTTP laye
     the old code generated a password and never returned or stored it)
   * users.invite / list_users / patch_user / reset_password, role validation,
     an admin cannot deactivate themself
+  * RBAC scoping is fail-closed and role-blind: no role is unrestricted (admin
+    included), an unset allowed_customer_ids reaches nothing at all, and no
+    admin can invite into, patch, reset, or grant itself another tenant
+
+The route-level half of that last group — every /app/api/* route × every
+role, aimed at a second tenant — is tests/test_app_api_tenant_isolation.py.
 """
 import os
 import sys
@@ -42,9 +48,13 @@ from models import User                                    # noqa: E402
 from app_api import auth, users as user_admin              # noqa: E402
 
 
-def _mk_user(role='csm', active=True, customer_id=1, password=None, **kw):
+def _mk_user(role='csm', active=True, customer_id=1, password=None, scoped=True, **kw):
+    """scoped=True mirrors what both real creation paths now write — a user is scoped to
+    their own tenant, whatever their role. scoped=False builds a pre-fix row (the shape
+    revision 0005 back-fills); every test that passes it is asserting fail-closed."""
     from werkzeug.security import generate_password_hash
     tag = uuid.uuid4().hex[:10]
+    kw.setdefault('allowed_customer_ids', [customer_id] if scoped else None)
     u = User(customer_id=customer_id, user_name=kw.pop('name', f'Test User {tag}'), email=f'{tag}@t.test',
              role=role, active=active, password_hash=generate_password_hash(password) if password else None, **kw)
     db.session.add(u)
@@ -62,6 +72,16 @@ def db_ctx():
         yield c.customer_id
         db.session.remove()
         db.drop_all()
+
+
+@pytest.fixture(scope='module')
+def other_tenant(db_ctx):
+    """A second tenant — the one nobody in db_ctx may reach."""
+    with app.app_context():
+        from models import Customer
+        c = Customer(customer_name='Auth Test Other', domain=f'auth-other-{uuid.uuid4().hex[:8]}.test')
+        db.session.add(c); db.session.commit()
+        return c.customer_id
 
 
 @pytest.fixture(autouse=True)
@@ -178,21 +198,65 @@ def test_create_customer_issues_a_usable_setup_token_not_a_discarded_password():
         auth.consume_setup_token(res['admin_setup_token'], 'a-real-password-now')
         token, logged_in = auth.login(res['admin_email'], 'a-real-password-now')
         assert logged_in.user_id == res['admin_user_id'] and logged_in.role == 'admin'
+        # the tenant's own administrator, scoped to that tenant and nothing else
+        assert logged_in.allowed_customer_ids == [res['customer_id']]
+        assert auth.allows_customer(logged_in, res['customer_id'])
+        assert not auth.allows_customer(logged_in, res['customer_id'] + 1000)
 
 
 # ── RBAC ─────────────────────────────────────────────────────────────
 
-def test_user_scope_and_allows_helpers(db_ctx):
+def test_no_role_is_unrestricted_admin_included(db_ctx):
+    """Replaces a test that asserted the opposite and so encoded the bug as the spec:
+    it named a scope-less cfo `unrestricted` and asserted an admin passes
+    allows_customer(admin, 999). Tenant scope is the column, never the role."""
     with app.app_context():
         admin = _mk_user(role='admin', customer_id=db_ctx)
+        assert auth.user_scope(admin) == ([db_ctx], None)              # was (None, None) = every tenant
+        assert auth.allows_customer(admin, db_ctx)                     # their own tenant: yes
+        assert not auth.allows_customer(admin, db_ctx + 100)           # anyone else's: no, admin or not
+        assert not auth.allows_customer(admin, 999)
+        for role in ('csm', 'cro', 'cfo', 'admin'):
+            u = _mk_user(role=role, customer_id=db_ctx)
+            assert auth.allows_customer(u, db_ctx) and not auth.allows_customer(u, db_ctx + 100), role
+
+
+def test_a_user_with_no_tenant_scope_reaches_nothing(db_ctx):
+    """The pre-0005 row shape: allowed_customer_ids IS NULL. Fail-closed — it reaches no
+    tenant AT ALL, not even its own (that is what makes the back-fill load-bearing rather
+    than cosmetic), and NULL is never read as 'unrestricted' again."""
+    with app.app_context():
+        for role in ('csm', 'cro', 'cfo', 'admin'):
+            u = _mk_user(role=role, customer_id=db_ctx, scoped=False)
+            assert auth.user_scope(u) == (None, None)
+            assert not auth.allows_customer(u, db_ctx), role           # not even their own tenant
+            assert not auth.allows_customer(u, db_ctx + 100), role
+        empty = _mk_user(role='admin', customer_id=db_ctx, allowed_customer_ids=[])
+        assert not auth.allows_customer(empty, db_ctx)                 # [] is not "all", either
+
+
+def test_account_scope_is_unchanged_and_only_meaningful_inside_an_allowed_tenant(db_ctx):
+    with app.app_context():
         scoped = _mk_user(role='csm', customer_id=db_ctx, allowed_customer_ids=[db_ctx], allowed_account_ids=[1, 2])
-        unrestricted = _mk_user(role='cfo', customer_id=db_ctx)
-        assert auth.user_scope(admin) == (None, None)
-        assert auth.allows_customer(admin, 999) and auth.allows_account(admin, 999)
         assert auth.user_scope(scoped) == ([db_ctx], [1, 2])
         assert auth.allows_account(scoped, 1) and not auth.allows_account(scoped, 3)
         assert not auth.allows_customer(scoped, db_ctx + 100)
-        assert auth.user_scope(unrestricted) == (None, None)
+        # NULL allowed_account_ids still means "every account", but only ever within a
+        # tenant allows_customer already permitted — the routes check both.
+        whole_portfolio = _mk_user(role='cfo', customer_id=db_ctx)
+        assert auth.allows_account(whole_portfolio, 12345)
+        assert not auth.allows_customer(whole_portfolio, db_ctx + 100)
+
+
+def test_scope_column_tolerates_json_strings_without_widening(db_ctx):
+    """A PATCH body's ["7"] survives into the JSON column as strings; a malformed entry
+    must neither widen the scope nor 500 the request."""
+    with app.app_context():
+        stringy = _mk_user(role='csm', customer_id=db_ctx, allowed_customer_ids=[str(db_ctx)])
+        assert auth.allows_customer(stringy, db_ctx)
+        assert not auth.allows_customer(stringy, db_ctx + 100)
+        junk = _mk_user(role='csm', customer_id=db_ctx, allowed_customer_ids=['all', None, {}])
+        assert not auth.allows_customer(junk, db_ctx) and not auth.allows_customer(junk, 999)
 
 
 class _FakeRequest:
@@ -226,10 +290,14 @@ def test_invite_validates_and_issues_a_setup_token(db_ctx):
             user_admin.invite(admin, db_ctx, 'x@t.test', 'X', 'superuser')
         with pytest.raises(ValueError, match='valid email'):
             user_admin.invite(admin, db_ctx, 'not-an-email', 'X', 'csm')
+        with pytest.raises(PermissionError, match='outside your tenant scope'):
+            user_admin.invite(admin, db_ctx + 100000, 'x2@t.test', 'X', 'csm')     # scope is checked before existence
+        ghost_admin = _mk_user(role='admin', customer_id=db_ctx, allowed_customer_ids=[db_ctx, db_ctx + 100000])
         with pytest.raises(ValueError, match='customer .* not found'):
-            user_admin.invite(admin, db_ctx + 100000, 'x2@t.test', 'X', 'csm')
+            user_admin.invite(ghost_admin, db_ctx + 100000, 'x2@t.test', 'X', 'csm')
         u, raw = user_admin.invite(admin, db_ctx, 'newcsm@t.test', 'New CSM', 'csm', allowed_account_ids=[7])
         assert isinstance(u, dict) and u['role'] == 'csm' and u['allowed_account_ids'] == [7] and raw
+        assert u['allowed_customer_ids'] == [db_ctx]        # invite scopes to the tenant; it never left this NULL again
         with pytest.raises(ValueError, match='already registered'):
             user_admin.invite(admin, db_ctx, 'newcsm@t.test', 'Dup', 'csm')
         rows = user_admin.list_users(db_ctx)
@@ -248,6 +316,60 @@ def test_patch_user_updates_and_refuses_self_deactivation(db_ctx):
         assert out2['active'] is False
         with pytest.raises(ValueError, match='not found'):
             user_admin.patch_user(admin, 99999999, role='csm')
+
+
+# ── user management cannot cross a tenant line ──────────────────────
+
+def test_admin_cannot_touch_another_tenants_users(db_ctx, other_tenant):
+    """The three admin write paths, each of which had NO tenant check before: invite into
+    someone else's tenant, patch their user, and — the takeover — mint a password-setup
+    token for their admin (reproduced live: tenant A's admin got a working token for
+    tenant B's admin and could log in as them)."""
+    with app.app_context():
+        a_admin = _mk_user(role='admin', customer_id=db_ctx)
+        b_user = _mk_user(role='admin', customer_id=other_tenant, password='b-password')
+        with pytest.raises(PermissionError, match='outside your tenant scope'):
+            user_admin.invite(a_admin, other_tenant, 'crosstenant@t.test', 'X', 'csm')
+        with pytest.raises(PermissionError, match='outside your tenant scope'):
+            user_admin.patch_user(a_admin, b_user.user_id, role='csm')
+        with pytest.raises(PermissionError, match='outside your tenant scope'):
+            user_admin.patch_user(a_admin, b_user.user_id, active=False)
+        with pytest.raises(PermissionError, match='outside your tenant scope'):
+            user_admin.reset_password(a_admin, b_user.user_id)
+        assert db.session.get(User, b_user.user_id).role == 'admin'      # nothing was written
+        assert db.session.get(User, b_user.user_id).magic_link_token is None
+
+
+def test_admin_cannot_grant_a_tenant_it_does_not_hold(db_ctx, other_tenant):
+    """patch_user is the only write path for the scope column, so an unconstrained one is
+    a way back out of the scope: an admin could grant a user (or itself) any tenant."""
+    with app.app_context():
+        a_admin = _mk_user(role='admin', customer_id=db_ctx)
+        target = _mk_user(role='csm', customer_id=db_ctx)
+        with pytest.raises(PermissionError, match='outside your tenant scope'):
+            user_admin.patch_user(a_admin, target.user_id, allowed_customer_ids=[other_tenant])
+        with pytest.raises(PermissionError, match='outside your tenant scope'):
+            user_admin.patch_user(a_admin, target.user_id, allowed_customer_ids=[db_ctx, other_tenant])
+        with pytest.raises(PermissionError, match='outside your tenant scope'):
+            user_admin.patch_user(a_admin, a_admin.user_id, allowed_customer_ids=[db_ctx, other_tenant])
+        assert db.session.get(User, target.user_id).allowed_customer_ids == [db_ctx]
+        assert db.session.get(User, a_admin.user_id).allowed_customer_ids == [db_ctx]
+        assert user_admin.patch_user(a_admin, target.user_id,
+                                     allowed_customer_ids=[db_ctx])['allowed_customer_ids'] == [db_ctx]
+
+
+def test_list_users_never_spans_tenants(db_ctx, other_tenant):
+    """The old signature defaulted to customer_id=None = every user of every tenant; the
+    route reached it by simply omitting the query param (reproduced live)."""
+    with app.app_context():
+        _mk_user(role='csm', customer_id=db_ctx)
+        _mk_user(role='csm', customer_id=other_tenant)
+        assert {r['customer_id'] for r in user_admin.list_users(db_ctx)} == {db_ctx}
+        assert {r['customer_id'] for r in user_admin.list_users([db_ctx])} == {db_ctx}
+        assert {r['customer_id'] for r in user_admin.list_users([db_ctx, other_tenant])} == {db_ctx, other_tenant}
+        assert user_admin.list_users([]) == []
+        with pytest.raises(TypeError):
+            user_admin.list_users()          # the tenant list is required, never defaulted to "everything"
 
 
 def test_reset_password_issues_a_fresh_token_and_invalidates_the_old_one(db_ctx):

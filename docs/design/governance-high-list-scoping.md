@@ -4,6 +4,8 @@
 
 ## Read this first: a live cross-tenant leak, found under item 8
 
+> **FIXED 2026-09-08** on `fix/session-api-tenant-scoping` — re-reproduced first, then closed. `allows_customer` is now fail-closed and role-blind (`user_scope`'s `role == 'admin'` short-circuit is gone), both creation paths write `allowed_customer_ids`, revision `0005_user_tenant_scope_backfill` fills in every row that predates them, and the four admin-only route groups that had a role gate and no tenant check *at all* — calibrations, playbooks/config, users list, users invite/patch/reset-password — now have one. Reproduction turned up two things worse than the description below: `GET /app/api/users` with no `customer_id` returned the entire platform's user directory to any admin, and `POST /app/api/users/{id}/reset-password` returned a working password-setup token for another tenant's admin — a complete account takeover, redeemable at the unauthenticated `/auth/set-password`. Isolation is now asserted route × role in `tests/test_app_api_tenant_isolation.py`, with a drift guard that fails when a route in `http.ROUTES` has neither an isolation test nor a written exemption. The rest of item 8 (the ~93 ad hoc `customer_id=` filters, the unguarded evidence query in `journeys/read.py`) is untouched and still open. The description below is kept as written, for the record.
+
 Every tenant's own onboarding-created admin user currently has **unrestricted access to every other tenant's data** through the session-authenticated UI (`/app/api/*`), not just its own:
 
 - `create_customer()` gives every new tenant's first user `role='admin'` (`mcp_server/cs_pulse_onboarding.py:200-205`) — this is meant as "this tenant's administrator."

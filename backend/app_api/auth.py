@@ -11,11 +11,19 @@ never accepts a Bearer key, and mcp_server/auth.py never reads this cookie.
     require_session(request, role=None) -> User          raises PermissionError (401/403 at the route)
     issue_setup_token(user) -> raw_token                  ADMIN-ONLY caller relays it; never emailed by this module
     consume_setup_token(raw_token, new_password) -> User  the only unauthenticated write in this package
-    user_scope(user) -> (customer_ids | None, account_ids | None)   None = unrestricted (admin, or NULL column)
+    user_scope(user) -> (customer_ids | None, account_ids | None)   the raw columns; see allows_customer
 
 No self-service "forgot password by email": see the design doc §2 for why
 that is an account-takeover hole without a mail sender. Only an
 authenticated admin can issue or reissue a setup token.
+
+TENANT SCOPE IS FAIL-CLOSED. Every session-cookie user is a tenant-scoped
+human — there is no session role that means "platform superuser." The only
+platform-wide identity is the Bearer MCP_SERVER_API_KEY (mcp_server/auth.py),
+a separate mechanism this module never touches. A user whose
+allowed_customer_ids is unset reaches NO tenant, including their own: an
+unscoped row is a provisioning bug, not a grant (both creation paths set it,
+and revision 0005 back-filled every row that predates them).
 """
 from __future__ import annotations
 
@@ -223,17 +231,55 @@ def require_session(request, role: Optional[str] = None) -> SessionUser:
 
 
 def user_scope(user) -> tuple:
-    """(customer_ids, account_ids) — None means unrestricted. admin is always unrestricted."""
-    if user.role == 'admin':
-        return None, None
+    """The two scope columns as stored: (allowed_customer_ids, allowed_account_ids).
+
+    No role is special here. Before 2026-09-08 this short-circuited
+    `role == 'admin'` to (None, None) = unrestricted, which collided with
+    create_customer handing every new tenant's OWN first user role='admin':
+    every tenant admin was a platform superuser over /app/api/*, able to read
+    and act on any other tenant by passing its customer_id (reproduced live —
+    portfolio, accounts, interventions, ROI, calibrations, playbook config,
+    the full cross-tenant user list, and a password-reset token for another
+    tenant's admin). A tenant's administrator and the platform's operator are
+    different things; only the latter exists, and only as a Bearer key."""
     return user.allowed_customer_ids, user.allowed_account_ids
 
 
+def _as_ids(raw) -> set:
+    """The JSON column's contents as a set of ints. Tolerates ["7"] (a PATCH body's
+    strings survive into JSON) and drops anything non-numeric rather than raising —
+    a malformed entry must not widen the scope, and must not 500 the request either."""
+    out = set()
+    for v in (raw or []):
+        try:
+            out.add(int(v))
+        except (TypeError, ValueError):
+            continue
+    return out
+
+
 def allows_customer(user, customer_id: int) -> bool:
+    """FAIL-CLOSED: an unset (or empty) allowed_customer_ids permits nothing.
+    Deliberately NOT falling back to user.customer_id — that would silently paper
+    over an unscoped row instead of surfacing it, and this codebase's convention
+    for missing scope config is to refuse (utils.vertical_registry, taxonomy)."""
     cids, _ = user_scope(user)
-    return cids is None or int(customer_id) in cids
+    try:
+        return int(customer_id) in _as_ids(cids)
+    except (TypeError, ValueError):
+        return False
 
 
 def allows_account(user, account_id: int) -> bool:
+    """Unset allowed_account_ids = every account WITHIN the tenants allows_customer
+    already permits — the tenant-wide roles (cro/cfo/admin) are meant to see a whole
+    portfolio, and every route pairs this check with allows_customer, so this can
+    never reach another tenant on its own (the service layer keys on the
+    (customer_id, account_id) pair — journeys.read.get_journey and friends)."""
     _, aids = user_scope(user)
-    return aids is None or int(account_id) in aids
+    if aids is None:
+        return True
+    try:
+        return int(account_id) in _as_ids(aids)
+    except (TypeError, ValueError):
+        return False

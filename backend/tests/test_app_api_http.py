@@ -52,7 +52,11 @@ def client():
 
 @pytest.fixture(scope='module')
 def tenant(client):
-    """One tenant, two accounts, an admin (unrestricted) and a csm scoped to account A only."""
+    """One tenant, two accounts, its own admin, a cfo who sees the whole portfolio, and a
+    csm scoped to account A only. Every user is scoped to THIS tenant — since 2026-09-08
+    that is what both creation paths write and what auth.allows_customer requires; a NULL
+    allowed_customer_ids no longer means "every tenant", it means nothing at all. Crossing
+    a tenant line is tests/test_app_api_tenant_isolation.py's job, not this file's."""
     import mcp_server.common as _common
     from extensions import db
     from models import Account, User
@@ -73,7 +77,8 @@ def tenant(client):
         csm = User(customer_id=cid, user_name='Scoped CSM', email=f'csm_{tag}@t.test', role='csm', active=True,
                   password_hash=generate_password_hash('csm-password-1'), allowed_customer_ids=[cid], allowed_account_ids=[a.account_id])
         cfo = User(customer_id=cid, user_name='Finance', email=f'cfo_{tag}@t.test', role='cfo', active=True,
-                  password_hash=generate_password_hash('cfo-password-1'))
+                  password_hash=generate_password_hash('cfo-password-1'), allowed_customer_ids=[cid],
+                  allowed_account_ids=None)     # NULL accounts = the whole portfolio, inside this one tenant
         db.session.add_all([csm, cfo]); db.session.commit()
         out = {'customer_id': cid, 'account_a': a.account_id, 'account_b': b.account_id,
                'admin_email': res['admin_email'], 'csm_email': csm.email, 'cfo_email': cfo.email}

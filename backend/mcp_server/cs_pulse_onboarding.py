@@ -210,6 +210,11 @@ def create_customer(
             email=admin_email,
             role='admin',
             vertical=vertical,
+            # This tenant's administrator — NOT a platform operator. The scope column has
+            # to say so explicitly: app_api.auth.allows_customer is fail-closed and reads
+            # only this list (see that module's docstring for the leak this closes). The
+            # platform-wide identity is the Bearer MCP_SERVER_API_KEY, never a session role.
+            allowed_customer_ids=[customer_id],
         )
         if customer_uuid:
             user.customer_uuid = customer_uuid
