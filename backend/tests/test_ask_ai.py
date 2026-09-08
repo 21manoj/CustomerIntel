@@ -300,6 +300,16 @@ class TestConversation:
         assert len(kept) == settings.get('conversation', 'max_turns')
         assert kept[-1]['question'] == 'q19'                                  # the newest turns, not the oldest
 
+    def test_strip_prefix_removes_a_leading_disclosure_but_only_that(self):
+        assert normalize_history([{'question': 'q', 'answer': '[Test fixture] a'}],
+                                  strip_prefix='[Test fixture] ') == [{'question': 'q', 'answer': 'a', 'account_id': None}]
+        # no prefix present: left alone
+        assert normalize_history([{'question': 'q', 'answer': 'a'}],
+                                  strip_prefix='[Test fixture] ') == [{'question': 'q', 'answer': 'a', 'account_id': None}]
+        # not synthetic (strip_prefix=None, the real-tenant case): left alone even if it happens to start similarly
+        assert normalize_history([{'question': 'q', 'answer': '[Test fixture] a'}]) == \
+            [{'question': 'q', 'answer': '[Test fixture] a', 'account_id': None}]
+
     def test_the_recap_is_capped_and_says_it_is_not_evidence(self):
         assert history_block([]) == ''
         block = history_block(normalize_history([{'question': 'q' * 900, 'answer': 'a' * 900} for _ in range(6)]))
@@ -349,6 +359,35 @@ class TestConversation:
         with app.app_context():
             blind = ask(cid, 'and what about their champion?')
         assert blind['scope'] == 'portfolio'                                  # the before picture, in the same test
+
+    def test_the_disclosure_prefix_is_never_doubled_on_a_follow_up(self, tenant, monkeypatch):
+        """A synthetic tenant's answer is prefixed with its disclosure label (e.g.
+        "[Test fixture] "). That prefixed text is what the client has and sends
+        back as history — replayed unstripped, the model imitates the pattern
+        it sees in its own history and starts its new answer the same way, which
+        then got the mechanical prefix added again on top, doubling it. Covers
+        both halves of the fix: the model never sees the prefix in its history
+        (so it has no pattern to imitate), and even if it produced the prefix
+        anyway, the final answer still carries it exactly once."""
+        cid, aid, _, _, _ = tenant
+        prior_answer = '[Test fixture] The champion is engaged.'
+        seen = {}
+
+        def _fake(customer_id, system, user):
+            seen['user'] = user
+            return ({'answer_sentences': [
+                {'text': '[Test fixture] They confirmed renewal interest.', 'cites': [f'row:{aid}']},
+            ], 'evidence_gaps': [], 'confidence': 0.9}, 'fake-model')
+
+        monkeypatch.setenv('ANTHROPIC_API_KEY', 'test-key')
+        monkeypatch.setattr('ask_ai.answer._call_model', _fake)
+        with app.app_context():
+            res = ask(cid, 'what about their champion?', account_id=aid,
+                      history=[{'question': 'how is Northwind Analytics doing?', 'answer': prior_answer, 'account_id': aid}])
+        assert '[Test fixture]' not in seen['user']                # stripped before the model ever saw it
+        assert 'The champion is engaged.' in seen['user']           # the actual content still reached it
+        assert res['answer'] == '[Test fixture] They confirmed renewal interest.'
+        assert res['answer'].count('[Test fixture]') == 1           # not doubled even though the model produced it anyway
 
     def test_naming_the_account_again_is_not_reported_as_carried_over(self, tenant):
         cid, aid, _, _, _ = tenant

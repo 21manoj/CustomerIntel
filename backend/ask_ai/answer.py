@@ -139,14 +139,20 @@ def _keywords(question: str) -> List[str]:
 
 # ── conversation (in-session, client-held) ──────────────────────────────
 
-def normalize_history(history) -> List[dict]:
+def normalize_history(history, strip_prefix: Optional[str] = None) -> List[dict]:
     """The last `conversation.max_turns` usable turns, oldest first, as
     {question, answer, account_id}. A turn is usable when it has both a
     question and an answer — a turn still in flight, or one the citation
     rule emptied, teaches the model nothing and is dropped rather than shown
     as a blank exchange. Anything else in the client's turn objects (their
     sentences, citations, gaps) is ignored on purpose: the recap is a memory
-    aid, not a second evidence channel."""
+    aid, not a second evidence channel.
+
+    `strip_prefix`, when given, is the current tenant's disclosure prefix
+    (e.g. "[Synthetic demo data] "). A prior turn's answer carries it because
+    the model's own output does (below) — replaying it back unstripped taught
+    the model to imitate the prefix as part of ITS answer text, which then got
+    the same disclosure prepended a second time, mechanically, on top."""
     if not history:
         return []
     if isinstance(history, dict):
@@ -159,6 +165,8 @@ def normalize_history(history) -> List[dict]:
         a = str(t.get('answer') or '').strip()
         if not q or not a:
             continue
+        if strip_prefix and a.startswith(strip_prefix):
+            a = a[len(strip_prefix):].strip()
         aid = t.get('account_id')
         try:
             aid = int(aid) if aid is not None and str(aid).strip() != '' else None
@@ -854,8 +862,9 @@ def ask(customer_id: int, question: str, account_id: Optional[int] = None, as_of
     if not question:
         raise ValueError('question is required')
     when = _parse_as_of(as_of)
-    turns = normalize_history(history)
-    from journeys.read import list_journeys
+    from journeys.read import list_journeys, origin_block
+    origin = origin_block(customer_id)
+    turns = normalize_history(history, f"[{origin['label']}] " if origin['synthetic'] else None)
     rows = list_journeys(int(customer_id))
     scope, aid = decide_scope(int(customer_id), question, account_id, rows, turns)
     # Whether the subject was inherited rather than stated is part of the answer, not a hidden
@@ -894,8 +903,6 @@ def ask(customer_id: int, question: str, account_id: Optional[int] = None, as_of
         confidence = max(0.0, min(1.0, float(payload.get('confidence'))))
     except (TypeError, ValueError):
         confidence = None
-    from journeys.read import origin_block
-    origin = origin_block(customer_id)
     if not sentences and unsupported:
         # Never hand back a blank string with a confident-looking score: say which rule emptied it.
         # (The reasons are in `unsupported`, but nothing above the fold said the answer was dropped.)
@@ -904,7 +911,10 @@ def ask(customer_id: int, question: str, account_id: Optional[int] = None, as_of
                     f'see "unsupported" for the text and the ids that did not resolve')
     answer = ' '.join(s['text'] for s in sentences)
     if origin['synthetic']:
-        answer = f"[{origin['label']}] " + answer            # disclosure travels with the answer, not beside it
+        prefix = f"[{origin['label']}] "
+        if answer.startswith(prefix):                        # model imitated the prefix from history_block; don't double it
+            answer = answer[len(prefix):]
+        answer = prefix + answer                              # disclosure travels with the answer, not beside it
     answer = answer.strip()
     return {
         'question': question, 'scope': scope, 'scope_detail': meta, **origin,
