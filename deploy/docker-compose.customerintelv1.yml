@@ -56,6 +56,7 @@ services:
       MCP_TRANSPORT: http
       MCP_AUTH_REQUIRED: ${MCP_AUTH_REQUIRED:-true}
       MCP_SERVER_API_KEY: ${MCP_SERVER_API_KEY:?set in .env}
+      MCP_ALLOW_QUERY_KEY: ${MCP_ALLOW_QUERY_KEY:-false}
       SESSION_SECRET: ${SESSION_SECRET:?set in .env}
       PORT: "8101"
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
