@@ -44,7 +44,8 @@ import utils.health_thresholds as ht
 from models import Account, HealthScore, ContextNode, JourneyData
 
 from ask_ai import settings
-from ask_ai.answer import ask, validate_answer, decide_scope, apply_as_of, STUB_MODEL, GENERATOR, TOOL_NAME
+from ask_ai.answer import (ask, validate_answer, decide_scope, apply_as_of, history_block, normalize_history,
+                           STUB_MODEL, GENERATOR, TOOL_NAME)
 
 
 @pytest.fixture(scope='module')
@@ -255,6 +256,117 @@ class TestPortfolio:
         assert decide_scope(1, 'how is Acme Cloud doing?', None, rows) == ('account', 2)     # longest name wins
         assert decide_scope(1, 'which accounts are most at risk for Acme?', None, rows) == ('portfolio', None)
         assert decide_scope(1, 'general question', None, rows) == ('portfolio', None)
+
+
+# ── conversation (in-session multi-turn) ────────────────────────────────
+
+class TestConversation:
+    """The rule under test: a follow-up may inherit WHAT the conversation is
+    about, and nothing else. Scope carries over; facts do not — the recap is
+    shown outside the context blocks and so can never be cited."""
+
+    rows = [{'account_id': 1, 'account_name': 'Acme'}, {'account_id': 2, 'account_name': 'Acme Cloud'}]
+
+    def _turn(self, q='how is Acme Cloud doing?', a='Acme Cloud slipped to 48.', aid=2):
+        return {'question': q, 'answer': a, 'account_id': aid}
+
+    def test_a_follow_up_that_names_nothing_inherits_the_previous_account(self):
+        # the case the feature exists for: "their" has no referent without the last turn
+        assert decide_scope(1, 'what about their champion?', None, self.rows) == ('portfolio', None)
+        assert decide_scope(1, 'what about their champion?', None, self.rows, [self._turn()]) == ('account', 2)
+
+    def test_this_turns_own_words_still_win_over_the_conversation(self):
+        h = [self._turn()]
+        assert decide_scope(1, 'and across accounts?', None, self.rows, h) == ('portfolio', None)   # changed the subject
+        assert decide_scope(1, 'how is Acme doing?', None, self.rows, h) == ('account', 1)          # named another account
+        assert decide_scope(1, 'anything', 7, self.rows, h) == ('account', 7)                       # explicit id still wins
+
+    def test_the_most_recent_resolved_turn_is_the_one_inherited(self):
+        h = [self._turn(aid=2), self._turn(q='and the portfolio?', a='Two accounts.', aid=None), self._turn(aid=1)]
+        assert decide_scope(1, 'why?', None, self.rows, h) == ('account', 1)
+
+    def test_an_account_not_in_this_portfolio_is_never_inherited(self):
+        # the client sends the history back, so its ids are caller input: the portfolio rows are the
+        # authority, exactly as they are for a name matched out of the question text
+        assert decide_scope(1, 'why?', None, self.rows, [self._turn(aid=424242)]) == ('portfolio', None)
+
+    def test_history_is_normalized_capped_and_junk_tolerant(self):
+        assert normalize_history(None) == [] and normalize_history([]) == []
+        assert normalize_history(['nope', 42, None, {}, {'question': 'q'}, {'answer': 'a'}]) == []   # a half-turn is not a turn
+        assert normalize_history({'question': 'q', 'answer': 'a'}) == [{'question': 'q', 'answer': 'a', 'account_id': None}]
+        assert normalize_history([{'question': 'q', 'answer': 'a', 'account_id': 'bogus'}])[0]['account_id'] is None
+        many = [{'question': f'q{i}', 'answer': f'a{i}'} for i in range(20)]
+        kept = normalize_history(many)
+        assert len(kept) == settings.get('conversation', 'max_turns')
+        assert kept[-1]['question'] == 'q19'                                  # the newest turns, not the oldest
+
+    def test_the_recap_is_capped_and_says_it_is_not_evidence(self):
+        assert history_block([]) == ''
+        block = history_block(normalize_history([{'question': 'q' * 900, 'answer': 'a' * 900} for _ in range(6)]))
+        assert len(block) <= settings.get('conversation', 'max_chars') + len('\n\n')
+        assert 'not evidence' in block and 'no citable ids' in block
+
+    def test_the_recap_reaches_the_model_but_can_never_be_cited(self, tenant, monkeypatch):
+        """The whole safety property in one test: the model is shown the earlier
+        turns, but nothing in them is in `citable`, so a sentence that leans on
+        the recap alone is dropped like any other uncited claim."""
+        cid, aid, _, _, _ = tenant
+        seen = {}
+
+        def _fake(customer_id, system, user):
+            seen['system'], seen['user'] = system, user
+            return ({'answer_sentences': [
+                {'text': 'As I said earlier, the champion left.', 'cites': ['turn:1']},
+                {'text': 'As I said earlier, the champion left.', 'cites': []},
+            ], 'evidence_gaps': [], 'confidence': 0.9}, 'fake-model')
+
+        monkeypatch.setenv('ANTHROPIC_API_KEY', 'test-key')
+        monkeypatch.setattr('ask_ai.answer._call_model', _fake)
+        with app.app_context():
+            res = ask(cid, 'what about their champion?', account_id=aid,
+                      history=[{'question': 'tell me about Northwind Analytics', 'answer': 'Health fell to 48 in March.',
+                                'account_id': aid}])
+        assert 'CONVERSATION SO FAR' in seen['user'] and 'Health fell to 48 in March.' in seen['user']
+        assert seen['user'].index('CONVERSATION SO FAR') < seen['user'].index('QUESTION:')   # before the question it disambiguates
+        assert 'The conversation recap is not evidence' in seen['system']
+        assert res['sentences'] == []                                        # both dropped: one ghost id, one uncited
+        assert {u['reason'] for u in res['unsupported']} == {'unresolved_citation', 'no_citation'}
+        assert not any(c.startswith('turn:') for c in res['citations'])
+        assert res['history_turns'] == 1
+
+    def test_a_carried_over_follow_up_says_so_in_the_answer(self, tenant):
+        cid, aid, _, _, _ = tenant
+        with app.app_context():
+            first = ask(cid, 'Tell me about Northwind Analytics')
+            follow = ask(cid, 'and what about their champion?',
+                         history=[{'question': 'Tell me about Northwind Analytics', 'answer': first['answer'],
+                                   'account_id': first['scope_detail']['account_id']}])
+        assert first['scope_detail']['scope_carried_from_history'] is False and first['history_turns'] == 0
+        # without the history this question has no account in it at all and would answer portfolio-wide
+        assert follow['scope'] == 'account' and follow['scope_detail']['account_id'] == aid
+        assert follow['scope_detail']['scope_carried_from_history'] is True
+        assert follow['history_turns'] == 1
+        with app.app_context():
+            blind = ask(cid, 'and what about their champion?')
+        assert blind['scope'] == 'portfolio'                                  # the before picture, in the same test
+
+    def test_naming_the_account_again_is_not_reported_as_carried_over(self, tenant):
+        cid, aid, _, _, _ = tenant
+        with app.app_context():
+            res = ask(cid, 'how is Northwind Analytics doing now?',
+                      history=[{'question': 'q', 'answer': 'a', 'account_id': aid}])
+        assert res['scope_detail']['account_id'] == aid
+        assert res['scope_detail']['scope_carried_from_history'] is False     # its own words picked it, not the history
+
+    def test_stub_ranks_a_referring_follow_up_on_the_previous_question_too(self, tenant):
+        """No API key: the deterministic path also has to make a follow-up land
+        somewhere sensible, or the feature is untestable without a live model."""
+        cid, aid, _, _, _ = tenant
+        with app.app_context():
+            res = ask(cid, 'and after that?', account_id=aid,
+                      history=[{'question': 'what happened with the champion change?', 'answer': 'x', 'account_id': aid}])
+        assert res['model'] == STUB_MODEL and res['sentences']
+        assert any('champion' in s['text'].lower() for s in res['sentences'])
 
 
 # ── investment context (priority / power_of_1 / roi) ────────────────────

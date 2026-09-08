@@ -1,7 +1,10 @@
 """
 Ask AI route (Starlette, mounted beside /mcp).
 
-  POST /api/ask  {customer_id, question, account_id?, as_of?}   read scope
+  POST /api/ask  {customer_id, question, account_id?, as_of?, history?}   read scope
+
+history is the prior turns of the same chat — [{question, answer, account_id?}],
+oldest first — held by the caller, never stored here (see ask_ai/answer.py).
 
 Auth: the same Bearer keys as MCP, read scope. 400 on a missing field,
 404 when the account has no journey, 502 when the model call fails.
@@ -33,7 +36,8 @@ def register_ask_routes(mcp) -> None:
         if not cid or not (data.get('question') or '').strip():
             return JSONResponse({'error': 'customer_id and question are required'}, status_code=400)
         try:
-            res = _with_app(lambda: ask(int(cid), data['question'], account_id=data.get('account_id'), as_of=data.get('as_of')))
+            res = _with_app(lambda: ask(int(cid), data['question'], account_id=data.get('account_id'),
+                                        as_of=data.get('as_of'), history=data.get('history')))
         except LookupError as e:
             return JSONResponse({'error': str(e)}, status_code=404)
         except ValueError as e:

@@ -205,5 +205,57 @@ class TestResearchAndIngest:
         assert second['ingest']['duplicate_of'] == first['ingest']['signal_id']
 
 
+class TestExternalFindingsAreCitable:
+    """The claim this module makes — findings go through the SAME pipeline
+    internal signals use — is only worth something if they end where internal
+    signals end: as a normal graph node Ask AI can cite. Every other test here
+    stops at the QualitativeSignal row, one hop short of the thing that
+    matters. This walks the rest of it, so a future change that quietly makes
+    external findings uncitable fails here instead of in a demo."""
+
+    def test_a_finding_becomes_a_citable_ask_ai_episode_carrying_its_external_provenance(self, tenant, monkeypatch):
+        cid, aid = tenant
+        text = ('Confirmed: the company announced a $40M Series C led by Redpoint on 12 March 2026 '
+                "(source: the company's own press release). No recent layoffs found.")
+        monkeypatch.setenv('ANTHROPIC_API_KEY', 'test-key')
+        import anthropic
+        monkeypatch.setattr(anthropic, 'Anthropic', _fake_client(text=text))
+        import utils.llm_budget_controller as budget
+        monkeypatch.setattr(budget, 'record_usage', lambda **kw: None)
+
+        with app.app_context():
+            res = research_and_ingest(cid, aid, process_now=False)
+            assert res['status'] == 'ok'
+
+        # The research call is done; hand the queued signal to extraction WITHOUT a key so it takes
+        # enrichment's keyword stub. What is under test here is where the written node ends up, not
+        # how well a model types it — the extraction lane has its own tests, and the fake client above
+        # only knows how to answer the research prompt, not the extraction tool call.
+        monkeypatch.delenv('ANTHROPIC_API_KEY', raising=False)
+        with app.app_context():
+            from signal_engine.pipeline import process_pending
+            assert process_pending(customer_id=cid, limit=50)['processed'] >= 1
+            from models import ContextNode
+            nodes = [n for n in ContextNode.query.filter_by(account_id=aid, node_type='SIGNAL').all()
+                     if n.source_platform == 'external']
+            # written as an OBSERVED SIGNAL node like any other — that, and only that, is what makes it
+            # reachable by journeys.journey_builder.collect_episodes, which is what mints the sig: id
+            assert nodes, 'no external SIGNAL node: nothing downstream could cite the finding'
+            assert all(n.source == 'observed' for n in nodes)
+            ext_cites = {f'sig:{n.node_id}' for n in nodes}
+
+            from journeys.wizard_a import run_wizard_a
+            run_wizard_a(cid, [aid])
+            from ask_ai.answer import account_context
+            ctx, _gaps, _meta, _narrative = account_context(cid, aid, 'what did we find about them?', None, None)
+            shown = ctx.text()
+            citable = ext_cites & set(ctx.citable)
+
+        # the point: an Ask AI sentence citing this finding resolves, instead of being dropped as a ghost id
+        assert citable, f'{sorted(ext_cites)} is not citable by Ask AI'
+        assert '"source_platform":"external"' in shown       # where it came from travels with the evidence
+        assert '"evidence_tier":"observed"' in shown         # ... and it is not dressed up as anything stronger
+
+
 if __name__ == '__main__':
     pytest.main([__file__, '-v'])

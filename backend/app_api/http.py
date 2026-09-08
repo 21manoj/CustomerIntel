@@ -310,9 +310,25 @@ def register_app_api_routes(mcp) -> None:
         aid = data.get('account_id')
         if aid and not allows_account(user, int(aid)):
             return _forbidden_scope()
+        # history: the prior turns of this chat, held by the browser and sent back each time — in-session
+        # continuity, nothing persisted server-side. Its account_id can re-scope a follow-up that names no
+        # account (ask_ai.answer.decide_scope), so it goes through the SAME allows_account gate the explicit
+        # account_id does — a turn naming an account outside the user's scope keeps its text and loses its id,
+        # rather than becoming a second, ungated way to pick an account.
+        def _scoped_turn(t):
+            try:
+                permitted = t.get('account_id') is None or allows_account(user, int(t['account_id']))
+            except (TypeError, ValueError):
+                permitted = False                       # unparseable id: drop it, same as one out of scope
+            return t if permitted else {**t, 'account_id': None}
+
+        history = data.get('history')
+        if isinstance(history, list):
+            history = [_scoped_turn(t) for t in history if isinstance(t, dict)]
         from ask_ai.answer import ask as ask_ai_ask
         try:
-            res = _with_app(lambda: ask_ai_ask(int(cid), data['question'], account_id=int(aid) if aid else None, as_of=data.get('as_of')))
+            res = _with_app(lambda: ask_ai_ask(int(cid), data['question'], account_id=int(aid) if aid else None,
+                                               as_of=data.get('as_of'), history=history))
         except LookupError as e:
             return JSONResponse({'error': str(e)}, status_code=404)
         except ValueError as e:

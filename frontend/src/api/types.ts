@@ -1128,11 +1128,26 @@ export interface AskUnsupported {
   unresolved?: string[]
 }
 
+// One earlier turn of the SAME chat, sent back with the next question so a follow-up can
+// resolve what it refers to. The browser holds these; the server stores nothing (this is
+// in-session continuity, not the separate cross-session memory feature). account_id is the
+// account that turn resolved to, and it is re-checked against the user's scope server-side.
+export interface AskTurn {
+  question: string
+  answer: string
+  account_id?: number | null
+}
+
 // POST /app/api/ask — journeys/ask_ai.answer.ask()'s full return shape.
 export type AskResponse = OriginBlock & {
   question: string
   scope: 'account' | 'portfolio'
-  scope_detail: Record<string, unknown>
+  scope_detail: Record<string, unknown> & {
+    account_id?: number
+    account_name?: string
+    history_turns?: number
+    scope_carried_from_history?: boolean
+  }
   answer: string
   sentences: AskSentence[]
   citations: Record<string, unknown>
@@ -1141,6 +1156,7 @@ export type AskResponse = OriginBlock & {
   confidence: number | null
   citation_rule: string
   context_chars: number
+  history_turns: number
   model: string
   generator: string
 }

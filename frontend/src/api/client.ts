@@ -4,6 +4,7 @@
 import type {
   AskQuestionsResponse,
   AskResponse,
+  AskTurn,
   CalibrationProposal,
   CalibrationProposeResult,
   CalibrationResponse,
@@ -222,9 +223,12 @@ export function getAskQuestions() {
   return request<AskQuestionsResponse>('/app/api/ask/questions')
 }
 
-export function askQuestion(customerId: number, question: string, accountId?: number) {
+// history: the earlier turns of the SAME chat, held in the browser and replayed with each new
+// question so a follow-up ("what about their champion?") can resolve what it refers to. Nothing
+// is persisted server-side — closing the page ends the conversation.
+export function askQuestion(customerId: number, question: string, accountId?: number, history?: AskTurn[]) {
   return request<AskResponse>('/app/api/ask', {
     method: 'POST',
-    body: JSON.stringify({ customer_id: customerId, question, account_id: accountId }),
+    body: JSON.stringify({ customer_id: customerId, question, account_id: accountId, history }),
   })
 }

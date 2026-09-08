@@ -13,6 +13,14 @@
     "portfolio_max_rows": 60,
     "role_evidence_limit": 25
   },
+  "conversation": {
+    "_doc": "In-session multi-turn continuity. The CLIENT holds the turns — nothing is persisted server-side, and this is NOT the (separate, deferred) cross-session memory feature. Each ask may carry `history`: the prior turns of the SAME conversation, oldest first. Only the last max_turns are read; each turn's question and answer are truncated to question_chars / answer_chars and the whole recap is hard-capped at max_chars. The recap is shown to the model under CONVERSATION SO FAR — OUTSIDE the CONTEXT BLOCKS and therefore outside Context.citable, so it is structurally uncitable: it is a record of what was said, not evidence. It disambiguates what the new question means; it never supplies a fact. follow_up_inherits_account: when a question names no account and no portfolio phrase, inherit the previous turn's account rather than falling back to the portfolio — that fallback is arbitrary, the live subject of the conversation is not.",
+    "max_turns": 4,
+    "question_chars": 240,
+    "answer_chars": 400,
+    "max_chars": 2400,
+    "follow_up_inherits_account": true
+  },
   "answer": {
     "max_sentences": 8,
     "stub_max_sentences": 4,
