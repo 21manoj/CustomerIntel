@@ -1,0 +1,8 @@
+# Keep the build context small and the build hermetic: node_modules comes from
+# `npm ci` inside the image (a macOS tree would break an alpine build anyway),
+# and dist/ is produced there too — never copied in from a developer's laptop.
+node_modules
+dist
+.git
+*.log
+.DS_Store
