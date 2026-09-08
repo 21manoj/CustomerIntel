@@ -23,7 +23,13 @@
       "open_expansion_intervention_factor": 0.7
     },
     "list_floor": 0.2,
-    "top_n": 10
+    "top_n": 10,
+    "benchmark_headroom": {
+      "_doc": "Peer headroom read off the EXTERNAL_CONTEXT/industry_benchmark nodes industry_benchmarks.csv already writes (p25/p50/p75/p90 per KPI + the publishing source). The account's latest value is placed in the peer distribution by linear interpolation between the published points and CLAMPED to the lowest/highest published percentile — nothing is claimed outside the data. headroom = 1 - that position (mirrored for higher_is_better:false KPIs), weighted by catalog weight_l1 over the KPIs that have BOTH a measurement and a benchmark. addressable_weighted = revenue_weighted x (min_multiplier + (1 - min_multiplier) x headroom): a discount, never a boost, and floored — benchmarks are TRAILING KPI data and the leading (qualitative) layer routinely diverges from them, so peer data may bound a journey-derived risk but must never erase it. No benchmark node, or no covered KPI on the account => not_covered: multiplier 1.0, revenue_weighted passes through undiscounted and says so. The percentiles are a peer population this tenant did not measure, so every figure resting on them is 'assumed' (weakest-link), citing the node's own benchmark_source.",
+      "percentiles": {"p25": 0.25, "p50": 0.5, "p75": 0.75, "p90": 0.9},
+      "min_percentile_points": 2,
+      "min_multiplier": 0.5
+    }
   },
   "attribution": {
     "_doc": "signal role (taxonomy) -> pillar role (catalog pillar_roles). Resolved per vertical through vertical_registry.role(); a role the vertical has no pillar for is reported under 'unmapped', never guessed.",

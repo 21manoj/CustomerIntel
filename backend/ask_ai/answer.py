@@ -349,6 +349,18 @@ def _trim_money(m: Optional[dict]) -> Optional[dict]:
     return {k: v for k, v in m.items() if k in ('value', 'basis', 'note')}
 
 
+def _headroom_compact(hr: dict) -> dict:
+    """The peer-headroom block trimmed for context: the ranking inputs plus the heaviest few KPI rows
+    (a catalog can benchmark dozens; the model needs the ones that actually carry the factor)."""
+    hr = hr or {}
+    kpis = sorted(hr.get('kpis') or [], key=lambda k: -k.get('weight', 0))[:5]      # same cap as the Po1 portfolio block
+    return {'status': hr.get('status'), 'factor': hr.get('factor'), 'multiplier': hr.get('multiplier'),
+            'covered_kpis': hr.get('covered_kpis'), 'sources': hr.get('sources'), 'basis': hr.get('basis'),
+            'kpis': [{k: v for k, v in row.items() if k in ('kpi', 'name', 'value', 'position', 'headroom', 'weight',
+                                                            'percentiles', 'benchmark_source', 'benchmark_node_id')}
+                     for row in kpis]}
+
+
 def _priority_account_compact(row: dict) -> dict:
     """One account's full roi.priorities.score_account() row, trimmed for context (drop the static
     weights config — it's the same for every account and adds nothing per-account)."""
@@ -356,6 +368,8 @@ def _priority_account_compact(row: dict) -> dict:
     return {'lens': row.get('lens'), 'secondary_lens': row.get('secondary_lens'), 'risk_factor': row.get('risk_factor'),
             'opportunity_factor': row.get('opportunity_factor'), 'priority_factor': row.get('priority_factor'),
             'revenue': _trim_money(row.get('revenue')), 'revenue_weighted': _trim_money(row.get('revenue_weighted')),
+            'addressable_weighted': _trim_money(row.get('addressable_weighted')),
+            'benchmark_headroom': _headroom_compact(row.get('benchmark_headroom')),
             'factors': factors, 'opportunity': row.get('opportunity'),
             'open_interventions': row.get('open_interventions'), 'pending_approvals': row.get('pending_approvals'),
             'cites': row.get('cites')}
