@@ -1,9 +1,13 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { ApiError, askQuestion, getAskQuestions, getPortfolio } from '../api/client'
-import type { AskQuestion, AskResponse, PortfolioRow, Role } from '../api/types'
+import type { AskQuestion, AskResponse, AskTurn, PortfolioRow, Role } from '../api/types'
 import { useAuth } from '../auth/AuthContext'
 
 const ROLE_LABEL: Record<string, string> = { admin: 'Admin', cro: 'CRO', cfo: 'CFO', csm: 'CSM' }
+
+// One exchange in the open conversation. The thread lives here in the component and is replayed
+// to the server with each new question — in-session continuity only, nothing is stored server-side.
+type Turn = { question: string; res: AskResponse }
 
 function ConfidencePill({ confidence }: { confidence: number | null }) {
   if (confidence == null) return <span className="text-xs text-slate-400">confidence n/a (stub answer)</span>
@@ -11,12 +15,20 @@ function ConfidencePill({ confidence }: { confidence: number | null }) {
   return <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${cls}`}>confidence {Math.round(confidence * 100)}%</span>
 }
 
-function AnswerCard({ res }: { res: AskResponse }) {
+function AnswerCard({ turn }: { turn: Turn }) {
+  const { question, res } = turn
+  const carried = res.scope_detail?.scope_carried_from_history === true
   return (
     <div className="rounded-lg border border-slate-200 bg-white p-5">
-      <div className="flex flex-wrap items-center justify-between gap-2">
+      <p className="text-sm font-medium text-slate-900">{question}</p>
+      <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm font-medium text-slate-500">
-          {res.scope === 'account' ? `Account — ${(res.scope_detail as { account_name?: string }).account_name ?? ''}` : 'Portfolio'}
+          {res.scope === 'account' ? `Account — ${res.scope_detail?.account_name ?? ''}` : 'Portfolio'}
+          {carried && (
+            <span className="ml-2 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-normal text-slate-500">
+              carried over from the previous question
+            </span>
+          )}
         </p>
         <div className="flex items-center gap-2">
           <ConfidencePill confidence={res.confidence} />
@@ -50,7 +62,11 @@ function AnswerCard({ res }: { res: AskResponse }) {
         </div>
       )}
 
-      <p className="mt-4 text-xs text-slate-400">{Object.keys(res.citations).length} citation(s) · {res.citation_rule}</p>
+      <p className="mt-4 text-xs text-slate-400">
+        {Object.keys(res.citations).length} citation(s)
+        {res.history_turns > 0 && ` · ${res.history_turns} earlier turn(s) read for reference only, never cited`}
+        {' · '}{res.citation_rule}
+      </p>
     </div>
   )
 }
@@ -66,7 +82,8 @@ export default function AskAI() {
   const [freeText, setFreeText] = useState('')
   const [asking, setAsking] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [result, setResult] = useState<AskResponse | null>(null)
+  const [turns, setTurns] = useState<Turn[]>([])
+  const endRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
     getAskQuestions()
@@ -86,6 +103,19 @@ export default function AskAI() {
   const canSwitchRole = user?.role === 'admin'
   const questions = useMemo(() => (viewRole ? questionsByRole[viewRole] ?? [] : []), [questionsByRole, viewRole])
 
+  // What the server is sent as `history`: question + answer + the account that turn resolved to.
+  // Only turns that produced a grounded answer are worth replaying — an empty one (every sentence
+  // dropped by the citation rule) tells a follow-up nothing and would just spend context.
+  function historyFor(thread: Turn[]): AskTurn[] {
+    return thread
+      .filter((t) => t.res.answer.trim().length > 0)
+      .map((t) => ({
+        question: t.question,
+        answer: t.res.answer,
+        account_id: t.res.scope === 'account' ? (t.res.scope_detail?.account_id ?? null) : null,
+      }))
+  }
+
   async function ask(question: string, requiresAccount: boolean) {
     if (customerId == null || !question.trim()) return
     if (requiresAccount && !accountId) {
@@ -94,10 +124,10 @@ export default function AskAI() {
     }
     setAsking(true)
     setError(null)
-    setResult(null)
     try {
-      const res = await askQuestion(customerId, question, accountId ? Number(accountId) : undefined)
-      setResult(res)
+      const res = await askQuestion(customerId, question, accountId ? Number(accountId) : undefined, historyFor(turns))
+      setTurns((prev) => [...prev, { question, res }])
+      setFreeText('')
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Failed to get an answer.')
     } finally {
@@ -105,17 +135,33 @@ export default function AskAI() {
     }
   }
 
+  useEffect(() => {
+    endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+  }, [turns.length])
+
   if (customerId == null) {
     return <p className="text-sm text-slate-500">No customer context.</p>
   }
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold text-slate-900">Ask AI</h1>
-        <p className="mt-1 text-sm text-slate-500">
-          Every sentence below is grounded in cited evidence — a claim that can't cite one is dropped, not guessed.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-semibold text-slate-900">Ask AI</h1>
+          <p className="mt-1 text-sm text-slate-500">
+            Every sentence below is grounded in cited evidence — a claim that can't cite one is dropped, not guessed.
+            Follow-up questions read the earlier turns of this conversation to work out what they refer to; those turns
+            are never treated as evidence, and nothing about them is stored.
+          </p>
+        </div>
+        {turns.length > 0 && (
+          <button
+            onClick={() => { setTurns([]); setError(null) }}
+            className="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
+          >
+            New conversation
+          </button>
+        )}
       </div>
 
       {canSwitchRole && (
@@ -174,7 +220,7 @@ export default function AskAI() {
             value={freeText}
             onChange={(e) => setFreeText(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && ask(freeText, false)}
-            placeholder="Or ask your own question…"
+            placeholder={turns.length ? 'Ask a follow-up…' : 'Or ask your own question…'}
             className="flex-1 rounded border border-slate-300 px-3 py-2 text-sm"
           />
           <button
@@ -188,7 +234,12 @@ export default function AskAI() {
       </div>
 
       {error && <p className="text-sm text-red-600">{error}</p>}
-      {result && <AnswerCard res={result} />}
+
+      <div className="space-y-4">
+        {turns.map((t, i) => <AnswerCard key={i} turn={t} />)}
+        {asking && <p className="text-sm text-slate-500">Reading the evidence…</p>}
+        <div ref={endRef} />
+      </div>
     </div>
   )
 }

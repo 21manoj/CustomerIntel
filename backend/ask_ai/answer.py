@@ -1,11 +1,13 @@
 """
 Ask AI over the journey contract (P10) — the answer engine.
 
-    ask(customer_id, question, account_id=None, as_of=None) -> dict
+    ask(customer_id, question, account_id=None, as_of=None, history=None) -> dict
 
 Flow
   1. scope    one account (account_id given, or an account named in the
-              question) or the portfolio (portfolio phrasing, or no match).
+              question, or — for a follow-up that names neither an account
+              nor the portfolio — the account the previous turn was about)
+              or the portfolio (portfolio phrasing, or no match).
   2. gather   ONLY from journeys.read: get_journey (journey + evidence index
               + narrative) for an account, list_journeys rows for the
               portfolio, get_evidence for a taxonomy role the question names.
@@ -42,6 +44,17 @@ Flow
 Time travel: `as_of` applies the scrubber — episodes, series months,
 hooks and evidence after that instant are removed before the model sees
 anything, and the narrative is re-validated against what remains.
+
+Conversation: `history` is the prior turns of the SAME chat, held by the
+client and sent back on each question — in-session only, never persisted
+(that is the separate cross-session memory feature, and this is not it).
+It does two bounded things. (a) Scope: a follow-up that names no account
+and no portfolio phrase inherits the previous turn's account instead of
+falling back to the portfolio. (b) Reference: a capped recap of the last
+few turns is shown under CONVERSATION SO FAR — deliberately OUTSIDE the
+context blocks, so it never enters Context.citable and can never be cited.
+It exists so "what about their champion?" can resolve `their`; every fact
+in the answer must still come from, and cite, the evidence blocks.
 """
 from __future__ import annotations
 
@@ -78,14 +91,19 @@ RULES (the product contract; the validator enforces them after you answer)
 7. Portfolio questions aggregate the same objects: every account you mention cites its row:<account_id>; rank or compare only on values present in the rows. priority:portfolio, po1:portfolio, roi:portfolio and investment_cost:portfolio (when shown) already are portfolio totals — cite those directly rather than summing per-account rows yourself.
 8. Money has a basis, and every cost figure here is an informal estimate. Every dollar figure in a priority/po1/roi/investment_cost block carries a basis: measured (cited to a real outcome), derived (computed from the tenant's own data), or assumed (a configured economics or investment-cost estimate) — state which when it matters, the way you already state an evidence tier for a cause. risk_factor, opportunity_factor and revenue_weighted are a prioritization ranking, not a computed ROI — never call them "ROI" or "return". investment_cost figures (estimated CSM hours, $ per playbook execution, $ per health point) are basis assumed — informal CS-leadership estimates, not audited or measured costs, even on the rare figure where the $ per health point uses a measured lift (the cost side is still never measured, so the ratio stays assumed) — say so plainly if asked what something would cost, and never present an investment_cost figure as a precise or audited number.
 
+9. The conversation recap is not evidence. If a CONVERSATION SO FAR section is present, it is a record of what this user already asked and what you already answered, nothing more. Use it ONLY to work out what the new question means — who "they" are, which account "it" is, what "that drop" refers to. It carries no ids and you may not cite it. A fact you stated in an earlier turn is not usable here unless the context blocks below say it again; if this turn's blocks do not support it, say so rather than repeating yourself on the strength of having said it before.
+
 Write plain, specific sentences. Prefer the narrative's own wording when it already says the thing. Keep to at most {max_sentences} sentences. confidence (0-1) is your confidence that the kept sentences answer the question from the cited evidence — low when the evidence is thin or unreviewed."""
 
-USER_PROMPT = """QUESTION: {question}
+USER_PROMPT = """{history_block}QUESTION: {question}
 
 SCOPE: {scope_line}
 
 CONTEXT BLOCKS (the only evidence you may use; cite the ids exactly as written):
 {context}"""
+
+HISTORY_HEADER = ("CONVERSATION SO FAR (earlier turns of this chat, oldest first — read them to resolve what the new "
+                  "question refers to; they are not evidence and carry no citable ids):\n")
 
 _STOPWORDS = {'what', 'when', 'where', 'which', 'this', 'that', 'with', 'from', 'have', 'does', 'did', 'the', 'and', 'for',
               'why', 'how', 'was', 'were', 'has', 'about', 'account', 'accounts', 'tell', 'show', 'their', 'there', 'they',
@@ -119,6 +137,65 @@ def _keywords(question: str) -> List[str]:
     return [w for w in words if len(w) >= n and w not in _STOPWORDS]
 
 
+# ── conversation (in-session, client-held) ──────────────────────────────
+
+def normalize_history(history) -> List[dict]:
+    """The last `conversation.max_turns` usable turns, oldest first, as
+    {question, answer, account_id}. A turn is usable when it has both a
+    question and an answer — a turn still in flight, or one the citation
+    rule emptied, teaches the model nothing and is dropped rather than shown
+    as a blank exchange. Anything else in the client's turn objects (their
+    sentences, citations, gaps) is ignored on purpose: the recap is a memory
+    aid, not a second evidence channel."""
+    if not history:
+        return []
+    if isinstance(history, dict):
+        history = [history]
+    out = []
+    for t in history:
+        if not isinstance(t, dict):
+            continue
+        q = str(t.get('question') or '').strip()
+        a = str(t.get('answer') or '').strip()
+        if not q or not a:
+            continue
+        aid = t.get('account_id')
+        try:
+            aid = int(aid) if aid is not None and str(aid).strip() != '' else None
+        except (TypeError, ValueError):
+            aid = None
+        out.append({'question': q, 'answer': a, 'account_id': aid})
+    return out[-settings.get('conversation', 'max_turns'):]
+
+
+def history_block(history: List[dict]) -> str:
+    """The recap the model is shown, or '' — capped twice: per turn
+    (question_chars / answer_chars) and overall (max_chars, oldest turns
+    dropped first). It sits outside the context blocks, so unlike every
+    other thing the model reads it is never added to Context.citable."""
+    if not history:
+        return ''
+    qn, an, cap = (settings.get('conversation', 'question_chars'), settings.get('conversation', 'answer_chars'),
+                   settings.get('conversation', 'max_chars'))
+    lines = [f'{i}. asked: {t["question"][:qn]}\n   answered: {t["answer"][:an]}' for i, t in enumerate(history, 1)]
+    while lines and len(HISTORY_HEADER) + sum(len(x) + 1 for x in lines) > cap:
+        lines.pop(0)                                  # oldest first: the turn nearest the new question matters most
+    return (HISTORY_HEADER + '\n'.join(lines) + '\n\n') if lines else ''
+
+
+def _history_account(history: List[dict], rows: List[dict]) -> Optional[int]:
+    """The account the conversation is already about: the most recent turn
+    that resolved to one, and only if it is still in this customer's
+    portfolio (a stale or forged id from the client never selects an
+    account — the portfolio rows are the authority, as they are for a name
+    matched out of the question text)."""
+    known = {int(r['account_id']) for r in rows}
+    for t in reversed(history or []):
+        if t.get('account_id') is not None and int(t['account_id']) in known:
+            return int(t['account_id'])
+    return None
+
+
 class Context:
     """The blocks the model sees, under a character budget. `citable` maps
     every id shown to the object the answer may cite for it."""
@@ -150,10 +227,18 @@ class Context:
 
 # ── scope ───────────────────────────────────────────────────────────────
 
-def decide_scope(customer_id: int, question: str, account_id: Optional[int], rows: List[dict]) -> Tuple[str, Optional[int]]:
+def decide_scope(customer_id: int, question: str, account_id: Optional[int], rows: List[dict],
+                 history: Optional[List[dict]] = None) -> Tuple[str, Optional[int]]:
     """('account', id) or ('portfolio', None). An explicit account_id wins;
     then portfolio phrasing; then an account name from the portfolio found
-    in the question; otherwise portfolio."""
+    in the question; then — for a follow-up in an ongoing conversation —
+    the account the previous turn resolved to; otherwise portfolio.
+
+    The history step goes LAST, after everything this turn's own words say,
+    so a follow-up can still change the subject: "and the portfolio?" reads
+    as portfolio, "how is Contoso?" moves to Contoso. It only replaces the
+    final fallback, which was never a decision about this question — it was
+    a default."""
     if account_id:
         return 'account', int(account_id)
     q = (question or '').lower()
@@ -163,6 +248,10 @@ def decide_scope(customer_id: int, question: str, account_id: Optional[int], row
         name = (r.get('account_name') or '').strip().lower()
         if name and name in q:
             return 'account', int(r['account_id'])
+    if history and settings.get('conversation', 'follow_up_inherits_account'):
+        carried = _history_account(history, rows)
+        if carried is not None:
+            return 'account', carried
     return 'portfolio', None
 
 
@@ -651,16 +740,30 @@ def _call_model(customer_id: int, system: str, user: str) -> Tuple[dict, str]:
 
 # ── stub (no API key) ───────────────────────────────────────────────────
 
-def _stub_answer(question: str, scope: str, ctx: Context, narrative: Optional[dict], rows: List[dict]) -> dict:
+def _stub_keyword_weights(question: str, history: Optional[List[dict]]) -> Dict[str, int]:
+    """Keywords to rank the stub's sentences by. This turn's words weigh
+    double the previous turn's, so a follow-up still ranks on what it
+    actually asked ("what about their champion?" → champion), while one
+    carrying almost no words of its own ("and after that?") can still land
+    on the subject the conversation was already about instead of on the
+    first sentence in the narrative."""
+    weights = {k: 2 for k in _keywords(question)}
+    for k in _keywords((history or [{}])[-1].get('question') or ''):
+        weights.setdefault(k, 1)
+    return weights
+
+
+def _stub_answer(question: str, scope: str, ctx: Context, narrative: Optional[dict], rows: List[dict],
+                 history: Optional[List[dict]] = None) -> dict:
     """Deterministic: the narrative sentences (or portfolio rows) that share
     the most keywords with the question, already carrying their citations."""
     n = settings.get('answer', 'stub_max_sentences')
-    kws = _keywords(question)
+    weights = _stub_keyword_weights(question, history)
     sentences: List[dict] = []
     if scope == 'account':
         pool = [{'text': s['text'], 'cites': list(s['cites'])}
                 for ch in (narrative or {}).get('chapters') or [] for s in ch.get('sentences') or []]
-        scored = [(sum(1 for k in kws if k in s['text'].lower()), i, s) for i, s in enumerate(pool)]
+        scored = [(sum(w for k, w in weights.items() if k in s['text'].lower()), i, s) for i, s in enumerate(pool)]
         hits = sorted([t for t in scored if t[0] > 0], key=lambda t: (-t[0], t[1]))
         chosen = [t[2] for t in hits[:n]] or [s for s in pool[:n]]
         sentences = sorted(chosen, key=lambda s: pool.index(s))
@@ -668,7 +771,8 @@ def _stub_answer(question: str, scope: str, ctx: Context, narrative: Optional[di
     else:
         def rank(r):
             latest = r.get('latest') or {}
-            hit = sum(1 for k in kws if k in json.dumps(_row_compact(r), default=str).lower())
+            blob = json.dumps(_row_compact(r), default=str).lower()
+            hit = sum(w for k, w in weights.items() if k in blob)
             return (-hit, 0 if latest.get('early_warning') else 1, latest.get('kpi_only') if latest.get('kpi_only') is not None else 10**9)
         for r in sorted(rows, key=rank)[:n]:
             rid = f"row:{r['account_id']}"
@@ -731,32 +835,43 @@ def validate_answer(payload: dict, citable: Dict[str, dict], max_sentences: int)
 
 # ── entry point ─────────────────────────────────────────────────────────
 
-def ask(customer_id: int, question: str, account_id: Optional[int] = None, as_of=None) -> dict:
+def ask(customer_id: int, question: str, account_id: Optional[int] = None, as_of=None, history=None) -> dict:
     question = (question or '').strip()
     if not question:
         raise ValueError('question is required')
     when = _parse_as_of(as_of)
+    turns = normalize_history(history)
     from journeys.read import list_journeys
     rows = list_journeys(int(customer_id))
-    scope, aid = decide_scope(int(customer_id), question, account_id, rows)
+    scope, aid = decide_scope(int(customer_id), question, account_id, rows, turns)
+    # Whether the subject was inherited rather than stated is part of the answer, not a hidden
+    # convenience: a follow-up silently re-scoped to the previous account is exactly the kind of
+    # thing a reader must be able to see (and the UI shows it).
+    carried = bool(turns and not account_id and scope == 'account'
+                   and aid is not None and aid == _history_account(turns, rows)
+                   and not any((r.get('account_name') or '').strip().lower() in question.lower()
+                               for r in rows if (r.get('account_name') or '').strip()))
 
     narrative = None
     if scope == 'account':
         row = next((r for r in rows if int(r['account_id']) == aid), None)
         ctx, gaps, meta, narrative = account_context(customer_id, aid, question, when, row)
         scope_line = f"one account — {meta.get('account_name')} (account_id {aid})" + (f", as of {meta['as_of']}" if when else '')
+        if carried:
+            scope_line += ' — carried over from the previous turn of this conversation, which the new question did not re-name'
     else:
         ctx, gaps, meta = portfolio_context(customer_id, question, rows, when)
         scope_line = f"portfolio — {meta['shown']} of {meta['accounts']} accounts shown"
+    meta = {**meta, 'history_turns': len(turns), 'scope_carried_from_history': carried}
 
     max_sentences = settings.get('answer', 'max_sentences')
     system = SYSTEM_PROMPT.format(max_sentences=max_sentences)
-    user = USER_PROMPT.format(question=question, scope_line=scope_line, context=ctx.text())
+    user = USER_PROMPT.format(history_block=history_block(turns), question=question, scope_line=scope_line, context=ctx.text())
 
     if os.environ.get('ANTHROPIC_API_KEY'):
         payload, model = _call_model(customer_id, system, user)
     else:
-        payload, model = _stub_answer(question, scope, ctx, narrative, rows), STUB_MODEL
+        payload, model = _stub_answer(question, scope, ctx, narrative, rows, turns), STUB_MODEL
 
     sentences, unsupported = validate_answer(payload, ctx.citable, max_sentences)
     cited_ids = list(dict.fromkeys(c for s in sentences for c in s['cites']))
@@ -787,5 +902,6 @@ def ask(customer_id: int, question: str, account_id: Optional[int] = None, as_of
         'confidence': confidence,
         'citation_rule': CITATION_RULE,
         'context_chars': ctx.used,
+        'history_turns': len(turns),          # counted separately from context_chars: the recap is not a context block
         'model': model, 'generator': GENERATOR,
     }
