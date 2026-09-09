@@ -27,21 +27,11 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 os.environ.pop('ANTHROPIC_API_KEY', None)
 os.environ['FEATURE_SIGNAL_ENGINE'] = 'true'
 
-from flask import Flask
 from extensions import db
 
 
-def _make_app():
-    _app = Flask(__name__)
-    _app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get(
-        'DATABASE_URL', 'postgresql://manojgupta@localhost:5432/customerintel_test')
-    db.init_app(_app)
-    return _app
-
-
-app = _make_app()
-import mcp_server.common as _common
-_common._flask_app = app
+from mcp_server.common import get_flask_app
+app = get_flask_app()
 
 from models import Customer, Account, JourneyData, HealthScore, QualitativeSignal, ContextNode
 from demo.generate import generate, register, load_manifest, health_to_kpi_value, expand_accounts, MANIFESTS_DIR

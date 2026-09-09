@@ -22,18 +22,14 @@ BACKEND = Path(__file__).resolve().parent.parent
 if str(BACKEND) not in sys.path:
     sys.path.insert(0, str(BACKEND))
 
-from flask import Flask                                   # noqa: E402
 from extensions import db                                 # noqa: E402
 
 TEST_DB = os.environ.get('DATABASE_URL', 'postgresql://manojgupta@localhost:5432/customerintel_test')
 if 'test' not in TEST_DB.rsplit('/', 1)[-1].lower():
     raise RuntimeError('refusing non-test database')
 
-app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = TEST_DB
-db.init_app(app)
-import mcp_server.common as _common                       # noqa: E402
-_common._flask_app = app
+from mcp_server.common import get_flask_app                # noqa: E402
+app = get_flask_app()
 import utils.health_thresholds as ht                      # noqa: E402
 from models import Account, HealthScore, ContextNode, JourneyData, ForecastRun, AccountForecast, WizardRun   # noqa: E402
 from wizards import wizard_d_settings as settings         # noqa: E402

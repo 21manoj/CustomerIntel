@@ -12,23 +12,11 @@ import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from flask import Flask
 from extensions import db
 
 
-def _make_app():
-    _app = Flask(__name__)
-    _app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get(
-        'DATABASE_URL', 'postgresql://manojgupta@localhost:5432/customerintel_test'
-    )
-    db.init_app(_app)
-    return _app
-
-
-app = _make_app()
-
-import mcp_server.common as _common
-_common._flask_app = app
+from mcp_server.common import get_flask_app
+app = get_flask_app()
 
 from models import Customer, CsvUploadStaging
 from fastmcp.exceptions import ToolError

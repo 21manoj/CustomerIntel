@@ -14,27 +14,11 @@ import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from flask import Flask
 from extensions import db
 
 
-def _make_app():
-    _app = Flask(__name__)
-    _app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get(
-        'DATABASE_URL', 'postgresql://manojgupta@localhost:5432/customerintel_test'
-    )
-    db.init_app(_app)
-    return _app
-
-
-app = _make_app()
-
-# create_customer(data_origin='synthetic_test', ) opens its own app context via _get_flask_app() (a
-# module-level singleton in mcp_server/common.py) — point that singleton
-# at this same test app/DB rather than letting it build its own from
-# DATABASE_URL a second time.
-import mcp_server.common as _common
-_common._flask_app = app
+from mcp_server.common import get_flask_app
+app = get_flask_app()
 
 from models import Customer, User, CustomerConfig, FeatureToggle
 from fastmcp.exceptions import ToolError
