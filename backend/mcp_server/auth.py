@@ -27,6 +27,7 @@ the only mode Tier 2A needs. Port api_key_service.py + CustomerApiKey before
 standing up HTTP transport, not before.
 """
 
+import hmac
 import os
 import logging
 import contextvars
@@ -254,10 +255,13 @@ def get_scoped_customer_id() -> Optional[int]:
 # Server-level key validation (backward-compat, super-admin)
 # ---------------------------------------------------------------------------
 def validate_server_key(api_key: str) -> bool:
-    """Validate an API key against the configured server-level key."""
+    """Validate an API key against the configured server-level key. Constant-time: this
+    guards the single most powerful credential in the system (bypasses per-tenant
+    scoping entirely), so a byte-by-byte '==' that short-circuits on the first mismatch
+    is not an acceptable comparison here."""
     if not MCP_SERVER_API_KEY:
         return False
-    return api_key == MCP_SERVER_API_KEY
+    return hmac.compare_digest(api_key, MCP_SERVER_API_KEY)
 
 
 # Legacy alias

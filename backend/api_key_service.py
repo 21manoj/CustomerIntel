@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import contextvars
 import hashlib
+import hmac
 import logging
 import secrets
 import time
@@ -118,7 +119,7 @@ def validate_api_key(raw_key: str) -> Optional[CustomerApiKey]:
         return None
     candidate_hash = _hash_key(raw_key)
     for c in CustomerApiKey.query.filter_by(key_prefix=raw_key[:_KEY_PREFIX_LEN], is_active=True).all():
-        if c.key_hash == candidate_hash:
+        if hmac.compare_digest(c.key_hash, candidate_hash):
             if c.expires_at and c.expires_at < datetime.utcnow():
                 logger.info('API key id=%s expired', c.id)
                 return None

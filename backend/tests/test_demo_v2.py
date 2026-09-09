@@ -27,7 +27,6 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 os.environ.pop('ANTHROPIC_API_KEY', None)
 os.environ['FEATURE_SIGNAL_ENGINE'] = 'true'
 
-from flask import Flask
 from extensions import db
 
 TEST_DB = os.environ.get('DATABASE_URL', 'postgresql://manojgupta@localhost:5432/customerintel_test')
@@ -40,11 +39,8 @@ def _assert_isolated_test_db(uri):
         raise RuntimeError('refusing non-test database')
 
 
-app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = TEST_DB
-db.init_app(app)
-import mcp_server.common as _common
-_common._flask_app = app
+from mcp_server.common import get_flask_app
+app = get_flask_app()
 
 from models import JourneyData, QualitativeSignal, HealthScore, Account
 from demo.generate import generate, register, load_manifest, expand_accounts, MANIFESTS_DIR

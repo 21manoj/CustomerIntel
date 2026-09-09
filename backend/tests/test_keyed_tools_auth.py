@@ -16,18 +16,14 @@ BACKEND = Path(__file__).resolve().parent.parent
 if str(BACKEND) not in sys.path:
     sys.path.insert(0, str(BACKEND))
 
-from flask import Flask                                   # noqa: E402
 from extensions import db                                 # noqa: E402
 
 TEST_DB = os.environ.get('DATABASE_URL', 'postgresql://manojgupta@localhost:5432/customerintel_test')
 if 'test' not in TEST_DB.rsplit('/', 1)[-1].lower():
     raise RuntimeError('refusing non-test database')
 
-app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = TEST_DB
-db.init_app(app)
-import mcp_server.common as _common                       # noqa: E402
-_common._flask_app = app
+from mcp_server.common import get_flask_app               # noqa: E402
+app = get_flask_app()
 
 
 @pytest.fixture(scope='module')
@@ -120,6 +116,19 @@ def test_upload_csv_is_no_longer_frictionless(keys):
     # someone else's tenant, same key: refused
     with pytest.raises(ToolError, match='does not have access'):
         _with(keys['write'], lambda: require_auth_if_key_present('upload_csv', keys['c2']))
+
+
+def test_secret_comparisons_are_constant_time():
+    """validate_server_key guards the single most powerful credential in the system —
+    it bypasses per-tenant scoping entirely. Found 2026-09-09 compared with plain '==',
+    a byte-by-byte short-circuit, on the most sensitive check in the file; the customer
+    API key hash comparison in api_key_service had the same pattern."""
+    import inspect
+    from mcp_server import auth as mcp_auth
+    src = inspect.getsource(mcp_auth.validate_server_key)
+    assert 'hmac.compare_digest' in src and '== MCP_SERVER_API_KEY' not in src
+    import api_key_service
+    assert 'hmac.compare_digest' in inspect.getsource(api_key_service.validate_api_key)
 
 
 def test_server_key_and_scoped_customer_key(keys):
