@@ -1,14 +1,29 @@
 """
 MCP tool names — single source of truth for auth over HTTP.
 
-ONBOARDING_TOOLS   frictionless: NO key needed (prospects create a tenant and
-                   load CSVs before anyone issues a key). If a key IS present it
-                   is still validated.
+ONBOARDING_TOOLS   frictionless: NO key needed. Reserved for tools that either
+                   read nothing tenant-specific (list_verticals, get_csv_templates),
+                   CREATE a brand-new tenant (create_customer — returns a real
+                   customer-scoped key in its own response, so every tool acting on
+                   an EXISTING customer_id has a key available to it by construction
+                   and belongs in KEYED_TOOLS, not here), or carry their own
+                   independent compensating control in the tool itself the way
+                   clone_customer's unconditional is_synthetic gate does. If a key
+                   IS present on a frictionless call it is still validated.
 KEYED_TOOLS        everything else: over HTTP a key is REQUIRED — the server key,
                    or a customer key scoped to that customer (read scope for reads,
                    write scope for WRITE_TOOLS in auth.py). Found 2026-09-04: the
                    read surface, review, outcomes and Ask AI had been added to the
-                   frictionless set and were reachable anonymously.
+                   frictionless set and were reachable anonymously. Found again
+                   2026-09-09: upload_csv/process_data/trigger_wizard/
+                   configure_customer_kpis were in the frictionless set too — since
+                   frictionless means "no key checked at all," not "no key required
+                   for this tenant," any caller could pass ANY existing customer_id
+                   to these and mutate that tenant's data with zero credentials, and
+                   none of the four carry a compensating control the way
+                   clone_customer does. create_customer itself was never the problem
+                   (it can only ever create a NEW row); the four tools that act on a
+                   customer_id someone else already owns are.
 
 Imported by cs_pulse_onboarding.py and auth.py. Kept in a standalone module
 so contract tests can run without fastmcp installed.
@@ -22,17 +37,17 @@ ONBOARDING_TOOLS = frozenset({
     'get_onboarding_status',
     'validate_csv',
     'create_customer',
-    'configure_customer_kpis',
     'enable_features',
-    'upload_csv',
-    'process_data',
-    'trigger_wizard',
     'complete_onboarding',
     'clone_customer',
     'download_customer_csv',
 })
 
 KEYED_TOOLS = frozenset({
+    'configure_customer_kpis',
+    'upload_csv',
+    'process_data',
+    'trigger_wizard',
     'submit_signal',
     'research_account_external_signals',
     'process_signals',

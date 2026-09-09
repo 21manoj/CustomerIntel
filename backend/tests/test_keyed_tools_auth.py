@@ -101,7 +101,25 @@ def test_keyed_tool_without_a_key_is_denied_and_audited(keys):
 def test_onboarding_tool_stays_frictionless(keys):
     from mcp_server.auth import require_auth_if_key_present
     assert _with(None, lambda: require_auth_if_key_present('list_verticals', None)) is None
-    assert _with(None, lambda: require_auth_if_key_present('upload_csv', keys['c1'])) is None
+
+
+def test_upload_csv_is_no_longer_frictionless(keys):
+    """Found 2026-09-09: upload_csv (and process_data/trigger_wizard/configure_customer_kpis)
+    were in ONBOARDING_TOOLS, so ANY caller could mutate ANY existing customer_id's data with
+    no key at all — 'frictionless' was meant for create_customer, which can only create a new
+    row, not for tools that act on a tenant someone else already owns."""
+    from fastmcp.exceptions import ToolError
+    from mcp_server.auth import require_auth_if_key_present
+    from mcp_server.onboarding_tool_registry import ONBOARDING_TOOLS, KEYED_TOOLS
+    for tool in ('upload_csv', 'process_data', 'trigger_wizard', 'configure_customer_kpis'):
+        assert tool in KEYED_TOOLS and tool not in ONBOARDING_TOOLS
+        with pytest.raises(ToolError, match='requires an API key'):
+            _with(None, lambda tool=tool: require_auth_if_key_present(tool, keys['c1']))
+    # the caller's own tenant, with the key create_customer would actually hand them: allowed
+    assert _with(keys['write'], lambda: require_auth_if_key_present('upload_csv', keys['c1'])) is not None
+    # someone else's tenant, same key: refused
+    with pytest.raises(ToolError, match='does not have access'):
+        _with(keys['write'], lambda: require_auth_if_key_present('upload_csv', keys['c2']))
 
 
 def test_server_key_and_scoped_customer_key(keys):
