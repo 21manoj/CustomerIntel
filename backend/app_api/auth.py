@@ -33,7 +33,7 @@ import time
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Optional
+from typing import Optional, Union
 
 from app_api import settings
 
@@ -217,15 +217,19 @@ def consume_setup_token(raw_token: str, new_password: str):
 
 # ── RBAC ──
 
-def require_session(request, role: Optional[str] = None) -> SessionUser:
+def require_session(request, role: Optional[Union[str, tuple, list, set]] = None) -> SessionUser:
     """The logged-in user for this request, as an immutable snapshot — never the ORM row (see
     SessionUser). Raises PermissionError('not_authenticated' | 'wrong_role') — http.py's _guard
-    translates those to 401 / 403."""
+    translates those to 401 / 403.
+
+    role accepts either one role name or a tuple/list/set of acceptable role names (a route open
+    to more than one role, e.g. csm + vpcsm) — admin always passes regardless."""
     token = request.cookies.get(settings.get('session', 'cookie_name'))
     user = verify_session(token)
     if not user:
         raise PermissionError('not_authenticated')
-    if role and user.role != 'admin' and user.role != role:
+    allowed = {role} if isinstance(role, str) else set(role) if role else set()
+    if allowed and user.role != 'admin' and user.role not in allowed:
         raise PermissionError('wrong_role')
     return _snapshot(user)
 

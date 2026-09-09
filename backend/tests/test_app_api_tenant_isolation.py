@@ -45,7 +45,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 TEST_DB = os.environ.get('DATABASE_URL', 'postgresql://manojgupta@localhost:5432/customerintel_test')
 SERVER_KEY = 'test-server-key-' + uuid.uuid4().hex
 
-ROLES = ('admin', 'cro', 'cfo', 'csm')
+ROLES = ('admin', 'cro', 'cfo', 'csm', 'vpcsm')
 SCOPE_ERROR = 'not permitted for your account/tenant scope'
 
 

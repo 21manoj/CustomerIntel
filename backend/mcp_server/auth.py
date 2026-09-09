@@ -100,6 +100,11 @@ WRITE_TOOLS = {
     'import_from_source',
     'approve_calibration',
     'reject_calibration',
+    # onboarding tool that still mutates state once a key IS presented — same
+    # pattern as upload_csv/process_data/trigger_wizard (frictionless AND
+    # write-scoped): no key is required at all, but a customer key scoped to
+    # the source tenant must carry write scope to clone it.
+    'clone_customer',
 }
 
 

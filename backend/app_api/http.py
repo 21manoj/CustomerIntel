@@ -37,8 +37,9 @@ def _cookie_kwargs() -> dict:
     return {'httponly': True, 'samesite': 'lax', 'secure': os.environ.get(_INSECURE_ENV, '').lower() not in ('true', '1', 'yes')}
 
 
-def _guard(request, role: str = None):
-    """(user, error_response). error_response is set on 401/403; the caller returns it as-is."""
+def _guard(request, role=None):
+    """(user, error_response). error_response is set on 401/403; the caller returns it as-is.
+    role: one role name, or a tuple/list/set of acceptable role names."""
     try:
         user = _with_app(lambda: require_session(request, role))
         return user, None
@@ -185,7 +186,7 @@ def register_app_api_routes(mcp) -> None:
 
     @mcp.custom_route('/app/api/interventions/{intervention_id:int}/approve', methods=['POST'], name='ui_interventions_approve')
     async def ui_interventions_approve(request):
-        user, err = _guard(request, role='csm')
+        user, err = _guard(request, role=('csm', 'vpcsm'))
         if err:
             return err
         data = await _json(request)
@@ -200,7 +201,7 @@ def register_app_api_routes(mcp) -> None:
 
     @mcp.custom_route('/app/api/interventions/{intervention_id:int}/report', methods=['POST'], name='ui_interventions_report')
     async def ui_interventions_report(request):
-        user, err = _guard(request, role='csm')
+        user, err = _guard(request, role=('csm', 'vpcsm'))
         if err:
             return err
         data = await _json(request)
@@ -400,11 +401,11 @@ def register_app_api_routes(mcp) -> None:
         except ValueError as e:
             return JSONResponse({'error': str(e)}, status_code=400)
 
-    # ── review queue (csm, admin) ──
+    # ── review queue (csm, vpcsm, admin) ──
 
     @mcp.custom_route('/app/api/review-queue', methods=['GET'], name='ui_review_queue')
     async def ui_review_queue_route(request):
-        user, err = _guard(request, role='csm')
+        user, err = _guard(request, role=('csm', 'vpcsm'))
         if err:
             return err
         q = request.query_params
@@ -417,7 +418,7 @@ def register_app_api_routes(mcp) -> None:
 
     @mcp.custom_route('/app/api/review', methods=['POST'], name='ui_review_post')
     async def ui_review_post(request):
-        user, err = _guard(request, role='csm')
+        user, err = _guard(request, role=('csm', 'vpcsm'))
         if err:
             return err
         data = await _json(request)

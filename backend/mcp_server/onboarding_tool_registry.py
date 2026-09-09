@@ -71,6 +71,11 @@ KEYED_TOOLS = frozenset({
     'get_calibration',
     'approve_calibration',
     'reject_calibration',
+    # CSM scorecard / capacity / daily actions / ranking (roi/csm.py, mcp_server/cs_pulse_csm.py)
+    'get_csm_scorecard',
+    'get_team_capacity',
+    'get_csm_daily_actions',
+    'get_csm_ranking',
 })
 
 ALL_TOOLS = ONBOARDING_TOOLS | KEYED_TOOLS

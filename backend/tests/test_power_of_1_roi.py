@@ -201,12 +201,18 @@ def test_po1_kpi_one_pct_goes_through_the_catalog_curve(tenants):
         from roi.power_of_1 import power_of_1
         from utils.generic_scorer import score_kpi
         from utils.vertical_registry import get_kpis
+        # Portfolio-wide scope (no account_id): full per-KPI detail is omitted per account here (it's
+        # O(accounts × kpis) and already rolled into portfolio.kpis) — see power_of_1()'s 'accounts' note.
+        # Assert the pointer shape, and get per-account KPI detail from the account_id-scoped calls below.
         out = power_of_1(cid)
         assert out['vertical'] == 'datacenter_v1' and out['economics']['file'] == 'datacenter_v1.json'
         assert out['economics']['retention_sensitivity_per_health_point']['value'] == 0.005
         names = {p['pillar']: p['name'] for p in out['portfolio']['pillars']}
         assert names['P1'] == 'Revenue & Unit Economics' and names['P6'] == 'Provisioning Velocity'
-        tit = next(a for a in out['accounts'] if a['account_id'] == ids['TIT'])
+        tit_summary = next(a for a in out['accounts'] if a['account_id'] == ids['TIT'])
+        assert isinstance(tit_summary['kpis'], str) and str(ids['TIT']) in tit_summary['kpis']
+
+        tit = power_of_1(cid, account_id=ids['TIT'])['accounts'][0]
         k = next(k for k in tit['kpis'] if k['kpi'] == 'P1-KPI1')
         mv = k['one_pct_value_move']
         kdef = get_kpis('datacenter_v1')['P1-KPI1']
@@ -215,7 +221,7 @@ def test_po1_kpi_one_pct_goes_through_the_catalog_curve(tenants):
         assert mv['revenue_delta']['value'] == pytest.approx(mv['score_delta'] * k['health_points_per_kpi_point'] * 8_200_000 * 0.005, rel=1e-3)
         assert mv['revenue_delta']['basis'] == 'assumed'
         # Meridian is above the healthy max on P1-KPI1 (4.5 > 4.0): flat on the curve, and says so
-        mer = next(a for a in out['accounts'] if a['account_id'] == ids['MER'])
+        mer = power_of_1(cid, account_id=ids['MER'])['accounts'][0]
         flat = next(k for k in mer['kpis'] if k['kpi'] == 'P1-KPI1')['one_pct_value_move']
         assert flat['score_delta'] == 0 and flat['revenue_delta']['value'] == 0 and 'flat' in flat['revenue_delta']['note']
         agg = next(k for k in out['portfolio']['kpis'] if k['kpi'] == 'P1-KPI1')

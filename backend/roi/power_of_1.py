@@ -271,6 +271,14 @@ def power_of_1(customer_id: int, account_id: Optional[int] = None) -> dict:
             'weight_sources': {src: sum(1 for r in rows if r['weight_source'] == src) for src in sorted({r['weight_source'] for r in rows})},
             'pillars': pillar_rows, 'kpis': kpi_rows, 'bands': band_rows, 'scenarios': scenarios,
         },
-        'accounts': rows,
+        # Full per-KPI breakdown is kept when the caller scoped to one account (the tool's drill-down
+        # use case) but dropped at portfolio scope: it's O(accounts × kpis) and already rolled into
+        # portfolio.kpis above — inlining it per account too made a 10-account tenant's response exceed
+        # 400K characters. Ask for account_id explicitly to get one account's full kpis array back.
+        'accounts': rows if account_id is not None else [
+            {**r, 'kpis': f"{len(r['kpis'])} KPIs — omitted at portfolio scope (already rolled into portfolio.kpis above); "
+                          f"call get_power_of_1(customer_id, account_id={r['account_id']}) for this account's full per-KPI breakdown"}
+            for r in rows
+        ],
     })
     return out

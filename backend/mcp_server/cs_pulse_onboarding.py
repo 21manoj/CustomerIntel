@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 import os
-from datetime import datetime
+import re
+import hashlib
+import secrets
+from datetime import datetime, timedelta
 from typing import Optional
 """
 CS Pulse MCP — Onboarding Tools (frictionless auth).
@@ -1563,6 +1566,721 @@ def delete_customer(customer_id: int, confirm_domain: str, reason: str) -> dict:
         _audit.record('mcp', 'delete_customer', customer_id, key_kind='server' if raw else 'local', outcome='allowed',
                       detail=f'{name} ({domain}) deleted: {reason.strip()[:200]} — rows {counts} — llm usage {usage_totals}')
         return {'customer_id': customer_id, 'customer_name': name, 'domain': domain, 'deleted_rows': counts, 'reason': reason.strip()}
+
+
+# ===================================================================
+# Tool: clone_customer — deep-copy a tenant (core primitive only)
+# ===================================================================
+#
+# Future use case (not wired up here): a new visitor on a marketing site
+# gets a temporary sandbox copy of a demo tenant to explore. This function
+# is only the copy primitive — nothing here adds it to any HTTP/auth/signup
+# flow, and nothing sweeps Customer.expires_at once it passes (no
+# scheduler/cron/Celery exists anywhere in this codebase, confirmed absent
+# from requirements.txt); both are separate, later work. clone_customer
+# accepts ttl_minutes and stamps the deadline column — that is the whole of
+# its involvement in "temporary."
+#
+# Table list: the forward/copy version of delete_customer's own list — "what
+# a customer owns" — Intervention, AccountForecast, ForecastRun,
+# WeightCalibration, ContextEdge, ContextNode, JourneyData, SignalReview,
+# QualitativeSignal, HealthScore, KPIMeasurement, WizardRun, ProcessRun,
+# CsvUploadStaging, CsvUpload, FeatureToggle, Account, CustomerConfig,
+# Customer — with exclusions matching what create_customer already does for
+# a brand-new tenant, not what delete_customer deletes:
+#   - CustomerApiKey / llm_usage_log: never copied. The clone gets ONE fresh
+#     key (api_key_service, the same call create_customer makes) and an
+#     empty spend ledger, never the source's.
+#   - User: never copied verbatim (User.email has a global UniqueConstraint).
+#     Exactly one fresh admin User is minted, same shape as create_customer's.
+#   - CustomerConfig.openai_api_key_encrypted / _updated_at: the one
+#     CustomerConfig field that is itself a live credential (a customer's
+#     own OpenAI key) — never carried into a clone even though the rest of
+#     CustomerConfig is copied, for the same reason as CustomerApiKey.
+#
+# Two more tenant-scoped secrets/integration targets live inside
+# FeatureToggle rows (found while reading playbooks/definitions.py and
+# configure_signal_engine, not mentioned in the original scoping notes): the
+# 'playbooks' toggle's config can hold a real webhook_url + webhook_secret +
+# slack_webhook_url, and the 'signal_engine' toggle's config can hold a real
+# Slack workspace/channel map. Both are stripped on clone — otherwise a demo
+# clone could silently fire signed webhooks at the source tenant's real
+# n8n/Salesforce endpoint, or receive the source's live Slack signal traffic.
+#
+# ID remapping: two-pass, same shape as the old repo's clone_customer
+# (accounts first, building an old-id->new-id map, before anything that
+# references those ids) but generalized to every id space this schema
+# actually has, verified against real rows in a populated dev database
+# (customer 5 in customerintel_aurelia_dev, a live 6-account demo tenant —
+# not assumed) rather than guessed from the models alone:
+#   - Account.account_id, ContextNode.node_id, ContextEdge.edge_id,
+#     HealthScore.health_score_id, CsvUpload.id, ProcessRun.id and
+#     Intervention.id each get their own old->new map.
+#   - ForecastRun.run_id / ProcessRun.run_id / WizardRun.run_id are unique
+#     STRINGS, not surrogate ints; each cloned row gets a freshly minted
+#     sibling id (_mint_sibling_run_id), and old->new STRING maps are built
+#     for all three since they turned out to be embedded elsewhere (a
+#     forecast run_id inside journey_json['forecast'] and
+#     AccountForecast.forecast_json; a process run_id inside
+#     WeightCalibration.recompute).
+#   - JSON blobs DO embed old ids internally, confirmed by inspecting real
+#     rows rather than assumed: ContextNode.properties for an INTERVENTION
+#     node carries an intervention_id and trigger_episode_ids;
+#     JourneyData.journey_json's episodes/phases/arc/narrative/forecast all
+#     cite "{prefix}:{id}" episode-id strings — 'sig'/'dec'/'int'/'out' key
+#     off ContextNode.node_id, 'hs' keys off HealthScore.health_score_id,
+#     per journeys/journey_builder.py's Episode construction —
+#     AccountForecast.forecast_json['cites'] and WeightCalibration.impact's
+#     per-account rows carry ids the same way. _remap_deep walks every JSON
+#     blob column (not just the two the scoping investigation named) and
+#     rewrites every id it recognizes, by dict key and by the "{prefix}:{id}"
+#     string pattern; anything not in its allowlist passes through
+#     unchanged. It is applied uniformly to every JSON column on every
+#     cloned table, not selectively, so nothing gets missed by omission.
+#
+# Frictionless, but fail-closed on the source: clone_customer is one of the
+# ONBOARDING_TOOLS (no key required over HTTP — see onboarding_tool_registry
+# .py, where the name was already reserved), matching the stated future use
+# case of an anonymous visitor cloning a DEMO tenant. That would be a
+# serious hole if it could clone ANY tenant — an anonymous, unauthenticated
+# caller could otherwise exfiltrate a full copy of a real paying customer's
+# accounts/signals/health/interventions into a tenant they control. So the
+# source's data_origin must already be synthetic (utils.data_origin
+# .is_synthetic) or clone_customer refuses, unconditionally — including with
+# the server key. This gate isn't spelled out verbatim in the brief; it's
+# the same judgment call create_customer/delete_customer already make about
+# who can touch what, applied to a new frictionless tool that deep-reads a
+# whole tenant. When a customer API key IS presented, require_auth_if_key
+# _present is called with source_customer_id (not None, unlike
+# create_customer, which has no existing tenant to scope against) so the
+# key must be scoped to the tenant being cloned; clone_customer is also in
+# auth.WRITE_TOOLS so that key must carry write scope, same as
+# upload_csv/process_data/trigger_wizard (also frictionless AND mutating).
+
+_EPISODE_ID_RE = re.compile(r'^(sig|dec|int|out|hs):(\d+)$')
+_INTERVENTION_REF_RE = re.compile(r'^intervention:(\d+)$')
+
+# Dict keys recognized as a single embedded id, and which bucket of `maps`
+# (passed to _remap_deep) resolves them.
+_SCALAR_ID_KEYS = {
+    'node_id': 'node', 'outcome_node_id': 'node', 'cg_node_id': 'node',
+    'intervention_id': 'intervention',
+    'account_id': 'account',
+    'health_score_id': 'health_score',
+    'upload_id': 'csv_upload', 'input_upload_id': 'csv_upload',
+    'process_run_id': 'process_run_pk',
+}
+# Dict keys recognized as a LIST of embedded ids of one kind.
+_LIST_ID_KEYS = {
+    'evidence_node_ids': 'node', 'trigger_node_ids': 'node', 'node_ids': 'node',
+    'outcome_node_ids': 'node', 'upload_ids': 'csv_upload',
+}
+
+
+def _remap_scalar_str(s: str, maps: dict) -> str:
+    """Rewrite one string if it is an embedded id in a recognized micro-format:
+    journeys/journey_builder.py's episode ids ('sig:419', 'hs:88', ...) and
+    playbooks/governance.py's ContextNode.source_event_id ('intervention:12').
+    Anything else (free text, a signal_id UUID, an external CRM ref) is
+    returned unchanged — both regexes anchor start-to-end, so a quote or
+    title that merely contains a colon never matches."""
+    m = _EPISODE_ID_RE.match(s)
+    if m:
+        prefix, old = m.group(1), int(m.group(2))
+        bucket = maps['health_score'] if prefix == 'hs' else maps['node']
+        new = bucket.get(old)
+        return f'{prefix}:{new}' if new is not None else s
+    m = _INTERVENTION_REF_RE.match(s)
+    if m:
+        new = maps['intervention'].get(int(m.group(1)))
+        return f'intervention:{new}' if new is not None else s
+    return s
+
+
+def _remap_deep(obj, maps: dict, run_id_maps: list):
+    """Recursively rewrite embedded old ids to new ones inside a JSON blob.
+
+    `maps` is {'node', 'account', 'health_score', 'intervention', 'csv_upload',
+    'process_run_pk'} -> {old_id: new_id}. A bucket not yet populated (its
+    table hasn't been cloned yet at the point this runs) just means its keys
+    pass through unchanged — safe to call before every map is complete, as
+    long as the CALLER only relies on buckets it knows are already done.
+
+    `run_id_maps` is a list of {old_run_id_str: new_run_id_str} dicts
+    (forecast / process / wizard run ids); a 'run_id' string is looked up
+    across all of them since more than one run-id space can appear in the
+    same blob shape (e.g. journey_json['forecast']['run_id'] is a
+    ForecastRun id, WeightCalibration.recompute['run_id'] is a ProcessRun id).
+
+    Every other key/value is copied through unchanged — this is deliberately
+    a broad allowlist walk, not a narrow one, so it is safe to run over every
+    JSON column on every cloned table rather than only the ones known in
+    advance to need it.
+    """
+    if isinstance(obj, dict):
+        out = {}
+        for k, v in obj.items():
+            if k in _SCALAR_ID_KEYS and isinstance(v, int) and not isinstance(v, bool):
+                out[k] = maps[_SCALAR_ID_KEYS[k]].get(v, v)
+            elif k in _LIST_ID_KEYS and isinstance(v, list):
+                bucket = maps[_LIST_ID_KEYS[k]]
+                out[k] = [bucket.get(x, x) if (isinstance(x, int) and not isinstance(x, bool))
+                          else _remap_deep(x, maps, run_id_maps) for x in v]
+            elif k == 'run_id' and isinstance(v, str):
+                out[k] = next((m[v] for m in run_id_maps if v in m), v)
+            else:
+                out[k] = _remap_deep(v, maps, run_id_maps)
+        return out
+    if isinstance(obj, list):
+        return [_remap_deep(x, maps, run_id_maps) for x in obj]
+    if isinstance(obj, str):
+        return _remap_scalar_str(obj, maps)
+    return obj
+
+
+def _remap_int_list(values, bucket_map: dict) -> list:
+    """For a JSON column whose OWN value is a bare list of ids (e.g.
+    Intervention.trigger_node_ids) — _remap_deep only rewrites a list found
+    nested under a recognized dict key, not a column's top-level value."""
+    return [bucket_map.get(v, v) if (isinstance(v, int) and not isinstance(v, bool)) else v for v in (values or [])]
+
+
+def _remap_episode_str_list(values, maps: dict) -> list:
+    """Same as _remap_int_list, for a bare list of episode-id strings
+    (Intervention.trigger_episode_ids)."""
+    return [_remap_scalar_str(v, maps) if isinstance(v, str) else v for v in (values or [])]
+
+
+def _mint_sibling_run_id(old_run_id: Optional[str], max_len: int) -> str:
+    """A fresh, all-but-certainly-unique id in the same family as old_run_id.
+    ForecastRun/ProcessRun/WizardRun.run_id are each globally unique strings,
+    so a literal copy would violate the unique constraint."""
+    suffix = f'_cl{secrets.token_hex(4)}'
+    base = (old_run_id or 'run')[:max(0, max_len - len(suffix))]
+    return f'{base}{suffix}'[:max_len]
+
+
+@mcp.tool
+def clone_customer(source_customer_id: int, name: str, domain: str, admin_email: str = None,
+                   admin_name: str = None, ttl_minutes: int = None) -> dict:
+    """Deep-copy a tenant into a brand-new one: every account, KPI row, health
+    score, signal, evidence node/edge, journey, intervention, forecast,
+    calibration, and upload/process/feature-toggle record the source owns,
+    all re-keyed to new ids under a new Customer with its own fresh admin
+    user and API key. This is the copy-forward mirror of delete_customer's
+    table list (see that tool's docstring) minus what a clone must never
+    inherit: the source's CustomerApiKey rows, its LLM usage ledger, its
+    users, and any live credential/external-integration target found along
+    the way (CustomerConfig's OpenAI key; a playbooks webhook secret/URL; a
+    signal_engine Slack workspace/channel map). Core primitive only — not
+    wired into any onboarding/HTTP/signup flow, and nothing sweeps
+    expires_at once it passes (no scheduler exists in this codebase).
+
+    The source must already be a synthetic/demo tenant
+    (utils.data_origin.is_synthetic) — this refuses to clone a tenant whose
+    data_origin is 'real', unconditionally (even with the server key). This
+    tool is frictionless (ONBOARDING_TOOLS, no key required over HTTP) for
+    the same reason create_customer is: it is meant to be reachable by an
+    anonymous prospect. Without the is_synthetic gate that would let anyone
+    exfiltrate a full copy of a real customer's data; with it, cloning is
+    limited to exactly the case this exists for — handing out sandbox
+    copies of demo tenants. If a customer API key IS presented, it must be
+    scoped to source_customer_id and carry write scope (auth.WRITE_TOOLS).
+
+    Args:
+        source_customer_id: The demo/synthetic tenant to copy.
+        name: Company name for the new (cloned) customer.
+        domain: Email domain for the new customer (e.g. 'acme-clone-4f2a.demo'). Must be unused.
+        admin_email: Admin user email for the clone. Defaults to f'admin@{domain}'.
+        admin_name: Admin user display name for the clone. Defaults to f'{name} Admin'.
+        ttl_minutes: Optional. When given, sets Customer.expires_at = now + ttl_minutes
+            (nothing acts on this yet — see this tool's module-level comment). Omit for
+            a normal, non-expiring customer (expires_at stays NULL, same as every
+            existing tenant).
+    """
+    _require_auth_if_key_present('clone_customer', int(source_customer_id))
+    _check_mcp_enabled()
+    app = _get_flask_app()
+
+    with app.app_context():
+        from extensions import db
+        from models import (Customer, CustomerConfig, User, Account, KPIMeasurement, HealthScore, QualitativeSignal,
+                            ContextNode, ContextEdge, JourneyData, CsvUpload, CsvUploadStaging, ProcessRun, SignalReview,
+                            WizardRun, FeatureToggle, Intervention, ForecastRun, AccountForecast, WeightCalibration)
+        from utils.data_origin import is_synthetic, disclosure as _disclosure
+
+        src = db.session.get(Customer, int(source_customer_id))
+        if not src:
+            raise ToolError(f'Customer {source_customer_id} not found.')
+        if not is_synthetic(src.data_origin):
+            raise ToolError(
+                f"clone_customer refuses to clone customer {source_customer_id} ({src.domain!r}): "
+                f"data_origin={src.data_origin!r} is not synthetic. Only demo/synthetic tenants can be "
+                f"cloned by this frictionless tool."
+            )
+        existing = Customer.query.filter_by(domain=domain).first()
+        if existing:
+            raise ToolError(f"A customer with domain '{domain}' already exists (customer_id={existing.customer_id}).")
+
+        admin_email = (admin_email or f'admin@{domain}').strip()
+        admin_name = (admin_name or f'{name} Admin').strip()
+        if User.query.filter_by(email=admin_email).first():
+            raise ToolError(f"Email '{admin_email}' is already registered.")
+
+        vertical = src.vertical
+        uuid_vertical = 'dc' if (vertical or '').startswith('dc') else vertical
+
+        def _try_gen_id(entity: str):
+            try:
+                from id_generator import generate_id
+                return generate_id(uuid_vertical, entity)
+            except Exception:
+                return None
+
+        customer_uuid = _try_gen_id('customer')
+
+        expires_at = None
+        if ttl_minutes is not None:
+            expires_at = datetime.utcnow() + timedelta(minutes=int(ttl_minutes))
+
+        customer = Customer(
+            customer_name=name, email=admin_email, domain=domain, vertical=vertical,
+            data_origin='synthetic_demo', uuid=customer_uuid, expires_at=expires_at,
+        )
+        db.session.add(customer)
+        db.session.flush()
+        new_customer_id = customer.customer_id
+        counts = {}
+
+        # ---- CustomerConfig (openai_api_key_* deliberately not copied — a live credential) ----
+        src_config = CustomerConfig.query.filter_by(customer_id=source_customer_id).first()
+        config = CustomerConfig(customer_id=new_customer_id, vertical=vertical)
+        if src_config:
+            for field in ('kpi_upload_mode', 'column_map', 'category_weights', 'master_file_name',
+                         'pillar_weights', 'enabled_kpis', 'kpi_overrides', 'kpi_weights',
+                         'kpi_definitions', 'lifecycle_stage_weights', 'nomenclature_overrides',
+                         'config_version', 'customized_by', 'weights_origin'):
+                setattr(config, field, getattr(src_config, field))
+        db.session.add(config)
+        counts['customer_configs'] = 1
+
+        # ---- Admin user: minted, never copied (User.email is globally unique) ----
+        user = User(
+            customer_id=new_customer_id, user_name=admin_name, email=admin_email, role='admin',
+            vertical=vertical, allowed_customer_ids=[new_customer_id],
+        )
+        if customer_uuid:
+            user.customer_uuid = customer_uuid
+        user.uuid = _try_gen_id('user')
+        db.session.add(user)
+        db.session.flush()
+        counts['users'] = 1
+
+        from app_api.auth import issue_setup_token
+        setup_token = issue_setup_token(user)
+
+        # ---- Fresh API key (CustomerApiKey rows are never copied) ----
+        full_key = None
+        try:
+            from api_key_service import generate_api_key as _gen_api_key
+            full_key, _key_record = _gen_api_key(
+                customer_id=new_customer_id, created_by=user.user_id,
+                name='Clone Onboarding Key', scopes=['read', 'write'],
+            )
+        except Exception:
+            pass
+
+        # ---- FeatureToggle: copy, but strip live external-integration secrets/targets ----
+        n = 0
+        for t in FeatureToggle.query.filter_by(customer_id=source_customer_id).all():
+            cfg = dict(t.config or {})
+            if t.feature_name == 'playbooks':
+                # webhook_url/webhook_secret/slack_webhook_url are the SOURCE tenant's real,
+                # signed webhook target (playbooks/definitions.py tenant_secret/tenant_slack_url)
+                # — never carried into a clone.
+                for k in ('webhook_url', 'webhook_secret', 'slack_webhook_url'):
+                    cfg.pop(k, None)
+            elif t.feature_name == 'signal_engine':
+                # slack_team_id/slack_channel_map route a REAL Slack workspace's events to this
+                # tenant (configure_signal_engine) — copying them would route the source's live
+                # Slack traffic into the clone too.
+                cfg = {}
+            db.session.add(FeatureToggle(
+                customer_id=new_customer_id, feature_name=t.feature_name, enabled=t.enabled,
+                config=cfg, description=t.description,
+            ))
+            n += 1
+        counts['feature_toggles'] = n
+
+        # id maps, filled in as each phase below completes. _remap_deep / _remap_scalar_str
+        # do a plain dict.get(x, x) lookup, so calling them before a bucket is populated is
+        # safe (those ids just pass through) — callers below only rely on buckets already done.
+        maps = {'node': {}, 'account': {}, 'health_score': {}, 'intervention': {},
+               'csv_upload': {}, 'process_run_pk': {}}
+        run_id_maps = []
+
+        # ---- Accounts -> account_map ----
+        account_map = {}
+        for a in Account.query.filter_by(customer_id=source_customer_id).order_by(Account.account_id).all():
+            new_a = Account(
+                customer_id=new_customer_id, account_name=a.account_name, revenue=a.revenue,
+                account_status=a.account_status, industry=a.industry, vertical=a.vertical,
+                region=a.region, external_account_id=a.external_account_id,
+                profile_metadata=a.profile_metadata, arc_type=a.arc_type, arc_phase=a.arc_phase,
+                arc_confidence=a.arc_confidence,
+            )
+            if a.uuid:
+                # Account.uuid is globally unique when set; normal CSV ingest (utils/csv_ingest.py)
+                # never sets it in practice, so this only fires on the rare pre-existing row that has one.
+                new_a.uuid = _try_gen_id('account')
+                new_a.customer_uuid = customer_uuid
+            db.session.add(new_a)
+            db.session.flush()
+            account_map[a.account_id] = new_a.account_id
+        maps['account'] = account_map
+        counts['accounts'] = len(account_map)
+        _acct_ids_or_none = list(account_map.keys()) or [-1]
+
+        # ---- ContextNode -> node_map (properties/source_event_id fixed up later, once
+        #      the intervention_map they can reference exists) ----
+        node_map, node_pairs = {}, []
+        for cn in ContextNode.query.filter_by(customer_id=source_customer_id).order_by(ContextNode.node_id).all():
+            new_cn = ContextNode(
+                customer_id=new_customer_id, account_id=account_map[cn.account_id],
+                node_type=cn.node_type, node_subtype=cn.node_subtype, source=cn.source, tier=cn.tier,
+                title=cn.title, properties=cn.properties, revenue_impact=cn.revenue_impact,
+                revenue_impact_type=cn.revenue_impact_type, confidence=cn.confidence,
+                source_platform=cn.source_platform, source_event_id=cn.source_event_id,
+                source_ref=cn.source_ref, occurred_at=cn.occurred_at, expires_at=cn.expires_at,
+                weight_decay=cn.weight_decay,
+            )
+            db.session.add(new_cn)
+            db.session.flush()
+            node_map[cn.node_id] = new_cn.node_id
+            node_pairs.append((cn, new_cn))
+        maps['node'] = node_map
+        counts['context_nodes'] = len(node_map)
+
+        # ---- ContextEdge -> edge_map (from/to remapped now; properties fixed up later
+        #      alongside ContextNode's; superseded_by fixed up right below, once every
+        #      edge in this batch has a new id) ----
+        edge_map, edge_pairs = {}, []
+        for ce in ContextEdge.query.filter_by(customer_id=source_customer_id).order_by(ContextEdge.edge_id).all():
+            new_ce = ContextEdge(
+                customer_id=new_customer_id, from_node_id=node_map[ce.from_node_id],
+                to_node_id=node_map[ce.to_node_id], edge_type=ce.edge_type, lag_days=ce.lag_days,
+                weight=ce.weight, confidence=ce.confidence, revenue_impact=ce.revenue_impact,
+                revenue_impact_type=ce.revenue_impact_type, properties=ce.properties,
+                source_platform=ce.source_platform, created_by=ce.created_by,
+                occurred_at=ce.occurred_at, expires_at=ce.expires_at,
+            )
+            db.session.add(new_ce)
+            db.session.flush()
+            edge_map[ce.edge_id] = new_ce.edge_id
+            edge_pairs.append((ce, new_ce))
+        for ce, new_ce in edge_pairs:
+            if ce.superseded_by is not None:
+                new_ce.superseded_by = edge_map.get(ce.superseded_by)
+        counts['context_edges'] = len(edge_map)
+
+        # ---- ProcessRun -> process_run_pk_map / process_run_id_map (upload_ids fixed
+        #      up below once csv_upload_map exists) ----
+        process_run_pk_map, process_run_id_map, process_run_pairs = {}, {}, []
+        for pr in ProcessRun.query.filter_by(customer_id=source_customer_id).order_by(ProcessRun.id).all():
+            new_run_id = _mint_sibling_run_id(pr.run_id, 40)
+            new_pr = ProcessRun(
+                run_id=new_run_id, customer_id=new_customer_id, vertical=pr.vertical, mode=pr.mode,
+                status=pr.status, steps=pr.steps, errors=pr.errors, timings=pr.timings, counts=pr.counts,
+                upload_ids=pr.upload_ids,   # fixed up below, once csv_upload_map exists
+                key_kind=pr.key_kind, key_id=(pr.key_id if pr.key_kind != 'customer' else None),
+                generator_version=pr.generator_version, started_at=pr.started_at, finished_at=pr.finished_at,
+            )
+            db.session.add(new_pr)
+            db.session.flush()
+            process_run_pk_map[pr.id] = new_pr.id
+            process_run_id_map[pr.run_id] = new_run_id
+            process_run_pairs.append((pr, new_pr))
+        maps['process_run_pk'] = process_run_pk_map
+        run_id_maps.append(process_run_id_map)
+        counts['process_runs'] = len(process_run_pk_map)
+
+        # ---- CsvUpload -> csv_upload_map (process_run_pk_map already exists) ----
+        csv_upload_map = {}
+        for cu in CsvUpload.query.filter_by(customer_id=source_customer_id).order_by(CsvUpload.id).all():
+            new_cu = CsvUpload(
+                customer_id=new_customer_id, file_type=cu.file_type, sha256=cu.sha256,
+                row_count=cu.row_count, byte_count=cu.byte_count, validation=cu.validation,
+                key_kind=cu.key_kind, key_id=(cu.key_id if cu.key_kind != 'customer' else None),
+                uploaded_at=cu.uploaded_at, consumed_at=cu.consumed_at,
+                process_run_id=(process_run_pk_map.get(cu.process_run_id) if cu.process_run_id is not None else None),
+            )
+            db.session.add(new_cu)
+            db.session.flush()
+            csv_upload_map[cu.id] = new_cu.id
+        maps['csv_upload'] = csv_upload_map
+        counts['csv_uploads'] = len(csv_upload_map)
+
+        # ---- Fixup: ProcessRun.upload_ids, now that csv_upload_map exists ----
+        for pr, new_pr in process_run_pairs:
+            new_pr.upload_ids = _remap_int_list(pr.upload_ids, csv_upload_map)
+
+        # ---- HealthScore -> health_score_map (account_map / csv_upload_map / process_run_pk_map all ready) ----
+        health_score_map = {}
+        for hs in HealthScore.query.filter(HealthScore.account_id.in_(_acct_ids_or_none)).order_by(HealthScore.health_score_id).all():
+            new_hs = HealthScore(
+                account_id=account_map[hs.account_id], measurement_month=hs.measurement_month,
+                health_score=hs.health_score, health_status=hs.health_status, trend=hs.trend,
+                change_from_last_month=hs.change_from_last_month, kpi_only_score=hs.kpi_only_score,
+                composite_score=hs.composite_score, qual_score=hs.qual_score, divergence=hs.divergence,
+                early_warning=hs.early_warning, contributing_pillars=hs.contributing_pillars,
+                pillar_weights=hs.pillar_weights, kpi_weights=hs.kpi_weights,
+                kpi_codes_used=hs.kpi_codes_used, kpi_codes_dropped=hs.kpi_codes_dropped,
+                weight_source=hs.weight_source, catalog_version=hs.catalog_version,
+                taxonomy_version=hs.taxonomy_version, scorer_version=hs.scorer_version,
+                input_upload_id=(csv_upload_map.get(hs.input_upload_id) if hs.input_upload_id is not None else None),
+                process_run_id=(process_run_pk_map.get(hs.process_run_id) if hs.process_run_id is not None else None),
+                calculated_at=hs.calculated_at,
+            )
+            db.session.add(new_hs)
+            db.session.flush()
+            health_score_map[hs.health_score_id] = new_hs.health_score_id
+        maps['health_score'] = health_score_map
+        counts['health_scores'] = len(health_score_map)
+
+        # ---- CsvUploadStaging ----
+        n = 0
+        for st in CsvUploadStaging.query.filter_by(customer_id=source_customer_id).all():
+            db.session.add(CsvUploadStaging(
+                customer_id=new_customer_id, file_type=st.file_type, csv_content=st.csv_content,
+                row_count=st.row_count,
+                upload_id=(csv_upload_map.get(st.upload_id) if st.upload_id is not None else None),
+                uploaded_at=st.uploaded_at, updated_at=st.updated_at,
+            ))
+            n += 1
+        counts['csv_upload_staging'] = n
+
+        # ---- Intervention -> intervention_map (node_map ready; trigger_key recomputed
+        #      from the remapped episode ids so the row stays internally consistent) ----
+        intervention_map = {}
+        for iv in Intervention.query.filter_by(customer_id=source_customer_id).order_by(Intervention.id).all():
+            new_trigger_episode_ids = _remap_episode_str_list(iv.trigger_episode_ids, maps)
+            new_iv = Intervention(
+                customer_id=new_customer_id, account_id=account_map[iv.account_id],
+                playbook_id=iv.playbook_id, playbook_version=iv.playbook_version,
+                action_class=iv.action_class, approval_mode=iv.approval_mode, state=iv.state,
+                urgency=iv.urgency,
+                trigger_key=hashlib.sha256(','.join(sorted(new_trigger_episode_ids)).encode('utf-8')).hexdigest(),
+                trigger_episode_ids=new_trigger_episode_ids,
+                trigger_node_ids=_remap_int_list(iv.trigger_node_ids, maps['node']),
+                trigger_roles=iv.trigger_roles, trigger_quote=iv.trigger_quote,
+                evaluated_as_of=iv.evaluated_as_of, expected_outcome_types=iv.expected_outcome_types,
+                expected_window_days=iv.expected_window_days, exposure_revenue=iv.exposure_revenue,
+                proposed_at=iv.proposed_at, proposed_by=iv.proposed_by,
+                approved_at=iv.approved_at, approved_by=iv.approved_by,
+                approved_by_key_id=None,   # the OLD tenant's CustomerApiKey.id — never cloned, so this can't resolve
+                sent_at=iv.sent_at,
+                delivery=(_remap_deep(iv.delivery, maps, run_id_maps) if iv.delivery else iv.delivery),
+                started_at=iv.started_at, last_report_at=iv.last_report_at, closed_at=iv.closed_at,
+                closed_state=iv.closed_state, closed_by=iv.closed_by,
+                outcome_node_id=(maps['node'].get(iv.outcome_node_id) if iv.outcome_node_id is not None else None),
+                outcome_in_window=iv.outcome_in_window, outcome_expected=iv.outcome_expected,
+                node_id=(maps['node'].get(iv.node_id) if iv.node_id is not None else None),
+                notes=iv.notes,
+            )
+            db.session.add(new_iv)
+            db.session.flush()
+            intervention_map[iv.id] = new_iv.id
+        maps['intervention'] = intervention_map
+        counts['interventions'] = len(intervention_map)
+
+        # ---- Fixup: ContextNode.properties / source_event_id and ContextEdge.properties,
+        #      now that maps['intervention'] exists too (an INTERVENTION-type node's
+        #      properties carry intervention_id + trigger_episode_ids; its
+        #      source_event_id is literally f'intervention:{old_id}') ----
+        for cn, new_cn in node_pairs:
+            if new_cn.properties:
+                new_cn.properties = _remap_deep(cn.properties, maps, run_id_maps)
+            if new_cn.source_event_id:
+                new_cn.source_event_id = _remap_scalar_str(new_cn.source_event_id, maps)
+        for ce, new_ce in edge_pairs:
+            if new_ce.properties:
+                new_ce.properties = _remap_deep(ce.properties, maps, run_id_maps)
+
+        # ---- ForecastRun -> forecast_run_id_map ----
+        forecast_run_id_map = {}
+        n = 0
+        for fr in ForecastRun.query.filter_by(customer_id=source_customer_id).order_by(ForecastRun.id).all():
+            new_run_id = _mint_sibling_run_id(fr.run_id, 50)
+            db.session.add(ForecastRun(
+                run_id=new_run_id, customer_id=new_customer_id, vertical=fr.vertical,
+                generator_version=fr.generator_version, horizon_days=fr.horizon_days, as_of=fr.as_of,
+                basis_counts=_remap_deep(fr.basis_counts, maps, run_id_maps),
+                labels=_remap_deep(fr.labels, maps, run_id_maps),
+                portfolio=_remap_deep(fr.portfolio, maps, run_id_maps),
+                config_snapshot=_remap_deep(fr.config_snapshot, maps, run_id_maps),
+                accounts=fr.accounts, created_at=fr.created_at, created_by=fr.created_by,
+            ))
+            forecast_run_id_map[fr.run_id] = new_run_id
+            n += 1
+        run_id_maps.append(forecast_run_id_map)
+        counts['forecast_runs'] = n
+
+        # ---- AccountForecast (run_id is a real FK to forecast_runs.run_id) ----
+        n = 0
+        for af in AccountForecast.query.filter_by(customer_id=source_customer_id).order_by(AccountForecast.id).all():
+            db.session.add(AccountForecast(
+                run_id=forecast_run_id_map.get(af.run_id, af.run_id), customer_id=new_customer_id,
+                account_id=account_map[af.account_id], as_of=af.as_of, basis=af.basis,
+                p_retain=af.p_retain, p_retain_low=af.p_retain_low, p_retain_high=af.p_retain_high,
+                p_expand=af.p_expand, p_expand_low=af.p_expand_low, p_expand_high=af.p_expand_high,
+                arr=af.arr, expected_arr_end=af.expected_arr_end, expected_arr_low=af.expected_arr_low,
+                expected_arr_high=af.expected_arr_high, decision_point_at=af.decision_point_at,
+                stratum=af.stratum, n_labels=af.n_labels,
+                forecast_json=_remap_deep(af.forecast_json, maps, run_id_maps),
+                created_at=af.created_at,
+            ))
+            n += 1
+        counts['account_forecasts'] = n
+
+        # ---- WeightCalibration (superseded_by is self-referential: 2-pass within this block) ----
+        wc_map, wc_pairs = {}, []
+        for wc in WeightCalibration.query.filter_by(customer_id=source_customer_id).order_by(WeightCalibration.id).all():
+            new_wc = WeightCalibration(
+                customer_id=new_customer_id, vertical=wc.vertical, state=wc.state,
+                method_version=wc.method_version, catalog_version=wc.catalog_version,
+                config_snapshot=_remap_deep(wc.config_snapshot, maps, run_id_maps),
+                outcome_counts=_remap_deep(wc.outcome_counts, maps, run_id_maps),
+                outcome_node_ids=_remap_int_list(wc.outcome_node_ids, maps['node']),
+                current_pillar_weights=wc.current_pillar_weights, current_kpi_weights=wc.current_kpi_weights,
+                proposed_pillar_weights=wc.proposed_pillar_weights, proposed_kpi_weights=wc.proposed_kpi_weights,
+                evidence=_remap_deep(wc.evidence, maps, run_id_maps),
+                impact=_remap_deep(wc.impact, maps, run_id_maps),
+                proposed_at=wc.proposed_at, proposed_by=wc.proposed_by,
+                proposed_by_key_id=None,   # the OLD tenant's CustomerApiKey.id — never cloned
+                decided_at=wc.decided_at, decided_by=wc.decided_by, decided_by_key_id=None,
+                decision_note=wc.decision_note, applied_config_version=wc.applied_config_version,
+                recompute=(_remap_deep(wc.recompute, maps, run_id_maps) if wc.recompute else wc.recompute),
+                notes=wc.notes,
+            )
+            db.session.add(new_wc)
+            db.session.flush()
+            wc_map[wc.id] = new_wc.id
+            wc_pairs.append((wc, new_wc))
+        for wc, new_wc in wc_pairs:
+            if wc.superseded_by is not None:
+                new_wc.superseded_by = wc_map.get(wc.superseded_by)
+        counts['weight_calibrations'] = len(wc_pairs)
+
+        # ---- KPIMeasurement ----
+        n = 0
+        for k in KPIMeasurement.query.filter(KPIMeasurement.account_id.in_(_acct_ids_or_none)).order_by(KPIMeasurement.kpi_id).all():
+            db.session.add(KPIMeasurement(
+                account_id=account_map[k.account_id], kpi_code=k.kpi_code, value=k.value, target=k.target,
+                pillar=k.pillar, upload_id=(csv_upload_map.get(k.upload_id) if k.upload_id is not None else None),
+                attributes=(_remap_deep(k.attributes, maps, run_id_maps) if k.attributes else k.attributes),
+                weight=k.weight, status=k.status, measured_at=k.measured_at, created_at=k.created_at,
+            ))
+            n += 1
+        counts['kpi_measurements'] = n
+
+        # ---- QualitativeSignal (signal_id / composite_signal_id / content_hash / source_ref
+        #      copied verbatim: they're customer-scoped business keys or external refs, still
+        #      internally valid once customer_id changes — only cg_node_id is a real CG id) ----
+        n = 0
+        for qs in QualitativeSignal.query.filter_by(customer_id=source_customer_id).order_by(QualitativeSignal.id).all():
+            db.session.add(QualitativeSignal(
+                signal_id=qs.signal_id, customer_id=new_customer_id, account_id=account_map[qs.account_id],
+                signal_date=qs.signal_date, signal_type=qs.signal_type, content=qs.content, sentiment=qs.sentiment,
+                stakeholder_level=qs.stakeholder_level, stakeholder_title=qs.stakeholder_title,
+                sentiment_score=qs.sentiment_score, keywords=qs.keywords, is_narrative_signal=qs.is_narrative_signal,
+                source_type=qs.source_type, raw_text=qs.raw_text, relationship_sentiment=qs.relationship_sentiment,
+                product_sentiment=qs.product_sentiment, urgency_score=qs.urgency_score,
+                escalation_probability=qs.escalation_probability, intent_signals=qs.intent_signals,
+                stakeholder_roles=qs.stakeholder_roles, suggested_action=qs.suggested_action,
+                confidence=qs.confidence, requires_review=qs.requires_review, llm_model_version=qs.llm_model_version,
+                composite_signal_id=qs.composite_signal_id, dedup_confidence=qs.dedup_confidence,
+                cg_node_id=(maps['node'].get(qs.cg_node_id) if qs.cg_node_id is not None else None),
+                alert_suppressed=qs.alert_suppressed, structural_urgency=qs.structural_urgency,
+                effective_urgency=qs.effective_urgency, consent_verified=qs.consent_verified,
+                content_hash=qs.content_hash, source_ref=qs.source_ref, extractions=qs.extractions,
+                use_case=qs.use_case, attributes=qs.attributes, occurred_at=qs.occurred_at,
+            ))
+            n += 1
+        counts['qualitative_signals'] = n
+
+        # ---- SignalReview ----
+        n = 0
+        for sr in SignalReview.query.filter_by(customer_id=source_customer_id).order_by(SignalReview.id).all():
+            db.session.add(SignalReview(
+                customer_id=new_customer_id, account_id=account_map[sr.account_id], signal_id=sr.signal_id,
+                node_id=(maps['node'].get(sr.node_id) if sr.node_id is not None else None),
+                decision=sr.decision, from_subtype=sr.from_subtype, to_subtype=sr.to_subtype,
+                was_flagged=sr.was_flagged, note=sr.note, reviewer=sr.reviewer, created_at=sr.created_at,
+            ))
+            n += 1
+        counts['signal_reviews'] = n
+
+        # ---- WizardRun ----
+        wizard_run_id_map = {}
+        n = 0
+        for wr in WizardRun.query.filter_by(customer_id=source_customer_id).order_by(WizardRun.id).all():
+            new_run_id = _mint_sibling_run_id(wr.run_id, 50)
+            db.session.add(WizardRun(
+                run_id=new_run_id, customer_id=new_customer_id, wizard=wr.wizard, status=wr.status,
+                config=(_remap_deep(wr.config, maps, run_id_maps) if wr.config else wr.config),
+                results=(_remap_deep(wr.results, maps, run_id_maps) if wr.results else wr.results),
+                error_message=wr.error_message, created_at=wr.created_at, completed_at=wr.completed_at,
+                created_by=wr.created_by,
+            ))
+            wizard_run_id_map[wr.run_id] = new_run_id
+            n += 1
+        run_id_maps.append(wizard_run_id_map)
+        counts['wizard_runs'] = n
+
+        # ---- JourneyData last: journey_json cites ids from every map/run_id_map above,
+        #      all of which are complete by this point ----
+        n = 0
+        for jd in JourneyData.query.filter_by(customer_id=source_customer_id).order_by(JourneyData.id).all():
+            db.session.add(JourneyData(
+                customer_id=new_customer_id, account_id=account_map[jd.account_id],
+                journey_json=_remap_deep(jd.journey_json, maps, run_id_maps),
+                total_weeks=jd.total_weeks, journey_pattern=jd.journey_pattern,
+                generator_version=jd.generator_version, generated_at=jd.generated_at, updated_at=jd.updated_at,
+            ))
+            n += 1
+        counts['journey_data'] = n
+
+        db.session.commit()
+
+        from mcp_server import audit as _audit
+        _audit.record('mcp', 'clone_customer', new_customer_id, key_kind='n/a', outcome='allowed',
+                     detail=f'cloned from customer {source_customer_id} ({src.domain}); rows {counts}')
+
+        result = {
+            'scope': 'customer',
+            'customer_id': new_customer_id,
+            'customer_name': name,
+            'customer_uuid': customer_uuid,
+            'domain': domain,
+            'vertical': vertical,
+            'created_at': customer.created_at.isoformat() if customer.created_at else None,
+            'expires_at': expires_at.isoformat() if expires_at else None,
+            'admin_user_id': user.user_id,
+            'admin_email': admin_email,
+            'admin_setup_token': setup_token,
+            'admin_setup_token_note': 'Shown only once — use it at POST /app/api/auth/set-password to set the admin login password.',
+            'data_origin': 'synthetic_demo',
+            'disclosure': _disclosure('synthetic_demo'),
+            'cloned_from_customer_id': int(source_customer_id),
+            'cloned_rows': counts,
+        }
+        if full_key:
+            result['api_key'] = full_key
+            result['api_key_note'] = (
+                'Save this API key — it is shown only once. '
+                'Use it for the intelligence tools (list_accounts, get_account_health, etc.).'
+            )
+        return result
 
 
 # ===================================================================

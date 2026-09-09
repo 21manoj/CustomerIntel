@@ -109,6 +109,7 @@ def build_asgi_app(database_url: str | None = None, create_schema: bool = True):
     import mcp_server.cs_pulse_adapters    # noqa: F401 — import_from_source (adapters/sources)
     import mcp_server.cs_pulse_wizard_c    # noqa: F401 — Wizard C: get/approve/reject_calibration
     import mcp_server.cs_pulse_wizard_b    # noqa: F401 — Wizard B: get_hindsight
+    import mcp_server.cs_pulse_csm         # noqa: F401 — CSM scorecard / capacity / daily actions / ranking
     import models  # noqa: F401 — metadata for create_all
 
     app = _common.get_flask_app()

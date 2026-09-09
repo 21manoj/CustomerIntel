@@ -1,7 +1,7 @@
 {
   "_doc": "The human UI's session auth — every number the app_api/ package uses. Separate from config/signal_engine.json etc. by concern, same loader shape.",
   "version": "1.0",
-  "roles": ["admin", "cro", "cfo", "csm"],
+  "roles": ["admin", "cro", "cfo", "csm", "vpcsm"],
   "session": {
     "cookie_name": "ci_session",
     "max_age_seconds": 43200,

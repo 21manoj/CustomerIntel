@@ -39,6 +39,14 @@ class Customer(db.Model):
     # tenant's data source doesn't vary row-by-row the way an individual
     # node/edge's observed/inferred/synthetic provenance does.
     data_origin = db.Column(db.String(30), nullable=True)
+    # Time-bounded tenants (clone_customer's ttl_minutes) — same pattern as
+    # ContextNode/ContextEdge.expires_at (idx_ctx_node_tier_expires): NULL
+    # (the default) = never expires, a normal tenant. Non-NULL is a deadline
+    # a tenant is due for teardown, e.g. a demo clone handed to an anonymous
+    # marketing-site visitor. This column only marks the deadline — nothing
+    # in this codebase sweeps/deletes on it yet (no scheduler exists here);
+    # that enforcement is a separate, later piece of work.
+    expires_at = db.Column(db.DateTime, nullable=True, index=True)
     created_at = db.Column(db.DateTime, server_default=db.func.now())
     updated_at = db.Column(db.DateTime, server_default=db.func.now(), onupdate=db.func.now())
 
