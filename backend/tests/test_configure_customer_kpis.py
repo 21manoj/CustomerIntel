@@ -309,20 +309,22 @@ def test_dependency_warnings_healthcare_provider_own_language(tenants):
         assert not any(bad in joined for bad in ('TTFV', 'DAU', 'GPU', 'GRR', 'NRR', 'Time-to-First-Workload'))
 
 
-# ── registration: onboarding + write scope, keyed like every other write tool ─
+# ── registration: keyed and write-scoped, like every other tenant-mutating tool ─
 
-def test_tool_is_registered_onboarding_and_write_scoped():
-    from mcp_server.onboarding_tool_registry import ONBOARDING_TOOLS
+def test_tool_is_registered_keyed_and_write_scoped():
+    from mcp_server.onboarding_tool_registry import ONBOARDING_TOOLS, KEYED_TOOLS
     from mcp_server.auth import WRITE_TOOLS
-    assert 'configure_customer_kpis' in ONBOARDING_TOOLS
+    assert 'configure_customer_kpis' in KEYED_TOOLS and 'configure_customer_kpis' not in ONBOARDING_TOOLS
     assert 'configure_customer_kpis' in WRITE_TOOLS
 
 
-def test_onboarding_tool_stays_frictionless_but_a_present_read_key_needs_write_scope(tenants, monkeypatch):
-    """configure_customer_kpis is BOTH an onboarding tool (frictionless — no key needed,
-    same as upload_csv) AND a write tool: over HTTP with no key it's allowed (prospect
-    flow), but a key that IS present must carry write scope, exactly like every other
-    onboarding write tool (upload_csv, process_data, enable_features)."""
+def test_a_key_is_required_and_must_carry_write_scope(tenants, monkeypatch):
+    """configure_customer_kpis mutates an EXISTING tenant's scoring weights, so — unlike
+    create_customer, which can only ever create a new row — it is keyed, not frictionless
+    (found 2026-09-09: it, upload_csv, process_data and trigger_wizard were all wrongly
+    frictionless, letting any caller repoint any existing customer_id's config with zero
+    credentials). No key is refused outright; a key that IS present must carry write scope,
+    same as every other write tool."""
     import mcp_server.auth as auth
     from fastmcp.exceptions import ToolError
     from api_key_service import generate_api_key
@@ -335,7 +337,8 @@ def test_onboarding_tool_stays_frictionless_but_a_present_read_key_needs_write_s
     tok = auth._current_api_key_var.set('')
     try:
         with app.app_context():
-            assert auth.require_auth_if_key_present('configure_customer_kpis', cid) is None   # no key: frictionless
+            with pytest.raises(ToolError, match='requires an API key'):
+                auth.require_auth_if_key_present('configure_customer_kpis', cid)   # no key: refused, not frictionless
     finally:
         auth._current_api_key_var.reset(tok)
     tok = auth._current_api_key_var.set(read_key)
