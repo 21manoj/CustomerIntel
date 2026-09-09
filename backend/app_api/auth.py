@@ -33,9 +33,22 @@ import time
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+from functools import lru_cache
 from typing import Optional, Union
 
 from app_api import settings
+
+
+@lru_cache(maxsize=1)
+def _dummy_password_hash() -> str:
+    """A fixed, precomputed hash that never matches any real password — checked instead
+    of skipping check_password_hash entirely when no user (or no password_hash) exists,
+    so a nonexistent account takes the same time to reject as a wrong password on a real
+    one. Without this, response latency alone lets an attacker enumerate registered
+    emails: check_password_hash is deliberately slow, and short-circuiting past it on
+    the "no such user" branch made that cost itself the signal."""
+    from werkzeug.security import generate_password_hash
+    return generate_password_hash('not-a-real-password-used-only-for-constant-time-comparison')
 
 
 @dataclass(frozen=True)
@@ -143,7 +156,11 @@ def login(email: str, password: str, ip: str = 'unknown') -> tuple:
     if _is_rate_limited(email or '', ip):
         raise AuthError('Too many failed attempts. Try again in a minute.')
     user = User.query.filter_by(email=(email or '').strip().lower()).first() if email else None
-    ok = bool(user and user.active and user.password_hash and check_password_hash(user.password_hash, password or ''))
+    # Always run the (deliberately slow) hash check, even with no matching user/password_hash —
+    # see _dummy_password_hash's docstring for why skipping it is a timing side-channel.
+    hash_to_check = user.password_hash if (user and user.password_hash) else _dummy_password_hash()
+    password_ok = check_password_hash(hash_to_check, password or '')
+    ok = bool(user and user.active and user.password_hash and password_ok)
     if not ok:
         _record_failure(email or '', ip)
         raise AuthError('Incorrect email or password.')

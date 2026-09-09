@@ -32,18 +32,14 @@ if str(BACKEND) not in sys.path:
 
 os.environ.setdefault('SESSION_SECRET', 'test-secret-' + uuid.uuid4().hex)
 
-from flask import Flask                                   # noqa: E402
 from extensions import db                                 # noqa: E402
 
 TEST_DB = os.environ.get('DATABASE_URL', 'postgresql://manojgupta@localhost:5432/customerintel_test')
 if 'test' not in TEST_DB.rsplit('/', 1)[-1].lower():
     raise RuntimeError('refusing non-test database')
 
-app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = TEST_DB
-db.init_app(app)
-import mcp_server.common as _common                        # noqa: E402
-_common._flask_app = app
+from mcp_server.common import get_flask_app                # noqa: E402
+app = get_flask_app()
 from models import User                                    # noqa: E402
 from app_api import auth, users as user_admin              # noqa: E402
 
@@ -114,6 +110,21 @@ def test_login_rejects_wrong_password_unknown_email_and_inactive_user(db_ctx):
         no_pw = _mk_user(password=None, customer_id=db_ctx)
         with pytest.raises(auth.AuthError, match='Incorrect'):
             auth.login(no_pw.email, '', ip='9.9.9.9')
+
+
+def test_unknown_email_runs_the_same_hash_check_as_a_real_user(db_ctx):
+    """Timing side-channel found 2026-09-09: the 'no such user' branch short-circuited
+    past check_password_hash entirely (a real password hash is deliberately slow), so
+    response latency alone let an attacker distinguish a registered email from one that
+    isn't. _dummy_password_hash gives the no-user path the same cost as a real check."""
+    from werkzeug.security import check_password_hash
+    from app_api.auth import _dummy_password_hash
+    h = _dummy_password_hash()
+    assert h and check_password_hash(h, 'anything') is False
+    assert _dummy_password_hash() is h                        # cached, not regenerated per call
+    with app.app_context():
+        with pytest.raises(auth.AuthError, match='Incorrect'):
+            auth.login('definitely-not-registered-' + uuid.uuid4().hex + '@t.test', 'whatever', ip='9.9.9.9')
 
 
 def test_login_rate_limits_after_repeated_failures(db_ctx):
