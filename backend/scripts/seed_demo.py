@@ -35,6 +35,19 @@ def main():
     db.init_app(app)
     import mcp_server.common as _common
     _common._flask_app = app
+
+    # upload_csv/process_data moved from ONBOARDING_TOOLS to KEYED_TOOLS in the
+    # 2026-09-09 cross-tenant fix (any caller could mutate any existing customer_id's
+    # data with no key at all). require_auth_if_key_present() only trusts non-HTTP
+    # transport (MCP_TRANSPORT != 'http') as implicitly local; this script runs inside
+    # the app container, where MCP_TRANSPORT=http is set for the real server, so
+    # without this it is indistinguishable from an anonymous HTTP caller — harmless on
+    # a box with pre-existing demo tenants (idempotent skip hides it), but a hard
+    # failure the first time it runs against a genuinely empty database. This script
+    # already has full container/DB access — server-level trust — so present that key
+    # explicitly instead of leaning on the onboarding tools' old frictionless loophole.
+    import mcp_server.auth as auth
+    auth._current_api_key_var.set(os.environ.get('MCP_SERVER_API_KEY', ''))
     import models  # noqa: F401
     from models import Customer
 
