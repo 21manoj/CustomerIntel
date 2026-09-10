@@ -569,6 +569,13 @@ def main(argv=None):
         db.init_app(app)
         import mcp_server.common as _common
         _common._flask_app = app
+        # Same gap scripts/seed_demo.py had (2026-09-10 fix): _create_tenant/_upload/
+        # process_data are now-keyed onboarding tools over HTTP transport, and this CLI
+        # runs inside the app container where MCP_TRANSPORT=http is set for the real
+        # server — indistinguishable from an anonymous HTTP caller unless it presents a
+        # key. This script already has full container/DB access; make that explicit.
+        import mcp_server.auth as auth
+        auth._current_api_key_var.set(os.environ.get('MCP_SERVER_API_KEY', ''))
         with app.app_context():
             res = register(manifest, files, extractor=args.extractor, out_dir=args.scorecard_dir)
             res.pop('scorecard', None)      # printed above; full detail is in the scorecard file

@@ -1,0 +1,349 @@
+{
+  "version": 2,
+  "manifest_id": "ridgeline_compute_portfolio",
+  "scenario": "Ridgeline Compute \u2014 20-account datacenter_v1 portfolio (test tenant)",
+  "narrative": "A GPU-cluster neocloud book of business: one infra incident that gets fixed and pays off in a retained renewal, one usage/commercial decline that stays unresolved into the review queue, and one expansion signed off the back of a funding round. Seventeen background accounts round out the portfolio.",
+  "vertical": "datacenter_v1",
+  "customer_name": "Ridgeline Compute",
+  "domain_prefix": "ridgeline",
+  "default_product": "A100/H100 Reserved Cluster",
+  "default_csm": "Priya Desai",
+  "csm_manager": "Marcus Webb",
+  "seed": 20260910301,
+  "timeline": {
+    "t0": "2026-09-10",
+    "history_days": 180,
+    "future_days": 0,
+    "kpi_cadence_days": 14
+  },
+  "accounts": [
+    {
+      "source_account_id": "SOLSTICE",
+      "name": "Solstice AI",
+      "arr": 6200000,
+      "industry": "AI/ML",
+      "region": "North America",
+      "champion": "Kavi Anand",
+      "champion_title": "Head of ML Platform",
+      "executive_sponsor": "Renata Ford",
+      "tier": "Strategic",
+      "use_cases": [
+        "frontier model pre-training",
+        "RLHF fine-tuning"
+      ],
+      "role": "featured",
+      "health": {
+        "shape": "dip_recover",
+        "start": 82,
+        "dip_day": -70,
+        "dip": 38,
+        "end": 79,
+        "noise": 1.3
+      },
+      "renewal_day": 180,
+      "communications": [
+        {
+          "day": -95,
+          "source_type": "ticket",
+          "text": "Ticket 4021: three job failures overnight on the reserved cluster, all traced to the same rack. SLA attainment is down to 97.1% against our 99.5% commitment.",
+          "participants": [
+            {
+              "name": "Kavi Anand",
+              "title": "Head of ML Platform"
+            }
+          ],
+          "expected_subtypes": [
+            "reliability_sla_breach"
+          ],
+          "expected_sentiment": -0.6
+        },
+        {
+          "day": -70,
+          "source_type": "meeting",
+          "text": "Incident review with Kavi: measured goodput has fallen to 71% against the 90% spec and the team is checkpointing every 20 minutes just to survive the interruptions. He was blunt that another month like this puts the reservation in question.",
+          "participants": [
+            {
+              "name": "Kavi Anand",
+              "title": "Head of ML Platform"
+            },
+            {
+              "name": "Priya Desai",
+              "title": "CSM"
+            }
+          ],
+          "expected_subtypes": [
+            "throughput_below_spec",
+            "checkpoint_restart_pain"
+          ],
+          "expected_sentiment": -0.75
+        },
+        {
+          "day": -55,
+          "source_type": "email",
+          "text": "Confirming the root cause: a bad NIC on one leaf switch was corrupting collective operations across two racks. Replacement is scheduled for this week.",
+          "participants": [
+            {
+              "name": "Priya Desai",
+              "title": "CSM"
+            }
+          ],
+          "expected_subtypes": [
+            "interconnect_bottleneck"
+          ],
+          "expected_sentiment": -0.3
+        },
+        {
+          "day": -30,
+          "source_type": "email",
+          "text": "The fabric replacement has held for two weeks. Goodput is back over 93%, we haven't lost a run since, and the SLA credits were applied to this month's invoice.",
+          "participants": [
+            {
+              "name": "Kavi Anand",
+              "title": "Head of ML Platform"
+            }
+          ],
+          "expected_subtypes": [
+            "goodput_restored",
+            "sla_credit_resolved"
+          ],
+          "expected_sentiment": 0.7
+        },
+        {
+          "day": -10,
+          "source_type": "meeting",
+          "text": "Quarterly review with Kavi: he said the reliability record since the fix has been the best it's been all year and thanked the team for staying on it.",
+          "participants": [
+            {
+              "name": "Kavi Anand",
+              "title": "Head of ML Platform"
+            }
+          ],
+          "expected_subtypes": [
+            "routine_review",
+            "positive_advocacy"
+          ],
+          "expected_sentiment": 0.6
+        }
+      ],
+      "events": [
+        {
+          "day": -28,
+          "type": "revenue_protected",
+          "amount": 1800000,
+          "linked_communication_index": 3,
+          "evidence": "SLA credit + retained reservation after fabric fix"
+        }
+      ]
+    },
+    {
+      "source_account_id": "FATHOM",
+      "name": "Fathom Robotics",
+      "arr": 3100000,
+      "industry": "Robotics",
+      "region": "North America",
+      "champion": "Delia Marsh",
+      "champion_title": "VP Infrastructure",
+      "executive_sponsor": "Owen Castillo",
+      "tier": "Enterprise",
+      "use_cases": [
+        "perception model training",
+        "sim-to-real transfer"
+      ],
+      "role": "featured",
+      "health": {
+        "shape": "decline",
+        "start": 78,
+        "trailing_cross_day": -40,
+        "end": 44,
+        "noise": 1.4
+      },
+      "renewal_day": 180,
+      "communications": [
+        {
+          "day": -85,
+          "source_type": "crm_activity",
+          "text": "Utilization on the reserved cluster has been sitting under 50% for three weeks running, well below the ramp Fathom committed to at signing.",
+          "participants": [
+            {
+              "name": "Delia Marsh",
+              "title": "VP Infrastructure"
+            }
+          ],
+          "expected_subtypes": [
+            "reserved_cluster_idle"
+          ],
+          "expected_sentiment": -0.4
+        },
+        {
+          "day": -55,
+          "source_type": "email",
+          "text": "Flagging that we're now two months behind the committed ramp schedule. Finance is asking whether we oversized the reservation.",
+          "participants": [
+            {
+              "name": "Delia Marsh",
+              "title": "VP Infrastructure"
+            }
+          ],
+          "expected_subtypes": [
+            "commitment_ramp_miss"
+          ],
+          "expected_sentiment": -0.5
+        },
+        {
+          "day": -35,
+          "source_type": "slack",
+          "text": "Heads up \u2014 we got an unsolicited quote from a smaller provider at roughly 25% under our current reserved rate for comparable capacity. Wanted you to hear it from us first.",
+          "participants": [
+            {
+              "name": "Delia Marsh",
+              "title": "VP Infrastructure"
+            }
+          ],
+          "expected_subtypes": [
+            "competitor_capacity_offer"
+          ],
+          "expected_sentiment": -0.6
+        },
+        {
+          "day": -15,
+          "source_type": "meeting",
+          "text": "Delia confirmed engineering has already moved one training workload to a second provider as a cost trial and will report back to their board before renewal.",
+          "participants": [
+            {
+              "name": "Delia Marsh",
+              "title": "VP Infrastructure"
+            }
+          ],
+          "expected_subtypes": [
+            "multicloud_diversification"
+          ],
+          "expected_sentiment": -0.7
+        }
+      ],
+      "events": []
+    },
+    {
+      "source_account_id": "VANTABLACK",
+      "name": "Vantablack Systems",
+      "arr": 4500000,
+      "industry": "AI/ML",
+      "region": "Europe",
+      "champion": "Soren Blix",
+      "champion_title": "CTO",
+      "executive_sponsor": "Ines Halvorsen",
+      "tier": "Strategic",
+      "use_cases": [
+        "multimodal pretraining",
+        "synthetic data generation"
+      ],
+      "role": "featured",
+      "health": {
+        "shape": "ramp",
+        "start": 74,
+        "end": 88,
+        "noise": 1.1
+      },
+      "renewal_day": 180,
+      "communications": [
+        {
+          "day": -60,
+          "source_type": "meeting",
+          "text": "Soren walked us through utilization: the current reservation has been over 85% for six weeks and he wants to talk about a second cluster before the next silicon refresh window closes.",
+          "participants": [
+            {
+              "name": "Soren Blix",
+              "title": "CTO"
+            }
+          ],
+          "expected_subtypes": [
+            "utilization_ramp"
+          ],
+          "expected_sentiment": 0.5
+        },
+        {
+          "day": -25,
+          "source_type": "email",
+          "text": "Formal ask: Vantablack wants to expand the reservation by roughly 40% ahead of a training run scheduled for next quarter. Can we get a capacity hold started this week?",
+          "participants": [
+            {
+              "name": "Soren Blix",
+              "title": "CTO"
+            }
+          ],
+          "expected_subtypes": [
+            "reservation_expansion_interest"
+          ],
+          "expected_sentiment": 0.65
+        },
+        {
+          "day": -5,
+          "source_type": "email",
+          "text": "Closing the loop \u2014 we signed our Series C this week, which unblocks the expanded commitment. Excited to get the second cluster online.",
+          "participants": [
+            {
+              "name": "Soren Blix",
+              "title": "CTO"
+            }
+          ],
+          "expected_subtypes": [
+            "funding_raised"
+          ],
+          "expected_sentiment": 0.7
+        }
+      ],
+      "events": [
+        {
+          "day": -3,
+          "type": "expansion_closed",
+          "amount": 1800000,
+          "linked_communication_index": 1,
+          "evidence": "40% capacity expansion signed post-Series C"
+        }
+      ]
+    }
+  ],
+  "background": {
+    "names": [
+      "Cormorant Vision",
+      "Backbone Genomics",
+      "Meridian Autonomy",
+      "Quillfire Robotics",
+      "Estuary Compute",
+      "Palladium Diagnostics",
+      "Northlight Simulation",
+      "Tanager Materials",
+      "Ashgrove Bio",
+      "Ferrovia Logistics AI",
+      "Copperline Analytics",
+      "Wrenfield Genomics",
+      "Basalt Autonomous Systems",
+      "Glasswing Perception",
+      "Ironvale Robotics",
+      "Hollowreach AI",
+      "Sablewood Compute"
+    ],
+    "industries": [
+      "AI/ML",
+      "Robotics",
+      "Biotech",
+      "Autonomous Vehicles",
+      "Media Rendering"
+    ],
+    "regions": [
+      "North America",
+      "Europe",
+      "Asia Pacific"
+    ],
+    "arr_choices": [
+      1200000,
+      1800000,
+      2600000,
+      3400000,
+      4200000
+    ],
+    "health_range": [
+      72,
+      88
+    ]
+  }
+}
