@@ -1170,55 +1170,5 @@
         "label": "VP Engineering bridges old and new leadership as internal advocate"
       }
     }
-  ],
-  "industry_benchmarks": [
-    {
-      "kpi_code": "P5-KPI8",
-      "benchmark_source": "CSM Practice Champion Engagement Study 2025",
-      "industry_p25": 35,
-      "industry_p50": 58,
-      "industry_p75": 80,
-      "account_percentile": 78
-    },
-    {
-      "kpi_code": "P4-KPI1",
-      "benchmark_source": "Channel Futures Partner Benchmark 2025",
-      "industry_p25": 45,
-      "industry_p50": 63,
-      "industry_p75": 79,
-      "account_percentile": 74
-    },
-    {
-      "kpi_code": "P3-KPI1",
-      "benchmark_source": "Uptime Institute 2025 Data Center Survey",
-      "industry_p25": 48,
-      "industry_p50": 62,
-      "industry_p75": 78,
-      "account_percentile": 72
-    },
-    {
-      "kpi_code": "P4-KPI3",
-      "benchmark_source": "TSIA Customer Engagement Benchmark 2025",
-      "industry_p25": 2,
-      "industry_p50": 3,
-      "industry_p75": 4,
-      "account_percentile": 50
-    },
-    {
-      "kpi_code": "P5-KPI5",
-      "benchmark_source": "Gainsight Budget Signal Benchmark Report 2025",
-      "industry_p25": 22,
-      "industry_p50": 45,
-      "industry_p75": 68,
-      "account_percentile": 62
-    },
-    {
-      "kpi_code": "P5-KPI7",
-      "benchmark_source": "Gainsight Expansion Benchmark Report 2025",
-      "industry_p25": 18,
-      "industry_p50": 38,
-      "industry_p75": 62,
-      "account_percentile": 55
-    }
   ]
 }

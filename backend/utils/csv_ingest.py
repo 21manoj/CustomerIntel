@@ -68,6 +68,7 @@ import csv
 import io
 import json
 import logging
+import os
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -786,6 +787,51 @@ def load_benchmarks(customer_id: int, rows: list[dict]) -> int:
     if count:
         db.session.flush()
     return count
+
+
+_BENCHMARK_SEED_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'config', 'industry_benchmarks')
+
+
+def seed_platform_benchmarks(customer_id: int, vertical: str) -> Optional[str]:
+    """Seed this tenant's industry_benchmark nodes from the platform-curated
+    config/industry_benchmarks/{vertical}.csv (csv_schemas.json's
+    platform_curated.industry_benchmarks.csv.seed_file), once.
+
+    A no-op the moment the tenant has ANY industry_benchmark node already —
+    from a prior seed, or from the tenant's own industry_benchmarks.csv
+    (ingest_staged_csvs runs before this is ever called, so an upload staged
+    in the same process_data() run has already landed its nodes). That is
+    what makes "customer can override by uploading their own" (the schema's
+    own description of this file) true for a brand-new tenant: upload first,
+    the seed sees existing nodes and never runs. It is also a no-op with no
+    account to attach nodes to (load_benchmarks' node model requires one) or
+    no seed file for the vertical — neither is guaranteed at every call site,
+    and both are quiet, expected states, not errors.
+    """
+    from models import Account, ContextNode
+
+    if ContextNode.query.filter_by(
+        customer_id=customer_id, node_type='EXTERNAL_CONTEXT', node_subtype='industry_benchmark',
+    ).first():
+        return None
+    if not Account.query.filter_by(customer_id=customer_id).first():
+        return None
+
+    path = os.path.join(_BENCHMARK_SEED_DIR, f'{vertical}.csv')
+    if not os.path.isfile(path):
+        return None
+    try:
+        from extensions import db
+        with open(path, encoding='utf-8') as f:
+            rows = parse_rows(f.read())
+        n = load_benchmarks(customer_id, rows)
+        db.session.commit()   # committed on its own, like every ingest_staged_csvs phase — a later
+                               # stage's failure (and rollback) must not erase a successful seed
+    except Exception:
+        logger.exception('seed_platform_benchmarks failed for customer %s vertical %s', customer_id, vertical)
+        db.session.rollback()
+        return None
+    return f'benchmarks_seeded_{n}_platform_curated' if n else None
 
 
 def load_signal_edges(customer_id: int, rows: list[dict], resolve: Callable) -> int:

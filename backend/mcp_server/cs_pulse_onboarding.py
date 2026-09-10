@@ -403,7 +403,7 @@ def _process_data_impl(customer_id: int, mode: str = 'auto') -> dict:
         from models import Customer, Account, KPIMeasurement
         from extensions import db
         from utils.vertical_registry import get_vertical_for_customer
-        from utils.csv_ingest import ingest_staged_csvs, staged_files
+        from utils.csv_ingest import ingest_staged_csvs, staged_files, seed_platform_benchmarks
         from mcp_server.process_data_pipeline import (
             calculate_health_scores,
             backfill_product_adoption,
@@ -480,6 +480,19 @@ def _process_data_impl(customer_id: int, mode: str = 'auto') -> dict:
         else:
             timings['csv_load'] = timings['cg_load'] = 0
             steps.append(f'data_already_in_db_{len(accounts)}_accounts_{kpi_count}_kpis')
+
+        # Stage 1c: platform-curated industry benchmarks — seeded once per
+        # tenant from config/industry_benchmarks/{vertical}.csv. Skipped for
+        # synthetic_test (automated-test fixtures rely on being able to
+        # observe an unbenchmarked tenant); real/synthetic_demo/
+        # synthetic_replay tenants all get it, same as any other
+        # platform-curated default.
+        if customer.data_origin != 'synthetic_test':
+            _t = time.time()
+            step = seed_platform_benchmarks(customer_id, vertical)
+            if step:
+                steps.append(step)
+            timings['benchmark_seed'] = round(time.time() - _t, 2)
 
         # Stage 2: health scores (immutable — only new months in 'auto')
         health_step, changed_account_ids, health_timings = calculate_health_scores(
