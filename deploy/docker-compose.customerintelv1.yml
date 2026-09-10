@@ -1,14 +1,29 @@
-# CustomerIntelV1 — the new build as its own stack on the shared EC2 box.
+# CustomerIntelV1 — its own stack, on either a shared or a dedicated EC2 box.
 #
 #   cd ~/CustomerIntel/deploy
 #   cp .env.customerintelv1.example .env   (fill in secrets)
 #   docker compose -p customerintelv1 -f docker-compose.customerintelv1.yml up -d --build
 #
-# Joins Caddy's network (cspulse_cspulse-net, external) so the existing
-# Caddy can reverse_proxy to customerintelv1-app:8101 (API/MCP) and
-# customerintelv1-web:8080 (the browser app) under one hostname; nothing
-# here touches the old stack's containers or ports.
-# Host ports are bound to 127.0.0.1 only — 443 stays Caddy's.
+# Two deploy topologies, chosen entirely by .env / deploy_ec2.sh — nothing here
+# hardcodes either one:
+#
+#   shared (default)   cspulse-net is EXTERNAL: some other Caddy on the box (not part of
+#                       this compose project) joins it and reverse_proxies to
+#                       customerintelv1-app:8101 (API/MCP) and customerintelv1-web:8080.
+#                       This is the topology the box originally shared with the old
+#                       cspulse-platform stack. Default when CADDY_NET_EXTERNAL is unset,
+#                       so an old .env with no opinion on this reproduces today's exact
+#                       behavior.
+#
+#   standalone          CADDY_NET_EXTERNAL=false in .env: cspulse-net becomes a plain
+#                       network this project creates and owns, and the 'caddy' service
+#                       below (profile 'standalone', started only via
+#                       `--profile standalone`) is this project's own reverse proxy —
+#                       nothing outside this compose file is required. Used for a fresh,
+#                       dedicated box with no pre-existing Caddy to plug into.
+#
+# Host ports are bound to 127.0.0.1 only in both topologies — 80/443 belong to whichever
+# Caddy is fronting this box (the shared one, or this project's own 'caddy' service).
 
 name: customerintelv1
 
@@ -78,10 +93,11 @@ services:
   # image and the dist/ served by a small Caddy — see frontend/Dockerfile. No Node
   # on the box, and no static-file serving bolted onto the Python app.
   #
-  # Only on cspulse-net: it talks to nothing in this project (the shared Caddy routes
-  # the API straight to customerintelv1-app), it just has to be resolvable BY that
-  # Caddy. Deliberately no depends_on the app — a static bundle has no boot dependency
-  # on the API, and coupling them would let a slow app start hold back the login page.
+  # Only on cspulse-net: it talks to nothing in this project (Caddy — shared or this
+  # project's own, see above — routes the API straight to customerintelv1-app), it just
+  # has to be resolvable BY that Caddy. Deliberately no depends_on the app — a static
+  # bundle has no boot dependency on the API, and coupling them would let a slow app
+  # start hold back the login page.
   customerintelv1-web:
     build:
       context: ../frontend
@@ -103,12 +119,46 @@ services:
     networks:
       - cspulse-net
 
+  # Standalone mode's own reverse proxy. Absent unless the 'standalone' profile is
+  # active — deploy_ec2.sh passes --profile standalone only when DEPLOY_MODE=standalone
+  # in .env, and CADDY_NET_EXTERNAL=false alongside it (see the networks: block below).
+  # In shared mode this service is never even considered by `docker compose up`; a Caddy
+  # outside this project plays this role instead by joining the external cspulse-net.
+  #
+  # deploy_ec2.sh renders ./caddy/Caddyfile from Caddyfile.standalone.template (the
+  # public hostname substituted in) fresh on every deploy — this box's Caddy fronts only
+  # this one site, so unlike the shared-mode Caddyfile there is no multi-site file to
+  # surgically edit; the whole file is just regenerated.
+  caddy:
+    image: caddy:2-alpine
+    container_name: customerintelv1-caddy
+    profiles: ["standalone"]
+    restart: unless-stopped
+    depends_on:
+      - customerintelv1-app
+      - customerintelv1-web
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - customerintelv1-caddy-data:/data
+      - customerintelv1-caddy-config:/config
+    deploy:
+      resources:
+        limits:
+          memory: 128m
+    networks:
+      - cspulse-net
+
 volumes:
   customerintelv1-pgdata:
+  customerintelv1-caddy-data:
+  customerintelv1-caddy-config:
 
 networks:
   default:
     name: customerintelv1-net
   cspulse-net:
-    external: true
-    name: cspulse_cspulse-net
+    external: ${CADDY_NET_EXTERNAL:-true}
+    name: ${CADDY_NET_NAME:-cspulse_cspulse-net}
