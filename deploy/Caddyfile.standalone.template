@@ -1,0 +1,37 @@
+# customerintelv1 standalone Caddyfile — rendered fresh by deploy_ec2.sh on every
+# deploy (DEPLOY_MODE=standalone). The placeholder token on the site-block line below
+# is replaced with the box's own public hostname at render time (sed, whole-file — so
+# that token must appear literally nowhere else in this file, including in comments).
+# Unlike Caddyfile.customerintelv1.snippet (which is surgically spliced into a
+# Caddyfile shared with other sites), this box's Caddy fronts only this one site, so
+# the whole rendered file just replaces ~/CustomerIntel/deploy/caddy/Caddyfile outright
+# — no splicing needed. Edit the routing here AND in the shared snippet together; they
+# must stay in sync (see backend/scripts/check_caddy_routes.py, which deploy_ec2.sh
+# runs against whichever of the two is active).
+#
+# One hostname, two upstreams:
+#   the API/MCP surface  → customerintelv1-app:8101   (uvicorn, unchanged)
+#   everything else      → customerintelv1-web:8080   (built React SPA, its own Caddy)
+#
+# The split is by explicit API prefix rather than "proxy the app and let it 404",
+# because the app serves no static files and the SPA answers no API calls. Keeping
+# the API arm pointed straight at the app means the web container is never in the
+# path of /mcp or /app/api — if it is down or mid-rebuild the API and the claude.ai
+# connector are untouched, only the browser app is.
+#
+# Note this shadows the app's own GET / JSON descriptor ({"server":...,"mcp":"/mcp"})
+# behind the SPA — deliberate, that was a placeholder for exactly this. /health still
+# carries the same information and is what every check already uses.
+${CADDY_SITE} {
+	@backend path /mcp /mcp/* /health /api /api/* /app/api /app/api/*
+	handle @backend {
+		reverse_proxy customerintelv1-app:8101 {
+			# MCP streamable-HTTP / SSE: no buffering, long-lived streams
+			flush_interval -1
+		}
+	}
+
+	handle {
+		reverse_proxy customerintelv1-web:8080
+	}
+}
