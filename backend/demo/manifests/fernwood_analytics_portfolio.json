@@ -118,6 +118,21 @@
             "positive_advocacy"
           ],
           "expected_sentiment": 0.6
+        },
+        {
+          "day": -5,
+          "source_type": "meeting",
+          "text": "Rosa mentioned Ledger & Co restructured their finance ops team this month \u2014 she's now the sole owner of our relationship going forward, and the ops-lead role Talia used to hold has been folded into her position.",
+          "participants": [
+            {
+              "name": "Rosa Kim",
+              "title": "Staff Accountant"
+            }
+          ],
+          "expected_subtypes": [
+            "org_change"
+          ],
+          "expected_sentiment": 0.1
         }
       ],
       "events": [
@@ -231,7 +246,7 @@
         "end": 46,
         "noise": 1.3
       },
-      "renewal_day": 180,
+      "renewal_day": 100,
       "communications": [
         {
           "day": -80,
@@ -293,6 +308,21 @@
             "escalation"
           ],
           "expected_sentiment": -0.7
+        },
+        {
+          "day": -6,
+          "source_type": "crm_activity",
+          "text": "Latest usage pull shows daily active users down more than 40% from a quarter ago on the compliance-reporting module, the steepest drop we've measured yet.",
+          "participants": [
+            {
+              "name": "Julius Roth",
+              "title": "IT Manager"
+            }
+          ],
+          "expected_subtypes": [
+            "dau_drop"
+          ],
+          "expected_sentiment": -0.5
         }
       ],
       "events": []
