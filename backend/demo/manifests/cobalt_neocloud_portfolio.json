@@ -1,0 +1,317 @@
+{
+  "version": 2,
+  "manifest_id": "cobalt_neocloud_portfolio",
+  "scenario": "Cobalt Neocloud \u2014 20-account datacenter_v1 portfolio (test tenant)",
+  "narrative": "A second, independent GPU-cluster neocloud book: a power/thermal capacity problem still escalating and unresolved, a champion departure that recovers through a well-run handoff, and a silent usage decline surfaced only through routine telemetry, never a human flag. Seventeen background accounts round it out.",
+  "vertical": "datacenter_v1",
+  "customer_name": "Cobalt Neocloud",
+  "domain_prefix": "cobalt",
+  "default_product": "GPU Reserved Capacity",
+  "default_csm": "Owen Blackwood",
+  "csm_manager": "Renata Silva",
+  "seed": 20260910302,
+  "timeline": {
+    "t0": "2026-09-10",
+    "history_days": 180,
+    "future_days": 0,
+    "kpi_cadence_days": 14
+  },
+  "accounts": [
+    {
+      "source_account_id": "NIMBUS",
+      "name": "Nimbus Genomics",
+      "arr": 2800000,
+      "industry": "Biotech",
+      "region": "North America",
+      "champion": "Farrah Odom",
+      "champion_title": "Director of Computing",
+      "executive_sponsor": "Trevor Lang",
+      "tier": "Enterprise",
+      "use_cases": [
+        "protein folding inference",
+        "genomic sequence models"
+      ],
+      "role": "featured",
+      "health": {
+        "shape": "decline",
+        "start": 76,
+        "trailing_cross_day": -20,
+        "end": 41,
+        "noise": 1.5
+      },
+      "renewal_day": 180,
+      "communications": [
+        {
+          "day": -70,
+          "source_type": "ticket",
+          "text": "Ticket 7742: rack-level power draw has tripped a breaker twice this month, forcing us to throttle two nodes during business hours.",
+          "participants": [
+            {
+              "name": "Farrah Odom",
+              "title": "Director of Computing"
+            }
+          ],
+          "expected_subtypes": [
+            "power_capacity_constraint"
+          ],
+          "expected_sentiment": -0.4
+        },
+        {
+          "day": -45,
+          "source_type": "meeting",
+          "text": "Follow-up review: throttling is now a near-daily occurrence and thermal alarms are tripping on the same rack. Farrah wants a remediation date, not another workaround.",
+          "participants": [
+            {
+              "name": "Farrah Odom",
+              "title": "Director of Computing"
+            }
+          ],
+          "expected_subtypes": [
+            "capacity_warning",
+            "thermal_event"
+          ],
+          "expected_sentiment": -0.6
+        },
+        {
+          "day": -25,
+          "source_type": "email",
+          "text": "Escalating this to our VP \u2014 three weeks of throttled compute has pushed our sequencing pipeline behind schedule and leadership wants a written remediation plan by Friday.",
+          "participants": [
+            {
+              "name": "Farrah Odom",
+              "title": "Director of Computing"
+            },
+            {
+              "name": "Grant Whitfield",
+              "title": "VP Research Computing"
+            }
+          ],
+          "expected_subtypes": [
+            "executive_escalation"
+          ],
+          "expected_sentiment": -0.75
+        },
+        {
+          "day": -8,
+          "source_type": "slack",
+          "text": "Also flagging \u2014 the invoice for the throttled month is under dispute internally until we see the remediation plan land.",
+          "participants": [
+            {
+              "name": "Farrah Odom",
+              "title": "Director of Computing"
+            }
+          ],
+          "expected_subtypes": [
+            "payment_delinquency"
+          ],
+          "expected_sentiment": -0.5
+        }
+      ],
+      "events": []
+    },
+    {
+      "source_account_id": "HALCYON",
+      "name": "Halcyon Labs",
+      "arr": 3600000,
+      "industry": "AI/ML",
+      "region": "North America",
+      "champion": "Nadia Farrow",
+      "champion_title": "Staff ML Engineer",
+      "executive_sponsor": "Bram Oduya",
+      "tier": "Strategic",
+      "use_cases": [
+        "reinforcement learning research"
+      ],
+      "role": "featured",
+      "health": {
+        "shape": "dip_recover",
+        "start": 80,
+        "dip_day": -50,
+        "dip": 42,
+        "end": 74,
+        "noise": 1.2
+      },
+      "renewal_day": 180,
+      "communications": [
+        {
+          "day": -80,
+          "source_type": "email",
+          "text": "Wanted you to hear it directly \u2014 I'm leaving Halcyon at the end of the month. I've been the main point of contact on the infra side since we signed.",
+          "participants": [
+            {
+              "name": "Nadia Farrow",
+              "title": "Staff ML Engineer"
+            }
+          ],
+          "expected_subtypes": [
+            "champion_departure"
+          ],
+          "expected_sentiment": -0.5
+        },
+        {
+          "day": -50,
+          "source_type": "meeting",
+          "text": "First check-in with the new infra lead \u2014 he's still getting oriented and wasn't aware of the current reservation terms or the open items from last quarter.",
+          "participants": [
+            {
+              "name": "Owen Blackwood",
+              "title": "CSM"
+            }
+          ],
+          "expected_subtypes": [
+            "engagement_decline",
+            "stakeholder_change"
+          ],
+          "expected_sentiment": -0.4
+        },
+        {
+          "day": -30,
+          "source_type": "meeting",
+          "text": "Introduced Halcyon's new infra lead to the account history and open roadmap items; he's asked to be looped into the monthly capacity review going forward.",
+          "participants": [
+            {
+              "name": "Priya Okafor",
+              "title": "Infrastructure Lead"
+            }
+          ],
+          "expected_subtypes": [
+            "champion_reengagement"
+          ],
+          "expected_sentiment": 0.4
+        },
+        {
+          "day": -12,
+          "source_type": "email",
+          "text": "Priya mentioned the onboarding this month was the smoothest handoff she's seen and offered to reference us to a peer team evaluating providers.",
+          "participants": [
+            {
+              "name": "Priya Okafor",
+              "title": "Infrastructure Lead"
+            }
+          ],
+          "expected_subtypes": [
+            "executive_engagement",
+            "positive_advocacy"
+          ],
+          "expected_sentiment": 0.65
+        }
+      ],
+      "events": []
+    },
+    {
+      "source_account_id": "TESSELLATE",
+      "name": "Tessellate AI",
+      "arr": 2200000,
+      "industry": "AI/ML",
+      "region": "Asia Pacific",
+      "champion": "Minjun Cho",
+      "champion_title": "Infrastructure Manager",
+      "executive_sponsor": "Yuna Baek",
+      "tier": "Enterprise",
+      "use_cases": [
+        "computer vision model training"
+      ],
+      "role": "featured",
+      "health": {
+        "shape": "decline",
+        "start": 73,
+        "trailing_cross_day": -15,
+        "end": 48,
+        "noise": 1.3
+      },
+      "renewal_day": 180,
+      "communications": [
+        {
+          "day": -60,
+          "source_type": "crm_activity",
+          "text": "Scheduled capacity check: reserved cluster utilization logged at 41%, down from the 68% average of the prior quarter.",
+          "participants": [
+            {
+              "name": "Minjun Cho",
+              "title": "Infrastructure Manager"
+            }
+          ],
+          "expected_subtypes": [
+            "reserved_cluster_idle"
+          ],
+          "expected_sentiment": -0.3
+        },
+        {
+          "day": -35,
+          "source_type": "crm_activity",
+          "text": "Follow-up capacity check: utilization has not recovered and job submission volume is down across all three of Tessellate's projects.",
+          "participants": [
+            {
+              "name": "Minjun Cho",
+              "title": "Infrastructure Manager"
+            }
+          ],
+          "expected_subtypes": [
+            "usage_decline"
+          ],
+          "expected_sentiment": -0.4
+        },
+        {
+          "day": -20,
+          "source_type": "crm_activity",
+          "text": "Quarterly ramp tracking: Tessellate is now three consecutive checkpoints behind the committed ramp schedule with no update from the account team.",
+          "participants": [
+            {
+              "name": "Minjun Cho",
+              "title": "Infrastructure Manager"
+            }
+          ],
+          "expected_subtypes": [
+            "commitment_ramp_miss"
+          ],
+          "expected_sentiment": -0.4
+        }
+      ],
+      "events": []
+    }
+  ],
+  "background": {
+    "names": [
+      "Driftwood Analytics",
+      "Kestrel Autonomy",
+      "Marrow Bio",
+      "Sungate Robotics",
+      "Longview Simulation",
+      "Ashfall Materials",
+      "Riverbend Genomics",
+      "Talonpoint AI",
+      "Greywick Perception",
+      "Fenwick Compute",
+      "Emberline Diagnostics",
+      "Quarrystone Logistics",
+      "Slatepeak Vision",
+      "Windrow Autonomous",
+      "Coldharbor Robotics",
+      "Brightfen AI",
+      "Thornfield Simulation"
+    ],
+    "industries": [
+      "AI/ML",
+      "Robotics",
+      "Biotech",
+      "Autonomous Vehicles",
+      "Logistics"
+    ],
+    "regions": [
+      "North America",
+      "Europe",
+      "Asia Pacific"
+    ],
+    "arr_choices": [
+      1100000,
+      1700000,
+      2400000,
+      3200000,
+      3900000
+    ],
+    "health_range": [
+      70,
+      87
+    ]
+  }
+}

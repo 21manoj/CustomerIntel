@@ -1,0 +1,344 @@
+{
+  "version": 2,
+  "manifest_id": "fernwood_analytics_portfolio",
+  "scenario": "Fernwood Analytics \u2014 20-account saas_premium portfolio (test tenant)",
+  "narrative": "A SaaS book of business: a champion departure that stalls onboarding and recovers through a clean handoff, an expansion signed off organic seat growth, and an unresolved performance-driven seat-reduction risk heading into renewal. Seventeen background accounts round it out.",
+  "vertical": "saas_premium",
+  "customer_name": "Fernwood Analytics",
+  "domain_prefix": "fernwood",
+  "default_product": "Fernwood Platform \u2014 Team Edition",
+  "default_csm": "Grace Lindqvist",
+  "csm_manager": "Theo Marchetti",
+  "seed": 20260910303,
+  "timeline": {
+    "t0": "2026-09-10",
+    "history_days": 180,
+    "future_days": 0,
+    "kpi_cadence_days": 14
+  },
+  "accounts": [
+    {
+      "source_account_id": "LEDGERCO",
+      "name": "Ledger & Co",
+      "arr": 480000,
+      "industry": "Fintech",
+      "region": "North America",
+      "champion": "Talia Brennan",
+      "champion_title": "Ops Lead",
+      "executive_sponsor": "Marcus Diallo",
+      "tier": "Enterprise",
+      "use_cases": [
+        "close automation",
+        "audit workflows"
+      ],
+      "role": "featured",
+      "health": {
+        "shape": "dip_recover",
+        "start": 81,
+        "dip_day": -60,
+        "dip": 44,
+        "end": 77,
+        "noise": 1.2
+      },
+      "renewal_day": 180,
+      "communications": [
+        {
+          "day": -90,
+          "source_type": "email",
+          "text": "Talia let us know she's moving to a new role internally and will no longer be our day-to-day admin starting next month.",
+          "participants": [
+            {
+              "name": "Talia Brennan",
+              "title": "Ops Lead"
+            }
+          ],
+          "expected_subtypes": [
+            "champion_departure"
+          ],
+          "expected_sentiment": -0.4
+        },
+        {
+          "day": -60,
+          "source_type": "ticket",
+          "text": "Ticket 3391: the replacement admin can't complete the close-automation setup steps Talia had already finished \u2014 onboarding has effectively stalled for three weeks.",
+          "participants": [
+            {
+              "name": "Rosa Kim",
+              "title": "Staff Accountant"
+            }
+          ],
+          "expected_subtypes": [
+            "onboarding_stalled",
+            "engagement_decline"
+          ],
+          "expected_sentiment": -0.6
+        },
+        {
+          "day": -40,
+          "source_type": "meeting",
+          "text": "Escalation call \u2014 Rosa said the team is frustrated enough that leadership asked for a written recovery plan before the next billing cycle.",
+          "participants": [
+            {
+              "name": "Rosa Kim",
+              "title": "Staff Accountant"
+            }
+          ],
+          "expected_subtypes": [
+            "escalation",
+            "csat_detractor_response"
+          ],
+          "expected_sentiment": -0.7
+        },
+        {
+          "day": -20,
+          "source_type": "meeting",
+          "text": "Rosa is now fully ramped as the new admin \u2014 walked her through the full close checklist and she's confident running it solo next month.",
+          "participants": [
+            {
+              "name": "Rosa Kim",
+              "title": "Staff Accountant"
+            }
+          ],
+          "expected_subtypes": [
+            "champion_reengagement"
+          ],
+          "expected_sentiment": 0.5
+        },
+        {
+          "day": -10,
+          "source_type": "slack",
+          "text": "Rosa mentioned the close took half the time this month now that the automation is actually configured right, and said she'd tell her network at the next fintech meetup.",
+          "participants": [
+            {
+              "name": "Rosa Kim",
+              "title": "Staff Accountant"
+            }
+          ],
+          "expected_subtypes": [
+            "positive_advocacy"
+          ],
+          "expected_sentiment": 0.6
+        }
+      ],
+      "events": [
+        {
+          "day": -8,
+          "type": "revenue_protected",
+          "amount": 180000,
+          "linked_communication_index": 3,
+          "evidence": "onboarding recovered after admin handoff; renewal no longer at risk"
+        }
+      ]
+    },
+    {
+      "source_account_id": "NORTHFIELD",
+      "name": "Northfield Robotics Ops",
+      "arr": 620000,
+      "industry": "Robotics",
+      "region": "North America",
+      "champion": "Ines Corvo",
+      "champion_title": "Ops Director",
+      "executive_sponsor": "Petra Lindqvist",
+      "tier": "Strategic",
+      "use_cases": [
+        "fleet scheduling",
+        "maintenance workflows"
+      ],
+      "role": "featured",
+      "health": {
+        "shape": "ramp",
+        "start": 76,
+        "end": 90,
+        "noise": 1.0
+      },
+      "renewal_day": 180,
+      "communications": [
+        {
+          "day": -55,
+          "source_type": "meeting",
+          "text": "Ines said the scheduling module has become load-bearing for their whole ops team and asked about expanding seats to two more warehouse sites.",
+          "participants": [
+            {
+              "name": "Ines Corvo",
+              "title": "Ops Director"
+            }
+          ],
+          "expected_subtypes": [
+            "seat_expansion_interest"
+          ],
+          "expected_sentiment": 0.55
+        },
+        {
+          "day": -25,
+          "source_type": "email",
+          "text": "Confirming the maintenance team is rolling out the platform to their full 40-person crew starting next sprint \u2014 first new team since we signed.",
+          "participants": [
+            {
+              "name": "Ines Corvo",
+              "title": "Ops Director"
+            }
+          ],
+          "expected_subtypes": [
+            "new_team_rollout"
+          ],
+          "expected_sentiment": 0.6
+        },
+        {
+          "day": -8,
+          "source_type": "email",
+          "text": "Ines asked for a walkthrough of the analytics add-on module ahead of a budget conversation with finance next week.",
+          "participants": [
+            {
+              "name": "Ines Corvo",
+              "title": "Ops Director"
+            }
+          ],
+          "expected_subtypes": [
+            "module_upsell_interest"
+          ],
+          "expected_sentiment": 0.5
+        }
+      ],
+      "events": [
+        {
+          "day": -5,
+          "type": "expansion_closed",
+          "amount": 210000,
+          "linked_communication_index": 2,
+          "evidence": "analytics module + two-site seat expansion signed"
+        }
+      ]
+    },
+    {
+      "source_account_id": "PRACTEON",
+      "name": "Practeon Systems",
+      "arr": 340000,
+      "industry": "Manufacturing",
+      "region": "Europe",
+      "champion": "Julius Roth",
+      "champion_title": "IT Manager",
+      "executive_sponsor": "Astrid Voss",
+      "tier": "Enterprise",
+      "use_cases": [
+        "quality tracking",
+        "compliance reporting"
+      ],
+      "role": "featured",
+      "health": {
+        "shape": "decline",
+        "start": 74,
+        "trailing_cross_day": -25,
+        "end": 46,
+        "noise": 1.3
+      },
+      "renewal_day": 180,
+      "communications": [
+        {
+          "day": -80,
+          "source_type": "crm_activity",
+          "text": "Monthly usage pull shows daily active users down about 30% quarter over quarter across the compliance-reporting module.",
+          "participants": [
+            {
+              "name": "Julius Roth",
+              "title": "IT Manager"
+            }
+          ],
+          "expected_subtypes": [
+            "dau_drop"
+          ],
+          "expected_sentiment": -0.3
+        },
+        {
+          "day": -50,
+          "source_type": "ticket",
+          "text": "Ticket 1287: report generation has been timing out for the quality-tracking module for the second week running, blocking the weekly compliance export.",
+          "participants": [
+            {
+              "name": "Julius Roth",
+              "title": "IT Manager"
+            }
+          ],
+          "expected_subtypes": [
+            "performance_complaint"
+          ],
+          "expected_sentiment": -0.55
+        },
+        {
+          "day": -30,
+          "source_type": "email",
+          "text": "Given the ongoing performance issues, finance has asked us to review whether we still need all of our current seats at renewal.",
+          "participants": [
+            {
+              "name": "Julius Roth",
+              "title": "IT Manager"
+            }
+          ],
+          "expected_subtypes": [
+            "seat_reduction_request"
+          ],
+          "expected_sentiment": -0.6
+        },
+        {
+          "day": -12,
+          "source_type": "meeting",
+          "text": "Julius escalated directly \u2014 said this is the second quarter of unresolved performance complaints and he's documenting it for the renewal conversation.",
+          "participants": [
+            {
+              "name": "Julius Roth",
+              "title": "IT Manager"
+            }
+          ],
+          "expected_subtypes": [
+            "csat_detractor_response",
+            "escalation"
+          ],
+          "expected_sentiment": -0.7
+        }
+      ],
+      "events": []
+    }
+  ],
+  "background": {
+    "names": [
+      "Millbrook Analytics",
+      "Cascade Fintech",
+      "Overlook Logistics",
+      "Thistlewood HR Tech",
+      "Farrow Legal Tech",
+      "Grandview Insurtech",
+      "Palmerston Retail Tech",
+      "Ashcombe Healthtech",
+      "Kingsford Edtech",
+      "Delacroix Martech",
+      "Wrenhollow Proptech",
+      "Silverlake Fintech",
+      "Brambleton Supply Chain",
+      "Northgate Insurtech",
+      "Fallowfield Retail Tech",
+      "Copperfield HR Tech",
+      "Ravensmoor Legal Tech"
+    ],
+    "industries": [
+      "Fintech",
+      "Retail Tech",
+      "HR Tech",
+      "Insurtech",
+      "Legal Tech"
+    ],
+    "regions": [
+      "North America",
+      "Europe"
+    ],
+    "arr_choices": [
+      220000,
+      340000,
+      480000,
+      650000,
+      820000
+    ],
+    "health_range": [
+      73,
+      89
+    ]
+  }
+}
