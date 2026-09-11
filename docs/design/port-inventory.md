@@ -48,6 +48,7 @@
 | Celery/async jobs, cache API, analytics API, account snapshot APIs, admin cleanup | no need yet; revisit only with the UI |
 | uuid_migration, one-off scripts (53), fix/verify scripts | one-off |
 | Per-customer vertical Python dirs, `_evaluate_dc2s_playbooks`, dc2_s-only Po1 codes | vertical coupling |
+| `decisions.csv` / `signal_edges.csv` schema entries (`config/csv_schemas.json`, `context_graph_model.auto_generated`, `db_table: context_nodes`/`context_edges`, `source: "Inferred from story arc patterns..."`) | **found stale 2026-09-11**, not removed when row 43 above landed: this is the same retired signal-analyst/decision-matrix idea, described as if still planned. The loader and consumer are real and tested (`utils/csv_ingest.py`'s `load_decisions`/`load_signal_edges`; `process_data_pipeline.py`'s STAKEHOLDER↔DECISION `INVOLVES` linker) but no inference step exists or was ever planned under the new design — the new design's answer to "notice something decision-worthy" is the playbook trigger rules, not a `DECISION` node. Confirmed sitewide: 0 `DECISION` nodes, 0 non-`LED_TO` edges, across every tenant this deployment has ever created. Building the missing inference step would re-implement what row 43 already retired, not finish a pending feature — the schema entries should be removed or reclassified as `customer_provided`, not built out. |
 
 ## D. Cross-cutting, after the ports (governance High list)
 
