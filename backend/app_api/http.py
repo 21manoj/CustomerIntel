@@ -8,7 +8,7 @@ docs/design/ui-rbac.md §4 for the route → function table.
     GET  /app/api/me
     GET  /app/api/portfolio?customer_id=
     GET  /app/api/accounts/{account_id}?customer_id=
-    GET  /app/api/interventions | POST .../evaluate | .../{id}/approve | .../{id}/report
+    GET  /app/api/interventions | GET .../evaluate | POST .../{id}/approve | .../{id}/report
     GET  /app/api/roi | /app/api/roi/priorities | /app/api/roi/power-of-1
     GET  /app/api/calibrations | POST .../propose | .../{id}/approve | .../{id}/reject      (admin)
     GET  /app/api/review-queue | POST /app/api/review                                        (csm/admin)
@@ -183,6 +183,31 @@ def register_app_api_routes(mcp) -> None:
         if aids is not None:
             out['interventions'] = [v for v in out['interventions'] if v['account_id'] in aids]
         return JSONResponse(out)
+
+    @mcp.custom_route('/app/api/interventions/evaluate', methods=['GET'], name='ui_interventions_evaluate')
+    async def ui_interventions_evaluate(request):
+        """Why-panel B3 ("why didn't playbook X fire for this account"): the same
+        playbooks.governance.evaluate() the MCP tool and the Bearer-keyed
+        /api/interventions/evaluate route already call, on the session-cookie surface
+        (neither of those is reachable from a browser session). dry_run is forced
+        True unconditionally -- a GET must never have the side effect of proposing
+        a real intervention, regardless of what a caller passes."""
+        user, err = _guard(request)
+        if err:
+            return err
+        q = request.query_params
+        cid, err = _scoped_cid(user, q.get('customer_id'))
+        if err:
+            return err
+        aid = q.get('account_id')
+        if aid:
+            try:
+                aid = int(aid)
+            except (TypeError, ValueError):
+                return JSONResponse({'error': 'account_id must be an integer'}, status_code=400)
+            if not allows_account(user, aid):
+                return _forbidden_scope()
+        return JSONResponse(_with_app(lambda: gov.evaluate(cid, aid, dry_run=True)))
 
     @mcp.custom_route('/app/api/interventions/{intervention_id:int}/approve', methods=['POST'], name='ui_interventions_approve')
     async def ui_interventions_approve(request):
@@ -527,7 +552,8 @@ def register_app_api_routes(mcp) -> None:
 
 
 ROUTES = ('/app/api/auth/login', '/app/api/auth/logout', '/app/api/auth/set-password', '/app/api/me',
-          '/app/api/portfolio', '/app/api/accounts/{id}', '/app/api/interventions', '/app/api/interventions/{id}/approve',
+          '/app/api/portfolio', '/app/api/accounts/{id}', '/app/api/interventions', '/app/api/interventions/evaluate',
+          '/app/api/interventions/{id}/approve',
           '/app/api/interventions/{id}/report', '/app/api/roi', '/app/api/roi/priorities', '/app/api/roi/power-of-1',
           '/app/api/forecast', '/app/api/calibrations', '/app/api/calibrations/propose', '/app/api/calibrations/{id}/approve',
           '/app/api/calibrations/{id}/reject', '/app/api/review-queue', '/app/api/review', '/app/api/playbooks/config',

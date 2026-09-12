@@ -13,6 +13,7 @@ import type {
   Journey,
   MeasuredRoiResponse,
   PlaybookConfigResponse,
+  PlaybookEvaluation,
   PortfolioResponse,
   PowerOfOneResponse,
   PrioritiesResponse,
@@ -84,6 +85,15 @@ export function getInterventions(customerId: number, opts?: { accountId?: number
   if (opts?.accountId != null) params.set('account_id', String(opts.accountId))
   if (opts?.state) params.set('state', opts.state)
   return request<InterventionsResponse>(`/app/api/interventions?${params.toString()}`)
+}
+
+// Why-panel B3 ("why didn't playbook X fire for this account") — a read-only look at
+// what governance.evaluate() would propose or skip right now, and why. Always dry_run
+// server-side; nothing here writes an intervention.
+export function evaluatePlaybooks(customerId: number, accountId?: number) {
+  const params = new URLSearchParams({ customer_id: String(customerId) })
+  if (accountId != null) params.set('account_id', String(accountId))
+  return request<PlaybookEvaluation>(`/app/api/interventions/evaluate?${params.toString()}`)
 }
 
 export function approveIntervention(interventionId: number, customerId: number, note?: string) {

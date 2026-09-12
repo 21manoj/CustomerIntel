@@ -162,6 +162,8 @@ def _routes(t: dict) -> list:
         ('account detail',        'get',   f"/app/api/accounts/{aid}?customer_id={cid}", None, ROLES),
         ('interventions list',    'get',   f'/app/api/interventions?customer_id={cid}', None, ROLES),
         ('interventions list+acct', 'get', f'/app/api/interventions?customer_id={cid}&account_id={aid}', None, ROLES),
+        ('interventions evaluate', 'get',  f'/app/api/interventions/evaluate?customer_id={cid}', None, ROLES),
+        ('interventions evaluate+acct', 'get', f'/app/api/interventions/evaluate?customer_id={cid}&account_id={aid}', None, ROLES),
         ('intervention approve',  'post',  f"/app/api/interventions/{t['intervention_id']}/approve",
                                            {'customer_id': cid, 'note': 'x'}, ('admin', 'csm')),
         ('intervention report',   'post',  f"/app/api/interventions/{t['intervention_id']}/report",
