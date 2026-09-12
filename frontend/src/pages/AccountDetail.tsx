@@ -8,7 +8,7 @@ import {
   getInterventions,
   reportIntervention,
 } from '../api/client'
-import type { EvidenceView, Intervention, Journey, LinkedEvidence, PlaybookEvaluation, ReportState } from '../api/types'
+import type { Episode, EvidenceView, Intervention, Journey, LinkedEvidence, PlaybookEvaluation, ReportState } from '../api/types'
 import { REPORT_STATES } from '../api/types'
 import { useAuth } from '../auth/AuthContext'
 
@@ -346,6 +346,40 @@ function PlaybookEvaluationSection({ customerId, accountId }: { customerId: numb
   )
 }
 
+// Why-panel A2/A4 for an outcome with no Intervention behind it -- same "Why?" toggle
+// as InterventionRow, minus the approve/report actions that only make sense for a
+// governed intervention. journey.evidence already resolves the linked signal(s); no
+// separate fetch needed.
+function StandaloneOutcomeRow({ episode, journey }: { episode: Episode; journey: Journey }) {
+  const [whyOpen, setWhyOpen] = useState(false)
+  const links = (episode.meta as { linked_evidence?: LinkedEvidence[] } | undefined)?.linked_evidence ?? []
+
+  return (
+    <li className="rounded-lg border border-slate-200 bg-white p-4">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <p className="font-medium text-slate-900">{episode.title}</p>
+          <p className="mt-1 text-xs text-slate-400">
+            {episode.subtype ?? 'outcome'} · {episode.revenue_bucket ?? 'unclassified'} revenue
+            {episode.revenue != null && ` · ${money(episode.revenue)}`} · {day(episode.date)}
+          </p>
+        </div>
+        <button onClick={() => setWhyOpen((v) => !v)} className="shrink-0 rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50">
+          {whyOpen ? 'Hide why' : 'Why?'}
+        </button>
+      </div>
+      {whyOpen && (
+        <div className="mt-3 rounded-md bg-slate-50 p-3 text-xs">
+          <p className="font-medium text-slate-500">
+            Why this is {episode.revenue_bucket ?? 'unclassified'} revenue ({episode.subtype ?? 'type unknown'})
+          </p>
+          <LinkedEvidenceList journey={journey} links={links} />
+        </div>
+      )}
+    </li>
+  )
+}
+
 export default function AccountDetail() {
   const { user } = useAuth()
   const { accountId } = useParams<{ accountId: string }>()
@@ -403,6 +437,19 @@ export default function AccountDetail() {
   const open = interventions.filter((iv) => iv.state !== 'closed')
   const closed = interventions.filter((iv) => iv.state === 'closed')
   const revenue = forecast?.status === 'forecast' ? forecast.revenue?.arr ?? null : null
+
+  // Why-panel A2/A4, standalone case (found 2026-09-13 trying the panel on Lumen
+  // Workflows): an OUTCOME episode already carries meta.linked_evidence regardless of
+  // whether an Intervention ever pointed at it -- journey_builder.py enriches every
+  // outcome node in the account, not just the ones report_intervention() closed. A
+  // manifest-authored event (or any outcomes.csv row) with no intervention behind it
+  // had real, queryable evidence and no way to inspect it. covered = outcome node ids
+  // already shown inline on an Intervention row, so this list only adds what isn't
+  // already visible there.
+  const coveredOutcomeIds = new Set(interventions.map((iv) => iv.outcome?.node_id).filter((id): id is number => id != null))
+  const standaloneOutcomes = journey.episodes.filter(
+    (e) => e.kind === 'outcome' && !coveredOutcomeIds.has(e.evidence_node_ids[0]),
+  )
 
   return (
     <div className="space-y-6">
@@ -585,6 +632,18 @@ export default function AccountDetail() {
           </div>
         )}
       </div>
+
+      {standaloneOutcomes.length > 0 && (
+        <div className="rounded-lg border border-slate-200 bg-white p-5">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Other outcomes</h2>
+          <p className="mt-1 text-xs text-slate-400">Logged directly (not from a governed intervention) — same evidence, same disclosure.</p>
+          <ul className="mt-3 space-y-2">
+            {standaloneOutcomes.map((ep) => (
+              <StandaloneOutcomeRow key={ep.episode_id} episode={ep} journey={journey} />
+            ))}
+          </ul>
+        </div>
+      )}
 
       <PlaybookEvaluationSection customerId={customerId} accountId={Number(accountId)} />
     </div>
