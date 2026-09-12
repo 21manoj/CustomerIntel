@@ -507,6 +507,8 @@ def list_interventions(customer_id: int, account_id: Optional[int] = None, state
     from extensions import db
     from models import Intervention, Account, ContextNode
     from playbooks.definitions import governance, tenant_config
+    from utils.taxonomy_loader import get_taxonomy
+    from utils.vertical_registry import get_vertical_for_customer
     q = Intervention.query.filter_by(customer_id=int(customer_id))
     if account_id is not None:
         q = q.filter_by(account_id=int(account_id))
@@ -517,12 +519,17 @@ def list_interventions(customer_id: int, account_id: Optional[int] = None, state
     names = {a.account_id: a.account_name for a in Account.query.filter_by(customer_id=int(customer_id)).all()}
     outcome_ids = [r.outcome_node_id for r in rows if r.outcome_node_id]
     outcomes = {n.node_id: n for n in ContextNode.query.filter(ContextNode.node_id.in_(outcome_ids)).all()} if outcome_ids else {}
+    # why-panel A4 ("why does this outcome carry protected/expansion/lost revenue"):
+    # the same taxonomy.revenue_bucket() journey_builder.py already uses per outcome
+    # episode -- computed once here since it needs the tenant's vertical, not per row.
+    taxonomy = get_taxonomy(get_vertical_for_customer(int(customer_id))) if outcomes else None
     views, per_playbook = [], {}
     for r in rows:
         v = row_view(r, now)
         v['account_name'] = names.get(r.account_id)
         on = outcomes.get(r.outcome_node_id)
         if on is not None and v['outcome']:
+            v['outcome']['bucket'] = taxonomy.revenue_bucket(on.revenue_impact_type or on.node_subtype)
             v['outcome'].update({'outcome_type': on.node_subtype, 'revenue': float(on.revenue_impact) if on.revenue_impact is not None else None,
                                  'occurred_at': on.occurred_at.isoformat() if on.occurred_at else None})
         views.append(v)

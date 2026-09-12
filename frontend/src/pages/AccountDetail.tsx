@@ -3,11 +3,12 @@ import { Link, useParams, useSearchParams } from 'react-router-dom'
 import {
   ApiError,
   approveIntervention,
+  evaluatePlaybooks,
   getAccount,
   getInterventions,
   reportIntervention,
 } from '../api/client'
-import type { EvidenceView, Intervention, Journey, ReportState } from '../api/types'
+import type { EvidenceView, Intervention, Journey, LinkedEvidence, PlaybookEvaluation, ReportState } from '../api/types'
 import { REPORT_STATES } from '../api/types'
 import { useAuth } from '../auth/AuthContext'
 
@@ -45,6 +46,59 @@ function interventionBadge(iv: Intervention) {
   const cls = STATE_BADGE[iv.state] || 'bg-slate-100 text-slate-600'
   const label = iv.state === 'closed' ? `closed (${iv.closed_state})` : iv.state
   return <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${cls}`}>{label}</span>
+}
+
+// Why-panel A2 ("why is this outcome linked to this signal"): the outcome's own
+// episode carries meta.linked_evidence (journeys/journey_builder.py), a list of
+// {node_id, derivation, evidence_tier} -- the LED_TO edges into this outcome. Unlike
+// CitationList (which resolves an episode id's OWN evidence), these are raw node ids
+// naming a DIFFERENT node (the signal that justified the outcome), so they're read
+// straight out of journey.evidence rather than through an episode lookup.
+function linkedEvidenceFor(journey: Journey, outcomeNodeId: number): LinkedEvidence[] {
+  const ep = journey.episodes.find((e) => e.episode_id === `out:${outcomeNodeId}`)
+  const raw = (ep?.meta as { linked_evidence?: LinkedEvidence[] } | undefined)?.linked_evidence
+  return raw ?? []
+}
+
+// evidence_tier is the one thing this list must never flatten away: 'observed' (a real
+// person or workflow named this link) reads differently from 'unknown' (an upload
+// claimed it and the platform can't yet say who) -- utils/provenance.py's vocabulary,
+// carried through rather than shown as an equally-confident citation either way.
+const TIER_BADGE: Record<string, string> = {
+  observed: 'bg-emerald-50 text-emerald-700',
+  inferred: 'bg-blue-50 text-blue-700',
+  unknown: 'bg-amber-50 text-amber-700',
+}
+
+function LinkedEvidenceList({ journey, links }: { journey: Journey; links: LinkedEvidence[] }) {
+  if (links.length === 0) {
+    return <p className="mt-2 text-xs text-slate-400">No linked signal on record for this outcome.</p>
+  }
+  return (
+    <ul className="mt-2 space-y-1.5 border-l-2 border-slate-200 pl-3">
+      {links.map((link) => {
+        const ev = journey.evidence[String(link.node_id)]
+        const tier = link.evidence_tier ?? 'unknown'
+        return (
+          <li key={link.node_id} className="text-xs text-slate-500">
+            <span className={`mr-1.5 rounded-full px-1.5 py-0.5 text-[10px] font-medium uppercase ${TIER_BADGE[tier] ?? TIER_BADGE.unknown}`}>
+              {tier}
+            </span>
+            {ev ? (
+              <>
+                <span className="text-slate-700">&ldquo;{ev.quote}&rdquo;</span>
+                {ev.person?.name && <span className="text-slate-400"> — {ev.person.name}{ev.person.title ? `, ${ev.person.title}` : ''}</span>}
+                {ev.occurred_at && <span className="text-slate-400"> ({day(ev.occurred_at)})</span>}
+              </>
+            ) : (
+              <span className="text-slate-400">node {link.node_id} (not resolvable from this journey)</span>
+            )}
+            {link.derivation && <span className="text-slate-300"> · {link.derivation}</span>}
+          </li>
+        )
+      })}
+    </ul>
+  )
 }
 
 function CitationList({ journey, episodeIds }: { journey: Journey; episodeIds: string[] }) {
@@ -130,9 +184,12 @@ function ReportForm({ iv, customerId, onDone }: { iv: Intervention; customerId: 
   )
 }
 
-function InterventionRow({ iv, customerId, canAct, onChanged }: { iv: Intervention; customerId: number; canAct: boolean; onChanged: () => void }) {
+function InterventionRow({
+  iv, journey, customerId, canAct, onChanged,
+}: { iv: Intervention; journey: Journey; customerId: number; canAct: boolean; onChanged: () => void }) {
   const [reporting, setReporting] = useState(false)
   const [approving, setApproving] = useState(false)
+  const [whyOpen, setWhyOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   async function handleApprove() {
@@ -172,20 +229,120 @@ function InterventionRow({ iv, customerId, canAct, onChanged }: { iv: Interventi
             </p>
           )}
         </div>
-        {canAct && iv.state === 'proposed' && (
-          <button onClick={handleApprove} disabled={approving} className="shrink-0 rounded-md bg-slate-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-800 disabled:opacity-50">
-            {approving ? 'Approving…' : 'Approve'}
+        <div className="flex shrink-0 items-center gap-2">
+          <button onClick={() => setWhyOpen((v) => !v)} className="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50">
+            {whyOpen ? 'Hide why' : 'Why?'}
           </button>
-        )}
-        {canAct && iv.state === 'sent' && (
-          <button onClick={() => setReporting((v) => !v)} className="shrink-0 rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50">
-            {reporting ? 'Cancel' : 'Report outcome'}
-          </button>
-        )}
+          {canAct && iv.state === 'proposed' && (
+            <button onClick={handleApprove} disabled={approving} className="rounded-md bg-slate-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-800 disabled:opacity-50">
+              {approving ? 'Approving…' : 'Approve'}
+            </button>
+          )}
+          {canAct && iv.state === 'sent' && (
+            <button onClick={() => setReporting((v) => !v)} className="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50">
+              {reporting ? 'Cancel' : 'Report outcome'}
+            </button>
+          )}
+        </div>
       </div>
       {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
       {reporting && <ReportForm iv={iv} customerId={customerId} onDone={() => { setReporting(false); onChanged() }} />}
+      {whyOpen && (
+        <div className="mt-3 space-y-3 rounded-md bg-slate-50 p-3 text-xs">
+          <div>
+            <p className="font-medium text-slate-500">Why proposed (roles: {iv.trigger.roles?.join(', ') || '—'}, as of {day(iv.trigger.evaluated_as_of)})</p>
+            {iv.trigger.episode_ids && iv.trigger.episode_ids.length > 0 ? (
+              <CitationList journey={journey} episodeIds={iv.trigger.episode_ids} />
+            ) : (
+              <p className="mt-1 text-slate-400">No cited episode ids on record.</p>
+            )}
+          </div>
+          <div>
+            <p className="font-medium text-slate-500">Approval &amp; delivery</p>
+            <p className="mt-1 text-slate-600">
+              {iv.approved_by ? `approved by ${iv.approved_by}${iv.approved_at ? ` on ${day(iv.approved_at)}` : ''}` : 'not yet approved'}
+            </p>
+            {iv.delivery?.status && (
+              <p className="mt-1 text-slate-600">
+                delivery: {iv.delivery.status}
+                {iv.delivery.url_host && ` → ${iv.delivery.url_host}`}
+                {iv.delivery.attempts != null && ` (${iv.delivery.attempts} attempt${iv.delivery.attempts === 1 ? '' : 's'})`}
+                {iv.delivery.error && <span className="text-red-600"> — {iv.delivery.error}</span>}
+              </p>
+            )}
+          </div>
+          {iv.outcome && (
+            <div>
+              <p className="font-medium text-slate-500">
+                Why this outcome is {iv.outcome.bucket ?? 'unclassified'} revenue ({iv.outcome.outcome_type ?? 'type unknown'})
+              </p>
+              <LinkedEvidenceList journey={journey} links={linkedEvidenceFor(journey, iv.outcome.node_id)} />
+            </div>
+          )}
+        </div>
+      )}
     </li>
+  )
+}
+
+// Why-panel B3 ("why didn't playbook X fire for this account"): playbooks.governance's
+// own skip reasons (roles_missing, urgency_below_floor, renewal_beyond_window, exists,
+// open, suppressed_recent_close), already computed on every process_data run but never
+// surfaced anywhere -- previously only reachable by hand-calling the MCP tool or the
+// Bearer-keyed /api/interventions/evaluate route. On demand, not eager: evaluate()
+// re-checks every playbook against the account's latest evidence, a real (if cheap)
+// query, not a free read of something already cached.
+function PlaybookEvaluationSection({ customerId, accountId }: { customerId: number; accountId: number }) {
+  const [open, setOpen] = useState(false)
+  const [data, setData] = useState<PlaybookEvaluation | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!open || data || loading) return
+    setLoading(true)
+    setError(null)
+    evaluatePlaybooks(customerId, accountId)
+      .then(setData)
+      .catch((err) => setError(err instanceof ApiError ? err.message : 'Failed to evaluate playbooks.'))
+      .finally(() => setLoading(false))
+  }, [open, data, loading, customerId, accountId])
+
+  return (
+    <div className="rounded-lg border border-slate-200 bg-white p-5">
+      <button onClick={() => setOpen((v) => !v)} className="text-sm font-semibold uppercase tracking-wide text-slate-500 hover:text-slate-700">
+        Playbook evaluation {open ? '▾' : '▸'}
+      </button>
+      {open && (
+        <div className="mt-3">
+          {loading && <p className="text-sm text-slate-400">Evaluating…</p>}
+          {error && <p className="text-sm text-red-600">{error}</p>}
+          {data && (
+            <div className="space-y-3">
+              {data.status !== 'evaluated' ? (
+                <p className="text-sm text-slate-500">{data.note ?? data.status}</p>
+              ) : (
+                <>
+                  <p className="text-xs text-slate-400">considered: {data.playbooks_considered.join(', ') || '—'}</p>
+                  {data.skipped.length === 0 ? (
+                    <p className="text-sm text-slate-500">Nothing was skipped this pass.</p>
+                  ) : (
+                    <ul className="space-y-1.5">
+                      {data.skipped.map((s, i) => (
+                        <li key={i} className="text-xs text-slate-600">
+                          <span className="font-medium text-slate-700">{s.playbook_id}</span>
+                          <span className="text-slate-400"> — {s.reason}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -322,6 +479,19 @@ export default function AccountDetail() {
         {arc.contradicting_evidence.length > 0 && (
           <p className="mt-1 text-xs text-amber-700">contradicting: {arc.contradicting_evidence.join('; ')}</p>
         )}
+        {arc.alternatives.length > 0 && (
+          <div className="mt-2">
+            <p className="text-xs font-medium text-slate-500">Why not one of these instead?</p>
+            <ul className="mt-1 space-y-1">
+              {arc.alternatives.map((alt) => (
+                <li key={alt.arc_type} className="text-xs text-slate-500">
+                  <span className="font-medium text-slate-600">{alt.arc_type}</span> — present: {alt.present.join(', ') || '—'};
+                  {' '}ruled out by: {alt.missing.join(', ') || '—'}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
         {arc.supporting_episode_ids.length > 0 && (
           <>
             <p className="mt-3 text-xs font-medium text-slate-500">Cited evidence</p>
@@ -399,7 +569,7 @@ export default function AccountDetail() {
           ) : (
             <ul className="space-y-2">
               {open.map((iv) => (
-                <InterventionRow key={iv.intervention_id} iv={iv} customerId={customerId} canAct={canAct} onChanged={refresh} />
+                <InterventionRow key={iv.intervention_id} iv={iv} journey={journey} customerId={customerId} canAct={canAct} onChanged={refresh} />
               ))}
             </ul>
           )}
@@ -409,12 +579,14 @@ export default function AccountDetail() {
             <p className="mb-2 text-xs font-medium text-slate-500">Closed ({closed.length})</p>
             <ul className="space-y-2">
               {closed.map((iv) => (
-                <InterventionRow key={iv.intervention_id} iv={iv} customerId={customerId} canAct={canAct} onChanged={refresh} />
+                <InterventionRow key={iv.intervention_id} iv={iv} journey={journey} customerId={customerId} canAct={canAct} onChanged={refresh} />
               ))}
             </ul>
           </div>
         )}
       </div>
+
+      <PlaybookEvaluationSection customerId={customerId} accountId={Number(accountId)} />
     </div>
   )
 }

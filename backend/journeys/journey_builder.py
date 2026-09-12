@@ -68,7 +68,7 @@ def _sentiment_from_props(props: dict, label_default: dict, polarity: int) -> Op
 def collect_episodes(account, taxonomy, health_rows) -> List[Episode]:
     """Episodes from the graph (observed SIGNAL / DECISION / OUTCOME nodes),
     health-status transitions, and the renewal milestone."""
-    from models import ContextNode
+    from models import ContextNode, ContextEdge
     li = ht.leading_indicator_config()
     label_default = li['default_sentiment_by_polarity']
 
@@ -78,6 +78,24 @@ def collect_episodes(account, taxonomy, health_rows) -> List[Episode]:
         ContextNode.node_type.in_(['SIGNAL', 'DECISION', 'OUTCOME', 'INTERVENTION']),
         ContextNode.source == 'observed',
     ).order_by(ContextNode.occurred_at).all()
+
+    # Why-panel support (2026-09-12): an outcome's own episode only ever cited itself
+    # (evidence_node_ids=[n.node_id]) -- the LED_TO edges naming which signal justified
+    # it were real and queryable (utils/edge_factory.py, journeys/outcomes.py:log_outcome)
+    # but never surfaced on the episode. One batched query per journey build (this
+    # account's outcome nodes only, never more than a handful) avoids N+1; the linked
+    # node's own evidence is already in journey.evidence via its own SIGNAL episode, so
+    # this only needs to carry the ids + how honestly the link is tiered.
+    outcome_ids = [n.node_id for n in nodes if n.node_type == 'OUTCOME']
+    linked_by_outcome: dict = {}
+    if outcome_ids:
+        for e in ContextEdge.query.filter(
+            ContextEdge.customer_id == account.customer_id, ContextEdge.edge_type == 'LED_TO',
+            ContextEdge.to_node_id.in_(outcome_ids),
+        ).all():
+            props = e.properties or {}
+            linked_by_outcome.setdefault(e.to_node_id, []).append(
+                {'node_id': e.from_node_id, 'derivation': props.get('derivation'), 'evidence_tier': props.get('evidence_tier')})
 
     for n in nodes:
         props = n.properties or {}
@@ -142,7 +160,8 @@ def collect_episodes(account, taxonomy, health_rows) -> List[Episode]:
                 subtype=sub, role=None, polarity=pol, source='observed',
                 title=(n.title or sub or 'outcome')[:200], evidence_node_ids=[n.node_id],
                 revenue=rev, revenue_bucket=bucket,
-                meta={'evidence_clamped': props.get('evidence_clamped', False)},
+                meta={'evidence_clamped': props.get('evidence_clamped', False),
+                      'linked_evidence': linked_by_outcome.get(n.node_id, [])},
             ))
 
     prev_status = None

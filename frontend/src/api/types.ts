@@ -131,6 +131,48 @@ export interface InterventionOutcome {
   bucket?: string
 }
 
+// backend/playbooks/webhook.py's delivery dict shape (DELIVERED = 'delivered';
+// also 'not_configured' | 'failed'). Was untyped Record<string, unknown> on Intervention.
+export interface Delivery {
+  status: 'delivered' | 'not_configured' | 'failed' | string
+  url_host?: string | null
+  http_status?: number | null
+  attempts?: number
+  error?: string | null
+  slack?: { status: string } & Record<string, unknown>
+}
+
+// Why-panel B3 — backend/playbooks/governance.py's evaluate() return shape.
+export interface PlaybookSkip {
+  account_id: number
+  playbook_id: string
+  reason: string
+  intervention_id?: number
+}
+
+export interface PlaybookEvaluation {
+  customer_id: number
+  vertical: string
+  dry_run: boolean
+  playbooks_considered: string[]
+  disabled: string[]
+  proposed: Record<string, unknown>[]
+  auto_approved: Record<string, unknown>[]
+  skipped: PlaybookSkip[]
+  accounts_evaluated: number
+  status: string
+  note?: string
+}
+
+// Why-panel A2 — journeys/journey_builder.py's OUTCOME episode meta.linked_evidence:
+// which SIGNAL node(s) an outcome was linked to, and how honestly that link is tiered
+// (utils/provenance.py's observed/inferred/synthetic + the edge-only 'unknown' tier).
+export interface LinkedEvidence {
+  node_id: number
+  derivation: string | null
+  evidence_tier: string | null
+}
+
 // ── Account detail / Journey (backend/journeys/read.py get_journey, journey_builder.py) ──
 
 export interface Episode {
@@ -449,7 +491,7 @@ export interface Intervention {
   approved_by: string | null
   approved_by_key_id: number | null
   sent_at: string | null
-  delivery: Record<string, unknown> | null
+  delivery: Delivery | null
   delivery_problem: boolean
   started_at: string | null
   last_report_at: string | null
