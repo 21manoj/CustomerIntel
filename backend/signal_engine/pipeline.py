@@ -39,6 +39,7 @@ logger = logging.getLogger(__name__)
 
 SOURCE_TYPES = ('manual', 'email', 'slack', 'transcript', 'ticket', 'crm_activity', 'meeting', 'external', 'csv_import')
 UNCLASSIFIED_SUBTYPE = 'unclassified_signal'
+CLAIMED_SENTINEL = -1          # never a real ContextNode id (autoincrement starts at 1)
 
 
 # ── ingest ─────────────────────────────────────────────────────────────
@@ -368,6 +369,17 @@ def process_pending(customer_id: Optional[int] = None, limit: int = 50, rebuild_
         sigs = q.order_by(QualitativeSignal.id).limit(limit).with_for_update(skip_locked=True).all()
     except Exception:                      # dialects without SKIP LOCKED (sqlite in a scratch run)
         sigs = q.order_by(QualitativeSignal.id).limit(limit).all()
+    # The lock above only lasts until this transaction's first commit -- and the loop below
+    # commits once per signal, not once for the whole batch. So after signal 1 commits, Postgres
+    # releases the lock on signals 2..N too, and a concurrent drain's own SKIP LOCKED select can
+    # legally take them. Found on a bulk (109-signal) import 2026-09-12: 89% of nodes doubled,
+    # the same race the comment above describes, just wide enough to hit almost every row instead
+    # of an occasional one. Claim the whole batch with a cheap, immediate, single-commit sentinel
+    # write -- ownership no longer depends on how long the row lock happens to survive.
+    if sigs:
+        for sig in sigs:
+            sig.cg_node_id = CLAIMED_SENTINEL
+        db.session.commit()
     out = {'processed': 0, 'structured': 0, 'enriched': 0, 'unclassified': 0, 'nodes_written': 0, 'errors': 0,
            'accounts': set(), 'signals': [], 'error_signals': []}
     taxonomies: Dict[str, object] = {}
@@ -387,10 +399,11 @@ def process_pending(customer_id: Optional[int] = None, limit: int = 50, rebuild_
                                                taxonomy=tax, roster=account_roster(sig.customer_id, sig.account_id),
                                                use_cases=account_use_cases(sig.account_id))
                     if enrichment.get('error'):
-                        # not evidence — leave it queued for the next pass, say why
+                        # not evidence — release the claim and leave it queued for the next pass, say why
                         out['errors'] += 1
                         out['error_signals'].append({'signal_id': sig.signal_id, 'error': enrichment['error']})
                         sig.suggested_action = enrichment.get('suggested_action')
+                        sig.cg_node_id = None
                         db.session.commit()
                         continue
                     _apply_enrichment(sig, enrichment)
@@ -419,6 +432,10 @@ def process_pending(customer_id: Optional[int] = None, limit: int = 50, rebuild_
         except Exception as e:
             logger.warning('signal %s failed to process: %s', sig.signal_id, e, exc_info=True)
             db.session.rollback()
+            # The claim commit above predates this transaction, so rollback doesn't undo it --
+            # release it explicitly or this signal is stuck "processed" with no node forever.
+            sig.cg_node_id = None
+            db.session.commit()
 
     out['journeys_rebuilt'] = 0
     if rebuild_journeys and out['accounts']:
