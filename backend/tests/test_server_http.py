@@ -64,14 +64,24 @@ def _rpc(client, method, params=None, *, id_=1, session=None, key=SERVER_KEY):
     return r, payload
 
 
-def _session(client, key=SERVER_KEY):
+def _handshake(client, key=SERVER_KEY):
+    """Send `initialize` and confirm the response is well-formed. Under
+    stateless_http=True (backend scaling plan step 4a) this is no longer a
+    prerequisite for anything -- every /mcp request creates its own fresh,
+    self-contained transport (verified directly against this fastmcp
+    version), so tools/call and tools/list work with no prior initialize at
+    all and no session id ever changes hands. Kept as its own step only
+    because real clients still send it as the first message of an MCP
+    exchange, and its response shape is worth asserting on -- NOT because
+    later calls need anything it returns."""
     r, init = _rpc(client, 'initialize', {'protocolVersion': '2025-03-26', 'capabilities': {},
                                           'clientInfo': {'name': 'test', 'version': '1'}}, key=key)
     assert r.status_code == 200, r.text
-    sid = r.headers.get('mcp-session-id')
-    assert sid and init['result']['serverInfo']
-    _rpc(client, 'notifications/initialized', id_=None, session=sid, key=key)
-    return sid
+    assert init['result']['serverInfo']
+    assert r.headers.get('mcp-session-id') is None, (
+        'stateless_http=True must never hand back a session id -- a client that receives one and '
+        'later relies on it to route back to this process would break under multiple workers'
+    )
 
 
 class TestHealth:
@@ -91,42 +101,57 @@ class TestHealth:
 
 class TestMcpOverHttp:
     def test_handshake_and_tool_list(self, client):
-        sid = _session(client)
-        r, res = _rpc(client, 'tools/list', id_=2, session=sid)
+        _handshake(client)
+        # No session id from the handshake to carry forward (there isn't one) --
+        # tools/list is its own self-contained stateless request.
+        r, res = _rpc(client, 'tools/list', id_=2)
         assert r.status_code == 200, r.text
         names = {t['name'] for t in res['result']['tools']}
         assert {'create_customer', 'upload_csv', 'process_data', 'trigger_wizard'} <= names
 
     def test_onboarding_tool_is_frictionless_without_a_key(self, client):
-        sid = _session(client, key=None)
+        """Also the main proof that no prior initialize/session is needed: this
+        goes straight to tools/call with nothing but Authorization (here, none
+        at all -- an onboarding tool needs no key)."""
         r, res = _rpc(client, 'tools/call', {'name': 'create_customer', 'arguments': {
             'name': 'Frictionless Co', 'domain': f'friction-{uuid.uuid4().hex[:6]}.test', 'vertical': 'saas_premium',
-            'admin_email': f'f_{uuid.uuid4().hex[:6]}@t.test', 'admin_name': 'F', 'data_origin': 'synthetic_test'}}, id_=3, session=sid, key=None)
+            'admin_email': f'f_{uuid.uuid4().hex[:6]}@t.test', 'admin_name': 'F', 'data_origin': 'synthetic_test'}}, id_=3, key=None)
         assert r.status_code == 200, r.text
         assert not res['result'].get('isError'), res
         text = res['result']['content'][0]['text']
         assert '"customer_id"' in text and '"api_key"' in text          # a customer-scoped key is issued now
 
     def test_customer_key_is_tenant_scoped(self, client):
-        sid = _session(client, key=None)
         r, res = _rpc(client, 'tools/call', {'name': 'create_customer', 'arguments': {
             'name': 'Scoped Co', 'domain': f'scoped-{uuid.uuid4().hex[:6]}.test', 'vertical': 'saas_premium',
-            'admin_email': f's_{uuid.uuid4().hex[:6]}@t.test', 'admin_name': 'S', 'data_origin': 'synthetic_test'}}, id_=4, session=sid, key=None)
+            'admin_email': f's_{uuid.uuid4().hex[:6]}@t.test', 'admin_name': 'S', 'data_origin': 'synthetic_test'}}, id_=4, key=None)
         created = json.loads(res['result']['content'][0]['text'])
         key, cid = created['api_key'], created['customer_id']
         assert key.startswith('csp_write_')
         # own tenant: allowed (process_data errors on "no data", not on auth)
-        sid2 = _session(client, key=key)
-        r, res = _rpc(client, 'tools/call', {'name': 'process_data', 'arguments': {'customer_id': cid}}, id_=5, session=sid2, key=key)
+        r, res = _rpc(client, 'tools/call', {'name': 'process_data', 'arguments': {'customer_id': cid}}, id_=5, key=key)
         assert 'No data found' in res['result']['content'][0]['text']
         # another tenant: refused
-        r, res = _rpc(client, 'tools/call', {'name': 'process_data', 'arguments': {'customer_id': cid + 1000}}, id_=6, session=sid2, key=key)
+        r, res = _rpc(client, 'tools/call', {'name': 'process_data', 'arguments': {'customer_id': cid + 1000}}, id_=6, key=key)
         assert res['result'].get('isError') and 'does not have access' in res['result']['content'][0]['text']
         # garbage key: refused
-        sid3 = _session(client, key='csp_write_not-a-real-key-at-all-0000000000000000')
-        r, res = _rpc(client, 'tools/call', {'name': 'process_data', 'arguments': {'customer_id': cid}}, id_=7, session=sid3,
+        r, res = _rpc(client, 'tools/call', {'name': 'process_data', 'arguments': {'customer_id': cid}}, id_=7,
                       key='csp_write_not-a-real-key-at-all-0000000000000000')
         assert res['result'].get('isError') and 'Invalid or expired' in res['result']['content'][0]['text']
+
+    def test_a_request_carrying_only_a_stale_session_id_gets_no_special_treatment(self, client):
+        """Regression guard for the auth model, not just the transport: under
+        stateful mode a request with NO Authorization header but a session id
+        matching a PRIOR initialize's cached key would authenticate via
+        mcp_server.auth._session_api_keys. Under stateless_http=True the
+        server never hands out a session id in the first place, but a client
+        could still send an arbitrary mcp-session-id header on its own
+        initiative -- confirm that alone buys it nothing: no Authorization
+        header still means no key, on any tool that requires one."""
+        r, res = _rpc(client, 'tools/call', {'name': 'process_data', 'arguments': {'customer_id': 1}},
+                      id_=8, session='client-supplied-session-id-not-from-the-server', key=None)
+        assert res['result'].get('isError')
+        assert 'API key' in res['result']['content'][0]['text'] or 'Bearer' in res['result']['content'][0]['text']
 
 
 class TestApiKeyService:
