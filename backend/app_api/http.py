@@ -37,11 +37,11 @@ def _cookie_kwargs() -> dict:
     return {'httponly': True, 'samesite': 'lax', 'secure': os.environ.get(_INSECURE_ENV, '').lower() not in ('true', '1', 'yes')}
 
 
-def _guard(request, role=None):
+async def _guard(request, role=None):
     """(user, error_response). error_response is set on 401/403; the caller returns it as-is.
     role: one role name, or a tuple/list/set of acceptable role names."""
     try:
-        user = _with_app(lambda: require_session(request, role))
+        user = await _with_app(lambda: require_session(request, role))
         return user, None
     except PermissionError as e:
         status = 403 if str(e) == 'wrong_role' else 401
@@ -100,7 +100,7 @@ def register_app_api_routes(mcp) -> None:
         from app_api.auth import login_session
         ip = request.headers.get('x-forwarded-for', '').split(',')[0].strip() or (request.client.host if request.client else 'unknown')
         try:
-            token, user = _with_app(lambda: login_session(data.get('email'), data.get('password'), ip))
+            token, user = await _with_app(lambda: login_session(data.get('email'), data.get('password'), ip))
         except AuthError as e:
             return JSONResponse({'error': str(e)}, status_code=401)
         resp = JSONResponse({'user': _me_view(user)})
@@ -118,14 +118,14 @@ def register_app_api_routes(mcp) -> None:
         data = await _json(request)
         from app_api.auth import consume_setup_token
         try:
-            _with_app(lambda: consume_setup_token(data.get('token'), data.get('new_password')))
+            await _with_app(lambda: consume_setup_token(data.get('token'), data.get('new_password')))
         except AuthError as e:
             return JSONResponse({'error': str(e)}, status_code=400)
         return JSONResponse({'status': 'ok'})
 
     @mcp.custom_route('/app/api/me', methods=['GET'], name='ui_me')
     async def ui_me(request):
-        user, err = _guard(request)
+        user, err = await _guard(request)
         if err:
             return err
         return JSONResponse(_me_view(user))     # user is already a resolved SessionUser snapshot — no DB access needed
@@ -134,7 +134,7 @@ def register_app_api_routes(mcp) -> None:
 
     @mcp.custom_route('/app/api/portfolio', methods=['GET'], name='ui_portfolio')
     async def ui_portfolio(request):
-        user, err = _guard(request)
+        user, err = await _guard(request)
         if err:
             return err
         cid = request.query_params.get('customer_id')
@@ -142,15 +142,15 @@ def register_app_api_routes(mcp) -> None:
             return JSONResponse({'error': 'customer_id is required'}, status_code=400)
         if not allows_customer(user, int(cid)):
             return _forbidden_scope()
-        rows = _with_app(lambda: list_journeys(int(cid)))
+        rows = await _with_app(lambda: list_journeys(int(cid)))
         _, aids = user_scope(user)
         if aids is not None:
             rows = [r for r in rows if r['account_id'] in aids]
-        return JSONResponse({'accounts': rows, **_with_app(lambda: origin_block(int(cid)))})
+        return JSONResponse({'accounts': rows, **await _with_app(lambda: origin_block(int(cid)))})
 
     @mcp.custom_route('/app/api/accounts/{account_id:int}', methods=['GET'], name='ui_account')
     async def ui_account(request):
-        user, err = _guard(request)
+        user, err = await _guard(request)
         if err:
             return err
         cid = request.query_params.get('customer_id')
@@ -159,7 +159,7 @@ def register_app_api_routes(mcp) -> None:
             return JSONResponse({'error': 'customer_id is required'}, status_code=400)
         if not allows_customer(user, int(cid)) or not allows_account(user, aid):
             return _forbidden_scope()
-        j = _with_app(lambda: get_journey(int(cid), aid, compact=False))
+        j = await _with_app(lambda: get_journey(int(cid), aid, compact=False))
         if j is None:
             return JSONResponse({'error': 'no journey for this account'}, status_code=404)
         return JSONResponse(j)
@@ -168,7 +168,7 @@ def register_app_api_routes(mcp) -> None:
 
     @mcp.custom_route('/app/api/interventions', methods=['GET'], name='ui_interventions_list')
     async def ui_interventions_list(request):
-        user, err = _guard(request)
+        user, err = await _guard(request)
         if err:
             return err
         q = request.query_params
@@ -178,7 +178,7 @@ def register_app_api_routes(mcp) -> None:
         aid = q.get('account_id')
         if aid and not allows_account(user, int(aid)):
             return _forbidden_scope()
-        out = _with_app(lambda: gov.list_interventions(int(cid), aid, q.get('state')))
+        out = await _with_app(lambda: gov.list_interventions(int(cid), aid, q.get('state')))
         _, aids = user_scope(user)
         if aids is not None:
             out['interventions'] = [v for v in out['interventions'] if v['account_id'] in aids]
@@ -192,7 +192,7 @@ def register_app_api_routes(mcp) -> None:
         (neither of those is reachable from a browser session). dry_run is forced
         True unconditionally -- a GET must never have the side effect of proposing
         a real intervention, regardless of what a caller passes."""
-        user, err = _guard(request)
+        user, err = await _guard(request)
         if err:
             return err
         q = request.query_params
@@ -207,11 +207,11 @@ def register_app_api_routes(mcp) -> None:
                 return JSONResponse({'error': 'account_id must be an integer'}, status_code=400)
             if not allows_account(user, aid):
                 return _forbidden_scope()
-        return JSONResponse(_with_app(lambda: gov.evaluate(cid, aid, dry_run=True)))
+        return JSONResponse(await _with_app(lambda: gov.evaluate(cid, aid, dry_run=True)))
 
     @mcp.custom_route('/app/api/interventions/{intervention_id:int}/approve', methods=['POST'], name='ui_interventions_approve')
     async def ui_interventions_approve(request):
-        user, err = _guard(request, role=('csm', 'vpcsm'))
+        user, err = await _guard(request, role=('csm', 'vpcsm'))
         if err:
             return err
         data = await _json(request)
@@ -220,13 +220,13 @@ def register_app_api_routes(mcp) -> None:
             return _forbidden_scope() if cid else JSONResponse({'error': 'customer_id is required'}, status_code=400)
         try:
             actor = {'key_kind': 'user', 'key_record': None, 'key_id': None, 'label': f'user:{user.user_id}'}
-            return JSONResponse(_with_app(lambda: gov.approve(int(cid), request.path_params['intervention_id'], data.get('note'), actor=actor)))
+            return JSONResponse(await _with_app(lambda: gov.approve(int(cid), request.path_params['intervention_id'], data.get('note'), actor=actor)))
         except ValueError as e:
             return JSONResponse({'error': str(e)}, status_code=400)
 
     @mcp.custom_route('/app/api/interventions/{intervention_id:int}/report', methods=['POST'], name='ui_interventions_report')
     async def ui_interventions_report(request):
-        user, err = _guard(request, role=('csm', 'vpcsm'))
+        user, err = await _guard(request, role=('csm', 'vpcsm'))
         if err:
             return err
         data = await _json(request)
@@ -235,7 +235,7 @@ def register_app_api_routes(mcp) -> None:
             return _forbidden_scope() if cid else JSONResponse({'error': 'customer_id is required'}, status_code=400)
         try:
             actor = {'key_kind': 'user', 'key_record': None, 'key_id': None, 'label': f'user:{user.user_id}'}
-            return JSONResponse(_with_app(lambda: gov.report(int(cid), request.path_params['intervention_id'], data.get('state'),
+            return JSONResponse(await _with_app(lambda: gov.report(int(cid), request.path_params['intervention_id'], data.get('state'),
                                                              note=data.get('note'), outcome_type=data.get('outcome_type'),
                                                              outcome_date=data.get('outcome_date'), revenue=data.get('revenue'), actor=actor)))
         except ValueError as e:
@@ -243,8 +243,8 @@ def register_app_api_routes(mcp) -> None:
 
     # ── ROI / Power-of-1 (cfo, cro, admin) ──
 
-    def _finance_guard(request):
-        user, err = _guard(request)
+    async def _finance_guard(request):
+        user, err = await _guard(request)
         if err:
             return None, err
         if user.role not in ('cfo', 'cro', 'admin'):
@@ -253,46 +253,46 @@ def register_app_api_routes(mcp) -> None:
 
     @mcp.custom_route('/app/api/roi/priorities', methods=['GET'], name='ui_roi_priorities')
     async def ui_roi_priorities(request):
-        user, err = _finance_guard(request)
+        user, err = await _finance_guard(request)
         if err:
             return err
         cid = request.query_params.get('customer_id')
         if not cid or not allows_customer(user, int(cid)):
             return _forbidden_scope() if cid else JSONResponse({'error': 'customer_id is required'}, status_code=400)
         try:
-            return JSONResponse(_with_app(lambda: investment_priorities(int(cid))))
+            return JSONResponse(await _with_app(lambda: investment_priorities(int(cid))))
         except ValueError as e:
             return JSONResponse({'error': str(e)}, status_code=422)
 
     @mcp.custom_route('/app/api/roi/power-of-1', methods=['GET'], name='ui_roi_po1')
     async def ui_roi_po1(request):
-        user, err = _finance_guard(request)
+        user, err = await _finance_guard(request)
         if err:
             return err
         cid = request.query_params.get('customer_id')
         if not cid or not allows_customer(user, int(cid)):
             return _forbidden_scope() if cid else JSONResponse({'error': 'customer_id is required'}, status_code=400)
         try:
-            return JSONResponse(_with_app(lambda: power_of_1(int(cid))))
+            return JSONResponse(await _with_app(lambda: power_of_1(int(cid))))
         except ValueError as e:
             return JSONResponse({'error': str(e)}, status_code=422)
 
     @mcp.custom_route('/app/api/roi', methods=['GET'], name='ui_roi_measured')
     async def ui_roi_measured(request):
-        user, err = _finance_guard(request)
+        user, err = await _finance_guard(request)
         if err:
             return err
         cid = request.query_params.get('customer_id')
         if not cid or not allows_customer(user, int(cid)):
             return _forbidden_scope() if cid else JSONResponse({'error': 'customer_id is required'}, status_code=400)
         try:
-            return JSONResponse(_with_app(lambda: roi_measured(int(cid))))
+            return JSONResponse(await _with_app(lambda: roi_measured(int(cid))))
         except ValueError as e:
             return JSONResponse({'error': str(e)}, status_code=422)
 
     @mcp.custom_route('/app/api/forecast', methods=['GET'], name='ui_forecast')
     async def ui_forecast(request):
-        user, err = _guard(request)
+        user, err = await _guard(request)
         if err:
             return err
         cid = request.query_params.get('customer_id')
@@ -301,7 +301,7 @@ def register_app_api_routes(mcp) -> None:
         aid = request.query_params.get('account_id')
         if aid and not allows_account(user, int(aid)):
             return _forbidden_scope()
-        res = _with_app(lambda: get_forecast(int(cid), int(aid) if aid else None))
+        res = await _with_app(lambda: get_forecast(int(cid), int(aid) if aid else None))
         if res is None:
             return JSONResponse({'error': 'no Foresight run yet'}, status_code=404)
         return JSONResponse(res)
@@ -310,7 +310,7 @@ def register_app_api_routes(mcp) -> None:
 
     @mcp.custom_route('/app/api/ask/questions', methods=['GET'], name='ui_ask_questions')
     async def ui_ask_questions(request):
-        user, err = _guard(request)
+        user, err = await _guard(request)
         if err:
             return err
         from ask_ai import settings as ask_ai_settings
@@ -321,7 +321,7 @@ def register_app_api_routes(mcp) -> None:
 
     @mcp.custom_route('/app/api/ask', methods=['POST'], name='ui_ask')
     async def ui_ask(request):
-        user, err = _guard(request)
+        user, err = await _guard(request)
         if err:
             return err
         try:
@@ -353,7 +353,7 @@ def register_app_api_routes(mcp) -> None:
             history = [_scoped_turn(t) for t in history if isinstance(t, dict)]
         from ask_ai.answer import ask as ask_ai_ask
         try:
-            res = _with_app(lambda: ask_ai_ask(int(cid), data['question'], account_id=int(aid) if aid else None,
+            res = await _with_app(lambda: ask_ai_ask(int(cid), data['question'], account_id=int(aid) if aid else None,
                                                as_of=data.get('as_of'), history=history))
         except LookupError as e:
             return JSONResponse({'error': str(e)}, status_code=404)
@@ -367,7 +367,7 @@ def register_app_api_routes(mcp) -> None:
 
     @mcp.custom_route('/app/api/calibrations', methods=['GET'], name='ui_calibrations_get')
     async def ui_calibrations_get(request):
-        user, err = _guard(request, role='admin')
+        user, err = await _guard(request, role='admin')
         if err:
             return err
         q = request.query_params
@@ -376,7 +376,7 @@ def register_app_api_routes(mcp) -> None:
             return err
         pid = q.get('proposal_id')
         try:
-            return JSONResponse(_with_app(lambda: wc.get_calibration(cid, int(pid) if pid else None)))
+            return JSONResponse(await _with_app(lambda: wc.get_calibration(cid, int(pid) if pid else None)))
         except ValueError as e:
             # A proposal_id belonging to another tenant reaches wizard_c's (customer_id,
             # proposal_id) check and raises — uncaught until 2026-09-08, so the one
@@ -386,7 +386,7 @@ def register_app_api_routes(mcp) -> None:
 
     @mcp.custom_route('/app/api/calibrations/propose', methods=['POST'], name='ui_calibrations_propose')
     async def ui_calibrations_propose(request):
-        user, err = _guard(request, role='admin')
+        user, err = await _guard(request, role='admin')
         if err:
             return err
         data = await _json(request)
@@ -394,13 +394,13 @@ def register_app_api_routes(mcp) -> None:
         if err:
             return err
         try:
-            return JSONResponse(_with_app(lambda: wc.propose(cid)))
+            return JSONResponse(await _with_app(lambda: wc.propose(cid)))
         except ValueError as e:
             return JSONResponse({'error': str(e)}, status_code=400)
 
     @mcp.custom_route('/app/api/calibrations/{proposal_id:int}/approve', methods=['POST'], name='ui_calibrations_approve')
     async def ui_calibrations_approve(request):
-        user, err = _guard(request, role='admin')
+        user, err = await _guard(request, role='admin')
         if err:
             return err
         data = await _json(request)
@@ -408,13 +408,13 @@ def register_app_api_routes(mcp) -> None:
         if err:
             return err
         try:
-            return JSONResponse(_with_app(lambda: wc.approve(cid, request.path_params['proposal_id'], note=data.get('note'))))
+            return JSONResponse(await _with_app(lambda: wc.approve(cid, request.path_params['proposal_id'], note=data.get('note'))))
         except ValueError as e:
             return JSONResponse({'error': str(e)}, status_code=400)
 
     @mcp.custom_route('/app/api/calibrations/{proposal_id:int}/reject', methods=['POST'], name='ui_calibrations_reject')
     async def ui_calibrations_reject(request):
-        user, err = _guard(request, role='admin')
+        user, err = await _guard(request, role='admin')
         if err:
             return err
         data = await _json(request)
@@ -422,7 +422,7 @@ def register_app_api_routes(mcp) -> None:
         if err:
             return err
         try:
-            return JSONResponse(_with_app(lambda: wc.reject(cid, request.path_params['proposal_id'], note=data.get('note'))))
+            return JSONResponse(await _with_app(lambda: wc.reject(cid, request.path_params['proposal_id'], note=data.get('note'))))
         except ValueError as e:
             return JSONResponse({'error': str(e)}, status_code=400)
 
@@ -430,20 +430,20 @@ def register_app_api_routes(mcp) -> None:
 
     @mcp.custom_route('/app/api/review-queue', methods=['GET'], name='ui_review_queue')
     async def ui_review_queue_route(request):
-        user, err = _guard(request, role=('csm', 'vpcsm'))
+        user, err = await _guard(request, role=('csm', 'vpcsm'))
         if err:
             return err
         q = request.query_params
         cid = q.get('customer_id')
         if not cid or not allows_customer(user, int(cid)):
             return _forbidden_scope() if cid else JSONResponse({'error': 'customer_id is required'}, status_code=400)
-        status, body = _with_app(lambda: review_queue(int(cid), q.get('account_id'), q.get('urgency'),
+        status, body = await _with_app(lambda: review_queue(int(cid), q.get('account_id'), q.get('urgency'),
                                                        int(q.get('page', 1)), int(q.get('per_page', 25))))
         return JSONResponse(body, status_code=status)
 
     @mcp.custom_route('/app/api/review', methods=['POST'], name='ui_review_post')
     async def ui_review_post(request):
-        user, err = _guard(request, role=('csm', 'vpcsm'))
+        user, err = await _guard(request, role=('csm', 'vpcsm'))
         if err:
             return err
         data = await _json(request)
@@ -451,7 +451,7 @@ def register_app_api_routes(mcp) -> None:
         if not cid or not allows_customer(user, int(cid)):
             return _forbidden_scope() if cid else JSONResponse({'error': 'customer_id is required'}, status_code=400)
         try:
-            return JSONResponse(_with_app(lambda: review_signal(
+            return JSONResponse(await _with_app(lambda: review_signal(
                 int(cid), data.get('signal_id'), data.get('decision'), subtype=data.get('subtype'),
                 node_id=data.get('node_id'), note=data.get('note'), reviewer=f'user:{user.user_id}')))
         except ValueError as e:
@@ -461,17 +461,17 @@ def register_app_api_routes(mcp) -> None:
 
     @mcp.custom_route('/app/api/playbooks/config', methods=['GET'], name='ui_playbooks_config_get')
     async def ui_playbooks_config_get(request):
-        user, err = _guard(request, role='admin')
+        user, err = await _guard(request, role='admin')
         if err:
             return err
         cid, err = _scoped_cid(user, request.query_params.get('customer_id'))
         if err:
             return err
-        return JSONResponse(_with_app(lambda: playbooks_for_customer(cid)))
+        return JSONResponse(await _with_app(lambda: playbooks_for_customer(cid)))
 
     @mcp.custom_route('/app/api/playbooks/config', methods=['POST'], name='ui_playbooks_config_post')
     async def ui_playbooks_config_post(request):
-        user, err = _guard(request, role='admin')
+        user, err = await _guard(request, role='admin')
         if err:
             return err
         data = await _json(request)
@@ -479,7 +479,7 @@ def register_app_api_routes(mcp) -> None:
         if err:
             return err
         try:
-            return JSONResponse(_with_app(lambda: configure_tenant(
+            return JSONResponse(await _with_app(lambda: configure_tenant(
                 cid, webhook_url=data.get('webhook_url'), webhook_secret=data.get('webhook_secret'),
                 disabled_playbooks=data.get('disabled_playbooks'), automation_level=data.get('automation_level'),
                 kill_switch=data.get('kill_switch'))))
@@ -490,7 +490,7 @@ def register_app_api_routes(mcp) -> None:
 
     @mcp.custom_route('/app/api/users', methods=['GET'], name='ui_users_list')
     async def ui_users_list(request):
-        user, err = _guard(request, role='admin')
+        user, err = await _guard(request, role='admin')
         if err:
             return err
         raw_cid = request.query_params.get('customer_id')
@@ -504,16 +504,16 @@ def register_app_api_routes(mcp) -> None:
             cids = [int(c) for c in (cids or [])]
             if not cids:
                 return _forbidden_scope()
-        return JSONResponse({'users': _with_app(lambda: user_admin.list_users(cids))})
+        return JSONResponse({'users': await _with_app(lambda: user_admin.list_users(cids))})
 
     @mcp.custom_route('/app/api/users', methods=['POST'], name='ui_users_invite')
     async def ui_users_invite(request):
-        admin, err = _guard(request, role='admin')
+        admin, err = await _guard(request, role='admin')
         if err:
             return err
         data = await _json(request)
         try:
-            user_dict, raw = _with_app(lambda: user_admin.invite(admin, data.get('customer_id'), data.get('email'), data.get('name'),
+            user_dict, raw = await _with_app(lambda: user_admin.invite(admin, data.get('customer_id'), data.get('email'), data.get('name'),
                                                                  data.get('role'), data.get('allowed_account_ids')))
             return JSONResponse({'user': user_dict, 'setup_token': raw,
                                  'setup_token_note': 'Shown once — relay this to the new user out of band.'})
@@ -524,12 +524,12 @@ def register_app_api_routes(mcp) -> None:
 
     @mcp.custom_route('/app/api/users/{user_id:int}', methods=['PATCH'], name='ui_users_patch')
     async def ui_users_patch(request):
-        admin, err = _guard(request, role='admin')
+        admin, err = await _guard(request, role='admin')
         if err:
             return err
         data = await _json(request)
         try:
-            return JSONResponse(_with_app(lambda: user_admin.patch_user(
+            return JSONResponse(await _with_app(lambda: user_admin.patch_user(
                 admin, request.path_params['user_id'], role=data.get('role'), active=data.get('active'),
                 allowed_customer_ids=data.get('allowed_customer_ids'), allowed_account_ids=data.get('allowed_account_ids'))))
         except PermissionError:
@@ -539,11 +539,11 @@ def register_app_api_routes(mcp) -> None:
 
     @mcp.custom_route('/app/api/users/{user_id:int}/reset-password', methods=['POST'], name='ui_users_reset_password')
     async def ui_users_reset_password(request):
-        admin, err = _guard(request, role='admin')
+        admin, err = await _guard(request, role='admin')
         if err:
             return err
         try:
-            raw = _with_app(lambda: user_admin.reset_password(admin, request.path_params['user_id']))
+            raw = await _with_app(lambda: user_admin.reset_password(admin, request.path_params['user_id']))
             return JSONResponse({'setup_token': raw, 'setup_token_note': 'Shown once — relay this to the user out of band.'})
         except PermissionError:
             return _forbidden_scope()

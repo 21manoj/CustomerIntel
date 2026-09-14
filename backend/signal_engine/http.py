@@ -64,10 +64,28 @@ def _route_name() -> str:
     return 'http'
 
 
-def _with_app(fn):
+async def _with_app(fn):
+    """Run `fn` (typically a lambda wrapping a sync DB/service call) inside a
+    Flask app context, off the event loop.
+
+    Every /api/* and /app/api/* handler is `async def`, but until this ran fn()
+    directly on the event loop -- so a slow call (a big process_pending drain, a
+    slow query) blocked every other request on the process, including /health.
+    The 40-ish MCP tools already get this parallelism from fastmcp's anyio
+    worker-thread pool; this brings REST to parity with it.
+
+    Safe: Flask's app context and SQLAlchemy's scoped session are both
+    thread-local, so each threadpool call gets its own context/session --
+    nothing crosses request boundaries. (backend scaling plan, step 2)
+    """
+    from starlette.concurrency import run_in_threadpool
     from mcp_server.common import get_flask_app
-    with get_flask_app().app_context():
-        return fn()
+
+    def _run():
+        with get_flask_app().app_context():
+            return fn()
+
+    return await run_in_threadpool(_run)
 
 
 async def _json(request):
@@ -87,10 +105,10 @@ def register_signal_routes(mcp) -> None:
         def _make(src):
             async def ingest(request):
                 data = await _json(request)
-                ok, err = _with_app(lambda: _authorize(data.get('customer_id')))
+                ok, err = await _with_app(lambda: _authorize(data.get('customer_id')))
                 if not ok:
                     return JSONResponse(err, status_code=401)
-                code, body = _with_app(lambda: ingest_from_payload(src, data))
+                code, body = await _with_app(lambda: ingest_from_payload(src, data))
                 return JSONResponse(body, status_code=code)
             return ingest
         mcp.custom_route(f'/api/signals/ingest/{source}', methods=['POST'], name=f'signals_ingest_{source}')(_make(source))
@@ -102,10 +120,10 @@ def register_signal_routes(mcp) -> None:
         if f is None:
             return JSONResponse({'error': 'No file uploaded. Send a .txt, .vtt, or .srt file.'}, status_code=400)
         content = (await f.read()).decode('utf-8', errors='replace')
-        ok, err = _with_app(lambda: _authorize(form.get('customer_id')))
+        ok, err = await _with_app(lambda: _authorize(form.get('customer_id')))
         if not ok:
             return JSONResponse(err, status_code=401)
-        code, body = _with_app(lambda: ingest_transcript_file(
+        code, body = await _with_app(lambda: ingest_transcript_file(
             f.filename, content, form.get('account_id'), form.get('customer_id'), form.get('consent_verified', ''),
             form.get('occurred_at')))
         return JSONResponse(body, status_code=code)
@@ -119,7 +137,7 @@ def register_signal_routes(mcp) -> None:
         else:
             form = await request.form()
             fields = {k: (v if isinstance(v, str) else '') for k, v in form.items()}
-        code, body = _with_app(lambda: handle_inbound_email(fields, dict(request.headers), raw, dict(request.query_params)))
+        code, body = await _with_app(lambda: handle_inbound_email(fields, dict(request.headers), raw, dict(request.query_params)))
         return JSONResponse(body, status_code=code)
 
     @mcp.custom_route('/api/signals/ingest/slack/events', methods=['POST'], name='signals_slack_events')
@@ -129,7 +147,7 @@ def register_signal_routes(mcp) -> None:
             data = json.loads(raw or b'{}')
         except json.JSONDecodeError:
             data = {}
-        code, body = _with_app(lambda: handle_slack_event(data, dict(request.headers), raw, dict(request.query_params)))
+        code, body = await _with_app(lambda: handle_slack_event(data, dict(request.headers), raw, dict(request.query_params)))
         return JSONResponse(body, status_code=code)
 
     @mcp.custom_route('/api/signals/import', methods=['POST'], name='signals_import')
@@ -143,12 +161,12 @@ def register_signal_routes(mcp) -> None:
         else:
             cid, now = request.query_params.get('customer_id'), request.query_params.get('process_now', '1') in ('1', 'true')
             items = [json.loads(line) for line in raw.decode('utf-8', errors='replace').splitlines() if line.strip()]
-        ok, err = _with_app(lambda: _authorize(cid))
+        ok, err = await _with_app(lambda: _authorize(cid))
         if not ok:
             return JSONResponse(err, status_code=401)
         from signal_engine.pipeline import import_communications
         try:
-            return JSONResponse(_with_app(lambda: import_communications(int(cid), items, process_now=bool(now))))
+            return JSONResponse(await _with_app(lambda: import_communications(int(cid), items, process_now=bool(now))))
         except ValueError as e:
             return JSONResponse({'error': str(e)}, status_code=400)
 
@@ -156,21 +174,21 @@ def register_signal_routes(mcp) -> None:
     async def process(request):
         data = await _json(request)
         cid = data.get('customer_id')
-        ok, err = _with_app(lambda: _authorize(cid))
+        ok, err = await _with_app(lambda: _authorize(cid))
         if not ok:
             return JSONResponse(err, status_code=401)
         from signal_engine.pipeline import process_pending
-        res = _with_app(lambda: process_pending(customer_id=cid, limit=int(data.get('limit', 50))))
+        res = await _with_app(lambda: process_pending(customer_id=cid, limit=int(data.get('limit', 50))))
         return JSONResponse(res)
 
     @mcp.custom_route('/api/signals/review-queue', methods=['GET'], name='signals_review_queue')
     async def review(request):
         q = request.query_params
         cid = q.get('customer_id')
-        ok, err = _with_app(lambda: _authorize(cid, 'read'))
+        ok, err = await _with_app(lambda: _authorize(cid, 'read'))
         if not ok:
             return JSONResponse(err, status_code=401)
-        code, body = _with_app(lambda: review_queue(int(cid) if cid else None, q.get('account_id'), q.get('urgency'),
+        code, body = await _with_app(lambda: review_queue(int(cid) if cid else None, q.get('account_id'), q.get('urgency'),
                                                     int(q.get('page', 1)), int(q.get('per_page', 25))))
         return JSONResponse(body, status_code=code)
 
@@ -178,12 +196,12 @@ def register_signal_routes(mcp) -> None:
     async def review_post(request):
         data = await _json(request)
         cid = data.get('customer_id')
-        ok, err = _with_app(lambda: _authorize(cid))
+        ok, err = await _with_app(lambda: _authorize(cid))
         if not ok:
             return JSONResponse(err, status_code=401)
         from signal_engine.review import review_signal
         try:
-            res = _with_app(lambda: review_signal(int(cid), data.get('signal_id'), data.get('decision'),
+            res = await _with_app(lambda: review_signal(int(cid), data.get('signal_id'), data.get('decision'),
                                                   subtype=data.get('subtype'), node_id=data.get('node_id'),
                                                   note=data.get('note'), reviewer=data.get('reviewer')))
         except ValueError as e:
@@ -194,11 +212,11 @@ def register_signal_routes(mcp) -> None:
     async def review_hist(request):
         q = request.query_params
         cid = q.get('customer_id')
-        ok, err = _with_app(lambda: _authorize(cid, 'read'))
+        ok, err = await _with_app(lambda: _authorize(cid, 'read'))
         if not ok:
             return JSONResponse(err, status_code=401)
         from signal_engine.review import review_history
-        return JSONResponse({'history': _with_app(lambda: review_history(int(cid), q.get('account_id'), q.get('signal_id')))})
+        return JSONResponse({'history': await _with_app(lambda: review_history(int(cid), q.get('account_id'), q.get('signal_id')))})
 
     @mcp.custom_route('/api/signals/status', methods=['GET'], name='signals_status')
     async def status(request):

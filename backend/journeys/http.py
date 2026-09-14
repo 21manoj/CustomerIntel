@@ -22,24 +22,24 @@ def register_journey_routes(mcp) -> None:
     @mcp.custom_route('/api/journeys', methods=['GET'], name='journeys_list')
     async def journeys_list(request):
         cid = request.query_params.get('customer_id')
-        ok, err = _with_app(lambda: _authorize(cid, 'read'))
+        ok, err = await _with_app(lambda: _authorize(cid, 'read'))
         if not ok:
             return JSONResponse(err, status_code=401)
         if not cid:
             return JSONResponse({'error': 'customer_id is required'}, status_code=400)
         from journeys.read import origin_block
-        return JSONResponse(_with_app(lambda: {**origin_block(int(cid)), 'journeys': list_journeys(int(cid))}))
+        return JSONResponse(await _with_app(lambda: {**origin_block(int(cid)), 'journeys': list_journeys(int(cid))}))
 
     @mcp.custom_route('/api/journeys/{account_id:int}', methods=['GET'], name='journeys_get')
     async def journeys_get(request):
         cid = request.query_params.get('customer_id')
-        ok, err = _with_app(lambda: _authorize(cid, 'read'))
+        ok, err = await _with_app(lambda: _authorize(cid, 'read'))
         if not ok:
             return JSONResponse(err, status_code=401)
         if not cid:
             return JSONResponse({'error': 'customer_id is required'}, status_code=400)
         compact = request.query_params.get('compact', '') in ('1', 'true')
-        j = _with_app(lambda: get_journey(int(cid), request.path_params['account_id'], compact=compact))
+        j = await _with_app(lambda: get_journey(int(cid), request.path_params['account_id'], compact=compact))
         if j is None:
             return JSONResponse({'error': 'no journey for this account (run process_data / trigger_wizard a)'}, status_code=404)
         return JSONResponse(j)
@@ -48,13 +48,13 @@ def register_journey_routes(mcp) -> None:
     async def evidence(request):
         q = request.query_params
         cid = q.get('customer_id')
-        ok, err = _with_app(lambda: _authorize(cid, 'read'))
+        ok, err = await _with_app(lambda: _authorize(cid, 'read'))
         if not ok:
             return JSONResponse(err, status_code=401)
         if not cid:
             return JSONResponse({'error': 'customer_id is required'}, status_code=400)
         ids = [i for i in (q.get('node_ids') or '').split(',') if i.strip()]
-        rows = _with_app(lambda: get_evidence(int(cid), q.get('account_id'), ids or None, q.get('role'), q.get('since'), q.get('until'),
+        rows = await _with_app(lambda: get_evidence(int(cid), q.get('account_id'), ids or None, q.get('role'), q.get('since'), q.get('until'),
                                               include_rejected=q.get('include_rejected', '') in ('1', 'true'),
                                               limit=int(q.get('limit', 200))))
         return JSONResponse({'evidence': rows, 'count': len(rows)})
@@ -67,12 +67,12 @@ def register_journey_routes(mcp) -> None:
         except Exception:
             data = {}
         cid = data.get('customer_id')
-        ok, err = _with_app(lambda: _authorize(cid, 'write'))
+        ok, err = await _with_app(lambda: _authorize(cid, 'write'))
         if not ok:
             return JSONResponse(err, status_code=401)
         from journeys.outcomes import log_outcome
         try:
-            res = _with_app(lambda: log_outcome(int(cid), int(data.get('account_id') or 0), data.get('outcome_type'), data.get('occurred_at'),
+            res = await _with_app(lambda: log_outcome(int(cid), int(data.get('account_id') or 0), data.get('outcome_type'), data.get('occurred_at'),
                                                 revenue=data.get('revenue'), note=data.get('note'),
                                                 linked_signal_ids=data.get('linked_signal_ids'), decided_by=data.get('decided_by'),
                                                 source_type=data.get('source_type') or 'manual', source_ref=data.get('source_ref')))
@@ -83,11 +83,11 @@ def register_journey_routes(mcp) -> None:
     @mcp.custom_route('/api/outcomes/vocabulary', methods=['GET'], name='outcomes_vocabulary')
     async def outcomes_vocab(request):
         cid = request.query_params.get('customer_id')
-        ok, err = _with_app(lambda: _authorize(cid, 'read'))
+        ok, err = await _with_app(lambda: _authorize(cid, 'read'))
         if not ok:
             return JSONResponse(err, status_code=401)
         from journeys.outcomes import outcome_vocabulary
-        return JSONResponse({'outcome_types': _with_app(lambda: outcome_vocabulary(int(cid)))})
+        return JSONResponse({'outcome_types': await _with_app(lambda: outcome_vocabulary(int(cid)))})
 
 
     @mcp.custom_route('/api/audit', methods=['GET'], name='audit_log')
@@ -96,13 +96,13 @@ def register_journey_routes(mcp) -> None:
         from mcp_server.auth import extract_api_key, validate_server_key
         q = request.query_params
         cid = q.get('customer_id')
-        is_server = _with_app(lambda: validate_server_key(extract_api_key() or ''))
+        is_server = await _with_app(lambda: validate_server_key(extract_api_key() or ''))
         if not is_server:
-            ok, err = _with_app(lambda: _authorize(cid, 'read'))
+            ok, err = await _with_app(lambda: _authorize(cid, 'read'))
             if not ok or not cid:
                 return JSONResponse(err or {'error': 'customer_id is required'}, status_code=401)
         from mcp_server import audit
-        rows = _with_app(lambda: audit.query(cid, q.get('tool'), q.get('outcome'), int(q.get('limit', 100))))
+        rows = await _with_app(lambda: audit.query(cid, q.get('tool'), q.get('outcome'), int(q.get('limit', 100))))
         return JSONResponse({'audit': rows, 'count': len(rows)})
 
 

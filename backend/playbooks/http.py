@@ -29,22 +29,22 @@ def register_playbook_routes(mcp) -> None:
     async def interventions_list(request):
         q = request.query_params
         cid = q.get('customer_id')
-        ok, err = _with_app(lambda: _authorize(cid, 'read'))
+        ok, err = await _with_app(lambda: _authorize(cid, 'read'))
         if not ok:
             return JSONResponse(err, status_code=401)
         if not cid:
             return JSONResponse({'error': 'customer_id is required'}, status_code=400)
-        return JSONResponse(_with_app(lambda: gov.list_interventions(int(cid), q.get('account_id'), q.get('state'))))
+        return JSONResponse(await _with_app(lambda: gov.list_interventions(int(cid), q.get('account_id'), q.get('state'))))
 
     @mcp.custom_route('/api/interventions/evaluate', methods=['POST'], name='interventions_evaluate')
     async def interventions_evaluate(request):
         data = await _json(request)
         cid = data.get('customer_id')
-        ok, err = _with_app(lambda: _authorize(cid, 'write'))
+        ok, err = await _with_app(lambda: _authorize(cid, 'write'))
         if not ok:
             return JSONResponse(err, status_code=401)
         try:
-            return JSONResponse(_with_app(lambda: gov.evaluate(int(cid), data.get('account_id'), bool(data.get('dry_run')))))
+            return JSONResponse(await _with_app(lambda: gov.evaluate(int(cid), data.get('account_id'), bool(data.get('dry_run')))))
         except ValueError as e:
             return _bad(e)
 
@@ -52,11 +52,11 @@ def register_playbook_routes(mcp) -> None:
     async def interventions_approve(request):
         data = await _json(request)
         cid = data.get('customer_id')
-        ok, err = _with_app(lambda: _authorize(cid, 'write'))
+        ok, err = await _with_app(lambda: _authorize(cid, 'write'))
         if not ok:
             return JSONResponse(err, status_code=401)
         try:
-            return JSONResponse(_with_app(lambda: gov.approve(int(cid), request.path_params['intervention_id'], data.get('note'))))
+            return JSONResponse(await _with_app(lambda: gov.approve(int(cid), request.path_params['intervention_id'], data.get('note'))))
         except ValueError as e:
             return _bad(e)
 
@@ -64,11 +64,11 @@ def register_playbook_routes(mcp) -> None:
     async def interventions_report(request):
         data = await _json(request)
         cid = data.get('customer_id')
-        ok, err = _with_app(lambda: _authorize(cid, 'write'))
+        ok, err = await _with_app(lambda: _authorize(cid, 'write'))
         if not ok:
             return JSONResponse(err, status_code=401)
         try:
-            return JSONResponse(_with_app(lambda: gov.report(int(cid), request.path_params['intervention_id'], data.get('state'),
+            return JSONResponse(await _with_app(lambda: gov.report(int(cid), request.path_params['intervention_id'], data.get('state'),
                                                              note=data.get('note'), outcome_type=data.get('outcome_type'),
                                                              outcome_date=data.get('outcome_date'), revenue=data.get('revenue'))))
         except ValueError as e:
@@ -77,22 +77,22 @@ def register_playbook_routes(mcp) -> None:
     @mcp.custom_route('/api/playbooks', methods=['GET'], name='playbooks_get')
     async def playbooks_get(request):
         cid = request.query_params.get('customer_id')
-        ok, err = _with_app(lambda: _authorize(cid, 'read'))
+        ok, err = await _with_app(lambda: _authorize(cid, 'read'))
         if not ok:
             return JSONResponse(err, status_code=401)
         if not cid:
             return JSONResponse({'error': 'customer_id is required'}, status_code=400)
-        return JSONResponse(_with_app(lambda: playbooks_for_customer(int(cid))))
+        return JSONResponse(await _with_app(lambda: playbooks_for_customer(int(cid))))
 
     @mcp.custom_route('/api/playbooks', methods=['POST'], name='playbooks_configure')
     async def playbooks_configure(request):
         data = await _json(request)
         cid = data.get('customer_id')
-        ok, err = _with_app(lambda: _authorize(cid, 'write'))
+        ok, err = await _with_app(lambda: _authorize(cid, 'write'))
         if not ok:
             return JSONResponse(err, status_code=401)
         try:
-            return JSONResponse(_with_app(lambda: configure_tenant(
+            return JSONResponse(await _with_app(lambda: configure_tenant(
                 int(cid), webhook_url=data.get('webhook_url'), webhook_secret=data.get('webhook_secret'),
                 disabled_playbooks=data.get('disabled_playbooks'), automation_level=data.get('automation_level'),
                 kill_switch=data.get('kill_switch'), slack_webhook_url=data.get('slack_webhook_url'))))

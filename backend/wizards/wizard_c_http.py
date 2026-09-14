@@ -25,14 +25,14 @@ def register_calibration_routes(mcp) -> None:
     async def calibrations_get(request):
         q = request.query_params
         cid = q.get('customer_id')
-        ok, err = _with_app(lambda: _authorize(cid, 'read'))
+        ok, err = await _with_app(lambda: _authorize(cid, 'read'))
         if not ok:
             return JSONResponse(err, status_code=401)
         if not cid:
             return JSONResponse({'error': 'customer_id is required'}, status_code=400)
         try:
             pid = int(q['proposal_id']) if q.get('proposal_id') else None
-            return JSONResponse(_with_app(lambda: wc.get_calibration(int(cid), pid)))
+            return JSONResponse(await _with_app(lambda: wc.get_calibration(int(cid), pid)))
         except ValueError as e:
             return _bad(e)
 
@@ -40,13 +40,13 @@ def register_calibration_routes(mcp) -> None:
     async def calibrations_propose(request):
         data = await _json(request)
         cid = data.get('customer_id')
-        ok, err = _with_app(lambda: _authorize(cid, 'write'))
+        ok, err = await _with_app(lambda: _authorize(cid, 'write'))
         if not ok:
             return JSONResponse(err, status_code=401)
         if not cid:
             return JSONResponse({'error': 'customer_id is required'}, status_code=400)
         try:
-            return JSONResponse(_with_app(lambda: wc.propose(int(cid))))
+            return JSONResponse(await _with_app(lambda: wc.propose(int(cid))))
         except ValueError as e:
             return _bad(e)
 
@@ -54,11 +54,11 @@ def register_calibration_routes(mcp) -> None:
     async def calibrations_approve(request):
         data = await _json(request)
         cid = data.get('customer_id')
-        ok, err = _with_app(lambda: _authorize(cid, 'write'))
+        ok, err = await _with_app(lambda: _authorize(cid, 'write'))
         if not ok:
             return JSONResponse(err, status_code=401)
         try:
-            return JSONResponse(_with_app(lambda: wc.approve(int(cid), request.path_params['proposal_id'], note=data.get('note'))))
+            return JSONResponse(await _with_app(lambda: wc.approve(int(cid), request.path_params['proposal_id'], note=data.get('note'))))
         except ValueError as e:
             return _bad(e)
 
@@ -66,11 +66,11 @@ def register_calibration_routes(mcp) -> None:
     async def calibrations_reject(request):
         data = await _json(request)
         cid = data.get('customer_id')
-        ok, err = _with_app(lambda: _authorize(cid, 'write'))
+        ok, err = await _with_app(lambda: _authorize(cid, 'write'))
         if not ok:
             return JSONResponse(err, status_code=401)
         try:
-            return JSONResponse(_with_app(lambda: wc.reject(int(cid), request.path_params['proposal_id'], note=data.get('note'))))
+            return JSONResponse(await _with_app(lambda: wc.reject(int(cid), request.path_params['proposal_id'], note=data.get('note'))))
         except ValueError as e:
             return _bad(e)
 

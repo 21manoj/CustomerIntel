@@ -32,6 +32,12 @@ services:
     image: postgres:16
     container_name: customerintelv1-postgres
     restart: unless-stopped
+    # max_connections=200 (default 100) -- backend scaling plan step 1. Keep
+    # N_web * (DB_POOL_SIZE + DB_MAX_OVERFLOW) + the signal worker + deploy-script
+    # connections comfortably under this; the app's own pool sizing is in
+    # backend/mcp_server/common.py's get_flask_app(), tunable via DB_POOL_SIZE /
+    # DB_MAX_OVERFLOW / DB_POOL_PRE_PING / DB_POOL_RECYCLE below.
+    command: ["postgres", "-c", "max_connections=${POSTGRES_MAX_CONNECTIONS:-200}"]
     environment:
       POSTGRES_DB: customerintel
       POSTGRES_USER: customerintel
@@ -79,6 +85,14 @@ services:
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       SIGNAL_ENRICHMENT_MODEL: ${SIGNAL_ENRICHMENT_MODEL:-}
       SIGNAL_WORKER: ${SIGNAL_WORKER:-true}
+      # SQLAlchemy pool sizing (backend scaling plan step 1) -- defaults match
+      # backend/mcp_server/common.py's own defaults, so unset works unchanged.
+      # Override per-deployment without a code change; keep N_web * (DB_POOL_SIZE +
+      # DB_MAX_OVERFLOW) + worker + deploy scripts under POSTGRES_MAX_CONNECTIONS above.
+      DB_POOL_SIZE: ${DB_POOL_SIZE:-5}
+      DB_MAX_OVERFLOW: ${DB_MAX_OVERFLOW:-5}
+      DB_POOL_PRE_PING: ${DB_POOL_PRE_PING:-true}
+      DB_POOL_RECYCLE: ${DB_POOL_RECYCLE:-1800}
     ports:
       - "127.0.0.1:8101:8101"
     deploy:
