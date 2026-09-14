@@ -66,13 +66,20 @@ ADMIN_PY = BACKEND / "mcp_server" / "cs_pulse_admin.py"
 # ──────────────────────────────────────────────────────────────────────────
 
 def test_every_registered_vertical_has_complete_pillar_data():
-    from utils.vertical_registry import SUPPORTED_VERTICALS, get_pillars, get_kpis
+    from utils.vertical_registry import SUPPORTED_VERTICALS, SIGNALS_ONLY_VERTICALS, get_pillars, get_kpis
 
     assert SUPPORTED_VERTICALS, "No verticals registered — registry itself is empty."
 
     for vertical in sorted(SUPPORTED_VERTICALS):
         pillars = get_pillars(vertical)
         kpis = get_kpis(vertical)
+
+        if vertical in SIGNALS_ONLY_VERTICALS:
+            assert not pillars and not kpis, (
+                f"{vertical!r} is listed in SIGNALS_ONLY_VERTICALS but now has "
+                f"pillar/KPI data — remove it from that set, it no longer belongs there."
+            )
+            continue
 
         assert pillars, f"{vertical!r}: get_pillars() returned no pillars."
         assert kpis, f"{vertical!r}: get_kpis() returned no KPIs."
@@ -278,6 +285,10 @@ def test_partner_portal_gate_condition_matches_every_registered_vertical():
         # validation test) has no channel/reseller motion by design — see
         # config/manufacturing_iot_kpi_catalog.json's pillar_roles_notes.
         'manufacturing_iot': None,
+        # tprm_v1 (Evidence Graph Platform TPRM pilot) is signals-only -- no
+        # pillars registered at all, so no partner pillar either. See
+        # SIGNALS_ONLY_VERTICALS above.
+        'tprm_v1': None,
     }
 
     for vertical in sorted(SUPPORTED_VERTICALS):

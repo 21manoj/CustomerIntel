@@ -67,6 +67,17 @@ def _discover_verticals() -> set:
 
 SUPPORTED_VERTICALS = _discover_verticals()
 
+# Verticals whose KPI catalog is deliberately empty ({"pillars": {}, "kpis": {}})
+# -- evidence/journey-only, no health score, no ROI/Power-of-1 economics.
+# Explicit, not inferred from an empty catalog at each call site: a vertical
+# that's empty BY ACCIDENT is a real bug (test_vertical_catalog_consistency.py
+# catches it), so callers that need to treat "signals-only" as a legitimate,
+# supported shape -- rather than a gap -- check membership here instead of
+# reinventing the same allowlist per test file or per tool.
+SIGNALS_ONLY_VERTICALS = frozenset({
+    'tprm_v1',  # Evidence Graph Platform TPRM pilot -- config/tprm_v1_kpi_catalog.json
+})
+
 
 def normalize_vertical(vertical: str) -> str:
     """Normalize vertical name to canonical form."""

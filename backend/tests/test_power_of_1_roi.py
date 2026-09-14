@@ -122,9 +122,13 @@ def tenants():
 
 def test_every_catalog_vertical_has_validated_economics():
     from roi import settings
-    from utils.vertical_registry import SUPPORTED_VERTICALS
-    assert set(settings.economics_verticals()) >= SUPPORTED_VERTICALS
-    for v in SUPPORTED_VERTICALS:
+    from utils.vertical_registry import SUPPORTED_VERTICALS, SIGNALS_ONLY_VERTICALS
+    # Signals-only verticals (utils/vertical_registry.py) have no health score
+    # and no revenue-at-risk economics to validate -- see test_investment_cost.py's
+    # matching exclusion for the same reasoning.
+    scored_verticals = SUPPORTED_VERTICALS - SIGNALS_ONLY_VERTICALS
+    assert set(settings.economics_verticals()) >= scored_verticals
+    for v in scored_verticals:
         e = settings.economics(v)
         assert e['basis'] == 'assumed' and e['vertical'] == v
         assert e['retention_sensitivity_per_health_point']['basis'].startswith('assumed')
