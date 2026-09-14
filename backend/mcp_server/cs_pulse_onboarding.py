@@ -446,143 +446,157 @@ def _process_data_impl(customer_id: int, mode: str = 'auto') -> dict:
         run_db_id = run.id
         counts: dict = {}
 
-        accounts = Account.query.filter_by(customer_id=customer_id).all()
-        acct_ids = [a.account_id for a in accounts]
-        kpi_count = (
-            KPIMeasurement.query.filter(KPIMeasurement.account_id.in_(acct_ids)).count()
-            if acct_ids else 0
-        )
-        data_in_db = bool(accounts) and kpi_count > 0
-        has_staged = bool(staged_files(customer_id))
-
-        if not data_in_db and not has_staged:
-            raise ToolError(
-                f"No data found for customer {customer_id}. "
-                f"Upload CSV files via upload_csv() first."
-            )
-
-        files_processed = None
-        upload_ids: list = []
-        if has_staged:
-            ingest = ingest_staged_csvs(customer_id, vertical, process_run_id=run_db_id)
-            steps.extend(ingest.steps)
-            errors.extend(ingest.errors)
-            timings.update(ingest.timings)
-            counts.update(ingest.counts)
-            upload_ids = ingest.upload_ids
-            files_processed = ingest.files
+        try:
             accounts = Account.query.filter_by(customer_id=customer_id).all()
             acct_ids = [a.account_id for a in accounts]
             kpi_count = (
                 KPIMeasurement.query.filter(KPIMeasurement.account_id.in_(acct_ids)).count()
                 if acct_ids else 0
             )
-        else:
-            timings['csv_load'] = timings['cg_load'] = 0
-            steps.append(f'data_already_in_db_{len(accounts)}_accounts_{kpi_count}_kpis')
+            data_in_db = bool(accounts) and kpi_count > 0
+            has_staged = bool(staged_files(customer_id))
 
-        # Stage 1c: platform-curated industry benchmarks — seeded once per
-        # tenant from config/industry_benchmarks/{vertical}.csv. Skipped for
-        # synthetic_test (automated-test fixtures rely on being able to
-        # observe an unbenchmarked tenant); real/synthetic_demo/
-        # synthetic_replay tenants all get it, same as any other
-        # platform-curated default.
-        if customer.data_origin != 'synthetic_test':
+            if not data_in_db and not has_staged:
+                raise ToolError(
+                    f"No data found for customer {customer_id}. "
+                    f"Upload CSV files via upload_csv() first."
+                )
+
+            files_processed = None
+            upload_ids: list = []
+            if has_staged:
+                ingest = ingest_staged_csvs(customer_id, vertical, process_run_id=run_db_id)
+                steps.extend(ingest.steps)
+                errors.extend(ingest.errors)
+                timings.update(ingest.timings)
+                counts.update(ingest.counts)
+                upload_ids = ingest.upload_ids
+                files_processed = ingest.files
+                accounts = Account.query.filter_by(customer_id=customer_id).all()
+                acct_ids = [a.account_id for a in accounts]
+                kpi_count = (
+                    KPIMeasurement.query.filter(KPIMeasurement.account_id.in_(acct_ids)).count()
+                    if acct_ids else 0
+                )
+            else:
+                timings['csv_load'] = timings['cg_load'] = 0
+                steps.append(f'data_already_in_db_{len(accounts)}_accounts_{kpi_count}_kpis')
+
+            # Stage 1c: platform-curated industry benchmarks — seeded once per
+            # tenant from config/industry_benchmarks/{vertical}.csv. Skipped for
+            # synthetic_test (automated-test fixtures rely on being able to
+            # observe an unbenchmarked tenant); real/synthetic_demo/
+            # synthetic_replay tenants all get it, same as any other
+            # platform-curated default.
+            if customer.data_origin != 'synthetic_test':
+                _t = time.time()
+                step = seed_platform_benchmarks(customer_id, vertical)
+                if step:
+                    steps.append(step)
+                timings['benchmark_seed'] = round(time.time() - _t, 2)
+
+            # Stage 2: health scores (immutable — only new months in 'auto')
+            health_step, changed_account_ids, health_timings = calculate_health_scores(
+                customer_id, accounts, mode=mode, process_run_id=run_db_id,
+            )
+            if health_step:
+                steps.append(health_step)
+            else:
+                errors.append('health_scores: stage failed (see log) — no rows written')
+            timings.update(health_timings)
+            # Stage 2 event publish (HEALTH_SCORES_UPDATED) — deferred with its
+            # subscribers; see process_data_pipeline's module docstring.
+
+            # Stage 2b: adoption-pillar score → profile_metadata products
             _t = time.time()
-            step = seed_platform_benchmarks(customer_id, vertical)
+            step = backfill_product_adoption(customer_id, accounts, vertical)
             if step:
                 steps.append(step)
-            timings['benchmark_seed'] = round(time.time() - _t, 2)
+            timings['product_adoption'] = round(time.time() - _t, 2)
 
-        # Stage 2: health scores (immutable — only new months in 'auto')
-        health_step, changed_account_ids, health_timings = calculate_health_scores(
-            customer_id, accounts, mode=mode, process_run_id=run_db_id,
-        )
-        if health_step:
-            steps.append(health_step)
-        else:
-            errors.append('health_scores: stage failed (see log) — no rows written')
-        timings.update(health_timings)
-        # Stage 2 event publish (HEALTH_SCORES_UPDATED) — deferred with its
-        # subscribers; see process_data_pipeline's module docstring.
+            # Stage 2c: proactive signal scan                — later phase
 
-        # Stage 2b: adoption-pillar score → profile_metadata products
-        _t = time.time()
-        step = backfill_product_adoption(customer_id, accounts, vertical)
-        if step:
-            steps.append(step)
-        timings['product_adoption'] = round(time.time() - _t, 2)
+            # Stage 3: Wizard A v2 — journeys, evidence-cited arcs, leading layer
+            wa_step, wa_duration, wa_summary = run_wizard_a_step(customer_id, changed_account_ids, mode)
+            if wa_step:
+                steps.append(wa_step)
+            timings['wizard_a'] = wa_duration
 
-        # Stage 2c: proactive signal scan                — later phase
+            # Item 38: stakeholder→decision INVOLVES linking, after Wizard A.
+            _t = time.time()
+            step = link_stakeholders_to_decisions(customer_id)
+            if step:
+                steps.append(step)
+            timings['stakeholder_linking'] = round(time.time() - _t, 2)
 
-        # Stage 3: Wizard A v2 — journeys, evidence-cited arcs, leading layer
-        wa_step, wa_duration, wa_summary = run_wizard_a_step(customer_id, changed_account_ids, mode)
-        if wa_step:
-            steps.append(wa_step)
-        timings['wizard_a'] = wa_duration
+            # Stage 3b: Wizard B — Hindsight over the journeys (≥5), persisted as a WizardRun
+            wb_step, wb_duration = run_wizard_b_step(customer_id)
+            if wb_step:
+                steps.append(wb_step)
+            timings['wizard_b'] = wb_duration
 
-        # Item 38: stakeholder→decision INVOLVES linking, after Wizard A.
-        _t = time.time()
-        step = link_stakeholders_to_decisions(customer_id)
-        if step:
-            steps.append(step)
-        timings['stakeholder_linking'] = round(time.time() - _t, 2)
+            # Stage 3c: Wizard D — Foresight over the journeys, embedded as journey_json['forecast']
+            wd_step, wd_duration = run_wizard_d_step(customer_id)
+            if wd_step:
+                steps.append(wd_step)
+            timings['wizard_d'] = wd_duration
 
-        # Stage 3b: Wizard B — Hindsight over the journeys (≥5), persisted as a WizardRun
-        wb_step, wb_duration = run_wizard_b_step(customer_id)
-        if wb_step:
-            steps.append(wb_step)
-        timings['wizard_b'] = wb_duration
+            # Stages 3a, 4–8 (LLM tier-1, signal analyst, urgent scanner, ROI,
+            # approval seed, Qdrant, onboarding agent) — later phases.
 
-        # Stage 3c: Wizard D — Foresight over the journeys, embedded as journey_json['forecast']
-        wd_step, wd_duration = run_wizard_d_step(customer_id)
-        if wd_step:
-            steps.append(wd_step)
-        timings['wizard_d'] = wd_duration
+            status = 'success' if steps and not errors else 'partial' if steps else 'failed'
+            duration = round(time.time() - _t0, 1)
+            timings['total'] = duration
+            counts.update({'accounts': len(accounts), 'kpi_measurements': kpi_count, 'changed_accounts': len(changed_account_ids)})
+            run = db.session.get(ProcessRun, run_db_id)
+            run.status, run.steps, run.errors, run.timings, run.counts, run.upload_ids = status, steps, errors, timings, counts, upload_ids
+            run.finished_at = datetime.utcnow()
+            db.session.commit()
 
-        # Stages 3a, 4–8 (LLM tier-1, signal analyst, urgent scanner, ROI,
-        # approval seed, Qdrant, onboarding agent) — later phases.
+            import logging
+            logging.getLogger(__name__).info(
+                "process_data complete: customer=%s mode=%s duration=%ss timings=%s",
+                customer_id, mode, duration, timings,
+            )
 
-        status = 'success' if steps and not errors else 'partial' if steps else 'failed'
-        duration = round(time.time() - _t0, 1)
-        timings['total'] = duration
-        counts.update({'accounts': len(accounts), 'kpi_measurements': kpi_count, 'changed_accounts': len(changed_account_ids)})
-        run = db.session.get(ProcessRun, run_db_id)
-        run.status, run.steps, run.errors, run.timings, run.counts, run.upload_ids = status, steps, errors, timings, counts, upload_ids
-        run.finished_at = datetime.utcnow()
-        db.session.commit()
-
-        import logging
-        logging.getLogger(__name__).info(
-            "process_data complete: customer=%s mode=%s duration=%ss timings=%s",
-            customer_id, mode, duration, timings,
-        )
-
-        return {
-            'scope': 'customer',
-            'customer_id': customer_id,
-            'run_id': run.run_id,
-            'status': status,
-            'mode': mode,
-            'vertical': vertical,
-            'accounts': len(accounts),
-            'kpi_measurements': kpi_count,
-            'csv_files_processed': files_processed,
-            'steps_completed': steps,
-            'context_graph_audit': None,  # invariant audit — later phase
-            'wizard_a': (
-                {'coverage': wa_summary['coverage'], 'arcs': wa_summary['arcs']}
-                if wa_summary else None
-            ),
-            'errors': errors,
-            'duration_s': duration,
-            'timings': timings,
-            'message': (
-                f"Data processing {'completed' if status == 'success' else 'completed with issues'} "
-                f"(mode={mode}, {duration}s). "
-                f"Steps: {', '.join(steps) if steps else 'none'}."
-            ),
-        }
+            return {
+                'scope': 'customer',
+                'customer_id': customer_id,
+                'run_id': run.run_id,
+                'status': status,
+                'mode': mode,
+                'vertical': vertical,
+                'accounts': len(accounts),
+                'kpi_measurements': kpi_count,
+                'csv_files_processed': files_processed,
+                'steps_completed': steps,
+                'context_graph_audit': None,  # invariant audit — later phase
+                'wizard_a': (
+                    {'coverage': wa_summary['coverage'], 'arcs': wa_summary['arcs']}
+                    if wa_summary else None
+                ),
+                'errors': errors,
+                'duration_s': duration,
+                'timings': timings,
+                'message': (
+                    f"Data processing {'completed' if status == 'success' else 'completed with issues'} "
+                    f"(mode={mode}, {duration}s). "
+                    f"Steps: {', '.join(steps) if steps else 'none'}."
+                ),
+            }
+        except Exception as e:
+            # Any failure past this point (ToolError for "no data", or anything
+            # unexpected from ingest/health/wizard stages) must not leave the
+            # ProcessRun row stuck in 'running' forever -- GET /jobs/{job_id} and
+            # any stale-job sweep rely on status reaching a terminal value.
+            db.session.rollback()
+            failed_run = db.session.get(ProcessRun, run_db_id)
+            if failed_run is not None:
+                failed_run.status = 'failed'
+                failed_run.errors = (failed_run.errors or []) + [str(e)]
+                failed_run.finished_at = datetime.utcnow()
+                db.session.commit()
+            raise
 
 
 @mcp.tool
