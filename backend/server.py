@@ -228,7 +228,28 @@ def build_asgi_app(database_url: str | None = None, create_schema: bool = True):
         from utils.schema import migrate
         with app.app_context():
             logger.info('schema: %s', migrate(db.engine))
-    asgi = mcp.http_app(path='/mcp')
+    # stateless_http=True (backend scaling plan step 4a): FastMCP's stateful
+    # default creates one in-memory transport per mcp-session-id and pins it to
+    # the process that created it -- fine for one process, a guaranteed outage
+    # under multiple workers (a session's later calls round-robin to a worker
+    # that never saw its `initialize`, getting a 404 "Session not found" or,
+    # worse, silently falling through). Safe to flip: no tool here uses
+    # Context/progress/elicitation, the FastMCP features that actually need
+    # session continuity. Verified directly against this fastmcp version:
+    # stateless mode creates a fresh transport per request and issues NO
+    # mcp-session-id at all (mcp/server/streamable_http_manager.py's own
+    # docstring: "no session tracking"). That in turn makes
+    # mcp_server.auth._session_api_keys naturally unreachable for any
+    # spec-compliant client from here on -- a stateless server hands back no
+    # session id for a client to cache the next request's auth against, so a
+    # client must resend Authorization on every call regardless. Left in place
+    # rather than deleted: harmless dead weight for compliant clients, and
+    # deleting it is a separate decision with its own edge-case risk (verified
+    # empirically before this change that a request with ONLY mcp-session-id --
+    # no Authorization header -- currently authenticates successfully via that
+    # cache; not a path to remove without being certain no connected client
+    # relies on it).
+    asgi = mcp.http_app(path='/mcp', stateless_http=True)
     return BearerAuthMiddleware(asgi)
 
 
