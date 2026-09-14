@@ -6,10 +6,11 @@
 #   bash ~/CustomerIntel/deploy/deploy_ec2.sh [--no-tests] [--no-seed]
 #
 # Steps: git pull → backup (pg_dump, + daily cron once) → build+up (own compose project, own Postgres,
-# the frontend image builds itself, joins Caddy's network) → wait for /health (the app migrates at boot) →
-# schema_check → verify the built SPA actually serves → rewrite the Caddy site block + reload → run the
-# full test suite inside the container against customerintel_test → rebuild stale journeys → seed demo
-# tenants (idempotent).
+# the frontend image builds itself, joins Caddy's network; a one-shot customerintelv1-migrate service
+# runs Alembic to head before the app and the signal-enrichment worker start -- backend scaling plan
+# step 3, docker-compose.customerintelv1.yml has the full writeup) → wait for /health → schema_check →
+# verify the built SPA actually serves → rewrite the Caddy site block + reload → run the full test suite
+# inside the container against customerintel_test → rebuild stale journeys → seed demo tenants (idempotent).
 #
 # DEPLOY_MODE in deploy/.env picks the Caddy topology (see docker-compose.customerintelv1.yml):
 #   shared (default)    an existing Caddy elsewhere on the box (outside this compose project)
@@ -74,6 +75,17 @@ fi
 
 $COMPOSE up -d --build
 
+# customerintelv1-app and customerintelv1-worker both depend on
+# customerintelv1-migrate completing successfully before they even start
+# (compose `condition: service_completed_successfully`) -- so if migration
+# failed, `up -d` above already returned with those two never having
+# started, and the /health wait below fails loudly instead of silently
+# running the app against an unmigrated schema. Always show the migrate
+# service's own log here regardless, so a failure's cause is visible in the
+# same deploy output that reports it, not one `docker compose logs` away.
+echo "--- customerintelv1-migrate ---"
+$COMPOSE logs --tail 30 customerintelv1-migrate
+
 echo "waiting for /health ..."
 for i in $(seq 1 30); do
   if curl -fsS http://127.0.0.1:8101/health >/dev/null 2>&1; then break; fi
@@ -82,8 +94,19 @@ for i in $(seq 1 30); do
 done
 curl -sS http://127.0.0.1:8101/health; echo
 
-# the app ran `alembic upgrade head` at boot; prove the DB is at head and matches the models
+# customerintelv1-migrate ran `alembic upgrade head` before the app was allowed to
+# start (see above); prove the DB is at head and matches the models
 $COMPOSE exec -T customerintelv1-app python scripts/schema_check.py
+
+# The signal-enrichment worker is its own container now (backend scaling plan
+# step 3) -- confirm it actually started rather than silently failing to
+# depend correctly on migrate/postgres.
+if ! $COMPOSE ps --status running customerintelv1-worker | grep -q customerintelv1-worker; then
+  echo "customerintelv1-worker is not running"
+  $COMPOSE logs --tail 50 customerintelv1-worker
+  exit 1
+fi
+echo "customerintelv1-worker: running"
 
 # The site block's API prefix list is a copy of what server.py registers; prove it still
 # covers every route BEFORE rewriting the Caddyfile. An uncovered route does not 404 — it
