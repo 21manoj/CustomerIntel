@@ -120,6 +120,18 @@ def get_flask_app():
 
     app.config['SQLALCHEMY_DATABASE_URI'] = database_url
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    # Pool sizing (backend scaling plan, step 1) -- was pure SQLAlchemy/Flask-SQLAlchemy
+    # defaults (pool_size 5, max_overflow 10, no pre_ping, no recycle) with no way to tune
+    # per deployment. Defaults below match the plan; every knob is env-overridable so a
+    # deploy can size the pool to N_web workers without a code change. Keep
+    # N_web * (DB_POOL_SIZE + DB_MAX_OVERFLOW) + worker + deploy-script connections under
+    # Postgres's max_connections (see deploy/docker-compose.customerintelv1.yml).
+    app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+        'pool_size': int(os.environ.get('DB_POOL_SIZE', 5)),
+        'max_overflow': int(os.environ.get('DB_MAX_OVERFLOW', 5)),
+        'pool_pre_ping': os.environ.get('DB_POOL_PRE_PING', 'true').lower() not in ('false', '0', 'no'),
+        'pool_recycle': int(os.environ.get('DB_POOL_RECYCLE', 1800)),
+    }
     db.init_app(app)
 
     _flask_app = app

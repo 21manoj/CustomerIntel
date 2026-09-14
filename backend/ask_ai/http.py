@@ -30,13 +30,13 @@ def register_ask_routes(mcp) -> None:
         except Exception:
             data = {}
         cid = data.get('customer_id')
-        ok, err = _with_app(lambda: _authorize(cid, 'read'))
+        ok, err = await _with_app(lambda: _authorize(cid, 'read'))
         if not ok:
             return JSONResponse(err, status_code=401)
         if not cid or not (data.get('question') or '').strip():
             return JSONResponse({'error': 'customer_id and question are required'}, status_code=400)
         try:
-            res = _with_app(lambda: ask(int(cid), data['question'], account_id=data.get('account_id'),
+            res = await _with_app(lambda: ask(int(cid), data['question'], account_id=data.get('account_id'),
                                         as_of=data.get('as_of'), history=data.get('history')))
         except LookupError as e:
             return JSONResponse({'error': str(e)}, status_code=404)

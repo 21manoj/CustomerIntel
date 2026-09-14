@@ -119,8 +119,11 @@ def build_asgi_app(database_url: str | None = None, create_schema: bool = True):
         with app.app_context():
             logger.info('schema: %s', migrate(db.engine))
 
-    @mcp.custom_route('/health', methods=['GET'])
-    async def health(request):
+    def _health_check():
+        """Synchronous DB work for /health -- run off the event loop (scaling
+        plan step 2). /health is the Docker healthcheck; before this it ran
+        inline on the same loop as every other request, so a slow drain
+        could make the healthcheck itself fail."""
         from extensions import db
         from sqlalchemy import text
         from models import Customer, JourneyData, WizardRun
@@ -140,12 +143,17 @@ def build_asgi_app(database_url: str | None = None, create_schema: bool = True):
                     'wizard_runs': WizardRun.query.count(),
                     'interventions': health_counts(),   # total / by_state / stuck / delivery_problems, playbooks.governance's definitions
                 }
-            status, db_ok = 200, True
+            return counts, 200, True, GENERATOR_VERSION
         except Exception as e:  # pragma: no cover — only on a broken DB
-            counts, status, db_ok = {'error': str(e)[:200]}, 503, False
+            return {'error': str(e)[:200]}, 503, False, None
+
+    @mcp.custom_route('/health', methods=['GET'])
+    async def health(request):
+        from starlette.concurrency import run_in_threadpool
+        counts, status, db_ok, generator_version = await run_in_threadpool(_health_check)
         return JSONResponse({
             'server': SERVER_NAME, 'version': VERSION, 'status': 'ok' if db_ok else 'degraded',
-            'db': db_ok, 'counts': counts, 'journey_generator_version': GENERATOR_VERSION if db_ok else None,
+            'db': db_ok, 'counts': counts, 'journey_generator_version': generator_version,
             'git_sha': os.environ.get('GIT_SHA'), 'build_time': os.environ.get('BUILD_TIME'),
             'mcp_path': '/mcp', 'auth_required': os.environ.get('MCP_AUTH_REQUIRED', 'true'),
             'time': datetime.utcnow().isoformat() + 'Z',

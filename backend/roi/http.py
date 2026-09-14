@@ -17,43 +17,43 @@ def register_roi_routes(mcp) -> None:
     from roi.power_of_1 import power_of_1
     from roi.measured import roi
 
-    def _guard(request):
+    async def _guard(request):
         cid = request.query_params.get('customer_id')
-        ok, err = _with_app(lambda: _authorize(cid, 'read'))
+        ok, err = await _with_app(lambda: _authorize(cid, 'read'))
         if not ok:
             return cid, JSONResponse(err, status_code=401)
         if not cid:
             return cid, JSONResponse({'error': 'customer_id is required'}, status_code=400)
         return cid, None
 
-    def _run(fn):
+    async def _run(fn):
         try:
-            return JSONResponse(_with_app(fn))
+            return JSONResponse(await _with_app(fn))
         except ValueError as e:                       # unknown vertical / missing economics: fail closed, say why
             return JSONResponse({'error': str(e)}, status_code=422)
 
     @mcp.custom_route('/api/roi/priorities', methods=['GET'], name='roi_priorities')
     async def roi_priorities(request):
-        cid, err = _guard(request)
+        cid, err = await _guard(request)
         if err:
             return err
         aid = request.query_params.get('account_id')
-        return _run(lambda: investment_priorities(int(cid), int(aid) if aid else None))
+        return await _run(lambda: investment_priorities(int(cid), int(aid) if aid else None))
 
     @mcp.custom_route('/api/roi/power-of-1', methods=['GET'], name='roi_power_of_1')
     async def roi_power_of_1(request):
-        cid, err = _guard(request)
+        cid, err = await _guard(request)
         if err:
             return err
         aid = request.query_params.get('account_id')
-        return _run(lambda: power_of_1(int(cid), int(aid) if aid else None))
+        return await _run(lambda: power_of_1(int(cid), int(aid) if aid else None))
 
     @mcp.custom_route('/api/roi', methods=['GET'], name='roi_measured')
     async def roi_measured(request):
-        cid, err = _guard(request)
+        cid, err = await _guard(request)
         if err:
             return err
-        return _run(lambda: roi(int(cid)))
+        return await _run(lambda: roi(int(cid)))
 
 
 ROUTES = ('/api/roi/priorities', '/api/roi/power-of-1', '/api/roi')

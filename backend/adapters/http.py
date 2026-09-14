@@ -29,7 +29,7 @@ def register_adapter_routes(mcp) -> None:
     @mcp.custom_route('/api/sources', methods=['GET'], name='sources_list')
     async def sources_list(request):
         cid = request.query_params.get('customer_id')
-        ok, err = _with_app(lambda: _authorize(cid, 'read'))
+        ok, err = await _with_app(lambda: _authorize(cid, 'read'))
         if not ok:
             return JSONResponse(err, status_code=401)
         return JSONResponse({'sources': [describe(s) for s in sorted(SOURCES)]})
@@ -47,13 +47,13 @@ def register_adapter_routes(mcp) -> None:
         else:
             data = await _json(request)
         cid = data.get('customer_id')
-        ok, err = _with_app(lambda: _authorize(cid, 'write'))
+        ok, err = await _with_app(lambda: _authorize(cid, 'write'))
         if not ok:
             return JSONResponse(err, status_code=401)
         if not cid:
             return JSONResponse({'error': 'customer_id is required'}, status_code=400)
         try:
-            return JSONResponse(_with_app(lambda: import_from_source(
+            return JSONResponse(await _with_app(lambda: import_from_source(
                 int(cid), request.path_params['source'], data.get('content') or '',
                 process_now=_flag(data.get('process_now'), True), dry_run=_flag(data.get('dry_run'), False))))
         except ValueError as e:
