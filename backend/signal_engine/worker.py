@@ -15,12 +15,21 @@ nodes only for intents without a graph equivalent, and fused qualitative
 components into pillar/composite health. All of that moved to
 pipeline.py (roles, provenance, people) or was retired (fusion —
 absolute-separation rule).
+
+v3 (backend scaling plan step 3): runs as its own container (worker_main.py)
+rather than a thread inside the web process, so `uvicorn asgi:app --workers N`
+doesn't silently drop it -- that CMD never calls server.main(), which is what
+used to start this thread. notify_new_signal() only reaches a same-process
+worker, so a split worker relies on its own poll interval alone; every pass
+(success or error) upserts a models.WorkerHeartbeat row so /health can report
+liveness without any message queue in this stack to ask instead.
 """
 from __future__ import annotations
 
 import logging
 import threading
 import time
+from datetime import datetime
 from typing import Optional
 
 from signal_engine import settings
@@ -35,6 +44,8 @@ def notify_new_signal() -> None:
 
 
 class SignalEnrichmentWorker:
+    NAME = 'signal_enrichment'   # models.WorkerHeartbeat.worker_name — one row per named worker
+
     def __init__(self, poll_interval: Optional[int] = None, batch_size: Optional[int] = None, startup_delay: Optional[int] = None):
         w = settings.get('worker')
         self._interval = w['poll_interval_seconds'] if poll_interval is None else poll_interval
@@ -59,6 +70,20 @@ class SignalEnrichmentWorker:
         self._running = False
         _wake_event.set()
 
+    def join(self, timeout: Optional[float] = None) -> None:
+        """Block until the worker thread exits (or `timeout` elapses). For a
+        standalone worker process (worker_main.py): the thread dying without
+        `stop()` having been called first is unexpected -- _loop() catches
+        every Exception itself -- so the caller can treat a returned join()
+        as a crash and let the container exit non-zero, giving
+        `restart: unless-stopped` a fresh attempt instead of a container
+        that looks up but has silently stopped doing anything."""
+        if self._thread is not None:
+            self._thread.join(timeout=timeout)
+
+    def is_alive(self) -> bool:
+        return self._thread is not None and self._thread.is_alive()
+
     def _loop(self) -> None:
         time.sleep(self._startup_delay)
         while self._running:
@@ -71,6 +96,7 @@ class SignalEnrichmentWorker:
             except Exception as e:
                 self._consecutive_errors += 1
                 logger.error('Signal worker error (%d/%d): %s', self._consecutive_errors, self._max_errors, e, exc_info=True)
+                self._write_heartbeat(processed=0, error=str(e))
                 if self._consecutive_errors >= self._max_errors:
                     logger.error('Signal worker: too many consecutive errors — backing off %ds', self._backoff)
                     _wake_event.wait(timeout=self._backoff)
@@ -90,4 +116,27 @@ class SignalEnrichmentWorker:
             if res['processed'] or res['errors']:
                 logger.info('Signal worker: processed %d (structured %d, enriched %d, unclassified %d, errors %d) — journeys rebuilt %d',
                             res['processed'], res['structured'], res['enriched'], res['unclassified'], res['errors'], res['journeys_rebuilt'])
+            self._write_heartbeat(processed=res['processed'], error=None)
             return res['processed']
+
+    def _write_heartbeat(self, *, processed: int, error: Optional[str]) -> None:
+        """Upsert this worker's models.WorkerHeartbeat row. Never lets a
+        heartbeat-write failure take down actual signal processing -- logged
+        and swallowed, not raised."""
+        try:
+            from mcp_server.common import get_flask_app
+            from extensions import db
+            from models import WorkerHeartbeat
+            with get_flask_app().app_context():
+                hb = db.session.get(WorkerHeartbeat, self.NAME)
+                if hb is None:
+                    hb = WorkerHeartbeat(worker_name=self.NAME)
+                    db.session.add(hb)
+                hb.last_pass_at = datetime.utcnow()
+                hb.last_processed_count = processed
+                hb.last_error = error
+                hb.consecutive_errors = 0 if error is None else self._consecutive_errors
+                hb.poll_interval_seconds = self._interval
+                db.session.commit()
+        except Exception:
+            logger.exception('Signal worker: failed to write heartbeat (non-fatal)')

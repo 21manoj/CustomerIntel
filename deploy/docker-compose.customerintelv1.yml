@@ -59,6 +59,31 @@ services:
     networks:
       - default
 
+  # One-shot: runs Alembic to head, then exits. Both customerintelv1-app and
+  # customerintelv1-worker set MIGRATE_AT_BOOT=false and depend on this
+  # completing successfully (backend scaling plan step 3) -- otherwise, once
+  # the worker became its own container, two containers could race DDL
+  # against a fresh database (migrate() takes no lock of its own). Local/dev
+  # `python server.py` or `python worker_main.py` run outside this compose
+  # file still self-migrate at boot; MIGRATE_AT_BOOT's default there is
+  # unchanged (true).
+  customerintelv1-migrate:
+    # No build: of its own -- customerintelv1-app (below) is this compose
+    # file's only build definition for this image. Three services building
+    # the same tag in parallel raced under BuildKit ("image already exists")
+    # during local verification; one owner, shared image, is the fix.
+    image: customerintelv1-app
+    container_name: customerintelv1-migrate
+    restart: "no"
+    depends_on:
+      customerintelv1-postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://customerintel:${POSTGRES_PASSWORD}@customerintelv1-postgres:5432/customerintel
+    command: ["python", "scripts/run_migrations.py"]
+    networks:
+      - default
+
   customerintelv1-app:
     build:
       context: ../backend
@@ -71,6 +96,8 @@ services:
     depends_on:
       customerintelv1-postgres:
         condition: service_healthy
+      customerintelv1-migrate:
+        condition: service_completed_successfully
     environment:
       DATABASE_URL: postgresql://customerintel:${POSTGRES_PASSWORD}@customerintelv1-postgres:5432/customerintel
       TEST_DATABASE_URL: postgresql://customerintel:${POSTGRES_PASSWORD}@customerintelv1-postgres:5432/customerintel_test
@@ -81,10 +108,20 @@ services:
       SESSION_SECRET: ${SESSION_SECRET:?set in .env}
       PORT: "8101"
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
-      # Signal engine LLM extraction — without the key free text falls to the keyword stub (requires_review)
+      # Signal engine LLM extraction — without the key free text falls to the keyword
+      # stub (requires_review). Still needed here even with the worker split out
+      # (below): process_now=True calls (submit_signal, research_account_external_signals)
+      # and POST /api/signals/process run enrichment synchronously in THIS container.
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       SIGNAL_ENRICHMENT_MODEL: ${SIGNAL_ENRICHMENT_MODEL:-}
-      SIGNAL_WORKER: ${SIGNAL_WORKER:-true}
+      # customerintelv1-migrate (above) owns schema migration now; the app must
+      # not also race it (backend scaling plan step 3).
+      MIGRATE_AT_BOOT: "false"
+      # The signal worker is customerintelv1-worker's job now, not this
+      # container's (backend scaling plan step 3) -- hardcoded, not
+      # env-overridable, so a stale SIGNAL_WORKER=true left in .env from
+      # before this split can't start a second, redundant in-process worker.
+      SIGNAL_WORKER: "false"
       # SQLAlchemy pool sizing (backend scaling plan step 1) -- defaults match
       # backend/mcp_server/common.py's own defaults, so unset works unchanged.
       # Override per-deployment without a code change; keep N_web * (DB_POOL_SIZE +
@@ -102,6 +139,54 @@ services:
     networks:
       - default
       - cspulse-net
+
+  # Signal-enrichment worker, its own container (backend scaling plan step 3) --
+  # split from customerintelv1-app so `uvicorn asgi:app --workers N` (a future
+  # step) can't silently drop it: that CMD never runs server.main(), which is
+  # what used to start this as a thread. Single instance only -- process_pending
+  # claims work via FOR UPDATE SKIP LOCKED (safe if this were ever scaled, but
+  # there's no throughput reason to). Not on cspulse-net: nothing routes to it.
+  customerintelv1-worker:
+    # No build: of its own -- see customerintelv1-migrate's comment above.
+    image: customerintelv1-app
+    container_name: customerintelv1-worker
+    restart: unless-stopped
+    depends_on:
+      customerintelv1-postgres:
+        condition: service_healthy
+      customerintelv1-migrate:
+        condition: service_completed_successfully
+    environment:
+      DATABASE_URL: postgresql://customerintel:${POSTGRES_PASSWORD}@customerintelv1-postgres:5432/customerintel
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      SIGNAL_ENRICHMENT_MODEL: ${SIGNAL_ENRICHMENT_MODEL:-}
+      MIGRATE_AT_BOOT: "false"   # customerintelv1-migrate owns this; see depends_on above
+      SIGNAL_WORKER: ${SIGNAL_WORKER:-true}
+      # notify_new_signal() (an in-process threading.Event) can no longer reach
+      # this container from the app's ingest calls -- lowered from the code
+      # default of 60s so ingest-to-evidence latency stays reasonable.
+      SIGNAL_WORKER_POLL_INTERVAL: ${SIGNAL_WORKER_POLL_INTERVAL:-15}
+      # Its own small pool -- one process, no concurrent request fan-out like the
+      # app has; keep N_web * (DB_POOL_SIZE + DB_MAX_OVERFLOW) + this + deploy
+      # scripts comfortably under POSTGRES_MAX_CONNECTIONS (see postgres above).
+      DB_POOL_SIZE: ${WORKER_DB_POOL_SIZE:-2}
+      DB_MAX_OVERFLOW: ${WORKER_DB_MAX_OVERFLOW:-2}
+      DB_POOL_PRE_PING: ${DB_POOL_PRE_PING:-true}
+      DB_POOL_RECYCLE: ${DB_POOL_RECYCLE:-1800}
+    command: ["python", "worker_main.py"]
+    healthcheck:
+      test: ["CMD-SHELL", "python scripts/worker_healthcheck.py"]
+      interval: 30s
+      timeout: 10s
+      start_period: 60s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+    networks:
+      - default
 
   # The browser app: ../frontend is built (npm ci && npm run build) inside its own
   # image and the dist/ served by a small Caddy — see frontend/Dockerfile. No Node

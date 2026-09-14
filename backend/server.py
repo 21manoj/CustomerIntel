@@ -10,7 +10,19 @@ Environment:
   MCP_SERVER_API_KEY    super-admin Bearer key       (recommended)
   MCP_AUTH_REQUIRED     true|false (default true; onboarding tools stay frictionless)
   MCP_ALLOW_QUERY_KEY   true|false (default false) — accept ?api_key= for single-URL connectors; keys in URLs reach access logs
-  SIGNAL_WORKER         true|false (default true) — background signal processing
+  SIGNAL_WORKER         true|false (default true) — background signal processing.
+                        In the compose topology this now runs as its own
+                        container (worker_main.py, backend scaling plan step
+                        3); this flag stays true here only for standalone
+                        `python server.py` use (no compose) — main() still
+                        starts the in-process worker thread, unchanged.
+  MIGRATE_AT_BOOT       true|false (default true) — run Alembic here at
+                        startup. Compose sets this false on both the app and
+                        worker services; a dedicated one-shot migrate service
+                        (scripts/run_migrations.py) owns it instead, so the
+                        two never race DDL against a fresh database. Left
+                        true by default so standalone `python server.py`
+                        still self-migrates, matching today's behavior.
   FEATURE_SIGNAL_ENGINE true|false (default true) — the /api/signals/* surface
   PORT                  default 8101
   GIT_SHA / BUILD_TIME  surfaced by /health
@@ -119,6 +131,32 @@ def build_asgi_app(database_url: str | None = None, create_schema: bool = True):
         with app.app_context():
             logger.info('schema: %s', migrate(db.engine))
 
+    def _worker_status():
+        """models.WorkerHeartbeat, as a JSON-able dict (backend scaling plan
+        step 3). The signal worker is now its own container/process -- no
+        message queue or Redis in this stack to ask instead, so this row is
+        the only way to tell a crashed/stalled worker from a healthy one."""
+        from models import WorkerHeartbeat
+        from signal_engine.worker import SignalEnrichmentWorker
+        hb = WorkerHeartbeat.query.get(SignalEnrichmentWorker.NAME)
+        if hb is None:
+            return {'known': False}
+        interval = hb.poll_interval_seconds or 60
+        age_s = (datetime.utcnow() - hb.last_pass_at).total_seconds()
+        return {
+            'known': True,
+            'last_pass_at': hb.last_pass_at.isoformat() + 'Z',
+            'age_seconds': round(age_s, 1),
+            'last_processed_count': hb.last_processed_count,
+            'last_error': hb.last_error,
+            'consecutive_errors': hb.consecutive_errors,
+            'poll_interval_seconds': interval,
+            # generous grace window over the poll interval before calling it stale --
+            # a slow batch or the error backoff (up to error_backoff_seconds) both
+            # legitimately push a pass later than a bare interval multiple would allow.
+            'stale': age_s > max(interval * 3, 180),
+        }
+
     def _health_check():
         """Synchronous DB work for /health -- run off the event loop (scaling
         plan step 2). /health is the Docker healthcheck; before this it ran
@@ -143,17 +181,19 @@ def build_asgi_app(database_url: str | None = None, create_schema: bool = True):
                     'wizard_runs': WizardRun.query.count(),
                     'interventions': health_counts(),   # total / by_state / stuck / delivery_problems, playbooks.governance's definitions
                 }
-            return counts, 200, True, GENERATOR_VERSION
+                worker = _worker_status()
+            return counts, 200, True, GENERATOR_VERSION, worker
         except Exception as e:  # pragma: no cover — only on a broken DB
-            return {'error': str(e)[:200]}, 503, False, None
+            return {'error': str(e)[:200]}, 503, False, None, {'known': False}
 
     @mcp.custom_route('/health', methods=['GET'])
     async def health(request):
         from starlette.concurrency import run_in_threadpool
-        counts, status, db_ok, generator_version = await run_in_threadpool(_health_check)
+        counts, status, db_ok, generator_version, worker = await run_in_threadpool(_health_check)
         return JSONResponse({
             'server': SERVER_NAME, 'version': VERSION, 'status': 'ok' if db_ok else 'degraded',
             'db': db_ok, 'counts': counts, 'journey_generator_version': generator_version,
+            'worker': worker,
             'git_sha': os.environ.get('GIT_SHA'), 'build_time': os.environ.get('BUILD_TIME'),
             'mcp_path': '/mcp', 'auth_required': os.environ.get('MCP_AUTH_REQUIRED', 'true'),
             'time': datetime.utcnow().isoformat() + 'Z',
@@ -202,7 +242,8 @@ def main():
         raise SystemExit('DATABASE_URL is required')
     if os.environ.get('MCP_AUTH_REQUIRED', 'true').lower() in ('true', '1', 'yes') and not os.environ.get('MCP_SERVER_API_KEY'):
         logger.warning('MCP_SERVER_API_KEY is not set — only customer-scoped keys (create_customer) will work over HTTP')
-    app = build_asgi_app()
+    migrate_at_boot = os.environ.get('MIGRATE_AT_BOOT', 'true').lower() in ('true', '1', 'yes')
+    app = build_asgi_app(create_schema=migrate_at_boot)
     if os.environ.get('SIGNAL_WORKER', 'true').lower() in ('true', '1', 'yes'):
         from signal_engine.worker import SignalEnrichmentWorker
         SignalEnrichmentWorker().start()

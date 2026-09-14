@@ -671,6 +671,23 @@ class JourneyData(db.Model):
     )
 
 
+class WorkerHeartbeat(db.Model):
+    """One row per named background worker (today: only 'signal_enrichment'),
+    upserted on every poll pass -- success or error (backend scaling plan,
+    step 3). Exists so /health can report whether the worker -- now its own
+    container, split from the web process -- is alive, with no message queue
+    or Redis in this stack to ask instead. A heartbeat, not a log: no history
+    kept, one row per worker name."""
+    __tablename__ = 'worker_heartbeats'
+    worker_name = db.Column(db.String(50), primary_key=True)
+    last_pass_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    last_processed_count = db.Column(db.Integer, nullable=False, default=0)
+    last_error = db.Column(db.Text, nullable=True)
+    consecutive_errors = db.Column(db.Integer, nullable=False, default=0)
+    poll_interval_seconds = db.Column(db.Integer, nullable=True)   # lets a reader size its own staleness threshold
+    updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
 class WizardRun(db.Model):
     """Audit row per wizard execution — the home for Wizard B's results
     (Tier 2B, 2026-09-02). Trimmed from the old repo's model: no Celery
