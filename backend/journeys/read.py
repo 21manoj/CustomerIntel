@@ -6,6 +6,7 @@ call these inside an app context.
     list_journeys(customer_id)                       portfolio: one row per account
     get_journey(customer_id, account_id, compact)    the journey + an evidence index keyed by node id
     get_evidence(customer_id, ...)                   evidence nodes, filterable
+    get_evidence_graph(customer_id, account_id)      evidence nodes + the causal edges between them
 """
 from __future__ import annotations
 
@@ -74,6 +75,61 @@ def get_evidence(customer_id: int, account_id: Optional[int] = None, node_ids: O
             continue
         out.append(v)
     return out
+
+
+def _edge_view(e) -> dict:
+    """One causal edge as the graph surface shows it: endpoints, type, and
+    whatever confidence/derivation/evidence_tier provenance the writer
+    stamped on it (an edge_factory-written inferred edge always carries
+    derivation + evidence_tier with a NULL confidence; see utils/edge_factory.py)."""
+    p = e.properties or {}
+    return {
+        'edge_id': e.edge_id, 'from_node_id': e.from_node_id, 'to_node_id': e.to_node_id,
+        'edge_type': e.edge_type, 'weight': float(e.weight) if e.weight is not None else None,
+        'confidence': float(e.confidence) if e.confidence is not None else None,
+        'derivation': p.get('derivation'), 'evidence_tier': p.get('evidence_tier'), 'label': p.get('label'),
+        'source_platform': e.source_platform, 'created_by': e.created_by,
+        'occurred_at': e.occurred_at.isoformat() if e.occurred_at else None,
+    }
+
+
+def get_evidence_graph(customer_id: int, account_id: int) -> dict:
+    """The evidence graph for one account: its evidence nodes (same shape as
+    get_evidence's rows) plus the causal edges between them — LED_TO,
+    CAUSED_BY, TRIGGERED etc. Pure read; wraps utils.context_graph's
+    get_nodes/get_edges rather than querying ContextNode/ContextEdge here.
+
+    Tenant isolation: get_nodes() itself only filters by account_id (it has
+    no customer_id parameter), so every node is re-checked against the
+    caller's own customer_id here before it's returned — a bogus or
+    another customer's account_id yields an empty graph, never their data.
+    An edge is included only when BOTH endpoints are in this account's
+    node set (so every edge in the response can be resolved against a node
+    in the response) and it hasn't been superseded.
+    """
+    from utils.context_graph import get_nodes, get_edges
+
+    cid = int(customer_id)
+    aid = int(account_id)
+    nodes = [
+        n for n in get_nodes(aid, limit=1000)
+        if n.customer_id == cid and n.node_type in ('SIGNAL', 'DECISION', 'OUTCOME', 'INTERVENTION')
+        and n.source == 'observed'
+    ]
+    node_ids = {n.node_id for n in nodes}
+
+    edges_by_id = {}
+    for n in nodes:
+        for e in get_edges(n.node_id, direction='outgoing'):
+            if e.to_node_id in node_ids and e.superseded_by is None:
+                edges_by_id[e.edge_id] = e
+
+    return {
+        'customer_id': cid,
+        'account_id': aid,
+        'nodes': [evidence_view(n) for n in nodes],
+        'edges': [_edge_view(e) for e in edges_by_id.values()],
+    }
 
 
 def get_journey(customer_id: int, account_id: int, compact: bool = False) -> Optional[dict]:

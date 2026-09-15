@@ -1,0 +1,207 @@
+{
+  "version": "0.1",
+  "extends": "base",
+  "vertical": "tprm_v1",
+  "description": "Third-Party/Vendor Risk Management overlay. A vendor is the 'account'; a risk analyst reads the causal evidence graph instead of a KPI health score, so this vertical ships with an empty KPI catalog (tprm_v1_kpi_catalog.json) -- signals-only, the same proven pattern as any evidence-only vertical. Every subtype below is new vocabulary mapped into the existing 17 signal roles (additive-only over taxonomy_base.json, same mechanism datacenter_v1 uses) -- no new roles, no code changes. Each reused role's polarity (backend/utils/taxonomy_loader.py's NEGATIVE_SIGNAL_ROLES/POSITIVE_SIGNAL_ROLES) is inherited automatically by whatever subtype is filed under it.",
+  "polarity_ambiguous_outcome_subtypes": [],
+  "polarity_ambiguous_signal_subtypes": [],
+  "revenue_buckets": {
+    "at_risk": [
+      "vendor_placed_on_watch",
+      "vendor_risk_escalated",
+      "vendor_remediation_overdue"
+    ],
+    "lost": [
+      "vendor_terminated",
+      "vendor_replaced",
+      "vendor_contract_not_renewed"
+    ],
+    "expansion": [
+      "vendor_scope_expanded",
+      "vendor_contract_renewed"
+    ],
+    "protected": [
+      "vendor_risk_remediated",
+      "vendor_retained_after_review",
+      "vendor_sla_restored"
+    ]
+  },
+  "auto_recovery_outcome_subtypes": [
+    "vendor_risk_remediated",
+    "vendor_sla_restored"
+  ],
+  "signal_roles": {
+    "infra_incident": [
+      "vendor_security_breach",
+      "vendor_data_breach",
+      "vendor_system_outage",
+      "vendor_service_disruption",
+      "vendor_sla_breach"
+    ],
+    "escalation": [
+      "vendor_issue_escalated",
+      "vendor_executive_escalation",
+      "vendor_legal_dispute",
+      "vendor_regulatory_inquiry"
+    ],
+    "commercial_pressure": [
+      "vendor_financial_distress",
+      "vendor_bankruptcy_risk",
+      "vendor_ownership_change",
+      "vendor_ma_activity",
+      "vendor_pricing_dispute"
+    ],
+    "capacity_pressure": [
+      "vendor_capacity_constraint",
+      "vendor_delivery_delay"
+    ],
+    "delivery_stall": [
+      "vendor_remediation_delayed",
+      "vendor_onboarding_stalled",
+      "vendor_audit_response_delayed"
+    ],
+    "champion_change": [
+      "vendor_contact_departure",
+      "vendor_relationship_owner_change"
+    ],
+    "product_friction": [
+      "vendor_quality_defect",
+      "vendor_service_complaint",
+      "vendor_audit_finding"
+    ],
+    "engagement_decline": [
+      "vendor_responsiveness_decline",
+      "vendor_communication_gap"
+    ],
+    "usage_decline": [
+      "vendor_service_scope_reduction"
+    ],
+    "recovery": [
+      "vendor_remediation_completed",
+      "vendor_sla_restored_signal",
+      "vendor_issue_resolved"
+    ],
+    "advocacy": [
+      "vendor_positive_review",
+      "vendor_reference_provided"
+    ],
+    "expansion_intent": [
+      "vendor_scope_expansion_discussion"
+    ],
+    "expansion_realized": [
+      "vendor_scope_expansion_closed",
+      "vendor_contract_renewal_signed"
+    ],
+    "announcement": [
+      "vendor_service_discontinuation",
+      "vendor_contract_termination_notice",
+      "vendor_market_exit"
+    ],
+    "crm_flag": [
+      "risk_team_flag",
+      "internal_risk_assessment"
+    ],
+    "intervention": [
+      "risk_mitigation_action",
+      "vendor_corrective_action_plan",
+      "vendor_remediation_plan_issued"
+    ],
+    "routine": [
+      "scheduled_vendor_review",
+      "routine_vendor_audit",
+      "vendor_status_update"
+    ]
+  },
+  "signal_role_definitions": {
+    "infra_incident": {
+      "is": "A security breach, data breach, outage, service disruption, or SLA breach at the vendor -- something that actually happened, not a risk of it happening.",
+      "not": "A scheduled maintenance window the vendor announced in advance."
+    },
+    "escalation": {
+      "is": "A vendor issue raised above normal account management: our executives get involved, a legal dispute opens, or a regulator inquires.",
+      "not": "A routine support ticket or status call."
+    },
+    "commercial_pressure": {
+      "is": "The vendor's financial or ownership stability is in question: distress signals, bankruptcy risk, an M&A event, a change of ownership, or a pricing dispute.",
+      "not": "A price increase we've already agreed to and aren't contesting."
+    },
+    "capacity_pressure": {
+      "is": "The vendor is running short of the capacity or delivery bandwidth we depend on.",
+      "not": "A one-off delay the vendor has already explained and resolved."
+    },
+    "delivery_stall": {
+      "is": "A remediation, onboarding step, or requested audit response from the vendor is delayed or blocked.",
+      "not": "A delay we caused on our own side."
+    },
+    "champion_change": {
+      "is": "Our named contact or relationship owner AT THE VENDOR leaves, changes role, or is replaced.",
+      "not": "A change of contact on our own team."
+    },
+    "product_friction": {
+      "is": "The vendor's product or service itself is deficient: a quality defect, a formal complaint, or an audit finding against them.",
+      "not": "A one-off user complaint the vendor already resolved -- that is recovery."
+    },
+    "engagement_decline": {
+      "is": "The vendor is slower to respond or less available than before: missed reviews, slow answers to security questionnaires, unreturned outreach.",
+      "not": "A single late reply during a holiday period."
+    },
+    "usage_decline": {
+      "is": "The scope of services we actually draw from this vendor is shrinking.",
+      "not": "A planned, mutually agreed scope reduction with no risk implication."
+    },
+    "recovery": {
+      "is": "A previously flagged vendor issue is confirmed resolved: remediation completed, an SLA restored, an incident closed out.",
+      "not": "The vendor claiming it's fixed with no confirmation."
+    },
+    "advocacy": {
+      "is": "The vendor is positively referenced: a strong review, a reference call offered, praise from our own stakeholders.",
+      "not": "Politeness in an otherwise neutral message."
+    },
+    "expansion_intent": {
+      "is": "We are discussing expanding the vendor's scope, services, or contract value.",
+      "not": "An expansion that has already been signed -- that is expansion_realized."
+    },
+    "expansion_realized": {
+      "is": "A vendor scope expansion or contract renewal actually closed or signed.",
+      "not": "A verbal agreement not yet documented."
+    },
+    "announcement": {
+      "is": "The vendor states a decision already made: discontinuing a service, terminating the contract, or exiting a market.",
+      "not": "A hint or rumor of the same -- that is commercial_pressure or capacity_pressure."
+    },
+    "crm_flag": {
+      "is": "Our own risk team's or account owner's judgment call about this vendor, entered directly rather than derived from a vendor-side event.",
+      "not": "Anything the vendor itself said or did."
+    },
+    "intervention": {
+      "is": "An action WE took in response to vendor risk: a corrective action plan issued, a mitigation step, an escalation we initiated.",
+      "not": "An action the vendor took unprompted."
+    },
+    "routine": {
+      "is": "Business as usual: a scheduled review, a routine audit, an ordinary status update with no risk signal.",
+      "not": "A status update that discloses a new issue -- classify that under the issue's own role instead."
+    }
+  },
+  "signal_examples": [
+    {
+      "text": "Vendor disclosed a data breach affecting a subset of customer records; they notified us under the incident clause 4 hours after detection.",
+      "subtypes": ["vendor_data_breach"]
+    },
+    {
+      "text": "Our primary security contact at Acme Corp left last week -- their new point of contact hasn't been introduced yet.",
+      "subtypes": ["vendor_contact_departure"]
+    },
+    {
+      "text": "Acme's parent company announced a majority stake sale to a PE firm; deal expected to close next quarter.",
+      "subtypes": ["vendor_ownership_change"]
+    },
+    {
+      "text": "Remediation plan for the Q2 audit finding was completed and verified by our team this week.",
+      "subtypes": ["vendor_remediation_completed"]
+    },
+    {
+      "text": "Quarterly business review went well, no new issues, contract renewal discussion tabled for next cycle.",
+      "subtypes": ["scheduled_vendor_review"]
+    }
+  ]
+}
