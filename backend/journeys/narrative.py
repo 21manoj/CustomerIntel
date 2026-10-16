@@ -159,7 +159,7 @@ def _t_phase_open(phase: dict, by_id: Dict[str, dict], account: str, first: bool
     return text, _twins(trig, episodes)
 
 
-def _t_first_warning(lvt: dict, by_id: Dict[str, dict]) -> Optional[Tuple[str, List[str]]]:
+def _t_first_warning(lvt: dict, by_id: Dict[str, dict], evidence_only: bool = False) -> Optional[Tuple[str, List[str]]]:
     first = lvt.get('first_leading_warning_at')
     if not first:
         return None
@@ -170,6 +170,12 @@ def _t_first_warning(lvt: dict, by_id: Dict[str, dict]) -> Optional[Tuple[str, L
     trailing = lvt.get('first_trailing_warning_at')
     if trailing and lvt.get('lead_days') is not None:
         tail = f"the KPI score crossed at-risk in {_month(trailing)}, {lvt['lead_days']} days later"
+    elif evidence_only:
+        # no trailing layer exists to compare against -- 'never fell into the critical
+        # band' would claim a KPI score that isn't there (found on tprm_v1, a KPI-less
+        # vertical by design; applies to any account currently read from evidence alone,
+        # including a KPI-vertical account still waiting on its first KPI upload).
+        return f"The leading layer first flagged early_warning in {_month(first)}.", cites
     else:
         tail = "the KPI score never fell into the critical band, which is the trailing layer's own warning line"
     return f"The leading layer first flagged early_warning in {_month(first)}; {tail}.", cites
@@ -336,7 +342,7 @@ def build_narrative(journey: dict, rejected: Optional[List[dict]] = None) -> dic
                 add(_t_phase_open(ch['_phase'], by_id, account, first=(ci == 0), episodes=episodes), 'phase_open_with_trigger',
                     why=None if trig_id else f"phase '{ch['_phase']['name']}' from {ch['_phase']['entered_at'][:10]} has no trigger episode (no evidence before it)")
         if ci == 0:
-            add(_t_first_warning(lvt, by_id), 'first_warning_gap')
+            add(_t_first_warning(lvt, by_id, evidence_only=(journey.get('phases_basis') == 'evidence')), 'first_warning_gap')
 
         # the month-by-month record, interventions told with their before/after
         used = set(s for sent in sentences for s in sent['cites'])

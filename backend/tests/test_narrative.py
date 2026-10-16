@@ -124,3 +124,38 @@ def test_one_quote_two_subtypes_is_said_once_citing_both():
     live = next(ch for ch in n['chapters'] if ch['phase'] == 'live')
     s = next(s for s in live['sentences'] if 'hold the PO' in s['text'])
     assert s['text'].count('hold the PO') == 1 and {'sig:20', 'sig:21'} <= set(s['cites'])
+
+
+def test_first_warning_sentence_omits_kpi_claim_when_evidence_only():
+    """An account read from evidence alone (phases_basis 'evidence' -- tprm_v1 by
+    design, or any account still waiting on its first KPI upload) has no trailing
+    KPI layer to compare against. 'the KPI score never fell into the critical band'
+    would claim a score that doesn't exist; the sentence should stop after the
+    leading-layer fact instead. A KPI-having journey (test_content_of_key_sentences,
+    phases_basis unset) keeps the original comparison wording."""
+    j = {
+        'account_name': 'Meridian Cloud Storage', 'as_of': '2026-09-14T16:55:00', 'last_scored_month': None,
+        'live_months': [], 'phases_basis': 'evidence',
+        'episodes': [
+            _ep(5, '2026-09-14T16:54:11', 'signal', 'vendor_ownership_change', 'commercial_pressure',
+                "Meridian's parent company announced a majority stake sale to a private equity firm."),
+            _ep(6, '2026-09-14T16:54:55', 'signal', 'vendor_executive_escalation', 'escalation',
+                'Vendor issue escalated to our VP of Vendor Risk.'),
+        ],
+        'phases': [{'name': 'deterioration', 'entered_at': '2026-09-01', 'exited_at': None,
+                    'health_start': None, 'health_end': None, 'trigger_episode_id': 'sig:5'}],
+        'data_coverage': {'basis': 'no KPI yet; evidence is 0 days old (threshold 45)', 'evidence_count': 2, 'evidence_span_days': 0},
+        'leading_vs_trailing': {'first_leading_warning_at': '2026-09-01', 'first_trailing_warning_at': None, 'lead_days': None,
+                                'series': [{'month': '2026-09-01', 'contributing_episode_ids': ['sig:5', 'sig:6']}]},
+        'counterfactual_hooks': [],
+        'arc': {'arc_type': None, 'state': 'unclassified'},
+    }
+    n = build_narrative(j)
+    text = ' '.join(s['text'] for ch in n['chapters'] for s in ch['sentences'])
+    assert 'The leading layer first flagged early_warning in September 2026.' in text
+    assert 'critical band' not in text
+
+    # the KPI-having fixture (no phases_basis key -> defaults to the legacy 'health' path)
+    # is untouched: it still gets the original trailing-layer comparison.
+    kpi_text = ' '.join(s['text'] for ch in build_narrative(_journey())['chapters'] for s in ch['sentences'])
+    assert 'never fell into the critical band' in kpi_text
