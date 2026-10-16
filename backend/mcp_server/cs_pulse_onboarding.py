@@ -1247,6 +1247,29 @@ def get_evidence(customer_id: int, account_id: int = None, node_ids: list = None
 
 
 @mcp.tool
+def get_evidence_graph(customer_id: int, account_id: int) -> dict:
+    """The evidence graph for one account: its evidence nodes (same shape as
+    get_evidence's rows) plus the causal edges between them — LED_TO,
+    CAUSED_BY, TRIGGERED etc. Each edge carries confidence, derivation and
+    evidence_tier when the writer stamped one (an inferred edge, e.g. from
+    a phase-transition or playbook auto-trigger, always carries derivation
+    + evidence_tier with a NULL confidence — no calibrated point estimate).
+    Read-only. Scoped to one account; a bogus or another customer's
+    account_id returns an empty graph, never their data.
+
+    Args:
+        customer_id: The customer ID
+        account_id: The account ID
+    """
+    _require_auth_if_key_present('get_evidence_graph', customer_id)
+    _check_mcp_enabled()
+    app = _get_flask_app()
+    with app.app_context():
+        from journeys.read import get_evidence_graph as _geg
+        return _geg(customer_id, account_id)
+
+
+@mcp.tool
 def get_review_queue(customer_id: int, account_id: int = None, urgency: str = None, page: int = 1, per_page: int = 25) -> dict:
     """Evidence awaiting human verification: signals the extractor flagged
     requires_review (low confidence, possible duplicate, unknown subtype).

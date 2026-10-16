@@ -55,6 +55,7 @@ KEYED_TOOLS = frozenset({
     'list_journeys',
     'get_journey',
     'get_evidence',
+    'get_evidence_graph',
     'get_review_queue',
     'review_signal',
     'log_outcome',

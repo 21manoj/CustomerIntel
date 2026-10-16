@@ -87,9 +87,14 @@ def tenant():
 
 def test_all_5_verticals_load_and_validate():
     from roi import settings
-    from utils.vertical_registry import SUPPORTED_VERTICALS
-    assert set(settings.investment_verticals()) >= SUPPORTED_VERTICALS
-    for v in SUPPORTED_VERTICALS:
+    from utils.vertical_registry import SUPPORTED_VERTICALS, SIGNALS_ONLY_VERTICALS
+    # Signals-only verticals (utils/vertical_registry.py) have no health score,
+    # so no playbook/investment economics to validate -- ROI is reached only by
+    # the three ROI tools, never by the signals/evidence path a vertical like
+    # this is built for.
+    scored_verticals = SUPPORTED_VERTICALS - SIGNALS_ONLY_VERTICALS
+    assert set(settings.investment_verticals()) >= scored_verticals
+    for v in scored_verticals:
         inv = settings.investment(v)
         assert inv['basis'] == 'assumed' and inv['vertical'] == v
         assert inv['csm_hourly_cost']['value'] > 0 and inv['csm_hourly_cost']['basis'].startswith('assumed')
