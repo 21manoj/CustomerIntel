@@ -1,0 +1,63 @@
+{
+  "version": "1.0",
+  "vertical": "tprm_v1",
+  "_doc": "TPRM vendor-risk playbooks. Trigger roles are the taxonomy signal roles shared with every vertical (see config/taxonomy_tprm_v1.json's signal_roles for the vendor-specific subtypes filed under each); expected_outcome.types are this vertical's revenue_bucket outcome subtypes. evaluate_playbooks reads only the journey's latest leading month, so these fire on CURRENT vendor activity, not resolved history.",
+  "playbooks": [
+    {
+      "id": "incident_corrective_action",
+      "label": "Vendor incident: corrective action plan",
+      "trigger": { "roles": ["infra_incident"], "urgency_floor": "high" },
+      "action_class": "escalate",
+      "approval": "human",
+      "expected_outcome": { "types": ["vendor_risk_remediated", "vendor_sla_restored"], "window_days": 60 }
+    },
+    {
+      "id": "escalation_exec_response",
+      "label": "Vendor issue escalated: executive response",
+      "trigger": { "roles": ["escalation"], "urgency_floor": "critical" },
+      "action_class": "escalate",
+      "approval": "human",
+      "expected_outcome": { "types": ["vendor_risk_remediated", "vendor_retained_after_review"], "window_days": 45 }
+    },
+    {
+      "id": "commercial_pressure_review",
+      "label": "Vendor commercial/ownership risk: portfolio review",
+      "trigger": { "roles": ["commercial_pressure"], "urgency_floor": "high" },
+      "action_class": "schedule",
+      "approval": "human",
+      "expected_outcome": { "types": ["vendor_retained_after_review", "vendor_replaced", "vendor_contract_not_renewed"], "window_days": 90 }
+    },
+    {
+      "id": "delivery_stall_escalation",
+      "label": "Vendor delivery stalled: escalate to delivery owner",
+      "trigger": { "roles": ["capacity_pressure", "delivery_stall"], "roles_match": "any", "urgency_floor": "medium" },
+      "action_class": "schedule",
+      "approval": "human",
+      "expected_outcome": { "types": ["vendor_risk_remediated", "vendor_replaced", "vendor_contract_not_renewed"], "window_days": 60 }
+    },
+    {
+      "id": "engagement_decline_outreach",
+      "label": "Vendor going quiet: relationship outreach",
+      "trigger": { "roles": ["engagement_decline", "usage_decline"], "roles_match": "any", "urgency_floor": "medium" },
+      "action_class": "notify",
+      "approval": "auto",
+      "expected_outcome": { "types": ["vendor_retained_after_review", "vendor_replaced"], "window_days": 90 }
+    },
+    {
+      "id": "champion_change_relationship_rebuild",
+      "label": "Vendor relationship owner changed: rebuild the relationship",
+      "trigger": { "roles": ["champion_change"], "urgency_floor": "critical" },
+      "action_class": "schedule",
+      "approval": "human",
+      "expected_outcome": { "types": ["vendor_retained_after_review"], "window_days": 60 }
+    },
+    {
+      "id": "expansion_scope_handoff",
+      "label": "Vendor scope expansion: procurement handoff",
+      "trigger": { "roles": ["expansion_intent"], "urgency_floor": "high" },
+      "action_class": "notify",
+      "approval": "auto",
+      "expected_outcome": { "types": ["vendor_scope_expanded", "vendor_contract_renewed"], "window_days": 90 }
+    }
+  ]
+}
