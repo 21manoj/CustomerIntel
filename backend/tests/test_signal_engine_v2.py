@@ -504,12 +504,22 @@ class TestHttpSurface:
         os.environ['MCP_SERVER_API_KEY'] = key
         import mcp_server.auth as auth
         auth.MCP_SERVER_API_KEY = key
+        import server
         from server import build_asgi_app
-        asgi = build_asgi_app(TEST_DB, create_schema=False)
-        from starlette.testclient import TestClient
-        with TestClient(asgi) as c:
-            c.key = key
-            yield c
+        # The test asserts the default (?api_key= refused). Pin it here so the
+        # suite passes on a box whose deploy/.env turns MCP_ALLOW_QUERY_KEY on
+        # (the claude.ai single-URL connector needs it); server reads the flag
+        # once at import, so patch the module global, not the env var.
+        saved_allow_query_key = server.ALLOW_QUERY_KEY
+        server.ALLOW_QUERY_KEY = False
+        try:
+            asgi = build_asgi_app(TEST_DB, create_schema=False)
+            from starlette.testclient import TestClient
+            with TestClient(asgi) as c:
+                c.key = key
+                yield c
+        finally:
+            server.ALLOW_QUERY_KEY = saved_allow_query_key
         os.environ['MCP_TRANSPORT'] = 'stdio'
 
     def test_read_surface_and_review_routes(self, client, tenant):
@@ -539,7 +549,7 @@ class TestHttpSurface:
         assert any(r['surface'] == 'http' and r['outcome'] == 'allowed' and r['key_kind'] == 'server' for r in rows)
         assert any(r['surface'] == 'mcp' and r['tool'] == 'submit_signal' for r in rows)                            # in-process tool calls too
         assert client.get('/api/audit').status_code == 401
-        assert client.get(f'/api/journeys?customer_id={cid}&api_key={client.key}').status_code == 401              # MCP_ALLOW_QUERY_KEY unset
+        assert client.get(f'/api/journeys?customer_id={cid}&api_key={client.key}').status_code == 401              # query-string keys off (pinned in the fixture)
         hist = client.get(f'/api/signals/review/history?customer_id={cid}', headers=h).json()['history']
         assert len(hist) >= 3 and {x['decision'] for x in hist} >= {'accept', 'reject', 'reclassify'}
 
