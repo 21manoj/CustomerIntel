@@ -476,11 +476,21 @@ def _next_month(m: date) -> date:
 def _live_months(points: List[tuple], episodes: List[Episode]) -> List[date]:
     """Months after the last scored month (or from the first signal, when
     nothing is scored yet — the signals-only tier) up to the latest observed
-    signal, capped at the current month."""
+    signal, capped at the current month.
+
+    Signals-only tier: the window also runs to the latest sent intervention.
+    Phases there come from these months alone (detect_phases_from_evidence),
+    so an intervention sent after the vendor's last signal (a quiet vendor, a
+    review that came due, a late escalation) would otherwise fall outside
+    every month and never become a phase: the journey would keep showing the
+    pre-intervention phase as current, and the phase-transition chain would
+    never reach the INTERVENTION node. KPI-scored journeys keep the
+    signal-only bound; their phases come from health, not from this window."""
     dates = [e.date for e in episodes if e.kind == 'signal']
     if not dates:
         return []
-    latest = min(max(dates), datetime.utcnow()).date().replace(day=1)
+    ends = dates if points else dates + [e.date for e in episodes if e.kind == 'intervention' and e.date]
+    latest = min(max(ends), datetime.utcnow()).date().replace(day=1)
     m = _next_month(points[-1][0]) if points else min(dates).date().replace(day=1)
     out = []
     while m <= latest:

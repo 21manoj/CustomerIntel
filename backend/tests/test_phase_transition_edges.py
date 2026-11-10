@@ -276,6 +276,41 @@ def test_wizard_a_tprm_v1_writes_the_phase_transition_edges(tprm_tenant):
         assert e2.properties['label'] == 'intervention to resolution'
 
 
+def test_wizard_a_tprm_v1_chains_to_an_intervention_sent_after_the_last_signal(tprm_tenant):
+    """An intervention sent two months after the vendor's last signal (the TPRM
+    pilot replay's shape: last signal in Feb here, intervention in late Apr)
+    still becomes a phase, so the chain writes deterioration -> intervention
+    with the INTERVENTION node as the edge's target."""
+    cid, aid, node_ids = tprm_tenant
+    with app.app_context():
+        # keep only the two negative signals (Jan outage, Feb escalation)
+        for nid in node_ids[2:]:
+            db.session.delete(db.session.get(ContextNode, nid))
+        late = ContextNode(customer_id=cid, account_id=aid, node_type='INTERVENTION',
+                           node_subtype='incident_corrective_action', source='observed', tier=1,
+                           title='Corrective action requested', occurred_at=datetime(2026, 4, 20, 9, 30),
+                           properties={'intervention_id': 1, 'playbook_id': 'incident_corrective_action'},
+                           source_platform='test', source_event_id='late_int')
+        db.session.add(late)
+        db.session.commit()
+
+        from journeys.wizard_a import run_wizard_a
+        res = run_wizard_a(cid, evaluate_playbooks=False)
+        assert res['status'] == 'completed' and res['processed'] == 1
+
+        journey = JourneyData.query.filter_by(customer_id=cid, account_id=aid).one().journey_json
+        assert journey['live_months'][-1] == '2026-04-01', journey['live_months']
+        phases = journey['phases']
+        assert [p['name'] for p in phases] == ['deterioration', 'intervention'], phases
+        assert phases[-1]['trigger_episode_id'] == f'int:{late.node_id}'
+
+        edges = ContextEdge.query.filter_by(customer_id=cid, edge_type='LED_TO').all()
+        assert [(e.from_node_id, e.to_node_id) for e in edges] == [(node_ids[0], late.node_id)], \
+            [e.properties for e in edges]
+        assert edges[0].properties['derivation'] == PHASE_TRANSITION_DERIVATION
+        assert edges[0].properties['label'] == 'deterioration to intervention'
+
+
 def test_wizard_a_non_tprm_v1_vertical_writes_zero_edges(saas_tenant):
     """The gate: the exact same phase-worthy shape on saas_premium must write
     NO edges at all — proving `vertical == 'tprm_v1'` in wizard_a.run_wizard_a
