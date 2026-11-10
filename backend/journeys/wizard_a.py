@@ -39,7 +39,9 @@ logger = logging.getLogger(__name__)
 #   3.5  intervention sentence: outcomes without a revenue figure are not '$0'; playbook labels readable (2026-09-05)
 #   3.6  a live-month intervention is told once, in the live chapter, with its before/after (2026-09-05)
 #   3.7  forecast block — the latest Wizard D (Foresight) run embedded, staleness marked, cited forecast sentence (2026-09-05)
-GENERATOR_VERSION = '3.7'
+#   3.8  signals-only journeys: live months run to the latest sent intervention too, so a late intervention
+#        becomes a phase (and the tprm_v1 phase-transition chain reaches it) (2026-11-10)
+GENERATOR_VERSION = '3.8'
 
 
 def stale_journey_query(customer_id: Optional[int] = None):
