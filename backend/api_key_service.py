@@ -3,7 +3,8 @@ API key service — customer-scoped MCP keys.
 
   generate_api_key : create a key (the full key is returned exactly once)
   validate_api_key : prefix lookup + SHA-256 compare + active/expiry check
-  revoke_api_key   : deactivate
+  revoke_api_key   : deactivate (effective on the next request)
+  rotate_api_key   : new key with the same grants, old one revoked, one commit
   list_api_keys
 
 Key format csp_{scope}_{random40}; only the SHA-256 hash is stored.
@@ -138,15 +139,45 @@ def validate_api_key(raw_key: str) -> Optional[CustomerApiKey]:
     return None
 
 
-def revoke_api_key(key_id: int) -> bool:
+def revoke_api_key(key_id: int, customer_id: int = None) -> bool:
+    """Deactivate a key. Takes effect on the next request: validate_api_key reads
+    is_active from the database every time and nothing caches a validated key.
+    With customer_id, a key that belongs to another tenant is treated as not found."""
     record = db.session.get(CustomerApiKey, key_id)
-    if not record:
+    if not record or (customer_id is not None and record.customer_id != int(customer_id)):
         return False
     if record.is_active:
         record.is_active = False
         db.session.commit()
-        logger.info('API key revoked: id=%s customer=%s', record.id, record.customer_id)
+        logger.info('API key revoked: id=%s prefix=%s customer=%s', record.id, record.key_prefix, record.customer_id)
     return True
+
+
+def rotate_api_key(key_id: int, customer_id: int = None) -> tuple:
+    """Replace a key: a new key with the same name, scopes, account restriction, tier
+    and expiry is created and the old one is revoked, in one commit. Returns
+    (full_key, new_record); the full key is never persisted. Raises ValueError when
+    the key does not exist (or belongs to another tenant) or is already revoked."""
+    old = db.session.get(CustomerApiKey, key_id)
+    if not old or (customer_id is not None and old.customer_id != int(customer_id)):
+        raise ValueError(f'API key {key_id} not found')
+    if not old.is_active:
+        raise ValueError(f'API key {key_id} is already revoked; create a new key instead')
+    scopes = list(old.scopes or ['read'])
+    primary = 'admin' if 'admin' in scopes else 'write' if 'write' in scopes else 'read'
+    full_key = _build_key(primary)
+    new = CustomerApiKey(
+        customer_id=old.customer_id, created_by=old.created_by, key_prefix=full_key[:_KEY_PREFIX_LEN],
+        key_hash=_hash_key(full_key), name=old.name, scopes=scopes,
+        allowed_account_ids=old.allowed_account_ids, is_active=True, expires_at=old.expires_at,
+        partner_tier=old.partner_tier,
+    )
+    old.is_active = False
+    db.session.add(new)
+    db.session.commit()
+    logger.info('API key rotated: old id=%s prefix=%s -> new id=%s prefix=%s customer=%s',
+                old.id, old.key_prefix, new.id, new.key_prefix, new.customer_id)
+    return full_key, new
 
 
 def list_api_keys(customer_id: int, include_revoked: bool = False) -> list:

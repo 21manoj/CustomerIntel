@@ -109,6 +109,16 @@ WRITE_TOOLS = {
 }
 
 
+# Admin-scope tools — key management. Over HTTP: the server key, or a customer key for
+# that tenant carrying 'admin'. Onboarding keys are read+write, so in practice this is
+# the operator; a leaked tenant key cannot list, revoke or re-mint its tenant's keys.
+ADMIN_TOOLS = {
+    'list_api_keys',
+    'revoke_api_key',
+    'rotate_api_key',
+}
+
+
 def is_onboarding_tool(name: str) -> bool:
     """Return True if the tool name is in the frictionless onboarding set."""
     return name in ONBOARDING_TOOLS
@@ -186,6 +196,13 @@ def require_auth_if_key_present(tool_name: str, customer_id: int = None):
     if not is_onboarding_tool(tool_name) and not check_scope(key_record, 'read'):
         audit.record('mcp', tool_name, customer_id, key_kind='customer', key_record=key_record, outcome='denied', detail='lacks read scope')
         raise ToolError(f"API key lacks 'read' scope for tool '{tool_name}'.")
+
+    if tool_name in ADMIN_TOOLS and 'admin' not in (key_record.scopes or []):
+        audit.record('mcp', tool_name, customer_id, key_kind='customer', key_record=key_record, outcome='denied', detail='lacks admin scope')
+        raise ToolError(
+            f"Tool '{tool_name}' manages API keys and needs the server key or a customer key with "
+            f"'admin' scope. Ask the operator."
+        )
 
     if is_write_tool(tool_name):
         if not check_scope(key_record, 'write'):

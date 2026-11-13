@@ -92,6 +92,10 @@ KEYED_TOOLS = frozenset({
     'get_team_capacity',
     'get_csm_daily_actions',
     'get_csm_ranking',
+    # API key management (mcp_server/cs_pulse_keys.py) — admin scope (auth.ADMIN_TOOLS)
+    'list_api_keys',
+    'revoke_api_key',
+    'rotate_api_key',
 })
 
 ALL_TOOLS = ONBOARDING_TOOLS | KEYED_TOOLS
