@@ -27,8 +27,17 @@
 
 name: customerintelv1
 
+# Docker's json-file driver keeps every line a container ever wrote unless told otherwise; on a
+# small root disk that is how a chatty week takes the database down with it. 5 x 10 MB a service.
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
 services:
   customerintelv1-postgres:
+    logging: *default-logging
     image: postgres:16
     container_name: customerintelv1-postgres
     restart: unless-stopped
@@ -68,6 +77,7 @@ services:
   # file still self-migrate at boot; MIGRATE_AT_BOOT's default there is
   # unchanged (true).
   customerintelv1-migrate:
+    logging: *default-logging
     # No build: of its own -- customerintelv1-app (below) is this compose
     # file's only build definition for this image. Three services building
     # the same tag in parallel raced under BuildKit ("image already exists")
@@ -85,6 +95,7 @@ services:
       - default
 
   customerintelv1-app:
+    logging: *default-logging
     build:
       context: ../backend
       args:
@@ -152,6 +163,7 @@ services:
   # claims work via FOR UPDATE SKIP LOCKED (safe if this were ever scaled, but
   # there's no throughput reason to). Not on cspulse-net: nothing routes to it.
   customerintelv1-worker:
+    logging: *default-logging
     # No build: of its own -- see customerintelv1-migrate's comment above.
     image: customerintelv1-app
     container_name: customerintelv1-worker
@@ -203,6 +215,7 @@ services:
   # bundle has no boot dependency on the API, and coupling them would let a slow app
   # start hold back the login page.
   customerintelv1-web:
+    logging: *default-logging
     build:
       context: ../frontend
     image: customerintelv1-web
@@ -234,6 +247,7 @@ services:
   # this one site, so unlike the shared-mode Caddyfile there is no multi-site file to
   # surgically edit; the whole file is just regenerated.
   caddy:
+    logging: *default-logging
     image: caddy:2-alpine
     container_name: customerintelv1-caddy
     profiles: ["standalone"]
