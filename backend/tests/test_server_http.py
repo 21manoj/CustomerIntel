@@ -109,22 +109,43 @@ class TestMcpOverHttp:
         names = {t['name'] for t in res['result']['tools']}
         assert {'create_customer', 'upload_csv', 'process_data', 'trigger_wizard'} <= names
 
-    def test_onboarding_tool_is_frictionless_without_a_key(self, client):
-        """Also the main proof that no prior initialize/session is needed: this
-        goes straight to tools/call with nothing but Authorization (here, none
-        at all -- an onboarding tool needs no key)."""
-        r, res = _rpc(client, 'tools/call', {'name': 'create_customer', 'arguments': {
-            'name': 'Frictionless Co', 'domain': f'friction-{uuid.uuid4().hex[:6]}.test', 'vertical': 'saas_premium',
-            'admin_email': f'f_{uuid.uuid4().hex[:6]}@t.test', 'admin_name': 'F', 'data_origin': 'synthetic_test'}}, id_=3, key=None)
-        assert r.status_code == 200, r.text
-        assert not res['result'].get('isError'), res
+    def test_tenant_creation_needs_the_server_key(self, client):
+        """Anonymous create_customer used to be 'frictionless' and returned a working tenant key:
+        on a public /mcp anyone could mint tenants. It now needs the server key. Also still the
+        main proof that no prior initialize/session is needed: straight to tools/call."""
+        def create(key, id_):
+            return _rpc(client, 'tools/call', {'name': 'create_customer', 'arguments': {
+                'name': 'Signup Co', 'domain': f'signup-{uuid.uuid4().hex[:6]}.test', 'vertical': 'saas_premium',
+                'admin_email': f'f_{uuid.uuid4().hex[:6]}@t.test', 'admin_name': 'F', 'data_origin': 'synthetic_test'}}, id_=id_, key=key)
+
+        r, res = create(None, 3)                                          # no key: refused, nothing issued
         text = res['result']['content'][0]['text']
-        assert '"customer_id"' in text and '"api_key"' in text          # a customer-scoped key is issued now
+        assert res['result'].get('isError') and 'requires the server key' in text and 'api_key' not in text
+
+        r, res = create(SERVER_KEY, 31)                                   # the operator: allowed
+        assert r.status_code == 200 and not res['result'].get('isError'), res
+        created = json.loads(res['result']['content'][0]['text'])
+        assert created['customer_id'] and created['api_key'].startswith('csp_write_')
+
+        r, res = create(created['api_key'], 32)                           # a tenant key must not mint other tenants
+        assert res['result'].get('isError') and 'requires the server key' in res['result']['content'][0]['text']
+        r, res = _rpc(client, 'tools/call', {'name': 'clone_customer', 'arguments': {
+            'source_customer_id': created['customer_id'], 'name': 'Clone Co', 'domain': f'clone-{uuid.uuid4().hex[:6]}.test'}},
+            id_=33, key=created['api_key'])
+        assert res['result'].get('isError') and 'requires the server key' in res['result']['content'][0]['text']
+
+    def test_open_signup_flag_restores_anonymous_creation(self, client, monkeypatch):
+        monkeypatch.setenv('MCP_OPEN_SIGNUP', 'true')
+        r, res = _rpc(client, 'tools/call', {'name': 'create_customer', 'arguments': {
+            'name': 'Open Co', 'domain': f'open-{uuid.uuid4().hex[:6]}.test', 'vertical': 'saas_premium',
+            'admin_email': f'o_{uuid.uuid4().hex[:6]}@t.test', 'admin_name': 'O', 'data_origin': 'synthetic_test'}}, id_=34, key=None)
+        assert not res['result'].get('isError'), res
+        assert '"api_key"' in res['result']['content'][0]['text']
 
     def test_customer_key_is_tenant_scoped(self, client):
         r, res = _rpc(client, 'tools/call', {'name': 'create_customer', 'arguments': {
             'name': 'Scoped Co', 'domain': f'scoped-{uuid.uuid4().hex[:6]}.test', 'vertical': 'saas_premium',
-            'admin_email': f's_{uuid.uuid4().hex[:6]}@t.test', 'admin_name': 'S', 'data_origin': 'synthetic_test'}}, id_=4, key=None)
+            'admin_email': f's_{uuid.uuid4().hex[:6]}@t.test', 'admin_name': 'S', 'data_origin': 'synthetic_test'}}, id_=4)
         created = json.loads(res['result']['content'][0]['text'])
         key, cid = created['api_key'], created['customer_id']
         assert key.startswith('csp_write_')

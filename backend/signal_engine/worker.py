@@ -84,8 +84,20 @@ class SignalEnrichmentWorker:
     def is_alive(self) -> bool:
         return self._thread is not None and self._thread.is_alive()
 
+    def release_stale_claims(self) -> int:
+        """Requeue signals a previous, interrupted process left claimed. Never fatal."""
+        try:
+            from mcp_server.common import get_flask_app
+            from signal_engine.pipeline import release_stale_claims
+            with get_flask_app().app_context():
+                return release_stale_claims()
+        except Exception as e:
+            logger.error('Signal worker: could not release stale claims: %s', e, exc_info=True)
+            return 0
+
     def _loop(self) -> None:
         time.sleep(self._startup_delay)
+        self.release_stale_claims()
         while self._running:
             try:
                 count = self.process_once()

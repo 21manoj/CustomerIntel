@@ -23,6 +23,17 @@ def engine_enabled() -> bool:
     return os.environ.get('FEATURE_SIGNAL_ENGINE', 'true').lower() in ('true', '1', 'yes')
 
 
+def unsigned_webhooks_allowed(source: str) -> bool:
+    """Whether a webhook with NO signing secret configured may be accepted. Off by default: an
+    unsigned inbound route lets anyone who can reach the host write signals into a tenant. Set
+    SIGNAL_WEBHOOKS_ALLOW_UNSIGNED=true for local development only."""
+    allowed = os.environ.get('SIGNAL_WEBHOOKS_ALLOW_UNSIGNED', 'false').lower() in ('true', '1', 'yes')
+    if not allowed:
+        logger.warning('%s webhook refused: no signing secret configured (set the secret, or '
+                       'SIGNAL_WEBHOOKS_ALLOW_UNSIGNED=true for local development)', source)
+    return allowed
+
+
 def customer_engine_enabled(customer_id: int) -> bool:
     """Per-customer toggle (FeatureToggle row 'signal_engine'). Webhook
     sources require it — they are only signature-authenticated."""

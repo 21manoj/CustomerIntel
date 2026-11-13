@@ -158,11 +158,14 @@ def require_auth_if_key_present(tool_name: str, customer_id: int = None):
             f"Only the onboarding tools are frictionless."
         )
 
-    key_record = validate_customer_key(raw_key)
-
-    if not key_record and validate_server_key(raw_key):
+    # Server key first. Looking it up as a customer key first counted every operator call as a
+    # failed customer-key attempt, and five of those in five minutes rate-limited the caller's IP
+    # for all customer keys.
+    if validate_server_key(raw_key):
         audit.record('mcp', tool_name, customer_id, key_kind='server', outcome='allowed')
         return None  # Server key = super-admin, allow everything
+
+    key_record = validate_customer_key(raw_key)
 
     if not key_record:
         audit.record('mcp', tool_name, customer_id, key_kind='none', outcome='denied', detail='invalid or expired key')
@@ -347,7 +350,7 @@ def _resolve_key(customer_id: int, required_scope: str, _api_key=None):
             "If you lost it, generate a new one from the Admin UI."
         )
 
-    key_record = validate_customer_key(raw_key)
+    key_record = None if validate_server_key(raw_key) else validate_customer_key(raw_key)
     if key_record:
         if key_record.customer_id != int(customer_id):
             raise ToolError(
@@ -407,7 +410,7 @@ def require_read_key(tool_name: str, _api_key: str = None):
             f"API key required for '{tool_name}'. Pass via "
             "Authorization: Bearer <key> header."
         )
-    if validate_customer_key(raw_key) or validate_server_key(raw_key):
+    if validate_server_key(raw_key) or validate_customer_key(raw_key):
         return
     raise ToolError(
         "Invalid or expired API key. Check your key and try again."
@@ -423,6 +426,30 @@ def require_scoped_read(tool_name: str, customer_id: int, _api_key: str = None):
     checks that *some* valid key exists, for parameterless discovery tools.
     """
     return _resolve_key(customer_id, 'read', _api_key=_api_key)
+
+
+def open_signup_enabled() -> bool:
+    """MCP_OPEN_SIGNUP=true restores anonymous tenant creation (the old 'frictionless' prospect
+    flow). Off by default: on a public endpoint it lets anyone mint tenants and API keys."""
+    return os.environ.get('MCP_OPEN_SIGNUP', 'false').lower() in ('true', '1', 'yes')
+
+
+def require_tenant_creation_auth(tool_name: str, _api_key: str = None):
+    """Tools that create a NEW tenant (create_customer, clone_customer) need the server key over
+    HTTP. A customer key is refused too: it is scoped to one existing tenant and must not mint
+    others. stdio transport, MCP_AUTH_REQUIRED=false and MCP_OPEN_SIGNUP=true are no-ops."""
+    from fastmcp.exceptions import ToolError
+    from mcp_server import audit
+
+    if os.environ.get('MCP_TRANSPORT', 'stdio') != 'http' or not MCP_AUTH_REQUIRED or open_signup_enabled():
+        return
+    raw_key = _api_key if _api_key is not None else extract_api_key()
+    if raw_key and validate_server_key(raw_key):
+        return
+    audit.record('mcp', tool_name, None, key_kind='customer' if raw_key else 'none', outcome='denied',
+                 detail='tenant creation requires the server key')
+    raise ToolError(f"'{tool_name}' creates a tenant and requires the server key over HTTP. "
+                    "Ask the operator to onboard you.")
 
 
 def require_cross_customer_auth(tool_name: str, _api_key: str = None):

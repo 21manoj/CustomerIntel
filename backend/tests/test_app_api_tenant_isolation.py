@@ -91,9 +91,14 @@ def _make_tenant(label: str) -> dict:
     tag = uuid.uuid4().hex[:8]
     with _common.get_flask_app().app_context():
         from mcp_server.cs_pulse_onboarding import create_customer
-        res = create_customer(name=f'{label} {tag}', domain=f'{label}-{tag}.test', vertical='saas_premium',
-                              admin_email=f'admin_{label}_{tag}@t.test', admin_name=f'{label} Admin',
-                              data_origin='synthetic_test')
+        import mcp_server.auth as _mauth
+        _tok = _mauth._current_api_key_var.set(SERVER_KEY)      # tenant creation needs the server key over HTTP
+        try:
+            res = create_customer(name=f'{label} {tag}', domain=f'{label}-{tag}.test', vertical='saas_premium',
+                                  admin_email=f'admin_{label}_{tag}@t.test', admin_name=f'{label} Admin',
+                                  data_origin='synthetic_test')
+        finally:
+            _mauth._current_api_key_var.reset(_tok)
         cid = res['customer_id']
         app_auth.consume_setup_token(res['admin_setup_token'], f'{label}-admin-password-1')
         acct = Account(customer_id=cid, account_name=f'{label} Account', revenue=250_000, vertical='saas_premium')

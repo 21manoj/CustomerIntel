@@ -568,17 +568,55 @@ class TestHttpSurface:
         r = client.post('/api/signals/process', headers={'Authorization': f'Bearer {client.key}'}, json={'customer_id': cid})
         assert r.status_code == 200 and r.json()['processed'] == 1 and r.json()['signals'][0]['role'] == 'commercial_pressure'
 
-    def test_slack_challenge_and_unknown_team(self, client):
-        r = client.post('/api/signals/ingest/slack/events', json={'type': 'url_verification', 'challenge': 'abc'})
+    def test_a_tenant_key_cannot_omit_customer_id(self, client, tenant):
+        """A tenant key with no customer_id used to pass the shared authorizer, and
+        /api/signals/process then drained every tenant's queue (customer_id=None means all)."""
+        cid, aid = tenant
+        from api_key_service import generate_api_key
+        with app.app_context():
+            tenant_key, _ = generate_api_key(cid, created_by=None, name='scope-test', scopes=['write'])
+        h = {'Authorization': f'Bearer {tenant_key}'}
+        r = client.post('/api/signals/process', headers=h, json={'limit': 0})
+        assert r.status_code == 401 and 'customer_id is required' in r.json()['error'], r.text
+        r = client.post('/api/signals/process', headers=h, json={'customer_id': 'all', 'limit': 0})
+        assert r.status_code == 401, r.text                                          # not a 500 either
+        assert client.post('/api/signals/process', headers=h, json={'customer_id': cid + 1000}).status_code == 401
+        assert client.post('/api/signals/process', headers=h, json={'customer_id': cid}).status_code == 200   # own tenant
+        # the server key may still act across tenants
+        assert client.post('/api/signals/process', headers={'Authorization': f'Bearer {client.key}'}, json={'limit': 0}).status_code == 200
+
+    def test_slack_challenge_and_unknown_team(self, client, monkeypatch):
+        import hashlib, hmac, json as _json, time as _time
+        monkeypatch.delenv('SIGNAL_WEBHOOKS_ALLOW_UNSIGNED', raising=False)
+        monkeypatch.delenv('SLACK_SIGNING_SECRET', raising=False)
+        url = '/api/signals/ingest/slack/events'
+        # no secret configured: refused, even the URL-verification challenge
+        assert client.post(url, json={'type': 'url_verification', 'challenge': 'abc'}).status_code == 401
+
+        monkeypatch.setenv('SLACK_SIGNING_SECRET', 'slack-test-secret')
+
+        def signed(payload, secret='slack-test-secret'):
+            body, ts = _json.dumps(payload).encode(), str(int(_time.time()))
+            sig = 'v0=' + hmac.new(secret.encode(), f'v0:{ts}:'.encode() + body, hashlib.sha256).hexdigest()
+            return client.post(url, content=body, headers={'Content-Type': 'application/json',
+                                                           'X-Slack-Request-Timestamp': ts, 'X-Slack-Signature': sig})
+
+        assert client.post(url, json={'type': 'url_verification', 'challenge': 'abc'}).status_code == 401      # unsigned
+        assert signed({'type': 'url_verification', 'challenge': 'abc'}, secret='wrong').status_code == 401     # wrong secret
+        r = signed({'type': 'url_verification', 'challenge': 'abc'})
         assert r.status_code == 200 and r.json() == {'challenge': 'abc'}
-        r = client.post('/api/signals/ingest/slack/events', json={'type': 'event_callback', 'team_id': 'TNOPE',
-                                                                   'event': {'type': 'message', 'channel': 'C1', 'text': 'this is long enough text'}})
+        r = signed({'type': 'event_callback', 'team_id': 'TNOPE',
+                    'event': {'type': 'message', 'channel': 'C1', 'text': 'this is long enough text'}})
         assert r.status_code == 200 and r.json().get('ignored') == 'unknown team'
 
-    def test_inbound_email_needs_customer_toggle_then_resolves_sender_domain(self, client, tenant):
+    def test_inbound_email_needs_customer_toggle_then_resolves_sender_domain(self, client, tenant, monkeypatch):
         cid, aid = tenant
         form = {'from': 'Elena Rossi <elena@northwind.com>', 'to': f'signals-{cid}@ingest.example.com',
                 'subject': 'Renewal', 'text': 'We are reviewing the contract and our budget was cut for next year.\n--\nElena'}
+        monkeypatch.delenv('SENDGRID_WEBHOOK_SECRET', raising=False)
+        monkeypatch.delenv('SIGNAL_WEBHOOKS_ALLOW_UNSIGNED', raising=False)
+        assert client.post('/api/signals/ingest/email/parse', data=form).status_code == 401    # no secret: refused
+        monkeypatch.setenv('SIGNAL_WEBHOOKS_ALLOW_UNSIGNED', 'true')     # the rest tests routing, not the signature
         r = client.post('/api/signals/ingest/email/parse', data=form)
         assert r.status_code == 403                                                  # toggle off
         from mcp_server.cs_pulse_onboarding import configure_signal_engine

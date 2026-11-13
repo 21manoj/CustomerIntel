@@ -23,10 +23,12 @@ logger = logging.getLogger(__name__)
 
 
 def _verify_slack_signature(headers: Optional[dict] = None, raw_body: bytes = b'') -> bool:
-    """True if valid, or if no SLACK_SIGNING_SECRET is configured (dev)."""
+    """True only for a validly signed request. With no SLACK_SIGNING_SECRET configured every
+    request is refused, unless SIGNAL_WEBHOOKS_ALLOW_UNSIGNED=true (local development only)."""
     secret = os.environ.get('SLACK_SIGNING_SECRET')
     if not secret:
-        return True
+        from signal_engine.ingest_api import unsigned_webhooks_allowed
+        return unsigned_webhooks_allowed('slack')
     headers = {k.lower(): v for k, v in (headers or {}).items()}
     timestamp, signature = headers.get('x-slack-request-timestamp', ''), headers.get('x-slack-signature', '')
     if not timestamp or not signature:

@@ -45,7 +45,17 @@ def _authorize(customer_id, scope: str = 'write', route: str = None) -> tuple:
     if not rec:
         audit.record('http', route, customer_id, key_kind='none', outcome='denied', detail='invalid or expired key')
         return False, {'error': 'Invalid or expired API key'}
-    if customer_id is not None and int(rec.customer_id) != int(customer_id):
+    # A customer key must name its own tenant. An omitted customer_id used to skip this check, and
+    # routes that treat None as "every tenant" (/api/signals/process) then ran across all of them
+    # on a tenant key. Only the server key may act without a customer_id.
+    try:
+        requested = int(customer_id) if customer_id is not None else None
+    except (TypeError, ValueError):
+        requested = None
+    if requested is None:
+        audit.record('http', route, None, key_kind='customer', key_record=rec, outcome='denied', detail='customer_id missing or not an integer')
+        return False, {'error': 'customer_id is required with a customer API key'}
+    if int(rec.customer_id) != requested:
         audit.record('http', route, customer_id, key_kind='customer', key_record=rec, outcome='denied', detail=f'key scoped to customer {rec.customer_id}')
         return False, {'error': f'API key does not have access to customer {customer_id}'}
     if not check_scope(rec, scope):

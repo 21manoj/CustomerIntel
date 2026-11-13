@@ -71,10 +71,12 @@ def _clean_email_body(text: str) -> str:
 
 
 def _verify_sendgrid_signature(payload_body: bytes, headers: Optional[dict] = None) -> bool:
-    """True if valid, or if no SENDGRID_WEBHOOK_SECRET is configured (dev)."""
+    """True only for a validly signed request. With no SENDGRID_WEBHOOK_SECRET configured every
+    request is refused, unless SIGNAL_WEBHOOKS_ALLOW_UNSIGNED=true (local development only)."""
     secret = os.environ.get('SENDGRID_WEBHOOK_SECRET')
     if not secret:
-        return True
+        from signal_engine.ingest_api import unsigned_webhooks_allowed
+        return unsigned_webhooks_allowed('email')
     headers = {k.lower(): v for k, v in (headers or {}).items()}
     signature = headers.get('x-twilio-email-event-webhook-signature', '')
     timestamp = headers.get('x-twilio-email-event-webhook-timestamp', '')
