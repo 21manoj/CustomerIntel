@@ -102,13 +102,24 @@ class TestSlackEvents:
         from signal_engine.http import ROUTES
         assert '/api/signals/ingest/slack/events' in ROUTES
 
-    def test_signature_passes_without_secret(self):
-        """Dev mode: no SLACK_SIGNING_SECRET means verification passes."""
-        os.environ.pop('SLACK_SIGNING_SECRET', None)
-        # Can't test _verify_slack_signature directly (needs request context)
-        # but verify it's importable
+    def test_no_secret_fails_closed_unless_explicitly_allowed(self, monkeypatch):
+        """No signing secret used to mean 'verification passes', so an unconfigured production
+        box accepted webhooks from anyone. Now it refuses unless the dev flag is set."""
         from signal_engine.slack_events import _verify_slack_signature
-        assert callable(_verify_slack_signature)
+        from signal_engine.email_receiver import _verify_sendgrid_signature
+        monkeypatch.delenv('SLACK_SIGNING_SECRET', raising=False)
+        monkeypatch.delenv('SENDGRID_WEBHOOK_SECRET', raising=False)
+        monkeypatch.delenv('SIGNAL_WEBHOOKS_ALLOW_UNSIGNED', raising=False)
+        assert _verify_slack_signature({}, b'{}') is False
+        assert _verify_sendgrid_signature(b'x', {}) is False
+        monkeypatch.setenv('SIGNAL_WEBHOOKS_ALLOW_UNSIGNED', 'true')
+        assert _verify_slack_signature({}, b'{}') is True
+        assert _verify_sendgrid_signature(b'x', {}) is True
+        # a configured secret always wins over the dev flag
+        monkeypatch.setenv('SLACK_SIGNING_SECRET', 's3cret')
+        monkeypatch.setenv('SENDGRID_WEBHOOK_SECRET', 's3cret')
+        assert _verify_slack_signature({}, b'{}') is False
+        assert _verify_sendgrid_signature(b'x', {}) is False
 
     def test_resolve_customer_from_team_importable(self):
         from signal_engine.slack_events import _resolve_customer_from_team

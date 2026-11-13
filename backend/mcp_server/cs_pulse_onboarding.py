@@ -162,6 +162,8 @@ def create_customer(
             If omitted, SaaS defaults to 'saas_starter_9'. Other verticals use the full catalog.
     """
     _require_auth_if_key_present('create_customer', None)
+    from mcp_server.auth import require_tenant_creation_auth
+    require_tenant_creation_auth('create_customer')
     _check_mcp_enabled()
     from utils.data_origin import validate as _validate_origin, disclosure as _disclosure
     try:
@@ -433,10 +435,10 @@ def _process_data_impl(customer_id: int, mode: str = 'auto') -> dict:
         # The run record (G2): every health row written below names it.
         from models import ProcessRun
         from journeys.wizard_a import GENERATOR_VERSION
-        from mcp_server.auth import extract_api_key, validate_customer_key
+        from mcp_server.auth import extract_api_key, validate_customer_key, validate_server_key
         import uuid as _uuid
         _key = extract_api_key()
-        _rec = validate_customer_key(_key) if _key else None
+        _rec = validate_customer_key(_key) if _key and not validate_server_key(_key) else None
         run = ProcessRun(run_id=f'pd_{_uuid.uuid4().hex[:16]}', customer_id=customer_id, vertical=vertical, mode=mode,
                          status='running', generator_version=GENERATOR_VERSION,
                          key_kind=('customer' if _rec else 'server' if _key else ('local' if os.environ.get('MCP_TRANSPORT', 'stdio') != 'http' else 'none')),
@@ -1849,6 +1851,8 @@ def clone_customer(source_customer_id: int, name: str, domain: str, admin_email:
             existing tenant).
     """
     _require_auth_if_key_present('clone_customer', int(source_customer_id))
+    from mcp_server.auth import require_tenant_creation_auth
+    require_tenant_creation_auth('clone_customer')
     _check_mcp_enabled()
     app = _get_flask_app()
 

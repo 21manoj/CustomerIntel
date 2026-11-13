@@ -349,6 +349,29 @@ def _apply_enrichment(sig, result: dict) -> None:
     # live in `extractions` and go onto that signal's node only.
 
 
+def release_stale_claims() -> int:
+    """Put signals left at CLAIMED_SENTINEL back in the queue. Returns how many.
+
+    process_pending claims a batch in its own commit, then works through it. A process killed
+    mid-batch (deploy, OOM, spot interruption) leaves the rest of that batch claimed forever:
+    the pending query only selects cg_node_id IS NULL, so those signals never become evidence
+    and nothing reports them. The worker calls this once at startup, before its first pass.
+
+    There is no claimed-at timestamp, so this cannot tell a dead claim from a live one. If the
+    web process is mid-way through an on-demand drain at the moment the worker starts, the
+    signals it still holds are released and may be materialised twice. That window is one
+    batch wide and only opens at worker start; a stranded signal is the worse failure."""
+    from extensions import db
+    from models import QualitativeSignal
+
+    n = QualitativeSignal.query.filter(QualitativeSignal.cg_node_id == CLAIMED_SENTINEL).update(
+        {QualitativeSignal.cg_node_id: None}, synchronize_session=False)
+    db.session.commit()
+    if n:
+        logger.warning('released %d signal(s) left claimed by an interrupted drain', n)
+    return n
+
+
 def process_pending(customer_id: Optional[int] = None, limit: int = 50, rebuild_journeys: bool = True) -> dict:
     """Enrich (if needed) and materialize every signal that has no node yet.
     Structured signals skip the LLM. Rebuilds the journeys of the accounts

@@ -144,3 +144,38 @@ def test_enrichment_error_releases_the_claim_for_retry(tenant):
     with app.app_context():
         sig = QualitativeSignal.query.filter_by(customer_id=cid, account_id=aid, signal_id=r['signal_id']).first()
         assert sig.cg_node_id is None, 'signal must stay retryable, not stuck at the claim sentinel'
+
+
+def test_claims_left_by_a_killed_drain_are_released_at_worker_start(tenant):
+    """process_pending claims its batch (cg_node_id = CLAIMED_SENTINEL) in one commit and then
+    works through it. A process killed mid-batch leaves those rows claimed, and the pending
+    query (cg_node_id IS NULL) never sees them again: the signals silently never become
+    evidence. The worker releases them once at startup."""
+    cid, aid = tenant
+    import signal_engine.pipeline as pipeline_mod
+    from signal_engine.worker import SignalEnrichmentWorker
+
+    r = pipeline_mod.ingest(cid, aid, 'ticket', 'Stranded by a killed worker', signal_type='champion_departure',
+                            occurred_at='2026-04-20T00:00:00Z', participants=[{'name': 'Test Person', 'role': 'VP'}])
+    with app.app_context():
+        sig = QualitativeSignal.query.filter_by(customer_id=cid, signal_id=r['signal_id']).first()
+        done_node = (QualitativeSignal.query.filter(QualitativeSignal.customer_id == cid, QualitativeSignal.cg_node_id > 0)
+                     .first())
+        done_id, done_node_id = (done_node.id, done_node.cg_node_id) if done_node else (None, None)
+        sig.cg_node_id = pipeline_mod.CLAIMED_SENTINEL          # what a kill -9 mid-batch leaves behind
+        db.session.commit()
+        # the bug: it is invisible to every later pass
+        res = pipeline_mod.process_pending(customer_id=cid, limit=50)
+        assert r['signal_id'] not in [x['signal_id'] for x in res['signals']]
+        assert QualitativeSignal.query.filter_by(signal_id=r['signal_id']).first().cg_node_id == pipeline_mod.CLAIMED_SENTINEL
+
+    assert SignalEnrichmentWorker().release_stale_claims() == 1
+
+    with app.app_context():
+        assert QualitativeSignal.query.filter_by(signal_id=r['signal_id']).first().cg_node_id is None
+        if done_id is not None:                                  # already-materialised signals are untouched
+            assert db.session.get(QualitativeSignal, done_id).cg_node_id == done_node_id
+        res = pipeline_mod.process_pending(customer_id=cid, limit=50)
+        assert [x['signal_id'] for x in res['signals']] == [r['signal_id']], res
+        assert QualitativeSignal.query.filter_by(signal_id=r['signal_id']).first().cg_node_id > 0
+    assert SignalEnrichmentWorker().release_stale_claims() == 0  # idempotent

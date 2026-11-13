@@ -99,11 +99,50 @@ def test_onboarding_tool_stays_frictionless(keys):
     assert _with(None, lambda: require_auth_if_key_present('list_verticals', None)) is None
 
 
+def test_tenant_creation_requires_the_server_key(keys, monkeypatch):
+    """create_customer / clone_customer mint a tenant and its key. Over HTTP only the server key
+    may do that: not an anonymous caller, and not a tenant key (scoped to one existing tenant)."""
+    from fastmcp.exceptions import ToolError
+    import mcp_server.auth as auth
+    from mcp_server.auth import require_tenant_creation_auth
+    monkeypatch.delenv('MCP_OPEN_SIGNUP', raising=False)
+    for tool in ('create_customer', 'clone_customer'):
+        for key in (None, keys['write'], 'csp_write_not-a-real-key'):
+            with pytest.raises(ToolError, match='requires the server key'):
+                _with(key, lambda tool=tool: require_tenant_creation_auth(tool))
+        assert _with(auth.MCP_SERVER_API_KEY, lambda tool=tool: require_tenant_creation_auth(tool)) is None
+    # explicit opt-outs: open signup, stdio transport, auth not required
+    monkeypatch.setenv('MCP_OPEN_SIGNUP', 'true')
+    assert _with(None, lambda: require_tenant_creation_auth('create_customer')) is None
+    monkeypatch.delenv('MCP_OPEN_SIGNUP')
+    monkeypatch.setenv('MCP_TRANSPORT', 'stdio')
+    assert _with(None, lambda: require_tenant_creation_auth('create_customer')) is None
+    monkeypatch.setenv('MCP_TRANSPORT', 'http')
+    monkeypatch.setattr(auth, 'MCP_AUTH_REQUIRED', False)
+    assert _with(None, lambda: require_tenant_creation_auth('create_customer')) is None
+
+
+def test_server_key_calls_do_not_trip_the_customer_key_rate_limit(keys):
+    """The server key used to be looked up as a customer key first, which recorded a failed
+    attempt per call; after five, every customer key from that IP was refused for a minute.
+    An operator onboarding a tenant (create_customer, upload_csv, process_data...) hit it."""
+    import api_key_service
+    import mcp_server.auth as auth
+    from mcp_server.auth import require_auth_if_key_present, require_auth
+    api_key_service._fail_tracker.clear()
+    for _ in range(8):
+        _with(auth.MCP_SERVER_API_KEY, lambda: require_auth_if_key_present('upload_csv', keys['c1']))
+        _with(auth.MCP_SERVER_API_KEY, lambda: require_auth(keys['c1'], 'write'))
+    assert not any(api_key_service._fail_tracker.values())
+    assert _with(keys['write'], lambda: require_auth_if_key_present('upload_csv', keys['c1'])) is not None
+
+
 def test_upload_csv_is_no_longer_frictionless(keys):
     """Found 2026-09-09: upload_csv (and process_data/trigger_wizard/configure_customer_kpis)
     were in ONBOARDING_TOOLS, so ANY caller could mutate ANY existing customer_id's data with
-    no key at all — 'frictionless' was meant for create_customer, which can only create a new
-    row, not for tools that act on a tenant someone else already owns."""
+    no key at all — 'frictionless' was meant for read-only discovery (list_verticals and the
+    like), not for tools that act on a tenant someone else already owns. (create_customer has
+    since been tightened further: see test_tenant_creation_requires_the_server_key.)"""
     from fastmcp.exceptions import ToolError
     from mcp_server.auth import require_auth_if_key_present
     from mcp_server.onboarding_tool_registry import ONBOARDING_TOOLS, KEYED_TOOLS

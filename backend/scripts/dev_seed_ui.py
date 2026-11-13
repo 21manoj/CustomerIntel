@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 
 import httpx
 from fastmcp import Client
@@ -30,7 +31,9 @@ def _payload(result):
 
 
 async def main():
-    transport = StreamableHttpTransport(f'{BASE}/mcp')
+    # create_customer needs the server key over HTTP (unless the server runs with MCP_OPEN_SIGNUP=true)
+    server_key = os.environ.get('MCP_SERVER_API_KEY')
+    transport = StreamableHttpTransport(f'{BASE}/mcp', headers={'Authorization': f'Bearer {server_key}'} if server_key else None)
     async with Client(transport) as client:
         r = await client.call_tool('create_customer', {
             'name': 'Dev Preview Co', 'domain': 'dev-preview.local', 'vertical': 'datacenter_v1',
