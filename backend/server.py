@@ -188,16 +188,33 @@ def build_asgi_app(database_url: str | None = None, create_schema: bool = True):
 
     @mcp.custom_route('/health', methods=['GET'])
     async def health(request):
+        """Public: is it up, is the DB reachable, is the worker alive, which build. Nothing about
+        tenants. The counts and the worker detail (last error, timings) are operator information
+        and need the server key as a Bearer token -- deploy_ec2.sh and healthcheck_alert.sh send it.
+
+        `status` is 'ok' only when the DB answers AND the worker is not stale; a monitor should
+        key on that field. The HTTP code stays 200 for a stale worker (503 only when the DB is
+        down): this route is also the app container's Docker healthcheck and the deploy's
+        readiness wait, and the app serving requests is a different fact from the worker being
+        behind."""
         from starlette.concurrency import run_in_threadpool
+        from mcp_server.auth import validate_server_key
         counts, status, db_ok, generator_version, worker = await run_in_threadpool(_health_check)
-        return JSONResponse({
-            'server': SERVER_NAME, 'version': VERSION, 'status': 'ok' if db_ok else 'degraded',
-            'db': db_ok, 'counts': counts, 'journey_generator_version': generator_version,
-            'worker': worker,
-            'git_sha': os.environ.get('GIT_SHA'), 'build_time': os.environ.get('BUILD_TIME'),
-            'mcp_path': '/mcp', 'auth_required': os.environ.get('MCP_AUTH_REQUIRED', 'true'),
-            'time': datetime.utcnow().isoformat() + 'Z',
-        }, status_code=status)
+        healthy = db_ok and not worker.get('stale', False)
+        body = {
+            'server': SERVER_NAME, 'version': VERSION, 'status': 'ok' if healthy else 'degraded',
+            'db': db_ok, 'worker': {k: worker[k] for k in ('known', 'stale') if k in worker},
+            'git_sha': os.environ.get('GIT_SHA'), 'time': datetime.utcnow().isoformat() + 'Z',
+        }
+        auth_header = request.headers.get('authorization', '')
+        token = auth_header[7:].strip() if auth_header.lower().startswith('bearer ') else ''
+        if token and validate_server_key(token):
+            body.update({
+                'counts': counts, 'journey_generator_version': generator_version, 'worker': worker,
+                'build_time': os.environ.get('BUILD_TIME'), 'mcp_path': '/mcp',
+                'auth_required': os.environ.get('MCP_AUTH_REQUIRED', 'true'),
+            })
+        return JSONResponse(body, status_code=status)
 
     @mcp.custom_route('/', methods=['GET'])
     async def root(request):

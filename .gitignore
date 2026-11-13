@@ -10,6 +10,9 @@ backend/.env
 
 # rendered on the box by deploy_ec2.sh (DEPLOY_MODE=standalone) — machine-specific, not source
 deploy/caddy/
+# release bookkeeping written on the box by deploy_ec2.sh / rollback_ec2.sh
+deploy/.last_good_sha
+deploy/.deployed_shas
 
 # frontend
 frontend/node_modules/

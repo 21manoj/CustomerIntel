@@ -555,7 +555,7 @@ class TestHttpSurface:
 
     def test_status_and_auth(self, client, tenant):
         cid, aid = tenant
-        h = client.get('/health').json()
+        h = client.get('/health', headers={'Authorization': f'Bearer {client.key}'}).json()   # operator view
         assert h['journey_generator_version'] and 'stale_journeys' in h['counts']
         s = client.get('/api/signals/status').json()
         assert s['signal_engine_enabled'] and s['capabilities']['composite_fusion'] is False and s['capabilities']['channels']['ticket']

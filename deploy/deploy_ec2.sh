@@ -3,14 +3,22 @@
 #
 #   git clone https://github.com/21manoj/CustomerIntel.git ~/CustomerIntel   (first time)
 #   cp ~/CustomerIntel/deploy/.env.customerintelv1.example ~/CustomerIntel/deploy/.env && edit
-#   bash ~/CustomerIntel/deploy/deploy_ec2.sh [--no-tests] [--no-seed]
+#   bash ~/CustomerIntel/deploy/deploy_ec2.sh [--no-tests] [--seed]
 #
-# Steps: git pull → backup (pg_dump, + daily cron once) → build+up (own compose project, own Postgres,
-# the frontend image builds itself, joins Caddy's network; a one-shot customerintelv1-migrate service
-# runs Alembic to head before the app and the signal-enrichment worker start -- backend scaling plan
-# step 3, docker-compose.customerintelv1.yml has the full writeup) → wait for /health → schema_check →
-# verify the built SPA actually serves → rewrite the Caddy site block + reload → run the full test suite
-# inside the container against customerintel_test → rebuild stale journeys → seed demo tenants (idempotent).
+# Steps: git pull → backup (pg_dump, + daily cron once; + the 5-minute healthcheck_alert.sh cron) →
+# BUILD the new images, without touching what is running → run the full test suite in a throwaway
+# container of the NEW image against customerintel_test; a failure stops here, the old release still
+# serving → up (own compose project, own Postgres, joins Caddy's network; a one-shot
+# customerintelv1-migrate service runs Alembic to head before the app and the signal-enrichment worker
+# start -- backend scaling plan step 3, docker-compose.customerintelv1.yml has the full writeup) →
+# wait for /health → schema_check → verify the built SPA actually serves → rewrite the Caddy site
+# block + reload → rebuild stale journeys → record the release.
+#
+# Every release's images are tagged with its git sha (the newest 5 are kept), so the one before can be
+# put back: `bash deploy/rollback_ec2.sh` lists them, `bash deploy/rollback_ec2.sh <sha>` switches.
+#
+# --seed  also (re)creates the synthetic demo tenants (idempotent). Off by default: a deploy to a
+#         box holding customer data should not write demo tenants beside it unless asked to.
 #
 # DEPLOY_MODE in deploy/.env picks the Caddy topology (see docker-compose.customerintelv1.yml):
 #   shared (default)    an existing Caddy elsewhere on the box (outside this compose project)
@@ -21,8 +29,8 @@
 #                        in .env to override.
 set -euo pipefail
 cd "$(dirname "$0")/.."
-RUN_TESTS=1; RUN_SEED=1
-for a in "$@"; do case "$a" in --no-tests) RUN_TESTS=0;; --no-seed) RUN_SEED=0;; esac; done
+RUN_TESTS=1; RUN_SEED=0
+for a in "$@"; do case "$a" in --no-tests) RUN_TESTS=0;; --seed) RUN_SEED=1;; --no-seed) RUN_SEED=0;; esac; done
 
 [ -f deploy/.env ] || { echo "deploy/.env missing (copy .env.customerintelv1.example)"; exit 1; }
 git pull --ff-only
@@ -62,18 +70,65 @@ if docker ps --format '{{.Names}}' | grep -q '^customerintelv1-postgres$'; then
   bash deploy/backup_db.sh
 fi
 CRON_LINE="15 3 * * * /bin/bash $HOME/CustomerIntel/deploy/backup_db.sh >> $HOME/backups/customerintelv1/cron.log 2>&1"
+ALERT_CRON_LINE="*/5 * * * * /bin/bash $HOME/CustomerIntel/deploy/healthcheck_alert.sh >> $HOME/backups/customerintelv1/alert.log 2>&1"
+mkdir -p "$HOME/backups/customerintelv1"
 if command -v crontab >/dev/null 2>&1; then
   # `crontab -l` exits 1 when the user has no crontab yet — under set -e/pipefail that silently killed the deploy (2026-09-05)
   EXISTING="$(crontab -l 2>/dev/null || true)"
   TMP_CRON="$(mktemp)"
-  { printf '%s\n' "$EXISTING" | grep -v 'deploy/backup_db.sh' || true; echo "$CRON_LINE"; } | grep -v '^$' > "$TMP_CRON"
+  { printf '%s\n' "$EXISTING" | grep -v -e 'deploy/backup_db.sh' -e 'deploy/healthcheck_alert.sh' || true
+    echo "$CRON_LINE"; echo "$ALERT_CRON_LINE"; } | grep -v '^$' > "$TMP_CRON"
   crontab "$TMP_CRON" && rm -f "$TMP_CRON"
-  echo "cron: daily backup scheduled (03:15 UTC)"
+  echo "cron: daily backup scheduled (03:15 UTC); health and backup checks every 5 minutes"
+  grep -q -E '^(ALERT_SNS_TOPIC_ARN|ALERT_WEBHOOK_URL)=.+' deploy/.env \
+    || echo "WARNING: no ALERT_SNS_TOPIC_ARN / ALERT_WEBHOOK_URL in deploy/.env — problems are logged to alert.log but nobody is told"
+  grep -q -E '^BACKUP_S3_URI=.+' deploy/.env \
+    || echo "WARNING: no BACKUP_S3_URI in deploy/.env — backups exist only on this box's own disk"
 else
   echo "WARNING: no crontab on this host — daily backup NOT scheduled (Amazon Linux 2023: sudo dnf -y install cronie && sudo systemctl enable --now crond, then redeploy)"
 fi
 
-$COMPOSE up -d --build
+# --- build first, test the build, and only then replace what is running --------------------
+# The images a release ran with are kept under its git sha. .last_good_sha names the release
+# that last finished this script; on the first run under this scheme the images now serving
+# are tagged 'bootstrap' so there is something to go back to.
+IMAGES="customerintelv1-app customerintelv1-web"
+LAST_GOOD="$(cat deploy/.last_good_sha 2>/dev/null || true)"
+if [ -z "$LAST_GOOD" ] && docker image inspect customerintelv1-app:latest >/dev/null 2>&1; then
+  LAST_GOOD=bootstrap
+  for img in $IMAGES; do docker tag "$img:latest" "$img:bootstrap" 2>/dev/null || true; done
+  echo bootstrap > deploy/.last_good_sha
+  echo bootstrap >> deploy/.deployed_shas
+fi
+restore_latest() {   # point :latest back at the last good release (nothing running has changed yet)
+  [ -n "$LAST_GOOD" ] || return 0
+  for img in $IMAGES; do docker tag "$img:$LAST_GOOD" "$img:latest" 2>/dev/null || true; done
+}
+
+$COMPOSE build || { restore_latest; echo "build FAILED — nothing was changed; the running release is untouched"; exit 1; }
+for img in $IMAGES; do docker tag "$img:latest" "$img:$GIT_SHA"; done
+
+if [ "$RUN_TESTS" = 1 ]; then
+  echo "running the test suite in the NEW image (customerintel_test), before anything is replaced ..."
+  $COMPOSE up -d --wait customerintelv1-postgres
+  if ! $COMPOSE run --rm --no-deps -T customerintelv1-app \
+       sh -c 'DATABASE_URL="$TEST_DATABASE_URL" exec python -m pytest tests/ -q -p no:warnings' | tail -15; then
+    restore_latest
+    echo "tests FAILED on $GIT_SHA — deploy stopped. The running release (${LAST_GOOD:-none}) was not touched."
+    exit 1
+  fi
+fi
+
+# From here on the running release is being replaced. If a later step fails, say how to go back.
+going_live_failed() {
+  [ $? -eq 0 ] && return 0
+  echo
+  echo "DEPLOY FAILED after $GIT_SHA started going live. To put the previous release back:"
+  echo "    bash deploy/rollback_ec2.sh ${LAST_GOOD:-<sha>}"
+}
+trap going_live_failed EXIT
+
+$COMPOSE up -d --no-build
 
 # customerintelv1-app and customerintelv1-worker both depend on
 # customerintelv1-migrate completing successfully before they even start
@@ -92,7 +147,8 @@ for i in $(seq 1 30); do
   sleep 3
   [ "$i" = 30 ] && { echo "app did not become healthy"; $COMPOSE logs --tail 50 customerintelv1-app; exit 1; }
 done
-curl -sS http://127.0.0.1:8101/health; echo
+# the operator view (counts, worker detail) needs the server key; the key is never echoed
+curl -sS -H "Authorization: Bearer $(grep -m1 '^MCP_SERVER_API_KEY=' deploy/.env | cut -d= -f2-)" http://127.0.0.1:8101/health; echo
 
 # customerintelv1-migrate ran `alembic upgrade head` before the app was allowed to
 # start (see above); prove the DB is at head and matches the models
@@ -234,12 +290,6 @@ else
   fi
 fi
 
-if [ "$RUN_TESTS" = 1 ]; then
-  echo "running the test suite inside the container (customerintel_test) ..."
-  $COMPOSE exec -T -e DATABASE_URL="$($COMPOSE exec -T customerintelv1-app printenv TEST_DATABASE_URL)" \
-    customerintelv1-app python -m pytest tests/ -q -p no:warnings | tail -3
-fi
-
 echo "rebuilding stale journeys (generator_version behind) ..."
 $COMPOSE exec -T customerintelv1-app python scripts/rebuild_stale_journeys.py
 
@@ -259,5 +309,17 @@ if curl -fsS -m 10 "$BASE/health" >/dev/null 2>&1; then
 else
   echo "note: could not reach $BASE from the box itself (hairpin NAT); verify from a browser"
 fi
+
+# This release finished: record it, keep the newest 5 releases' images, drop the rest and the
+# untagged layers earlier builds left behind (they were piling up at ~290 MB a deploy).
+echo "$GIT_SHA" > deploy/.last_good_sha
+{ grep -v -x -e "$GIT_SHA" deploy/.deployed_shas 2>/dev/null || true; echo "$GIT_SHA"; } > deploy/.deployed_shas.new
+mv deploy/.deployed_shas.new deploy/.deployed_shas
+head -n -5 deploy/.deployed_shas | while read -r old; do
+  for img in $IMAGES; do docker rmi "$img:$old" >/dev/null 2>&1 || true; done
+done
+tail -n 5 deploy/.deployed_shas > deploy/.deployed_shas.new && mv deploy/.deployed_shas.new deploy/.deployed_shas
+docker image prune -f >/dev/null 2>&1 || true
+echo "release $GIT_SHA recorded; rollback targets: $(tr '\n' ' ' < deploy/.deployed_shas)"
 
 echo "done: $BASE  (app)   $BASE/health  (api, sha $GIT_SHA)"

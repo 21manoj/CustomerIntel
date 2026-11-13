@@ -86,10 +86,10 @@ def _handshake(client, key=SERVER_KEY):
 
 class TestHealth:
     def test_health_and_root(self, client):
-        r = client.get('/health')
+        r = client.get('/health', headers={'Authorization': f'Bearer {SERVER_KEY}'})
         assert r.status_code == 200
         body = r.json()
-        assert body['server'] == 'CustomerIntelV1' and body['db'] is True and body['status'] == 'ok'
+        assert body['server'] == 'CustomerIntelV1' and body['db'] is True and body['status'] in ('ok', 'degraded')
         assert set(body['counts']) == {'customers', 'customers_by_data_origin', 'journeys', 'stale_journeys', 'wizard_runs', 'interventions'}
         iv = body['counts']['interventions']
         assert set(iv) == {'total', 'by_state', 'stuck', 'delivery_problems'}
@@ -97,6 +97,16 @@ class TestHealth:
         assert set(iv['by_state']) == {'proposed', 'approved', 'sent', 'closed'} and all(isinstance(n, int) for n in iv['by_state'].values())
         assert iv['total'] == sum(iv['by_state'].values())
         assert client.get('/').json()['mcp'] == '/mcp'
+
+    def test_public_health_discloses_nothing_about_tenants(self, client):
+        """/health is reachable by anyone. Without the server key it answers up/down and the build,
+        never tenant counts, intervention counts or the worker's last error."""
+        for headers in ({}, {'Authorization': 'Bearer not-the-server-key'}):
+            r = client.get('/health', headers=headers)
+            assert r.status_code == 200
+            body = r.json()
+            assert set(body) == {'server', 'version', 'status', 'db', 'worker', 'git_sha', 'time'}, body
+            assert set(body['worker']) <= {'known', 'stale'}
 
 
 class TestMcpOverHttp:

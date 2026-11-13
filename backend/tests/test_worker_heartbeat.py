@@ -147,6 +147,10 @@ def client():
     os.environ['MCP_TRANSPORT'] = 'stdio'
 
 
+def _op():
+    return {'Authorization': 'Bearer ' + os.environ['MCP_SERVER_API_KEY']}
+
+
 def test_health_reports_unknown_when_worker_never_ran(client):
     _clear_heartbeat()
     r = client.get('/health')
@@ -163,7 +167,8 @@ def test_health_reports_healthy_for_a_fresh_heartbeat(client):
         ))
         db.session.commit()
 
-    w = client.get('/health').json()['worker']
+    assert client.get('/health').json()['status'] == 'ok'
+    w = client.get('/health', headers=_op()).json()['worker']
     assert w['known'] is True
     assert w['stale'] is False
     assert w['last_processed_count'] == 3
@@ -181,7 +186,12 @@ def test_health_reports_stale_for_an_old_heartbeat(client):
         ))
         db.session.commit()
 
-    w = client.get('/health').json()['worker']
+    # A stale worker is not 'ok' -- to anyone, key or no key. The HTTP code stays 200: the app
+    # itself is serving, and this route is its container healthcheck.
+    public = client.get('/health')
+    assert public.status_code == 200
+    assert public.json()['status'] == 'degraded' and public.json()['worker'] == {'known': True, 'stale': True}
+    w = client.get('/health', headers=_op()).json()['worker']
     assert w['known'] is True
     assert w['stale'] is True
     assert w['consecutive_errors'] == 2
