@@ -129,7 +129,23 @@ class SignalEnrichmentWorker:
                 logger.info('Signal worker: processed %d (structured %d, enriched %d, unclassified %d, errors %d) — journeys rebuilt %d',
                             res['processed'], res['structured'], res['enriched'], res['unclassified'], res['errors'], res['journeys_rebuilt'])
             self._write_heartbeat(processed=res['processed'], error=None)
+            self._close_abandoned_runs()
             return res['processed']
+
+    def _close_abandoned_runs(self) -> None:
+        """Mark process_data runs an interrupted process left 'running' as failed. Never fatal."""
+        try:
+            from extensions import db
+            from utils.process_runs import close_abandoned_runs
+            closed = close_abandoned_runs()
+            if closed:
+                logger.warning('Signal worker: closed %d interrupted process_data run(s)', closed)
+        except Exception:
+            logger.exception('Signal worker: could not close interrupted runs (non-fatal)')
+            try:
+                db.session.rollback()
+            except Exception:
+                pass
 
     def _write_heartbeat(self, *, processed: int, error: Optional[str]) -> None:
         """Upsert this worker's models.WorkerHeartbeat row. Never lets a

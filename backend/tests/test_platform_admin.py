@@ -287,6 +287,34 @@ def test_attention_names_real_problems(client, world):
 
 # ── the console is the only cross-tenant door ──
 
+def test_an_interrupted_run_is_closed_and_reported_as_interrupted(client, world):
+    """A run whose process was stopped part-way stays 'running' for ever unless something closes it.
+    The worker's closer marks it failed with the reason; a fresh run is left alone; the console
+    reports it as interrupted (a warning), not as a rejected run (critical)."""
+    from datetime import datetime, timedelta
+    w = world
+    with _ctx():
+        from extensions import db
+        from models import ProcessRun
+        from utils.process_runs import close_abandoned_runs, INTERRUPTED_PREFIX
+        old = ProcessRun(run_id=f'pd_{uuid.uuid4().hex[:16]}', customer_id=w['A']['cid'], mode='auto', status='running',
+                         started_at=datetime.utcnow() - timedelta(days=2))
+        fresh = ProcessRun(run_id=f'pd_{uuid.uuid4().hex[:16]}', customer_id=w['B']['cid'], mode='auto', status='running',
+                           started_at=datetime.utcnow() - timedelta(minutes=1))
+        db.session.add_all([old, fresh]); db.session.commit()
+        old_id, fresh_id = old.id, fresh.id
+        assert close_abandoned_runs() >= 1
+        old, fresh = db.session.get(ProcessRun, old_id), db.session.get(ProcessRun, fresh_id)
+        assert old.status == 'failed' and old.finished_at and old.errors[-1].startswith(INTERRUPTED_PREFIX)
+        assert fresh.status == 'running' and fresh.finished_at is None
+        assert close_abandoned_runs() == 0                      # idempotent
+        from platform_admin import service
+        kinds = {(i['kind'], i['customer_id'], i['severity']) for i in service.attention()}
+        assert ('process_run_interrupted', w['A']['cid'], 'warning') in kinds
+        assert not any(k == 'process_run_failed' and c == w['A']['cid'] for k, c, _ in kinds)
+        db.session.delete(old); db.session.delete(fresh); db.session.commit()
+
+
 def test_platform_role_opens_nothing_on_tenant_routes(client, world):
     a = world['A']
     _login(client, world['operator'])

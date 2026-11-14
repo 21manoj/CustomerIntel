@@ -28,6 +28,7 @@ from datetime import datetime, timedelta
 from typing import Optional
 
 from app_api import settings
+from utils.process_runs import INTERRUPTED_PREFIX
 
 SEVERITY_ORDER = {'critical': 0, 'warning': 1, 'info': 2}
 
@@ -221,7 +222,11 @@ def attention() -> list:
     # each tenant's most recent processing run
     stuck_before = now - timedelta(minutes=int(cfg['process_run_stuck_minutes']))
     for cid, r in _last_run_by_tenant().items():
-        if r.status == 'failed':
+        if r.status == 'failed' and (_run_view(r)['first_error'] or '').startswith(INTERRUPTED_PREFIX):
+            # stopped part-way (deploy, restart) rather than rejected: the tenant's earlier data still stands
+            add('warning', 'process_run_interrupted', 'The last data processing run was interrupted; run it again to clear this',
+                _run_view(r)['first_error'], cid, r.started_at)
+        elif r.status == 'failed':
             add('critical', 'process_run_failed', 'The last data processing run failed', _run_view(r)['first_error'], cid, r.started_at)
         elif r.status == 'partial':
             add('warning', 'process_run_partial', 'The last data processing run finished with errors',
