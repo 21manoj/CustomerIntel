@@ -53,6 +53,8 @@ def _signal_worker_enabled() -> bool:
 def main() -> None:
     logging.basicConfig(level=os.environ.get('LOG_LEVEL', 'INFO'),
                         format='%(asctime)s %(levelname)s %(name)s: %(message)s')
+    from utils.log_redaction import install_on_root
+    install_on_root()   # keys never reach the worker's log either
     from dotenv import load_dotenv
     load_dotenv()
     if not os.environ.get('DATABASE_URL'):

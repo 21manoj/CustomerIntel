@@ -9,7 +9,7 @@ Environment:
   DATABASE_URL          postgresql://...            (required)
   MCP_SERVER_API_KEY    super-admin Bearer key       (recommended)
   MCP_AUTH_REQUIRED     true|false (default true; onboarding tools stay frictionless)
-  MCP_ALLOW_QUERY_KEY   true|false (default false) — accept ?api_key= for single-URL connectors; keys in URLs reach access logs
+  MCP_ALLOW_QUERY_KEY   true|false (default false) — accept ?api_key= for single-URL connectors; redacted in this server's logs (utils/log_redaction), still visible to proxies and browser history
   SIGNAL_WORKER         true|false (default true) — background signal processing.
                         In the compose topology this now runs as its own
                         container (worker_main.py, backend scaling plan step
@@ -78,7 +78,8 @@ class BearerAuthMiddleware:
         elif session_id and session_id in _session_api_keys:
             token = _session_api_keys[session_id]
         if not token and ALLOW_QUERY_KEY:
-            # Off by default: a key in the URL lands in Caddy/uvicorn access logs and browser history.
+            # Off by default: a key in the URL lands in browser history and any proxy log in front
+            # of us. Our own logs redact it (utils/log_redaction.py).
             qs = scope.get('query_string', b'').decode()
             if qs:
                 p = parse_qs(qs)
@@ -121,6 +122,7 @@ def build_asgi_app(database_url: str | None = None, create_schema: bool = True):
     import mcp_server.cs_pulse_adapters    # noqa: F401 — import_from_source (adapters/sources)
     import mcp_server.cs_pulse_wizard_c    # noqa: F401 — Wizard C: get/approve/reject_calibration
     import mcp_server.cs_pulse_wizard_b    # noqa: F401 — Wizard B: get_hindsight
+    import mcp_server.cs_pulse_keys        # noqa: F401 — API key list / revoke / rotate (admin)
     import mcp_server.cs_pulse_csm         # noqa: F401 — CSM scorecard / capacity / daily actions / ranking
     import models  # noqa: F401 — metadata for create_all
 
@@ -287,7 +289,12 @@ def main():
         SignalEnrichmentWorker().start()
     port = int(os.environ.get('PORT', '8101'))
     logger.info('%s %s serving MCP at /mcp on 0.0.0.0:%d (sha=%s)', SERVER_NAME, VERSION, port, os.environ.get('GIT_SHA'))
-    uvicorn.run(app, host='0.0.0.0', port=port, log_level=os.environ.get('LOG_LEVEL', 'info').lower())
+    # Keys sent as ?api_key= (MCP_ALLOW_QUERY_KEY) must not reach the logs: uvicorn's access
+    # line carries the full query string. Redact on every handler, uvicorn's and ours.
+    from utils.log_redaction import install_on_root, uvicorn_log_config
+    install_on_root()
+    uvicorn.run(app, host='0.0.0.0', port=port, log_level=os.environ.get('LOG_LEVEL', 'info').lower(),
+                log_config=uvicorn_log_config())
 
 
 if __name__ == '__main__':
