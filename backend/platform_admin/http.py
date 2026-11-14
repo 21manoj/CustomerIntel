@@ -1,0 +1,150 @@
+"""
+/app/api/platform/* — the platform console's HTTP surface. Session cookie, like
+the rest of /app/api, but every route here is guarded by
+platform_admin.access.require_platform (users.platform_role), never by the
+tenant role or tenant scope.
+
+    GET  /app/api/platform/overview
+    GET  /app/api/platform/tenants
+    GET  /app/api/platform/tenants/{id}
+    GET  /app/api/platform/audit?customer_id=&outcome=&tool=&before_id=&limit=
+    POST /app/api/platform/tenants/{id}/suspend        {reason}      operator
+    POST /app/api/platform/tenants/{id}/reactivate                   operator
+    POST /app/api/platform/keys/{id}/revoke                          operator
+    POST /app/api/platform/users/{id}/active           {active}      operator
+    POST /app/api/platform/users/{id}/reset-password                 operator
+
+A refused attempt by a logged-in user is written to the audit log: somebody
+without the operator flag asking for the cross-tenant view is worth knowing about.
+"""
+from __future__ import annotations
+
+from starlette.responses import JSONResponse
+
+from platform_admin import service
+from platform_admin.access import require_platform
+from signal_engine.http import _json, _with_app
+
+_ERRORS = {'not_authenticated': (401, 'not authenticated'),
+           'not_operator': (403, 'the platform console is for platform operators only'),
+           'read_only': (403, 'your platform access is read-only')}
+
+
+async def _guard(request, name: str, write: bool = False):
+    """(operator, error_response)."""
+    def check():
+        try:
+            return require_platform(request, write=write), None
+        except PermissionError as e:
+            code = str(e)
+            if code != 'not_authenticated':
+                from app_api.auth import require_session
+                from mcp_server import audit
+                u = require_session(request)
+                audit.record('ui', f'platform.{name}', None, key_kind='user', key_record=None, outcome='denied',
+                             detail=f'user:{u.user_id} {code}')
+            return None, code
+    user, code = await _with_app(check)
+    if code:
+        status, message = _ERRORS.get(code, (403, 'forbidden'))
+        return None, JSONResponse({'error': message}, status_code=status)
+    return user, None
+
+
+async def _act(fn):
+    """Run a service action, mapping its exceptions to responses."""
+    try:
+        return JSONResponse(await _with_app(fn))
+    except LookupError as e:
+        return JSONResponse({'error': str(e)}, status_code=404)
+    except PermissionError as e:
+        return JSONResponse({'error': str(e)}, status_code=403)
+    except ValueError as e:
+        return JSONResponse({'error': str(e)}, status_code=400)
+
+
+def register_platform_routes(mcp) -> None:
+
+    @mcp.custom_route('/app/api/platform/overview', methods=['GET'], name='platform_overview')
+    async def platform_overview(request):
+        op, err = await _guard(request, 'overview')
+        if err:
+            return err
+        return JSONResponse(await _with_app(service.overview))
+
+    @mcp.custom_route('/app/api/platform/tenants', methods=['GET'], name='platform_tenants')
+    async def platform_tenants(request):
+        op, err = await _guard(request, 'tenants')
+        if err:
+            return err
+        return JSONResponse({'tenants': await _with_app(service.list_tenants)})
+
+    @mcp.custom_route('/app/api/platform/tenants/{customer_id:int}', methods=['GET'], name='platform_tenant')
+    async def platform_tenant(request):
+        op, err = await _guard(request, 'tenant_view')
+        if err:
+            return err
+        detail = await _with_app(lambda: service.tenant_detail(op, request.path_params['customer_id']))
+        if detail is None:
+            return JSONResponse({'error': 'tenant not found'}, status_code=404)
+        return JSONResponse(detail)
+
+    @mcp.custom_route('/app/api/platform/audit', methods=['GET'], name='platform_audit')
+    async def platform_audit(request):
+        op, err = await _guard(request, 'audit')
+        if err:
+            return err
+        p = request.query_params
+        for name in ('customer_id', 'before_id', 'limit'):
+            if p.get(name) and not p.get(name).isdigit():
+                return JSONResponse({'error': f'{name} must be an integer'}, status_code=400)
+        return JSONResponse(await _with_app(lambda: service.audit_log(
+            customer_id=p.get('customer_id'), outcome=p.get('outcome'), tool=p.get('tool'),
+            before_id=p.get('before_id'), limit=p.get('limit'))))
+
+    @mcp.custom_route('/app/api/platform/tenants/{customer_id:int}/suspend', methods=['POST'], name='platform_tenant_suspend')
+    async def platform_tenant_suspend(request):
+        op, err = await _guard(request, 'tenant_suspend', write=True)
+        if err:
+            return err
+        data = await _json(request)
+        return await _act(lambda: service.suspend_tenant(op, request.path_params['customer_id'], data.get('reason')))
+
+    @mcp.custom_route('/app/api/platform/tenants/{customer_id:int}/reactivate', methods=['POST'], name='platform_tenant_reactivate')
+    async def platform_tenant_reactivate(request):
+        op, err = await _guard(request, 'tenant_reactivate', write=True)
+        if err:
+            return err
+        return await _act(lambda: service.reactivate_tenant(op, request.path_params['customer_id']))
+
+    @mcp.custom_route('/app/api/platform/keys/{key_id:int}/revoke', methods=['POST'], name='platform_key_revoke')
+    async def platform_key_revoke(request):
+        op, err = await _guard(request, 'key_revoke', write=True)
+        if err:
+            return err
+        return await _act(lambda: service.revoke_key(op, request.path_params['key_id']))
+
+    @mcp.custom_route('/app/api/platform/users/{user_id:int}/active', methods=['POST'], name='platform_user_active')
+    async def platform_user_active(request):
+        op, err = await _guard(request, 'user_active', write=True)
+        if err:
+            return err
+        data = await _json(request)
+        if not isinstance(data.get('active'), bool):
+            return JSONResponse({'error': 'active must be true or false'}, status_code=400)
+        return await _act(lambda: service.set_user_active(op, request.path_params['user_id'], data['active']))
+
+    @mcp.custom_route('/app/api/platform/users/{user_id:int}/reset-password', methods=['POST'], name='platform_user_reset_password')
+    async def platform_user_reset_password(request):
+        op, err = await _guard(request, 'user_reset_password', write=True)
+        if err:
+            return err
+        return await _act(lambda: {
+            'setup_token': service.reset_user_password(op, request.path_params['user_id']),
+            'setup_token_note': 'Shown once — relay this to the user out of band.'})
+
+
+ROUTES = ('/app/api/platform/overview', '/app/api/platform/tenants', '/app/api/platform/tenants/{id}',
+          '/app/api/platform/audit', '/app/api/platform/tenants/{id}/suspend', '/app/api/platform/tenants/{id}/reactivate',
+          '/app/api/platform/keys/{id}/revoke', '/app/api/platform/users/{id}/active',
+          '/app/api/platform/users/{id}/reset-password')

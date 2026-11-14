@@ -135,7 +135,6 @@ def _imported_names(node: ast.AST) -> set:
     return names
 
 
-@pytest.mark.skip(reason="reads mcp_server/cs_pulse_onboarding.py source, Tier 2, not yet ported")
 def test_get_kpi_catalog_has_no_hardcoded_vertical_import():
     tree = ast.parse(MCP_SERVER_PY.read_text())
 
@@ -144,7 +143,9 @@ def test_get_kpi_catalog_has_no_hardcoded_vertical_import():
     # if/else-bypassing-vertical_registry shape) while verifying this fix
     # live: PILLARS knew about P6, but kpi_defs never tagged any KPI
     # pillar='P6' because _get_kpi_definitions still hardcoded DC2S_KPIS.
-    for fn_name in ("get_kpi_catalog", "_get_kpi_definitions"):
+    # get_kpi_catalog itself was not ported to this repository (the catalog is served
+    # through utils.vertical_registry directly); _get_kpi_definitions was, so it is pinned.
+    for fn_name in ("_get_kpi_definitions",):
         fn = _find_function(tree, fn_name)
         imported = _imported_names(fn)
 
@@ -161,9 +162,10 @@ def test_get_kpi_catalog_has_no_hardcoded_vertical_import():
             f"instead."
         )
         assert any(
-            isinstance(n, ast.ImportFrom) and n.module == "utils.vertical_registry"
+            # here the helper delegates to mcp_server.common, which is the registry-backed path
+            isinstance(n, ast.ImportFrom) and n.module in ("utils.vertical_registry", "mcp_server.common")
             for n in ast.walk(fn)
-        ), f"{fn_name} no longer references utils.vertical_registry at all."
+        ), f"{fn_name} no longer goes through the vertical registry (directly or via mcp_server.common)."
 
 
 # ──────────────────────────────────────────────────────────────────────────
@@ -173,7 +175,7 @@ def test_get_kpi_catalog_has_no_hardcoded_vertical_import():
 #    documents for _require_auth; this is the second occurrence.
 # ──────────────────────────────────────────────────────────────────────────
 
-@pytest.mark.skip(reason="reads mcp_server/cs_pulse_onboarding.py source, Tier 2, not yet ported")
+@pytest.mark.skip(reason="pins get_vertical_config, which was not ported: mcp_server/cs_pulse_onboarding.py exists here but has no such function")
 def test_get_vertical_config_imports_are_complete():
     tree = ast.parse(ONBOARDING_PY.read_text())
 

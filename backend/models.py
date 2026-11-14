@@ -47,6 +47,11 @@ class Customer(db.Model):
     # in this codebase sweeps/deletes on it yet (no scheduler exists here);
     # that enforcement is a separate, later piece of work.
     expires_at = db.Column(db.DateTime, nullable=True, index=True)
+    # Platform console (docs/design/platform-console.md): a suspended tenant's API
+    # keys and user sessions are refused until it is reactivated. Nothing is deleted;
+    # NULL (the default) = a normal, working tenant. Set only by a platform operator.
+    suspended_at = db.Column(db.DateTime, nullable=True)
+    suspended_reason = db.Column(db.String(255), nullable=True)
     created_at = db.Column(db.DateTime, server_default=db.func.now())
     updated_at = db.Column(db.DateTime, server_default=db.func.now(), onupdate=db.func.now())
 
@@ -79,6 +84,12 @@ class User(db.Model):
     is_contractor = db.Column(db.Boolean, default=False)
     magic_link_token = db.Column(db.String(100), nullable=True, index=True)
     magic_link_expires_at = db.Column(db.DateTime, nullable=True)
+    # Platform console: NULL for every tenant user. 'operator' (may act) or 'viewer'
+    # (read-only) marks a person who runs the platform. Deliberately NOT a value of
+    # `role`: role says what a user may do inside their own tenant, and conflating the
+    # two is the 2026-09-08 cross-tenant leak (app_api/auth.py). Granted only by
+    # scripts/manage_platform_operators.py on the box — no HTTP route writes it.
+    platform_role = db.Column(db.String(20), nullable=True)
 
     __table_args__ = (
         db.UniqueConstraint('customer_id', 'user_name', name='unique_customer_username'),

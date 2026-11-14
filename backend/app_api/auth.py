@@ -17,10 +17,13 @@ No self-service "forgot password by email": see the design doc §2 for why
 that is an account-takeover hole without a mail sender. Only an
 authenticated admin can issue or reissue a setup token.
 
-TENANT SCOPE IS FAIL-CLOSED. Every session-cookie user is a tenant-scoped
-human — there is no session role that means "platform superuser." The only
-platform-wide identity is the Bearer MCP_SERVER_API_KEY (mcp_server/auth.py),
-a separate mechanism this module never touches. A user whose
+TENANT SCOPE IS FAIL-CLOSED. On every route in this package a session-cookie
+user is a tenant-scoped human — no `role` means "platform superuser," and
+users.platform_role (the platform console's operators, platform_admin/) buys
+nothing here: an operator reaches tenant data only through /app/api/platform/*,
+which has its own guard and its own audit trail. The other platform-wide
+identity is the Bearer MCP_SERVER_API_KEY (mcp_server/auth.py), a separate
+mechanism this module never touches. A user whose
 allowed_customer_ids is unset reaches NO tenant, including their own: an
 unscoped row is a provisioning bug, not a grant (both creation paths set it,
 and revision 0005 back-filled every row that predates them).
@@ -68,11 +71,26 @@ class SessionUser:
     role: str
     allowed_customer_ids: Optional[list]
     allowed_account_ids: Optional[list]
+    # None for every tenant user. Grants nothing on the tenant routes in this package:
+    # only platform_admin/ reads it (docs/design/platform-console.md).
+    platform_role: Optional[str] = None
 
 
 def _snapshot(user) -> SessionUser:
     return SessionUser(user_id=user.user_id, customer_id=user.customer_id, email=user.email, name=user.user_name,
-                       role=user.role, allowed_customer_ids=user.allowed_customer_ids, allowed_account_ids=user.allowed_account_ids)
+                       role=user.role, allowed_customer_ids=user.allowed_customer_ids, allowed_account_ids=user.allowed_account_ids,
+                       platform_role=user.platform_role)
+
+
+def tenant_suspended(user) -> bool:
+    """True when the user's own tenant is suspended (platform console). A platform
+    operator is never locked out by this — they are the one who has to lift it."""
+    if user.platform_role or not user.customer_id:
+        return False
+    from extensions import db
+    from models import Customer
+    c = db.session.get(Customer, user.customer_id)
+    return bool(c and c.suspended_at)
 
 _serializer_cache = None
 _fail_tracker: dict = defaultdict(list)
@@ -160,7 +178,7 @@ def login(email: str, password: str, ip: str = 'unknown') -> tuple:
     # see _dummy_password_hash's docstring for why skipping it is a timing side-channel.
     hash_to_check = user.password_hash if (user and user.password_hash) else _dummy_password_hash()
     password_ok = check_password_hash(hash_to_check, password or '')
-    ok = bool(user and user.active and user.password_hash and password_ok)
+    ok = bool(user and user.active and user.password_hash and password_ok and not tenant_suspended(user))
     if not ok:
         _record_failure(email or '', ip)
         raise AuthError('Incorrect email or password.')
@@ -186,7 +204,7 @@ def verify_session(token: Optional[str]):
         return None
     from models import User
     user = User.query.get(uid)
-    return user if (user and user.active) else None
+    return user if (user and user.active and not tenant_suspended(user)) else None
 
 
 # ── one-time setup / reset tokens (admin-issued only — see module docstring) ──
