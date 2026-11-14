@@ -55,9 +55,12 @@ All under `/app/api/platform/`, session cookie, guarded by
 | `GET tenants/{id}` — accounts, users, keys, runs, uploads, recent audit | operator, viewer |
 | `GET audit?customer_id=&outcome=&tool=&before_id=&limit=` | operator, viewer |
 | `POST tenants/{id}/suspend {reason}` / `POST tenants/{id}/reactivate` | operator |
+| `POST tenants/{id}/delete {confirm_name}` — suspended tenants only, archived first | operator |
 | `POST keys/{id}/revoke` | operator |
 | `POST users/{id}/active {active}` | operator |
 | `POST users/{id}/reset-password` — one-time token, shown once | operator |
+| `GET alerts` — recipients, alarm state, recent alerts | operator, viewer |
+| `POST alerts/recipients {protocol, endpoint}` / `POST alerts/recipients/remove {id}` | operator |
 
 ## Suspending a tenant
 
@@ -88,6 +91,47 @@ Each item is a fact read from the database; thresholds live in
 | Many refused calls in the window | warning |
 | Active users with no tenant scope | warning |
 | Tenant suspended; tenant ending soon; accounts but no data | info |
+
+## Alerts
+
+The overview's Alerts section answers two questions: who is told when the service breaks, and what
+has broken lately. It is read from `GET /app/api/platform/alerts`, loaded separately so the overview
+never waits on AWS.
+
+- **Recipients** are the subscribers of the SNS topic in `ALERT_SNS_TOPIC_ARN`. An operator can add an
+  email address or a phone number and remove a confirmed one. An email recipient receives nothing
+  until they click the confirmation link AWS sends; until then they show as "awaiting confirmation".
+  The last confirmed recipient cannot be removed. Adds and removals are audited.
+- **Checks** are the CloudWatch alarms whose names start with `platform.alerts.alarm_name_prefix`
+  (the off-box health check) and the host check that cron runs every five minutes.
+- **Recent alerts** merges CloudWatch alarm state changes with the host check's log, which the app
+  container mounts read-only. It is a record of what fired, not of each message delivered.
+
+With no topic configured, or when AWS cannot be reached, the section says so and the rest of the
+console is unaffected. The instance role needs `cloudwatch:DescribeAlarms`,
+`cloudwatch:DescribeAlarmHistory`, `sns:ListSubscriptionsByTopic`, `sns:Subscribe` and
+`sns:Unsubscribe`.
+
+## Deleting a tenant
+
+`POST /app/api/platform/tenants/{id}/delete` with `{confirm_name}`. Operators only, and only when all
+of these hold: the tenant is already suspended, `confirm_name` is exactly the tenant's name, it is not
+the operator's own tenant, and no platform operator's account lives in it.
+
+Before anything is deleted, every row is written as one gzip JSON file to
+`BACKUP_S3_URI/deleted-tenants/`. If that write fails, nothing is deleted. The deletion then runs in
+one transaction, children first. The list of tables is derived from the database schema, not written
+by hand, so a table added later is covered; a table that cannot be classified stops the deletion.
+`tool_audit_log` is kept, and the deletion itself is recorded there with the row counts and the
+archive's location.
+
+There is no restore button. Restoring means loading the archive by hand.
+
+## Interrupted processing runs
+
+A data-processing run still marked "running" after `platform.attention.process_run_stuck_minutes` is
+closed by the worker as failed with an "Interrupted:" error. The attention list reports it as a
+warning ("was interrupted; run it again"), not as a critical failure.
 
 ## What an operator never sees
 

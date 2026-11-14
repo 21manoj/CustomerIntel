@@ -10,9 +10,13 @@ tenant role or tenant scope.
     GET  /app/api/platform/audit?customer_id=&outcome=&tool=&before_id=&limit=
     POST /app/api/platform/tenants/{id}/suspend        {reason}      operator
     POST /app/api/platform/tenants/{id}/reactivate                   operator
+    POST /app/api/platform/tenants/{id}/delete         {confirm_name} operator; suspended tenants only
     POST /app/api/platform/keys/{id}/revoke                          operator
     POST /app/api/platform/users/{id}/active           {active}      operator
     POST /app/api/platform/users/{id}/reset-password                 operator
+    GET  /app/api/platform/alerts
+    POST /app/api/platform/alerts/recipients           {protocol, endpoint}   operator
+    POST /app/api/platform/alerts/recipients/remove    {id}                   operator
 
 A refused attempt by a logged-in user is written to the audit log: somebody
 without the operator flag asking for the cross-tenant view is worth knowing about.
@@ -21,7 +25,7 @@ from __future__ import annotations
 
 from starlette.responses import JSONResponse
 
-from platform_admin import service
+from platform_admin import alerts, deletion, service
 from platform_admin.access import require_platform
 from signal_engine.http import _json, _with_app
 
@@ -117,6 +121,14 @@ def register_platform_routes(mcp) -> None:
             return err
         return await _act(lambda: service.reactivate_tenant(op, request.path_params['customer_id']))
 
+    @mcp.custom_route('/app/api/platform/tenants/{customer_id:int}/delete', methods=['POST'], name='platform_tenant_delete')
+    async def platform_tenant_delete(request):
+        op, err = await _guard(request, 'tenant_delete', write=True)
+        if err:
+            return err
+        data = await _json(request)
+        return await _act(lambda: deletion.delete_tenant(op, request.path_params['customer_id'], data.get('confirm_name')))
+
     @mcp.custom_route('/app/api/platform/keys/{key_id:int}/revoke', methods=['POST'], name='platform_key_revoke')
     async def platform_key_revoke(request):
         op, err = await _guard(request, 'key_revoke', write=True)
@@ -143,8 +155,33 @@ def register_platform_routes(mcp) -> None:
             'setup_token': service.reset_user_password(op, request.path_params['user_id']),
             'setup_token_note': 'Shown once — relay this to the user out of band.'})
 
+    @mcp.custom_route('/app/api/platform/alerts', methods=['GET'], name='platform_alerts')
+    async def platform_alerts(request):
+        op, err = await _guard(request, 'alerts')
+        if err:
+            return err
+        return JSONResponse(await _with_app(alerts.status))
+
+    @mcp.custom_route('/app/api/platform/alerts/recipients', methods=['POST'], name='platform_alert_recipient_add')
+    async def platform_alert_recipient_add(request):
+        op, err = await _guard(request, 'alert_recipient_add', write=True)
+        if err:
+            return err
+        data = await _json(request)
+        return await _act(lambda: alerts.add_recipient(op, data.get('protocol'), data.get('endpoint')))
+
+    @mcp.custom_route('/app/api/platform/alerts/recipients/remove', methods=['POST'], name='platform_alert_recipient_remove')
+    async def platform_alert_recipient_remove(request):
+        op, err = await _guard(request, 'alert_recipient_remove', write=True)
+        if err:
+            return err
+        data = await _json(request)
+        return await _act(lambda: alerts.remove_recipient(op, data.get('id')))
+
 
 ROUTES = ('/app/api/platform/overview', '/app/api/platform/tenants', '/app/api/platform/tenants/{id}',
           '/app/api/platform/audit', '/app/api/platform/tenants/{id}/suspend', '/app/api/platform/tenants/{id}/reactivate',
           '/app/api/platform/keys/{id}/revoke', '/app/api/platform/users/{id}/active',
-          '/app/api/platform/users/{id}/reset-password')
+          '/app/api/platform/users/{id}/reset-password', '/app/api/platform/alerts',
+          '/app/api/platform/alerts/recipients', '/app/api/platform/alerts/recipients/remove',
+          '/app/api/platform/tenants/{id}/delete')

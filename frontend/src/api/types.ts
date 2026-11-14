@@ -1370,3 +1370,47 @@ export interface PlatformAuditPage {
   entries: PlatformAuditEntry[]
   next_before_id: number | null
 }
+
+// ── Platform console: alerts and tenant deletion ──
+
+export interface AlertRecipient {
+  id: string | null // null while the recipient has not confirmed
+  protocol: string
+  endpoint: string
+  status: 'confirmed' | 'pending'
+}
+
+export interface AlertAlarm {
+  name: string
+  state: string // OK | ALARM | INSUFFICIENT_DATA
+  reason: string | null
+  since: string | null
+  description: string | null
+  notifies: boolean
+}
+
+export interface HostCheckEvent {
+  at: string
+  kind: 'failing' | 'recovered' | 'note'
+  problems: string[]
+}
+
+export interface PlatformAlerts {
+  configured: boolean
+  topic: string | null
+  error: string | null
+  recipients: AlertRecipient[]
+  alarms: AlertAlarm[]
+  history: { at: string | null; alarm: string; summary: string | null }[]
+  host_checks: { available: boolean; state: 'ok' | 'failing' | 'unknown'; events: HostCheckEvent[] }
+  protocols: string[]
+}
+
+export interface TenantDeleted {
+  deleted: boolean
+  customer_id: number
+  name: string
+  rows: Record<string, number>
+  total_rows: number
+  archive: string
+}

@@ -2,13 +2,14 @@
 // Shown only to users with a platform_role; the server refuses everyone else on every route here,
 // so this file gates for tidiness, not for security.
 import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from 'react'
-import { Link, Navigate, useParams } from 'react-router-dom'
+import { Link, Navigate, useLocation, useNavigate, useParams } from 'react-router-dom'
 import * as api from '../api/client'
 import { ApiError } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
 import type {
   AttentionItem,
   AttentionSeverity,
+  PlatformAlerts,
   PlatformAuditEntry,
   PlatformOverview,
   PlatformTenantDetail,
@@ -122,7 +123,170 @@ function AttentionList({ items, showTenant = true }: { items: AttentionItem[]; s
 
 // ── Overview ──
 
-function Overview({ data }: { data: PlatformOverview }) {
+const ALARM_STYLE: Record<string, string> = {
+  OK: 'bg-emerald-50 text-emerald-700',
+  ALARM: 'bg-red-50 text-red-700',
+  INSUFFICIENT_DATA: 'bg-amber-50 text-amber-800',
+}
+
+// Who is told when something breaks, and what has broken lately. Loaded on its own so the
+// overview never waits on AWS; the recipients are the alert topic's subscribers.
+function Alerts({ canAct }: { canAct: boolean }) {
+  const load = useCallback(() => api.getPlatformAlerts(), [])
+  const { data: loaded, error } = useLoad<PlatformAlerts>(load)
+  const [changed, setChanged] = useState<PlatformAlerts | null>(null)
+  const [protocol, setProtocol] = useState('email')
+  const [endpoint, setEndpoint] = useState('')
+  const [actionError, setActionError] = useState<string | null>(null)
+  const [notice, setNotice] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+  const data = changed ?? loaded
+
+  async function run(fn: () => Promise<PlatformAlerts>, done: string) {
+    setActionError(null)
+    setNotice(null)
+    setBusy(true)
+    try {
+      setChanged(await fn())
+      setNotice(done)
+    } catch (e) {
+      setActionError(errorText(e))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  function handleAdd(e: FormEvent) {
+    e.preventDefault()
+    const to = endpoint.trim()
+    void run(
+      () => api.addAlertRecipient(protocol, to),
+      protocol === 'email'
+        ? `A confirmation link was sent to ${to}. Nothing is delivered there until it is clicked.`
+        : `${to} was added.`,
+    ).then(() => setEndpoint(''))
+  }
+
+  if (error) return <p className="text-sm text-red-600">{error}</p>
+  if (!data) return <p className="text-sm text-slate-400">Loading…</p>
+  const confirmed = data.recipients.filter((r) => r.status === 'confirmed').length
+  const hc = data.host_checks
+  return (
+    <div className="space-y-3">
+      {data.error && <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">{data.error}</p>}
+      {data.configured && !data.error && confirmed === 0 && (
+        <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+          Nobody is being told when the service goes down: there is no confirmed recipient.
+        </p>
+      )}
+      <div className="grid gap-3 md:grid-cols-2">
+        <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm">
+          <h3 className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">Recipients</h3>
+          {data.recipients.length === 0 && <p className="text-slate-500">None.</p>}
+          <ul className="divide-y divide-slate-100">
+            {data.recipients.map((r) => (
+              <li key={`${r.protocol}:${r.endpoint}`} className="flex items-center gap-2 py-1.5">
+                <span className="text-slate-900">{r.endpoint}</span>
+                <span className="text-xs text-slate-500">{r.protocol}</span>
+                <Badge className={r.status === 'confirmed' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-800'}>
+                  {r.status === 'confirmed' ? 'confirmed' : 'awaiting confirmation'}
+                </Badge>
+                {canAct && r.id && (
+                  <button
+                    disabled={busy}
+                    onClick={() => {
+                      if (window.confirm(`Stop sending alerts to ${r.endpoint}?`))
+                        void run(() => api.removeAlertRecipient(r.id as string), `${r.endpoint} was removed.`)
+                    }}
+                    className={`ml-auto ${ACTION}`}
+                  >
+                    Remove
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
+          {canAct && data.configured && (
+            <form onSubmit={handleAdd} className="mt-3 flex flex-wrap gap-2">
+              <select value={protocol} onChange={(e) => setProtocol(e.target.value)} className="rounded-md border border-slate-300 px-2 py-1.5 text-sm">
+                {data.protocols.map((p) => (
+                  <option key={p} value={p}>
+                    {p === 'sms' ? 'text message' : p}
+                  </option>
+                ))}
+              </select>
+              <input
+                required
+                value={endpoint}
+                onChange={(e) => setEndpoint(e.target.value)}
+                placeholder={protocol === 'email' ? 'name@example.com' : '+14155550123'}
+                aria-label="New alert recipient"
+                className="min-w-0 flex-1 rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+              />
+              <button type="submit" disabled={busy} className={ACTION}>
+                Add recipient
+              </button>
+            </form>
+          )}
+          {notice && <p className="mt-2 text-xs text-emerald-700">{notice}</p>}
+          {actionError && <p className="mt-2 text-xs text-red-600">{actionError}</p>}
+        </div>
+
+        <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm">
+          <h3 className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">Checks</h3>
+          <ul className="space-y-1.5">
+            {data.alarms.map((a) => (
+              <li key={a.name}>
+                <Badge className={ALARM_STYLE[a.state] ?? 'bg-slate-100 text-slate-700'}>{a.state === 'INSUFFICIENT_DATA' ? 'no data' : a.state}</Badge>
+                <span className="ml-2 text-slate-900">{a.name}</span>
+                <span className="ml-2 text-xs text-slate-500">
+                  off-box · since {when(a.since)}
+                  {!a.notifies && ' · not wired to the recipients'}
+                </span>
+              </li>
+            ))}
+            <li>
+              <Badge className={hc.state === 'ok' ? ALARM_STYLE.OK : hc.state === 'failing' ? ALARM_STYLE.ALARM : 'bg-slate-100 text-slate-700'}>
+                {hc.state === 'ok' ? 'OK' : hc.state === 'failing' ? 'FAILING' : 'unknown'}
+              </Badge>
+              <span className="ml-2 text-slate-900">Host checks</span>
+              <span className="ml-2 text-xs text-slate-500">
+                {hc.available ? 'containers, disk and backups, every 5 minutes' : 'the check log is not available on this deployment'}
+              </span>
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm">
+        <h3 className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">Recent alerts</h3>
+        {hc.events.length === 0 && data.history.length === 0 && <p className="text-slate-500">Nothing has fired.</p>}
+        <ul className="space-y-1.5">
+          {[
+            ...hc.events.map((e) => ({
+              at: e.at,
+              source: 'host check',
+              bad: e.kind === 'failing',
+              text: e.kind === 'recovered' ? 'Recovered — all checks pass again' : e.problems.join(' · ') || 'Failing',
+            })),
+            ...data.history.map((h) => ({ at: h.at ?? '', source: h.alarm, bad: /to ALARM/.test(h.summary ?? ''), text: h.summary ?? '' })),
+          ]
+            .sort((a, b) => Date.parse(b.at) - Date.parse(a.at))
+            .slice(0, 20)
+            .map((e, i) => (
+              <li key={i} className="flex flex-wrap gap-x-3">
+                <span className="w-44 shrink-0 text-xs text-slate-500">{when(e.at)}</span>
+                <span className={e.bad ? 'text-red-700' : 'text-slate-700'}>{e.text}</span>
+                <span className="text-xs text-slate-400">{e.source}</span>
+              </li>
+            ))}
+        </ul>
+      </div>
+    </div>
+  )
+}
+
+function Overview({ data, canAct }: { data: PlatformOverview; canAct: boolean }) {
   const { totals: t, system: s } = data
   const w = s.worker
   const workerText = !w.known ? 'never reported' : w.stale ? 'stopped' : w.consecutive_errors ? 'failing' : 'running'
@@ -185,6 +349,11 @@ function Overview({ data }: { data: PlatformOverview }) {
             </dd>
           </div>
         </dl>
+      </section>
+
+      <section>
+        <h2 className="mb-3 text-lg font-semibold text-slate-900">Alerts</h2>
+        <Alerts canAct={canAct} />
       </section>
     </div>
   )
@@ -373,6 +542,7 @@ type Tab = 'overview' | 'tenants' | 'audit'
 export default function Platform() {
   const { user } = useAuth()
   const [tab, setTab] = useState<Tab>('overview')
+  const notice = (useLocation().state as { notice?: string } | null)?.notice
   const loadOverview = useCallback(() => api.getPlatformOverview(), [])
   const loadTenants = useCallback(() => api.getPlatformTenants().then((r) => r.tenants), [])
   const overview = useLoad(loadOverview)
@@ -393,6 +563,7 @@ export default function Platform() {
           {user.platform_role === 'operator' ? 'Operator — can act' : 'Viewer — read-only'} · everything you open here is logged
         </span>
       </div>
+      {notice && <p className="mb-4 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900">{notice}</p>}
       <div className="mb-6 flex gap-1 border-b border-slate-200">
         {tabs.map((t) => (
           <button
@@ -407,7 +578,7 @@ export default function Platform() {
         ))}
       </div>
       {(overview.error || tenants.error) && <p className="mb-4 text-sm text-red-600">{overview.error ?? tenants.error}</p>}
-      {tab === 'overview' && (overview.data ? <Overview data={overview.data} /> : !overview.error && <p className="text-sm text-slate-400">Loading…</p>)}
+      {tab === 'overview' && (overview.data ? <Overview data={overview.data} canAct={user.platform_role === 'operator'} /> : !overview.error && <p className="text-sm text-slate-400">Loading…</p>)}
       {tab === 'tenants' && (tenants.data ? <Tenants rows={tenants.data} /> : !tenants.error && <p className="text-sm text-slate-400">Loading…</p>)}
       {tab === 'audit' && <Audit tenants={tenants.data ?? []} />}
     </div>
@@ -439,6 +610,8 @@ export function PlatformTenant() {
   const [actionError, setActionError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [token, setToken] = useState<{ email: string; token: string } | null>(null)
+  const [confirmName, setConfirmName] = useState('')
+  const navigate = useNavigate()
 
   if (!user?.platform_role) return <Navigate to="/" replace />
   const canAct = user.platform_role === 'operator'
@@ -463,6 +636,21 @@ export function PlatformTenant() {
       await api.suspendTenant(cid, reason)
       setReason('')
     }, `Suspend ${data?.tenant.name}? Its users are signed out and its API keys stop working until you reactivate it. Nothing is deleted.`)
+  }
+
+  async function handleDelete(e: FormEvent) {
+    e.preventDefault()
+    if (!data) return
+    if (!window.confirm(`Permanently delete ${data.tenant.name} and all of its data? This cannot be undone from the console.`)) return
+    setActionError(null)
+    setBusy(true)
+    try {
+      const r = await api.deleteTenant(cid, confirmName)
+      navigate('/platform', { replace: true, state: { notice: `${r.name} was deleted: ${r.total_rows} rows. Archive: ${r.archive}` } })
+    } catch (err) {
+      setActionError(errorText(err))
+      setBusy(false)
+    }
   }
 
   if (error) return <p className="text-sm text-red-600">{error}</p>
@@ -527,7 +715,32 @@ export function PlatformTenant() {
                 </button>
               )}
             </div>
-          ) : canAct ? (
+          ) : null}
+          {t.status === 'suspended' && canAct ? (
+            <form onSubmit={handleDelete} className="mt-4 border-t border-slate-200 pt-4">
+              <label htmlFor="confirm-delete" className="mb-1 block text-xs font-medium text-slate-600">
+                Delete this tenant permanently — every account, signal, user and key. An archive is written to the off-box backup
+                first; the audit log is kept. To confirm, type the tenant's name: <span className="font-mono text-slate-900">{t.name}</span>
+              </label>
+              <div className="flex flex-wrap gap-3">
+                <input
+                  id="confirm-delete"
+                  value={confirmName}
+                  onChange={(e) => setConfirmName(e.target.value)}
+                  autoComplete="off"
+                  className="min-w-0 flex-1 rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+                />
+                <button
+                  type="submit"
+                  disabled={busy || confirmName !== t.name}
+                  className="rounded-md bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
+                >
+                  Delete permanently
+                </button>
+              </div>
+            </form>
+          ) : null}
+          {t.status === 'suspended' ? null : canAct ? (
             <form onSubmit={handleSuspend} className="flex flex-wrap items-end gap-3">
               <div className="flex-1">
                 <label className="mb-1 block text-xs font-medium text-slate-600">

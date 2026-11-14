@@ -30,6 +30,14 @@
       "key_expiry_warning_days": 14,
       "process_run_stuck_minutes": 30
     },
+    "alerts": {
+      "_doc": "platform_admin/alerts.py. The topic itself comes from the ALERT_SNS_TOPIC_ARN environment variable.",
+      "alarm_name_prefix": "customerintel",
+      "history_limit": 20,
+      "host_log_path": "/var/log/customerintel/alert.log",
+      "host_log_lines": 400,
+      "aws_timeout_seconds": 4
+    },
     "audit_page_size": 100,
     "audit_max_page_size": 500
   }
