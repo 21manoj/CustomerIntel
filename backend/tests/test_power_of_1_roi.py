@@ -122,11 +122,12 @@ def tenants():
 
 def test_every_catalog_vertical_has_validated_economics():
     from roi import settings
-    from utils.vertical_registry import SUPPORTED_VERTICALS, SIGNALS_ONLY_VERTICALS
+    from utils.vertical_registry import SUPPORTED_VERTICALS, SIGNALS_ONLY_VERTICALS, NO_REVENUE_ECONOMICS_VERTICALS
     # Signals-only verticals (utils/vertical_registry.py) have no health score
     # and no revenue-at-risk economics to validate -- see test_investment_cost.py's
     # matching exclusion for the same reasoning.
-    scored_verticals = SUPPORTED_VERTICALS - SIGNALS_ONLY_VERTICALS
+    # ...and neither do scored verticals with no revenue to price (tprm_v1: the accounts are vendors).
+    scored_verticals = SUPPORTED_VERTICALS - SIGNALS_ONLY_VERTICALS - NO_REVENUE_ECONOMICS_VERTICALS
     assert set(settings.economics_verticals()) >= scored_verticals
     for v in scored_verticals:
         e = settings.economics(v)

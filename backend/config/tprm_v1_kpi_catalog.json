@@ -1,5 +1,1282 @@
 {
+  "version": "1.0",
   "vertical": "tprm_v1",
-  "pillars": {},
-  "kpis": {}
+  "description": "Third-party risk management for a bank: six pillars (Security, Operational resilience, Risk exposure, Compliance, Performance, Governance), 33 KPIs. The 12 marked core are the minimum set; a KPI with no measurement is left out of the score and the remaining weights are rescaled, so a vendor can be scored on the core set alone.",
+  "pillars": {
+    "S": {
+      "name": "Security & Data Protection",
+      "weight_l2": 0.22,
+      "kpi_count": 6
+    },
+    "O": {
+      "name": "Operational Resilience",
+      "weight_l2": 0.2,
+      "kpi_count": 6
+    },
+    "R": {
+      "name": "Risk Exposure",
+      "weight_l2": 0.18,
+      "kpi_count": 5
+    },
+    "C": {
+      "name": "Compliance & Assurance",
+      "weight_l2": 0.18,
+      "kpi_count": 5
+    },
+    "P": {
+      "name": "Performance & Service Delivery",
+      "weight_l2": 0.12,
+      "kpi_count": 6
+    },
+    "G": {
+      "name": "Governance & Oversight",
+      "weight_l2": 0.1,
+      "kpi_count": 5
+    }
+  },
+  "pillar_roles": {
+    "compliance": "C",
+    "reliability": "O"
+  },
+  "pillar_roles_notes": {
+    "S,R,P,G": "Security, Risk exposure, Performance and Governance have no matching role in the shared vocabulary; left unmapped rather than forced."
+  },
+  "kpis": {
+    "S-KPI1": {
+      "name": "External security rating (0-100)",
+      "pillar": "S",
+      "weight_l1": 0.25,
+      "frequency": "monthly",
+      "unit": "score",
+      "higher_is_better": true,
+      "core": true,
+      "data_source": "vendor_risk_register",
+      "data_source_systems": [
+        "BitSight",
+        "SecurityScorecard",
+        "Vendor SOC report"
+      ],
+      "target": {
+        "operator": ">=",
+        "value": 80
+      },
+      "ranges": {
+        "healthy": {
+          "min": 80,
+          "max": 100,
+          "color": "green"
+        },
+        "risk": {
+          "min": 60,
+          "max": 80,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 30,
+          "max": 60,
+          "color": "red"
+        }
+      },
+      "impact": "high"
+    },
+    "S-KPI2": {
+      "name": "Critical / high vulnerabilities past remediation due date",
+      "pillar": "S",
+      "weight_l1": 0.2,
+      "frequency": "monthly",
+      "unit": "count",
+      "higher_is_better": false,
+      "core": true,
+      "data_source": "vendor_risk_register",
+      "data_source_systems": [
+        "BitSight",
+        "SecurityScorecard",
+        "Vendor SOC report",
+        "ServiceNow VRM",
+        "Archer",
+        "OneTrust",
+        "ProcessUnity"
+      ],
+      "target": {
+        "operator": "<=",
+        "value": 0
+      },
+      "ranges": {
+        "healthy": {
+          "min": 0,
+          "max": 0,
+          "color": "green"
+        },
+        "risk": {
+          "min": 0,
+          "max": 3,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 3,
+          "max": 10,
+          "color": "red"
+        }
+      },
+      "impact": "high"
+    },
+    "S-KPI3": {
+      "name": "Open high-severity penetration-test findings",
+      "pillar": "S",
+      "weight_l1": 0.15,
+      "frequency": "quarterly",
+      "unit": "count",
+      "higher_is_better": false,
+      "core": false,
+      "data_source": "vendor_risk_register",
+      "data_source_systems": [
+        "ServiceNow VRM",
+        "Archer",
+        "OneTrust",
+        "ProcessUnity"
+      ],
+      "target": {
+        "operator": "<=",
+        "value": 0
+      },
+      "ranges": {
+        "healthy": {
+          "min": 0,
+          "max": 0,
+          "color": "green"
+        },
+        "risk": {
+          "min": 0,
+          "max": 2,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 2,
+          "max": 6,
+          "color": "red"
+        }
+      },
+      "impact": "medium"
+    },
+    "S-KPI4": {
+      "name": "Time to notify the bank of a security incident",
+      "pillar": "S",
+      "weight_l1": 0.15,
+      "frequency": "quarterly",
+      "unit": "hours",
+      "higher_is_better": false,
+      "core": false,
+      "data_source": "vendor_risk_register",
+      "data_source_systems": [
+        "ServiceNow VRM",
+        "Archer",
+        "OneTrust",
+        "ProcessUnity"
+      ],
+      "target": {
+        "operator": "<=",
+        "value": 24
+      },
+      "ranges": {
+        "healthy": {
+          "min": 0,
+          "max": 24,
+          "color": "green"
+        },
+        "risk": {
+          "min": 24,
+          "max": 72,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 72,
+          "max": 168,
+          "color": "red"
+        }
+      },
+      "impact": "medium"
+    },
+    "S-KPI5": {
+      "name": "Privileged access reviews completed on time",
+      "pillar": "S",
+      "weight_l1": 0.15,
+      "frequency": "quarterly",
+      "unit": "percentage",
+      "higher_is_better": true,
+      "core": false,
+      "data_source": "vendor_risk_register",
+      "data_source_systems": [
+        "ServiceNow VRM",
+        "Archer",
+        "OneTrust",
+        "ProcessUnity"
+      ],
+      "target": {
+        "operator": ">=",
+        "value": 95
+      },
+      "ranges": {
+        "healthy": {
+          "min": 95,
+          "max": 100,
+          "color": "green"
+        },
+        "risk": {
+          "min": 80,
+          "max": 95,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 50,
+          "max": 80,
+          "color": "red"
+        }
+      },
+      "impact": "medium"
+    },
+    "S-KPI6": {
+      "name": "Bank data encrypted at rest and in transit",
+      "pillar": "S",
+      "weight_l1": 0.1,
+      "frequency": "quarterly",
+      "unit": "percentage",
+      "higher_is_better": true,
+      "core": false,
+      "data_source": "vendor_risk_register",
+      "data_source_systems": [
+        "ServiceNow VRM",
+        "Archer",
+        "OneTrust",
+        "ProcessUnity"
+      ],
+      "target": {
+        "operator": ">=",
+        "value": 100
+      },
+      "ranges": {
+        "healthy": {
+          "min": 100,
+          "max": 100,
+          "color": "green"
+        },
+        "risk": {
+          "min": 95,
+          "max": 100,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 80,
+          "max": 95,
+          "color": "red"
+        }
+      },
+      "impact": "medium"
+    },
+    "O-KPI1": {
+      "name": "Recovery tests that met the agreed RTO / RPO",
+      "pillar": "O",
+      "weight_l1": 0.25,
+      "frequency": "quarterly",
+      "unit": "percentage",
+      "higher_is_better": true,
+      "core": true,
+      "data_source": "vendor_risk_register",
+      "data_source_systems": [
+        "ServiceNow VRM",
+        "Archer",
+        "OneTrust",
+        "ProcessUnity"
+      ],
+      "target": {
+        "operator": ">=",
+        "value": 95
+      },
+      "ranges": {
+        "healthy": {
+          "min": 95,
+          "max": 100,
+          "color": "green"
+        },
+        "risk": {
+          "min": 75,
+          "max": 95,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 40,
+          "max": 75,
+          "color": "red"
+        }
+      },
+      "impact": "high"
+    },
+    "O-KPI2": {
+      "name": "Severity 1-2 incidents, trailing 90 days",
+      "pillar": "O",
+      "weight_l1": 0.2,
+      "frequency": "monthly",
+      "unit": "count",
+      "higher_is_better": false,
+      "core": true,
+      "data_source": "vendor_risk_register",
+      "data_source_systems": [
+        "ServiceNow",
+        "Vendor service reports"
+      ],
+      "target": {
+        "operator": "<=",
+        "value": 0
+      },
+      "ranges": {
+        "healthy": {
+          "min": 0,
+          "max": 0,
+          "color": "green"
+        },
+        "risk": {
+          "min": 0,
+          "max": 2,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 2,
+          "max": 6,
+          "color": "red"
+        }
+      },
+      "impact": "high"
+    },
+    "O-KPI3": {
+      "name": "Mean time to restore service",
+      "pillar": "O",
+      "weight_l1": 0.2,
+      "frequency": "monthly",
+      "unit": "hours",
+      "higher_is_better": false,
+      "core": false,
+      "data_source": "vendor_risk_register",
+      "data_source_systems": [
+        "ServiceNow",
+        "Vendor service reports"
+      ],
+      "target": {
+        "operator": "<=",
+        "value": 4
+      },
+      "ranges": {
+        "healthy": {
+          "min": 0,
+          "max": 4,
+          "color": "green"
+        },
+        "risk": {
+          "min": 4,
+          "max": 12,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 12,
+          "max": 48,
+          "color": "red"
+        }
+      },
+      "impact": "medium"
+    },
+    "O-KPI4": {
+      "name": "Exit / substitution plan tested in the last 12 months",
+      "pillar": "O",
+      "weight_l1": 0.15,
+      "frequency": "quarterly",
+      "unit": "percentage",
+      "higher_is_better": true,
+      "core": false,
+      "data_source": "vendor_risk_register",
+      "data_source_systems": [
+        "ServiceNow VRM",
+        "Archer",
+        "OneTrust",
+        "ProcessUnity"
+      ],
+      "target": {
+        "operator": ">=",
+        "value": 90
+      },
+      "ranges": {
+        "healthy": {
+          "min": 90,
+          "max": 100,
+          "color": "green"
+        },
+        "risk": {
+          "min": 50,
+          "max": 90,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 0,
+          "max": 50,
+          "color": "red"
+        }
+      },
+      "impact": "medium"
+    },
+    "O-KPI5": {
+      "name": "Fourth parties disclosed and assessed",
+      "pillar": "O",
+      "weight_l1": 0.1,
+      "frequency": "quarterly",
+      "unit": "percentage",
+      "higher_is_better": true,
+      "core": false,
+      "data_source": "vendor_risk_register",
+      "data_source_systems": [
+        "ServiceNow VRM",
+        "Archer",
+        "OneTrust",
+        "ProcessUnity"
+      ],
+      "target": {
+        "operator": ">=",
+        "value": 90
+      },
+      "ranges": {
+        "healthy": {
+          "min": 90,
+          "max": 100,
+          "color": "green"
+        },
+        "risk": {
+          "min": 60,
+          "max": 90,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 20,
+          "max": 60,
+          "color": "red"
+        }
+      },
+      "impact": "medium"
+    },
+    "O-KPI6": {
+      "name": "Days since the last business-continuity test",
+      "pillar": "O",
+      "weight_l1": 0.1,
+      "frequency": "monthly",
+      "unit": "days",
+      "higher_is_better": false,
+      "core": false,
+      "data_source": "vendor_risk_register",
+      "data_source_systems": [
+        "ServiceNow VRM",
+        "Archer",
+        "OneTrust",
+        "ProcessUnity"
+      ],
+      "target": {
+        "operator": "<=",
+        "value": 365
+      },
+      "ranges": {
+        "healthy": {
+          "min": 0,
+          "max": 365,
+          "color": "green"
+        },
+        "risk": {
+          "min": 365,
+          "max": 540,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 540,
+          "max": 900,
+          "color": "red"
+        }
+      },
+      "impact": "medium"
+    },
+    "R-KPI1": {
+      "name": "Financial stability score (0-100)",
+      "pillar": "R",
+      "weight_l1": 0.3,
+      "frequency": "quarterly",
+      "unit": "score",
+      "higher_is_better": true,
+      "core": true,
+      "data_source": "vendor_risk_register",
+      "data_source_systems": [
+        "Dun & Bradstreet",
+        "RapidRatings",
+        "Moody's"
+      ],
+      "target": {
+        "operator": ">=",
+        "value": 70
+      },
+      "ranges": {
+        "healthy": {
+          "min": 70,
+          "max": 100,
+          "color": "green"
+        },
+        "risk": {
+          "min": 40,
+          "max": 70,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 10,
+          "max": 40,
+          "color": "red"
+        }
+      },
+      "impact": "high"
+    },
+    "R-KPI2": {
+      "name": "Open critical / high risk findings past due",
+      "pillar": "R",
+      "weight_l1": 0.25,
+      "frequency": "monthly",
+      "unit": "count",
+      "higher_is_better": false,
+      "core": true,
+      "data_source": "vendor_risk_register",
+      "data_source_systems": [
+        "ServiceNow VRM",
+        "Archer",
+        "OneTrust",
+        "ProcessUnity"
+      ],
+      "target": {
+        "operator": "<=",
+        "value": 0
+      },
+      "ranges": {
+        "healthy": {
+          "min": 0,
+          "max": 0,
+          "color": "green"
+        },
+        "risk": {
+          "min": 0,
+          "max": 3,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 3,
+          "max": 10,
+          "color": "red"
+        }
+      },
+      "impact": "high"
+    },
+    "R-KPI3": {
+      "name": "Concentration: share of the service that depends on this vendor",
+      "pillar": "R",
+      "weight_l1": 0.2,
+      "frequency": "quarterly",
+      "unit": "percentage",
+      "higher_is_better": false,
+      "core": false,
+      "data_source": "vendor_risk_register",
+      "data_source_systems": [
+        "ServiceNow VRM",
+        "Archer",
+        "OneTrust",
+        "ProcessUnity"
+      ],
+      "target": {
+        "operator": "<=",
+        "value": 50
+      },
+      "ranges": {
+        "healthy": {
+          "min": 0,
+          "max": 50,
+          "color": "green"
+        },
+        "risk": {
+          "min": 50,
+          "max": 80,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 80,
+          "max": 100,
+          "color": "red"
+        }
+      },
+      "impact": "medium"
+    },
+    "R-KPI4": {
+      "name": "Adverse media events, trailing 12 months",
+      "pillar": "R",
+      "weight_l1": 0.15,
+      "frequency": "monthly",
+      "unit": "count",
+      "higher_is_better": false,
+      "core": false,
+      "data_source": "vendor_risk_register",
+      "data_source_systems": [
+        "Dow Jones Risk",
+        "LexisNexis",
+        "Refinitiv World-Check"
+      ],
+      "target": {
+        "operator": "<=",
+        "value": 0
+      },
+      "ranges": {
+        "healthy": {
+          "min": 0,
+          "max": 0,
+          "color": "green"
+        },
+        "risk": {
+          "min": 0,
+          "max": 2,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 2,
+          "max": 6,
+          "color": "red"
+        }
+      },
+      "impact": "medium"
+    },
+    "R-KPI5": {
+      "name": "Residual risk rating: steps worsened in 12 months",
+      "pillar": "R",
+      "weight_l1": 0.1,
+      "frequency": "quarterly",
+      "unit": "count",
+      "higher_is_better": false,
+      "core": false,
+      "data_source": "vendor_risk_register",
+      "data_source_systems": [
+        "ServiceNow VRM",
+        "Archer",
+        "OneTrust",
+        "ProcessUnity"
+      ],
+      "target": {
+        "operator": "<=",
+        "value": 0
+      },
+      "ranges": {
+        "healthy": {
+          "min": 0,
+          "max": 0,
+          "color": "green"
+        },
+        "risk": {
+          "min": 0,
+          "max": 2,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 2,
+          "max": 4,
+          "color": "red"
+        }
+      },
+      "impact": "medium"
+    },
+    "C-KPI1": {
+      "name": "Independent assurance report: days until it expires",
+      "pillar": "C",
+      "weight_l1": 0.25,
+      "frequency": "monthly",
+      "unit": "days",
+      "higher_is_better": true,
+      "core": true,
+      "data_source": "vendor_risk_register",
+      "data_source_systems": [
+        "ServiceNow VRM",
+        "Archer",
+        "OneTrust",
+        "ProcessUnity"
+      ],
+      "target": {
+        "operator": ">=",
+        "value": 90
+      },
+      "ranges": {
+        "healthy": {
+          "min": 90,
+          "max": 365,
+          "color": "green"
+        },
+        "risk": {
+          "min": 0,
+          "max": 90,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": -180,
+          "max": 0,
+          "color": "red"
+        }
+      },
+      "impact": "high"
+    },
+    "C-KPI2": {
+      "name": "Regulatory / audit findings open past due",
+      "pillar": "C",
+      "weight_l1": 0.25,
+      "frequency": "monthly",
+      "unit": "count",
+      "higher_is_better": false,
+      "core": true,
+      "data_source": "vendor_risk_register",
+      "data_source_systems": [
+        "ServiceNow VRM",
+        "Archer",
+        "OneTrust",
+        "ProcessUnity"
+      ],
+      "target": {
+        "operator": "<=",
+        "value": 0
+      },
+      "ranges": {
+        "healthy": {
+          "min": 0,
+          "max": 0,
+          "color": "green"
+        },
+        "risk": {
+          "min": 0,
+          "max": 2,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 2,
+          "max": 6,
+          "color": "red"
+        }
+      },
+      "impact": "high"
+    },
+    "C-KPI3": {
+      "name": "Attestations and questionnaires returned on time",
+      "pillar": "C",
+      "weight_l1": 0.2,
+      "frequency": "quarterly",
+      "unit": "percentage",
+      "higher_is_better": true,
+      "core": false,
+      "data_source": "vendor_risk_register",
+      "data_source_systems": [
+        "ServiceNow VRM",
+        "Archer",
+        "OneTrust",
+        "ProcessUnity"
+      ],
+      "target": {
+        "operator": ">=",
+        "value": 95
+      },
+      "ranges": {
+        "healthy": {
+          "min": 95,
+          "max": 100,
+          "color": "green"
+        },
+        "risk": {
+          "min": 75,
+          "max": 95,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 30,
+          "max": 75,
+          "color": "red"
+        }
+      },
+      "impact": "medium"
+    },
+    "C-KPI4": {
+      "name": "Data-protection obligations met",
+      "pillar": "C",
+      "weight_l1": 0.15,
+      "frequency": "quarterly",
+      "unit": "percentage",
+      "higher_is_better": true,
+      "core": false,
+      "data_source": "vendor_risk_register",
+      "data_source_systems": [
+        "ServiceNow VRM",
+        "Archer",
+        "OneTrust",
+        "ProcessUnity"
+      ],
+      "target": {
+        "operator": ">=",
+        "value": 95
+      },
+      "ranges": {
+        "healthy": {
+          "min": 95,
+          "max": 100,
+          "color": "green"
+        },
+        "risk": {
+          "min": 80,
+          "max": 95,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 40,
+          "max": 80,
+          "color": "red"
+        }
+      },
+      "impact": "medium"
+    },
+    "C-KPI5": {
+      "name": "Sanctions and adverse-media screening current",
+      "pillar": "C",
+      "weight_l1": 0.15,
+      "frequency": "monthly",
+      "unit": "percentage",
+      "higher_is_better": true,
+      "core": false,
+      "data_source": "vendor_risk_register",
+      "data_source_systems": [
+        "Refinitiv World-Check",
+        "LexisNexis"
+      ],
+      "target": {
+        "operator": ">=",
+        "value": 100
+      },
+      "ranges": {
+        "healthy": {
+          "min": 100,
+          "max": 100,
+          "color": "green"
+        },
+        "risk": {
+          "min": 95,
+          "max": 100,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 80,
+          "max": 95,
+          "color": "red"
+        }
+      },
+      "impact": "medium"
+    },
+    "P-KPI1": {
+      "name": "SLA attainment",
+      "pillar": "P",
+      "weight_l1": 0.3,
+      "frequency": "monthly",
+      "unit": "percentage",
+      "higher_is_better": true,
+      "core": true,
+      "data_source": "vendor_risk_register",
+      "data_source_systems": [
+        "ServiceNow",
+        "Vendor service reports"
+      ],
+      "target": {
+        "operator": ">=",
+        "value": 99
+      },
+      "ranges": {
+        "healthy": {
+          "min": 99,
+          "max": 100,
+          "color": "green"
+        },
+        "risk": {
+          "min": 95,
+          "max": 99,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 85,
+          "max": 95,
+          "color": "red"
+        }
+      },
+      "impact": "high"
+    },
+    "P-KPI2": {
+      "name": "Delivery milestones met on time",
+      "pillar": "P",
+      "weight_l1": 0.2,
+      "frequency": "quarterly",
+      "unit": "percentage",
+      "higher_is_better": true,
+      "core": false,
+      "data_source": "vendor_risk_register",
+      "data_source_systems": [
+        "ServiceNow",
+        "Vendor service reports"
+      ],
+      "target": {
+        "operator": ">=",
+        "value": 90
+      },
+      "ranges": {
+        "healthy": {
+          "min": 90,
+          "max": 100,
+          "color": "green"
+        },
+        "risk": {
+          "min": 70,
+          "max": 90,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 30,
+          "max": 70,
+          "color": "red"
+        }
+      },
+      "impact": "medium"
+    },
+    "P-KPI3": {
+      "name": "Service credits / penalties triggered, trailing 90 days",
+      "pillar": "P",
+      "weight_l1": 0.15,
+      "frequency": "monthly",
+      "unit": "count",
+      "higher_is_better": false,
+      "core": false,
+      "data_source": "vendor_risk_register",
+      "data_source_systems": [
+        "ServiceNow",
+        "Vendor service reports"
+      ],
+      "target": {
+        "operator": "<=",
+        "value": 0
+      },
+      "ranges": {
+        "healthy": {
+          "min": 0,
+          "max": 0,
+          "color": "green"
+        },
+        "risk": {
+          "min": 0,
+          "max": 2,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 2,
+          "max": 6,
+          "color": "red"
+        }
+      },
+      "impact": "medium"
+    },
+    "P-KPI4": {
+      "name": "Service complaints, trailing 90 days",
+      "pillar": "P",
+      "weight_l1": 0.15,
+      "frequency": "monthly",
+      "unit": "count",
+      "higher_is_better": false,
+      "core": true,
+      "data_source": "vendor_risk_register",
+      "data_source_systems": [
+        "ServiceNow",
+        "Vendor service reports"
+      ],
+      "target": {
+        "operator": "<=",
+        "value": 2
+      },
+      "ranges": {
+        "healthy": {
+          "min": 0,
+          "max": 2,
+          "color": "green"
+        },
+        "risk": {
+          "min": 2,
+          "max": 8,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 8,
+          "max": 20,
+          "color": "red"
+        }
+      },
+      "impact": "high"
+    },
+    "P-KPI5": {
+      "name": "Response time to the bank's requests",
+      "pillar": "P",
+      "weight_l1": 0.1,
+      "frequency": "monthly",
+      "unit": "business_days",
+      "higher_is_better": false,
+      "core": false,
+      "data_source": "vendor_risk_register",
+      "data_source_systems": [
+        "ServiceNow",
+        "Vendor service reports"
+      ],
+      "target": {
+        "operator": "<=",
+        "value": 2
+      },
+      "ranges": {
+        "healthy": {
+          "min": 0,
+          "max": 2,
+          "color": "green"
+        },
+        "risk": {
+          "min": 2,
+          "max": 5,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 5,
+          "max": 15,
+          "color": "red"
+        }
+      },
+      "impact": "medium"
+    },
+    "P-KPI6": {
+      "name": "Business stakeholder satisfaction (1-5)",
+      "pillar": "P",
+      "weight_l1": 0.1,
+      "frequency": "quarterly",
+      "unit": "score",
+      "higher_is_better": true,
+      "core": false,
+      "data_source": "vendor_risk_register",
+      "data_source_systems": [
+        "Stakeholder survey"
+      ],
+      "target": {
+        "operator": ">=",
+        "value": 4.0
+      },
+      "ranges": {
+        "healthy": {
+          "min": 4.0,
+          "max": 5.0,
+          "color": "green"
+        },
+        "risk": {
+          "min": 3.0,
+          "max": 4.0,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 1.0,
+          "max": 3.0,
+          "color": "red"
+        }
+      },
+      "impact": "medium"
+    },
+    "G-KPI1": {
+      "name": "Contract contains the required clauses (audit, exit, data, subcontracting)",
+      "pillar": "G",
+      "weight_l1": 0.3,
+      "frequency": "quarterly",
+      "unit": "percentage",
+      "higher_is_better": true,
+      "core": false,
+      "data_source": "vendor_risk_register",
+      "data_source_systems": [
+        "Contract management system",
+        "ServiceNow VRM",
+        "Archer",
+        "OneTrust",
+        "ProcessUnity"
+      ],
+      "target": {
+        "operator": ">=",
+        "value": 95
+      },
+      "ranges": {
+        "healthy": {
+          "min": 95,
+          "max": 100,
+          "color": "green"
+        },
+        "risk": {
+          "min": 80,
+          "max": 95,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 40,
+          "max": 80,
+          "color": "red"
+        }
+      },
+      "impact": "medium"
+    },
+    "G-KPI2": {
+      "name": "Periodic vendor reviews held on time",
+      "pillar": "G",
+      "weight_l1": 0.25,
+      "frequency": "quarterly",
+      "unit": "percentage",
+      "higher_is_better": true,
+      "core": true,
+      "data_source": "vendor_risk_register",
+      "data_source_systems": [
+        "ServiceNow VRM",
+        "Archer",
+        "OneTrust",
+        "ProcessUnity"
+      ],
+      "target": {
+        "operator": ">=",
+        "value": 90
+      },
+      "ranges": {
+        "healthy": {
+          "min": 90,
+          "max": 100,
+          "color": "green"
+        },
+        "risk": {
+          "min": 70,
+          "max": 90,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 30,
+          "max": 70,
+          "color": "red"
+        }
+      },
+      "impact": "high"
+    },
+    "G-KPI3": {
+      "name": "Days since the last due-diligence refresh",
+      "pillar": "G",
+      "weight_l1": 0.2,
+      "frequency": "monthly",
+      "unit": "days",
+      "higher_is_better": false,
+      "core": true,
+      "data_source": "vendor_risk_register",
+      "data_source_systems": [
+        "ServiceNow VRM",
+        "Archer",
+        "OneTrust",
+        "ProcessUnity"
+      ],
+      "target": {
+        "operator": "<=",
+        "value": 365
+      },
+      "ranges": {
+        "healthy": {
+          "min": 0,
+          "max": 365,
+          "color": "green"
+        },
+        "risk": {
+          "min": 365,
+          "max": 540,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 540,
+          "max": 900,
+          "color": "red"
+        }
+      },
+      "impact": "high"
+    },
+    "G-KPI4": {
+      "name": "Named relationship owner and risk owner in place",
+      "pillar": "G",
+      "weight_l1": 0.15,
+      "frequency": "quarterly",
+      "unit": "percentage",
+      "higher_is_better": true,
+      "core": false,
+      "data_source": "vendor_risk_register",
+      "data_source_systems": [
+        "ServiceNow VRM",
+        "Archer",
+        "OneTrust",
+        "ProcessUnity"
+      ],
+      "target": {
+        "operator": ">=",
+        "value": 100
+      },
+      "ranges": {
+        "healthy": {
+          "min": 100,
+          "max": 100,
+          "color": "green"
+        },
+        "risk": {
+          "min": 100,
+          "max": 100,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 0,
+          "max": 100,
+          "color": "red"
+        }
+      },
+      "impact": "medium"
+    },
+    "G-KPI5": {
+      "name": "Issues escalated to the oversight committee within policy",
+      "pillar": "G",
+      "weight_l1": 0.1,
+      "frequency": "quarterly",
+      "unit": "percentage",
+      "higher_is_better": true,
+      "core": false,
+      "data_source": "vendor_risk_register",
+      "data_source_systems": [
+        "ServiceNow VRM",
+        "Archer",
+        "OneTrust",
+        "ProcessUnity"
+      ],
+      "target": {
+        "operator": ">=",
+        "value": 95
+      },
+      "ranges": {
+        "healthy": {
+          "min": 95,
+          "max": 100,
+          "color": "green"
+        },
+        "risk": {
+          "min": 80,
+          "max": 95,
+          "color": "yellow"
+        },
+        "critical": {
+          "min": 40,
+          "max": 80,
+          "color": "red"
+        }
+      },
+      "impact": "medium"
+    }
+  }
 }

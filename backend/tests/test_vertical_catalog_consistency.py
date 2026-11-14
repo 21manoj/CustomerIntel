@@ -285,9 +285,8 @@ def test_partner_portal_gate_condition_matches_every_registered_vertical():
         # validation test) has no channel/reseller motion by design — see
         # config/manufacturing_iot_kpi_catalog.json's pillar_roles_notes.
         'manufacturing_iot': None,
-        # tprm_v1 (Evidence Graph Platform TPRM pilot) is signals-only -- no
-        # pillars registered at all, so no partner pillar either. See
-        # SIGNALS_ONLY_VERTICALS above.
+        # tprm_v1: six pillars (S, O, R, C, P, G) since 2026-11; the accounts
+        # are a bank's vendors, so there is no channel/partner pillar.
         'tprm_v1': None,
     }
 

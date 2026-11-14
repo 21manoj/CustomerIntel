@@ -58,7 +58,9 @@ def score_kpi(value: float, kpi_def: dict) -> float:
     SCORE_AT_TARGET = ht.healthy_min()   # 70
     SCORE_AT_RISK = ht.at_risk_min()     # 50
 
-    if ranges and target:
+    # `target is not None`, not `target`: a target of 0 is real ("0 findings past due") and used to fall
+    # through to `score = value`, so three overdue findings scored 3 and none scored 0.
+    if ranges and target is not None:
         healthy_range = ranges.get('healthy', {})
         critical_range = ranges.get('critical', {})
         risk_range = ranges.get('risk', {})
