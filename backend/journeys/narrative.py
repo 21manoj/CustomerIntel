@@ -101,7 +101,7 @@ def _phrase(ep: dict) -> str:
         return _lc(text) + _person(meta, text)
     if ep['kind'] == 'outcome':
         rev = ep.get('revenue')
-        amt = f" (${abs(rev):,.0f} {ep.get('revenue_bucket') or ''})".rstrip() if rev is not None else ''
+        amt = f" (${abs(rev):,.0f} {ep.get('revenue_bucket') or ''})".rstrip() if rev else ''
         return _lc(_strip_suffix(ep.get('title') or 'an outcome')) + amt
     if ep['kind'] == 'health_transition':
         return f"health moved from {meta.get('from')} to {meta.get('to')} ({meta.get('health_score')})"
@@ -146,14 +146,18 @@ def _t_phase_open(phase: dict, by_id: Dict[str, dict], account: str, first: bool
     trig = by_id.get(phase.get('trigger_episode_id') or '')
     if not trig:
         return None
-    name = phase['name'].replace('_', ' ')
+    # the label, not the key: a health-based 'intervention' phase nobody intervened in is labelled 'critical'
+    name = (phase.get('label') or phase['name']).replace('_', ' ')
+    critical = name == 'critical'
     when = _month(phase['entered_at'])
     if first and phase.get('health_start') is None:
         text = (f"From {when} {account} is read from evidence alone (no KPI layer); the first thing it showed was "
                 f"{_ROLE_VERB.get(trig.get('role'), 'activity')}: {_phrase(trig)}.")
     elif first:
-        text = (f"From {when} {account} was in {name} on the numbers ({phase.get('health_start')}) "
+        text = (f"From {when} {account} was in {'the critical band' if critical else name} on the numbers ({phase.get('health_start')}) "
                 f"while the evidence already showed {_ROLE_VERB.get(trig.get('role'), 'activity')}: {_phrase(trig)}.")
+    elif critical:
+        text = f"Health fell into the critical band in {when} ({phase.get('health_start')}) with {_phrase(trig)}; no intervention is recorded in this period."
     else:
         text = f"{name.capitalize()} began in {when} with {_phrase(trig)}."
     return text, _twins(trig, episodes)
@@ -169,7 +173,20 @@ def _t_first_warning(lvt: dict, by_id: Dict[str, dict], evidence_only: bool = Fa
         return None
     trailing = lvt.get('first_trailing_warning_at')
     if trailing and lvt.get('lead_days') is not None:
-        tail = f"the KPI score crossed at-risk in {_month(trailing)}, {lvt['lead_days']} days later"
+        # The trailing layer's warning line is the critical floor, so that is the word. And the gap is only
+        # a LEAD when the leading layer came first and the KPIs still read healthy at the time -- otherwise
+        # the sentence says so instead of claiming days it did not earn.
+        days = lvt['lead_days']
+        if days > 0:
+            tail = f"the KPI score fell into the critical band in {_month(trailing)}, {days} days later"
+            at_flag, healthy = lvt.get('trailing_at_first_leading'), lvt.get('trailing_healthy_threshold')
+            if at_flag is not None and healthy is not None and at_flag < healthy:
+                tail += f" (the KPI score was already in the at-risk band, at {at_flag}, when the leading layer flagged)"
+        elif days == 0:
+            tail = f"the KPI score fell into the critical band in the same month, so the leading layer gave no advance warning"
+        else:
+            tail = (f"the KPI score had already fallen into the critical band in {_month(trailing)}, {-days} days earlier, "
+                    f"so the leading layer did not lead here")
     elif evidence_only:
         # no trailing layer exists to compare against -- 'never fell into the critical
         # band' would claim a KPI score that isn't there (found on tprm_v1, a KPI-less
@@ -294,7 +311,7 @@ def _chapters_for(journey: dict, episodes: List[dict]) -> List[dict]:
     for i, ph in enumerate(phases):
         start, end = _d(ph['entered_at']), _d(ph.get('exited_at'))
         eps = [e for e in episodes if _d(e['date']) >= start and (end is None or _d(e['date']) < end or i == len(phases) - 1)]
-        out.append({'phase': ph['name'], 'from': ph['entered_at'][:10], 'to': (ph.get('exited_at') or '')[:10] or None,
+        out.append({'phase': ph['name'], 'label': ph.get('label') or ph['name'], 'from': ph['entered_at'][:10], 'to': (ph.get('exited_at') or '')[:10] or None,
                     'episodes': eps, '_phase': ph})
     # evidence before the first scored phase belongs to the opening chapter
     first_start = _d(phases[0]['entered_at'])
@@ -359,7 +376,7 @@ def build_narrative(journey: dict, rejected: Optional[List[dict]] = None) -> dic
         for mk, eps in by_month.items():
             add(_t_month_events(mk, _collapse(eps)), 'month_events')
 
-        chapters.append({'phase': ch['phase'], 'from': ch['from'], 'to': ch['to'], 'sentences': sentences})
+        chapters.append({'phase': ch['phase'], 'label': ch.get('label') or ch['phase'], 'from': ch['from'], 'to': ch['to'], 'sentences': sentences})
 
     # evidence after the last scored month — its own closing chapter
     if live_eps:
@@ -401,9 +418,19 @@ def build_narrative(journey: dict, rejected: Optional[List[dict]] = None) -> dic
         omitted.append({'reason': 'no_citation', 'template': 'arc_statement',
                         'note': f"state {journey['arc']['state']}: {journey['arc'].get('reason') or 'no rule satisfied'}"})
 
+    # a closed account says so, plainly, before anything forward-looking
+    life = journey.get('lifecycle') or {}
+    if life.get('status') == 'closed' and life.get('by') in by_id:
+        chapters[-1]['sentences'].append({
+            'text': (f"The relationship ended on {_day(life.get('closed_at'))}: {_phrase(by_id[life['by']])}. "
+                     f"{account} is closed; nothing is forecast for it."),
+            'cites': [life['by']], 'template': 'account_closed'})
+
     # the forecast, after the arc: the forward reading of the evidence above
-    res = _t_forecast(journey, by_id)
-    if res:
+    res = None if life.get('status') == 'closed' else _t_forecast(journey, by_id)
+    if life.get('status') == 'closed':
+        omitted.append({'reason': 'account_closed', 'template': 'forecast_statement', 'note': 'the account is closed; no forecast sentence is written'})
+    elif res:
         chapters[-1]['sentences'].append({'text': res[0], 'cites': res[1], 'template': 'forecast_statement'})
     elif (journey.get('forecast') or {}).get('status') == 'forecast':
         omitted.append({'reason': 'no_citation', 'template': 'forecast_statement',

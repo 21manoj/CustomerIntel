@@ -555,7 +555,7 @@ export default function AccountDetail() {
             {journey.narrative.chapters.map((ch, i) => (
               <div key={i}>
                 <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
-                  {ch.phase} {ch.from && `· from ${day(ch.from)}`} {ch.to && `to ${day(ch.to)}`}
+                  {ch.label ?? ch.phase} {ch.from && `· from ${day(ch.from)}`} {ch.to && `to ${day(ch.to)}`}
                 </p>
                 <div className="mt-1 space-y-2">
                   {ch.sentences.map((s, j) => (
@@ -571,6 +571,17 @@ export default function AccountDetail() {
           {journey.narrative.omitted.length > 0 && (
             <p className="mt-3 text-xs text-slate-400">{journey.narrative.omitted.length} sentence(s) omitted for lack of citation.</p>
           )}
+        </div>
+      )}
+
+      {/* Closed account: say so instead of showing a forecast */}
+      {(forecast?.status === 'closed' || journey?.lifecycle?.status === 'closed') && (
+        <div className="rounded-lg border border-slate-200 bg-slate-50 p-5">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Account closed</h2>
+          <p className="mt-1 text-sm text-slate-700">
+            {journey?.lifecycle?.title ?? 'The relationship has ended'}
+            {journey?.lifecycle?.closed_at ? ` (${day(journey.lifecycle.closed_at)})` : ''}. Nothing is forecast or proposed for it.
+          </p>
         </div>
       )}
 

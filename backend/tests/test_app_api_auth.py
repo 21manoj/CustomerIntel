@@ -147,7 +147,11 @@ def test_session_round_trip_tamper_and_expiry(db_ctx, monkeypatch):
         u = _mk_user(password='pw', customer_id=db_ctx)
         token = auth.sign_session(u.user_id)
         assert auth.verify_session(token).user_id == u.user_id
-        assert auth.verify_session(token[:-1] + ('a' if token[-1] != 'a' else 'b')) is None
+        # Tamper a character in the MIDDLE of the signature. The last base64 character of a 20-byte
+        # signature carries two unused bits, so swapping it can decode to the same bytes — this
+        # test used to fail about one run in four for that reason, not because of the code.
+        i = len(token) - 10
+        assert auth.verify_session(token[:i] + ('a' if token[i] != 'a' else 'b') + token[i + 1:]) is None
         assert auth.verify_session(None) is None
         assert auth.verify_session('garbage') is None
 

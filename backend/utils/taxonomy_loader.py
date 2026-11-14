@@ -43,6 +43,7 @@ _ALLOWED_TOP_KEYS = {
     'polarity_ambiguous_signal_subtypes',
     'revenue_buckets',
     'auto_recovery_outcome_subtypes',
+    'account_ending_outcome_subtypes',
     'signal_roles',
     'signal_role_definitions',
     'signal_examples',
@@ -79,6 +80,10 @@ class Taxonomy:
     polarity_ambiguous_signal_subtypes: FrozenSet[str]
     revenue_bucket_map: Dict[str, FrozenSet[str]] = field(default_factory=dict)
     auto_recovery_outcome_subtypes: FrozenSet[str] = field(default_factory=frozenset)
+    # Outcomes that END the relationship (churned, vendor terminated). Narrower than the 'lost'
+    # revenue bucket, which also holds partial losses (contraction, a lost refresh) that leave
+    # the account live. Journeys mark the account closed on these; forecasts stop.
+    account_ending_outcome_subtypes: FrozenSet[str] = field(default_factory=frozenset)
     signal_roles: Dict[str, FrozenSet[str]] = field(default_factory=dict)
     signal_role_map: Dict[str, str] = field(default_factory=dict)  # subtype -> role
     role_definitions: Dict[str, Dict[str, str]] = field(default_factory=dict)   # role -> {is, not}
@@ -142,6 +147,7 @@ def _validate_structural(data: dict, filename: str, is_overlay: bool) -> None:
         'polarity_ambiguous_outcome_subtypes',
         'polarity_ambiguous_signal_subtypes',
         'auto_recovery_outcome_subtypes',
+        'account_ending_outcome_subtypes',
     ):
         if list_key in data:
             value = data[list_key]
@@ -275,6 +281,7 @@ def _merge(base: dict, overlay: Optional[dict]) -> Taxonomy:
     ambig_outcome = set(_get_list(base, 'polarity_ambiguous_outcome_subtypes'))
     ambig_signal = set(_get_list(base, 'polarity_ambiguous_signal_subtypes'))
     auto_recovery = set(_get_list(base, 'auto_recovery_outcome_subtypes'))
+    account_ending = set(_get_list(base, 'account_ending_outcome_subtypes'))
     buckets: Dict[str, set] = {
         bk: set(subs) for bk, subs in base.get('revenue_buckets', {}).items()
     }
@@ -288,11 +295,17 @@ def _merge(base: dict, overlay: Optional[dict]) -> Taxonomy:
         ambig_outcome.update(_get_list(overlay, 'polarity_ambiguous_outcome_subtypes'))
         ambig_signal.update(_get_list(overlay, 'polarity_ambiguous_signal_subtypes'))
         auto_recovery.update(_get_list(overlay, 'auto_recovery_outcome_subtypes'))
+        account_ending.update(_get_list(overlay, 'account_ending_outcome_subtypes'))
         for bk, subs in overlay.get('revenue_buckets', {}).items():
             buckets.setdefault(bk, set()).update(subs)
         for role, subs in (overlay.get('signal_roles') or {}).items():
             if not role.startswith('_'):
                 roles.setdefault(role, set()).update(subs)
+
+    not_lost = account_ending - buckets.get('lost', set())
+    if not_lost:
+        raise TaxonomyValidationError(
+            f'account_ending_outcome_subtypes must all be in the "lost" revenue bucket: {sorted(not_lost)}')
 
     role_map = {s: role for role, subs in roles.items() for s in subs}
     definitions = {r: d for r, d in (base.get('signal_role_definitions') or {}).items() if not r.startswith('_')}
@@ -315,6 +328,7 @@ def _merge(base: dict, overlay: Optional[dict]) -> Taxonomy:
         polarity_ambiguous_signal_subtypes=frozenset(ambig_signal),
         revenue_bucket_map={bk: frozenset(subs) for bk, subs in buckets.items()},
         auto_recovery_outcome_subtypes=frozenset(auto_recovery),
+        account_ending_outcome_subtypes=frozenset(account_ending),
         signal_roles={role: frozenset(subs) for role, subs in roles.items()},
         signal_role_map=role_map,
         role_definitions=definitions,

@@ -168,6 +168,10 @@ def evaluate(customer_id: int, account_id: Optional[int] = None, dry_run: bool =
         acct = db.session.get(Account, jd.account_id)
         journey = jd.journey_json or {}
         as_of = journey.get('as_of')
+        if (journey.get('lifecycle') or {}).get('status') == 'closed':
+            # nobody is asked to save a customer who has already left, or to remediate a terminated vendor
+            out['skipped'].append({'account_id': jd.account_id, 'playbook_id': None, 'reason': 'account_closed'})
+            continue
         for pb in defs['playbooks']:
             fires, reason, cited, urgency = _match(pb, journey, urgencies)
             if not fires:

@@ -101,6 +101,15 @@
       "uniqueItems": true,
       "description": "Load-driver concern. Outcome subtypes that get auto-wired from the account's auto_recovery_* signal when no explicit edge exists."
     },
+    "account_ending_outcome_subtypes": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z_]+$"
+      },
+      "uniqueItems": true,
+      "description": "Outcome subtypes that end the relationship (churned, vendor terminated). Narrower than the lost bucket, which also holds partial losses. Each must be in the lost bucket. Journeys mark the account closed; forecasts and playbook proposals stop."
+    },
     "signal_role_definitions": {
       "type": "object",
       "description": "role -> {is, not}: model-facing definitions. Keys starting with '_' are documentation. Every key must be a role in signal_roles.",

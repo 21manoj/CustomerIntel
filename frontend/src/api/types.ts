@@ -79,6 +79,9 @@ export interface PortfolioRow {
   state: string | null
   arc_confidence: number | null
   current_phase: string | null
+  current_phase_label?: string | null   // what to show: 'critical' when the intervention band has no intervention in it
+  lifecycle?: 'active' | 'closed' | null
+  build_error?: { error: string; at: string; note: string } | null
   last_scored_month: string | null
   live_months: number
   last_evidence_at: string | null
@@ -213,6 +216,7 @@ export interface NarrativeSentence {
 
 export interface NarrativeChapter {
   phase: string
+  label?: string | null
   from: string | null
   to: string | null
   sentences: NarrativeSentence[]
@@ -446,6 +450,8 @@ export type Journey = OriginBlock & {
   arc: ArcBlock
   state: string
   current_phase: string | null
+  current_phase_label?: string | null   // what to show: 'critical' when the intervention band has no intervention in it
+  lifecycle?: { status: 'active' | 'closed'; closed_at?: string; title?: string; subtype?: string; by?: string } | null
   phases: Phase[]
   phases_basis: string | null
   data_coverage: DataCoverage

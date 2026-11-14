@@ -107,7 +107,7 @@ export default function JourneyCanvas() {
       <div>
         <h1 className="text-xl font-semibold text-slate-900">{journey.account_name} — Journey Canvas</h1>
         <p className="mt-1 text-sm text-slate-500">
-          {journey.episodes.length} cited episodes · {journey.current_phase ?? 'phase unknown'} · updated {day(journey.generated_at)}
+          {journey.episodes.length} cited episodes · {journey.current_phase_label ?? journey.current_phase ?? 'phase unknown'} · updated {day(journey.generated_at)}
         </p>
       </div>
 

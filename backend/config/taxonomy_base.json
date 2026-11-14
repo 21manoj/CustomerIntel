@@ -58,6 +58,10 @@
     "partial_recovery",
     "capacity_constraint"
   ],
+  "account_ending_outcome_subtypes": [
+    "churn_lost",
+    "decommissioned"
+  ],
   "signal_roles": {
     "_description": "Vertical-agnostic role -> signal subtypes. Journey/arc rules are written against roles, never literal subtypes (mirrors pillar_roles in the KPI catalogs). A subtype belongs to exactly one role. 'announcement' = the customer stating a financial intent outright; it is excluded from the behavioral (leading) composite so lead-time measurement isn't contaminated by the event it predicts. Engine intents (signal_engine.enrichment.VALID_INTENTS) are subtypes here too, so LLM-enriched signals resolve to the same roles as CSV signals. 'product_friction' = the product is disappointing the user (negative); distinct from 'usage_decline' (they use it less) and 'escalation' (they demand action).",
     "champion_change": [

@@ -179,6 +179,11 @@ def score_account(journey: dict, account, urgencies: Dict[int, Optional[str]], o
     risk = round(float(w['phase']) * phase['factor'] + float(w['leading']) * leading['factor']
                  + float(w['urgency']) * urgency['factor'] + float(w['renewal']) * renewal['factor'], 4)
     opp = _opportunity(journey, open_rows, taxonomy, cfg)
+    closed = (journey.get('lifecycle') or {}).get('status') == 'closed'
+    if closed:
+        # a closed account (churned, vendor terminated) has nothing left to protect or grow: it scores zero
+        # and falls below the list floor instead of sitting at the top of the protect list
+        risk, opp = 0.0, opp | {'factor': 0.0, 'basis': 'account closed'}
     lens, secondary = _lens(risk, opp['factor'], cfg)
     top = max(risk, opp['factor'])
     revenue = get_account_arr(account)
@@ -210,6 +215,7 @@ def score_account(journey: dict, account, urgencies: Dict[int, Optional[str]], o
         'factors': {'phase': phase, 'leading': leading, 'urgency': urgency, 'renewal': renewal, 'weights': dict(w)},
         'opportunity': opp,
         'arc_type': arc.get('arc_type'), 'state': journey.get('state'), 'as_of': journey.get('as_of'),
+        'lifecycle': 'closed' if closed else 'active',
         'open_interventions': [{k: r[k] for k in ('intervention_id', 'playbook_id', 'state', 'action_class', 'urgency', 'pending_approval')} for r in open_rows],
         'pending_approvals': sum(1 for r in open_rows if r['pending_approval']),
         'cites': {'episode_ids': cited_eids, 'node_ids': cited_nids,

@@ -355,6 +355,9 @@ def run_wizard_a_step(customer_id: int, changed_account_ids: Set[int], mode: str
             f"wizard_a_{res['processed']}_journeys_"
             f"{cov['classified']}_classified_{cov['steady']}_steady_{cov['unclassified']}_unclassified"
         ) if res['processed'] else None
+        if res.get('failed'):
+            # a journey that failed to build is a pipeline fact the caller must see, not a log line
+            step = (step or 'wizard_a_0_journeys') + f"_failed_{len(res['failed'])}"
         return step, dur, res
     except Exception as e:
         logger.error('Wizard A step failed (non-fatal): %s', e, exc_info=True)

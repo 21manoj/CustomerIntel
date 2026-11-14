@@ -384,11 +384,18 @@ def extract_stakeholders_from_profiles(customer_id: int) -> int:
     return count
 
 
-def load_kpis(rows: list[dict], resolve: Callable, upload_id: Optional[int] = None) -> tuple[int, int]:
-    """Bulk INSERT ... ON CONFLICT DO NOTHING on (account_id, kpi_code, measured_at).
-    Returns (inserted, skipped_blank). A blank value is a MISSING measurement,
-    not zero — it is skipped and counted (it used to become 0.0 and drag the
-    score). Every row is stamped with the CsvUpload it came from."""
+def load_kpis(rows: list[dict], resolve: Callable, upload_id: Optional[int] = None) -> tuple[int, int, int]:
+    """Bulk upsert on (account_id, kpi_code, measured_at).
+    Returns (inserted, skipped_blank, corrected). A blank value is a MISSING
+    measurement, not zero — it is skipped and counted (it used to become 0.0
+    and drag the score). Every row is stamped with the CsvUpload it came from.
+
+    A row that already exists with the SAME value/target/weight is left alone
+    (a re-upload is a no-op). One that exists with a DIFFERENT value is a
+    correction: it used to be dropped silently (ON CONFLICT DO NOTHING), so a
+    customer who fixed a wrong number and re-uploaded kept the wrong score with
+    no warning. It now replaces the stored row, and its created_at moves to now
+    so process_data reopens that month and rescores it."""
     from sqlalchemy.dialects.postgresql import insert as pg_insert
     from models import KPIMeasurement
     from extensions import db
@@ -430,12 +437,20 @@ def load_kpis(rows: list[dict], resolve: Callable, upload_id: Optional[int] = No
             'created_at': now,
         })
     if not values:
-        return 0, skipped_blank
-    stmt = pg_insert(KPIMeasurement.__table__).values(values).on_conflict_do_nothing(
+        return 0, skipped_blank, 0
+    from sqlalchemy import literal_column, or_
+    t = KPIMeasurement.__table__
+    ins = pg_insert(t).values(values)
+    ex = ins.excluded
+    stmt = ins.on_conflict_do_update(
         index_elements=['account_id', 'kpi_code', 'measured_at'],
-    )
-    res = db.session.execute(stmt)
-    return (res.rowcount if res.rowcount is not None else len(values)), skipped_blank
+        set_={c: getattr(ex, c) for c in ('value', 'target', 'pillar', 'weight', 'status', 'upload_id', 'attributes', 'created_at')},
+        where=or_(t.c.value.is_distinct_from(ex.value), t.c.target.is_distinct_from(ex.target),
+                  t.c.weight.is_distinct_from(ex.weight)),
+    ).returning(literal_column('(xmax = 0)'))      # true for a fresh insert, false for a row this statement updated
+    flags = [bool(r[0]) for r in db.session.execute(stmt).fetchall()]
+    inserted = sum(flags)
+    return inserted, skipped_blank, len(flags) - inserted
 
 
 def load_signals(customer_id: int, rows: list[dict], resolve: Callable) -> tuple[int, int]:
@@ -1017,8 +1032,10 @@ def ingest_staged_csvs(customer_id: int, vertical: str, process_run_id: Optional
         resolve = AccountResolver(customer_id, account_rows)
 
         if 'kpi_measurements.csv' in rows:
-            n, blank = load_kpis(rows['kpi_measurements.csv'], resolve, upload_id=upload_ids.get('kpi_measurements.csv'))
-            result.steps.append(f'kpis_loaded_{n}' + (f'_blank_skipped_{blank}' if blank else ''))
+            n, blank, corrected = load_kpis(rows['kpi_measurements.csv'], resolve, upload_id=upload_ids.get('kpi_measurements.csv'))
+            result.steps.append(f'kpis_loaded_{n}' + (f'_blank_skipped_{blank}' if blank else '') + (f'_corrected_{corrected}' if corrected else ''))
+            if corrected:
+                result.counts['kpi_rows_corrected'] = corrected
             result.counts['kpi_rows_skipped_blank'] = blank
             db.session.commit()
 

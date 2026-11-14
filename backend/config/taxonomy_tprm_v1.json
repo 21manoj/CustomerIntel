@@ -30,6 +30,11 @@
     "vendor_risk_remediated",
     "vendor_sla_restored"
   ],
+  "account_ending_outcome_subtypes": [
+    "vendor_terminated",
+    "vendor_replaced",
+    "vendor_contract_not_renewed"
+  ],
   "signal_roles": {
     "infra_incident": [
       "vendor_security_breach",

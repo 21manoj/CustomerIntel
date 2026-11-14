@@ -101,7 +101,9 @@ export default function Portfolio() {
                       <td className="px-4 py-3 text-slate-600">
                         {row.forecast?.status === 'forecast'
                           ? `${Math.round((row.forecast.p_retain ?? 0) * 100)}% retain (${row.forecast.basis})`
-                          : '—'}
+                          : row.forecast?.status === 'closed' || row.lifecycle === 'closed'
+                            ? 'Closed — not forecast'
+                            : '—'}
                       </td>
                       <td className="px-4 py-3 text-slate-600">{row.priority?.lens ?? '—'}</td>
                       <td className="px-4 py-3 text-slate-600">{row.open_review_count}</td>
