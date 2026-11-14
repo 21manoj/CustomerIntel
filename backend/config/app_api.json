@@ -17,5 +17,20 @@
     "block_seconds": 60,
     "cleanup_interval_seconds": 600
   },
-  "password_min_length": 10
+  "password_min_length": 10,
+  "platform": {
+    "_doc": "The platform console (platform_admin/). Roles a user may hold in users.platform_role, and the thresholds behind the attention list.",
+    "roles": ["operator", "viewer"],
+    "write_roles": ["operator"],
+    "attention": {
+      "stale_data_days": 14,
+      "denied_calls_window_hours": 24,
+      "denied_calls_threshold": 20,
+      "tenant_expiry_warning_days": 7,
+      "key_expiry_warning_days": 14,
+      "process_run_stuck_minutes": 30
+    },
+    "audit_page_size": 100,
+    "audit_max_page_size": 500
+  }
 }

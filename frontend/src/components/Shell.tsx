@@ -18,7 +18,12 @@ const NAV_ITEMS: { to: string; label: string; roles?: string[] }[] = [
 export default function Shell() {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
-  const navItems = NAV_ITEMS.filter((item) => !item.roles || (user && item.roles.includes(user.role)))
+  // The platform console is gated on platform_role, never on `role` — and someone who belongs to no
+  // tenant (a console-only operator) is not offered tenant pages that would only refuse them.
+  const tenantItems = user?.customer_id
+    ? NAV_ITEMS.filter((item) => !item.roles || (user && item.roles.includes(user.role)))
+    : []
+  const navItems = user?.platform_role ? [...tenantItems, { to: '/platform', label: 'Platform' }] : tenantItems
 
   async function handleLogout() {
     await logout()
@@ -48,7 +53,7 @@ export default function Shell() {
           <div className="flex items-center gap-3 text-sm">
             <span className="text-slate-500">{user?.email}</span>
             <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium uppercase tracking-wide text-slate-600">
-              {user?.role}
+              {user?.platform_role ? `platform ${user.platform_role}` : user?.role}
             </span>
             <button onClick={handleLogout} className="font-medium text-slate-500 hover:text-slate-900">
               Log out

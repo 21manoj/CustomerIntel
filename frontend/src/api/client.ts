@@ -12,6 +12,12 @@ import type {
   InviteUserResponse,
   Journey,
   MeasuredRoiResponse,
+  PlatformAuditPage,
+  PlatformKey,
+  PlatformOverview,
+  PlatformTenantDetail,
+  PlatformTenantRow,
+  PlatformUser,
   PlaybookConfigResponse,
   PlaybookEvaluation,
   PortfolioResponse,
@@ -241,4 +247,53 @@ export function askQuestion(customerId: number, question: string, accountId?: nu
     method: 'POST',
     body: JSON.stringify({ customer_id: customerId, question, account_id: accountId, history }),
   })
+}
+
+// ── Platform console — operators only (users.platform_role); every route is refused for tenant users ──
+
+export function getPlatformOverview() {
+  return request<PlatformOverview>('/app/api/platform/overview')
+}
+
+export function getPlatformTenants() {
+  return request<{ tenants: PlatformTenantRow[] }>('/app/api/platform/tenants')
+}
+
+export function getPlatformTenant(customerId: number) {
+  return request<PlatformTenantDetail>(`/app/api/platform/tenants/${customerId}`)
+}
+
+export function getPlatformAudit(filters: { customerId?: string; outcome?: string; tool?: string; beforeId?: number }) {
+  const q = new URLSearchParams()
+  if (filters.customerId) q.set('customer_id', filters.customerId)
+  if (filters.outcome) q.set('outcome', filters.outcome)
+  if (filters.tool) q.set('tool', filters.tool)
+  if (filters.beforeId) q.set('before_id', String(filters.beforeId))
+  return request<PlatformAuditPage>(`/app/api/platform/audit?${q.toString()}`)
+}
+
+export function suspendTenant(customerId: number, reason: string) {
+  return request<{ status: string }>(`/app/api/platform/tenants/${customerId}/suspend`, {
+    method: 'POST',
+    body: JSON.stringify({ reason }),
+  })
+}
+
+export function reactivateTenant(customerId: number) {
+  return request<{ status: string }>(`/app/api/platform/tenants/${customerId}/reactivate`, { method: 'POST' })
+}
+
+export function platformRevokeKey(keyId: number) {
+  return request<PlatformKey>(`/app/api/platform/keys/${keyId}/revoke`, { method: 'POST' })
+}
+
+export function platformSetUserActive(userId: number, active: boolean) {
+  return request<PlatformUser>(`/app/api/platform/users/${userId}/active`, {
+    method: 'POST',
+    body: JSON.stringify({ active }),
+  })
+}
+
+export function platformResetPassword(userId: number) {
+  return request<SetupTokenResponse>(`/app/api/platform/users/${userId}/reset-password`, { method: 'POST' })
 }

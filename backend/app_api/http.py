@@ -76,7 +76,8 @@ def _me_view(u) -> dict:
     app_api.users._view (no password_hash presence, no last_login) — /me is not the admin
     user-management listing."""
     return {'user_id': u.user_id, 'customer_id': u.customer_id, 'email': u.email, 'name': u.name,
-            'role': u.role, 'allowed_customer_ids': u.allowed_customer_ids, 'allowed_account_ids': u.allowed_account_ids}
+            'role': u.role, 'allowed_customer_ids': u.allowed_customer_ids, 'allowed_account_ids': u.allowed_account_ids,
+            'platform_role': u.platform_role}
 
 
 def register_app_api_routes(mcp) -> None:

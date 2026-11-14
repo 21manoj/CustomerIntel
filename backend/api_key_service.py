@@ -124,6 +124,13 @@ def validate_api_key(raw_key: str) -> Optional[CustomerApiKey]:
             if c.expires_at and c.expires_at < datetime.utcnow():
                 logger.info('API key id=%s expired', c.id)
                 return None
+            from models import Customer
+            tenant = db.session.get(Customer, c.customer_id)
+            if tenant is not None and tenant.suspended_at:
+                # platform console: a suspended tenant's keys are refused, not revoked —
+                # reactivating the tenant brings them back unchanged
+                logger.info('API key id=%s refused: customer %s is suspended', c.id, c.customer_id)
+                return None
             c.last_used_at = datetime.utcnow()
             c.last_used_ip = ip if ip != 'unknown' else c.last_used_ip
             db.session.commit()

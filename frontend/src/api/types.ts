@@ -12,6 +12,9 @@ export interface SessionUser {
   role: Role
   allowed_customer_ids: number[] | null
   allowed_account_ids: number[] | null
+  // 'operator' | 'viewer' for people who may use the platform console; null for everyone else.
+  // Separate from `role` on purpose — a tenant admin is not a platform operator.
+  platform_role: 'operator' | 'viewer' | null
 }
 
 export interface OriginBlock {
@@ -1207,4 +1210,163 @@ export type AskResponse = OriginBlock & {
   history_turns: number
   model: string
   generator: string
+}
+
+// ── Platform console (/app/api/platform/*) — backend/platform_admin/service.py ──
+
+export type AttentionSeverity = 'critical' | 'warning' | 'info'
+
+export interface AttentionItem {
+  severity: AttentionSeverity
+  kind: string
+  title: string
+  detail: string | null
+  customer_id: number | null
+  customer_name: string | null
+  since: string | null
+}
+
+export interface PlatformWorkerStatus {
+  known: boolean
+  last_pass_at?: string | null
+  age_seconds?: number
+  last_error?: string | null
+  consecutive_errors?: number
+  stale?: boolean
+}
+
+export interface PlatformOverview {
+  totals: {
+    tenants: number
+    tenants_by_status: Record<string, number>
+    tenants_by_vertical: Record<string, number>
+    tenants_by_data_origin: Record<string, number>
+    accounts: number
+    active_users: number
+    active_keys: number
+    signals: number
+    account_health: Record<string, number>
+    calls_24h: { allowed: number; denied: number }
+    llm_cost_30d_usd: number
+  }
+  system: {
+    git_sha: string | null
+    build_time: string | null
+    journey_generator_version: string
+    stale_journeys: number
+    worker: PlatformWorkerStatus
+    interventions: Record<string, unknown>
+    time: string
+  }
+  attention: AttentionItem[]
+  attention_counts: Record<AttentionSeverity, number>
+}
+
+export type TenantStatus = 'active' | 'suspended' | 'expired'
+
+export interface PlatformTenantRow {
+  customer_id: number
+  name: string
+  vertical: string | null
+  data_origin: string | null
+  status: TenantStatus
+  suspended_at: string | null
+  suspended_reason: string | null
+  expires_at: string | null
+  created_at: string | null
+  accounts: number
+  active_users: number
+  active_keys: number
+  health: Record<string, number>
+  last_activity_at: string | null
+  last_run: { status: string; started_at: string | null } | null
+}
+
+export interface PlatformUser {
+  user_id: number
+  name: string | null
+  email: string
+  role: string | null
+  active: boolean
+  has_password: boolean
+  last_login: string | null
+  scoped: boolean
+  platform_role: string | null
+}
+
+export interface PlatformKey {
+  id: number
+  name: string
+  key_prefix: string
+  scopes: string[]
+  is_active: boolean
+  created_at: string | null
+  last_used_at: string | null
+  expires_at: string | null
+  account_restricted: boolean
+}
+
+export interface PlatformRun {
+  run_id: string
+  status: string
+  mode: string | null
+  started_at: string | null
+  finished_at: string | null
+  error_count: number
+  first_error: string | null
+}
+
+export interface PlatformAuditEntry {
+  id: number
+  at: string | null
+  surface: string | null
+  tool: string
+  customer_id: number | null
+  customer_name?: string | null
+  key_kind: string | null
+  key_id: number | null
+  key_prefix: string | null
+  caller_ip: string | null
+  outcome: string
+  detail: string | null
+}
+
+export interface PlatformTenantDetail {
+  tenant: {
+    customer_id: number
+    name: string
+    vertical: string | null
+    data_origin: string | null
+    domain: string | null
+    status: TenantStatus
+    suspended_at: string | null
+    suspended_reason: string | null
+    expires_at: string | null
+    created_at: string | null
+  }
+  accounts: {
+    account_id: number
+    name: string
+    status: string | null
+    revenue: number | null
+    health_score: number | null
+    health_status: string | null
+    health_month: string | null
+    journey: 'built' | 'failed' | 'none'
+    journey_version: string | null
+  }[]
+  users: PlatformUser[]
+  keys: PlatformKey[]
+  runs: PlatformRun[]
+  uploads: { id: number; file_type: string; row_count: number | null; uploaded_at: string | null; consumed: boolean; warnings: number }[]
+  signals: number
+  interventions: Record<string, number>
+  llm_30d: { cost_usd: number; calls: number }
+  attention: AttentionItem[]
+  audit: PlatformAuditEntry[]
+}
+
+export interface PlatformAuditPage {
+  entries: PlatformAuditEntry[]
+  next_before_id: number | null
 }

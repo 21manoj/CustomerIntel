@@ -1,16 +1,24 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import ProtectedRoute from './components/ProtectedRoute'
 import Shell from './components/Shell'
+import { useAuth } from './auth/AuthContext'
 import AccountDetail from './pages/AccountDetail'
 import AskAI from './pages/AskAI'
 import Calibrations from './pages/Calibrations'
 import Interventions from './pages/Interventions'
 import JourneyCanvas from './pages/JourneyCanvas'
 import Login from './pages/Login'
+import Platform, { PlatformTenant } from './pages/Platform'
 import Portfolio from './pages/Portfolio'
 import ReviewQueue from './pages/ReviewQueue'
 import Roi from './pages/Roi'
 import Settings from './pages/Settings'
+
+// A console-only operator belongs to no tenant, so the tenant pages have nothing to show them.
+function Home() {
+  const { user } = useAuth()
+  return <Navigate to={user?.platform_role && !user.customer_id ? '/platform' : '/portfolio'} replace />
+}
 
 export default function App() {
   return (
@@ -27,7 +35,9 @@ export default function App() {
           <Route path="/calibrations" element={<Calibrations />} />
           <Route path="/accounts/:accountId" element={<AccountDetail />} />
           <Route path="/accounts/:accountId/canvas" element={<JourneyCanvas />} />
-          <Route path="/" element={<Navigate to="/portfolio" replace />} />
+          <Route path="/platform" element={<Platform />} />
+          <Route path="/platform/tenants/:customerId" element={<PlatformTenant />} />
+          <Route path="/" element={<Home />} />
         </Route>
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
