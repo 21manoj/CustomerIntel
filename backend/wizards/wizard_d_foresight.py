@@ -41,7 +41,10 @@ logger = logging.getLogger(__name__)
 
 # Bump on every change to the forecast block's shape or the math behind it.
 #   d1.0  template prior + Beta-binomial calibration, portfolio propagation (2026-09-05)
-GENERATOR_VERSION = 'd1.0'
+#   d1.1  closed accounts get a `closed` block (no probabilities, $0 expected) and leave the portfolio roll-up;
+#         a renewal resolved by a negative outcome is no longer read on the low-hazard mid-term formula;
+#         staleness also watches outcomes and the account's lifecycle (2026-11-14)
+GENERATOR_VERSION = 'd1.1'
 LENS = 'foresight'
 WIZARD = 'd'
 SEPARATION_NOTE = 'kpi_only (health band) and qual (leading label) are read side by side as separate factors; never blended.'
@@ -198,7 +201,9 @@ def decision_point(account, journey: dict, as_of: datetime, horizon_days: int, w
                 and abs(((_d(e.get('date')) or as_of).date() - dp).days) <= window_days]
         if near:
             return {'at': dp.isoformat(), 'kind': kind, 'status': 'resolved', 'days_to': days_to, 'inside_horizon': False,
-                    'resolved_by': [e['episode_id'] for e in near]}
+                    'resolved_by': [e['episode_id'] for e in near],
+                    # the decision went against us (a contraction, a lost refresh) but the account is still live
+                    'resolved_negative': any(e.get('revenue_bucket') in set(neg) for e in near)}
         return {'at': dp.isoformat(), 'kind': kind, 'status': 'passed_unrecorded', 'days_to': 0, 'inside_horizon': True}
     if dp <= horizon_end:
         return {'at': dp.isoformat(), 'kind': kind, 'status': 'inside_horizon', 'days_to': days_to, 'inside_horizon': True}
@@ -358,6 +363,12 @@ def _prior_retention(journey: dict, vertical: str, dp: dict, iv: List[dict], dri
     floor, ceiling = settings.get('p_floor'), settings.get('p_ceiling')
     if dp['inside_horizon']:
         return _clamp(vg('base_retention_at_decision') * product, floor, ceiling), 'decision_in_horizon'
+    if dp.get('resolved_negative'):
+        # The last decision was a loss. The mid-term formula below would read that account at ~97% retained --
+        # safer than before the loss. No new number is invented: it is read on the at-decision base instead.
+        drivers.append({'factor': 'last_decision_negative', 'key': ','.join(dp.get('resolved_by') or []), 'value': 1.0,
+                        'note': 'the decision point was resolved by a negative outcome; retention read on the at-decision base, not the mid-term hazard'})
+        return _clamp(vg('base_retention_at_decision') * product, floor, ceiling), 'after_negative_decision'
     # no decision inside the horizon: the question is mid-term contraction — the configured hazard, raised by the
     # same factors when they fall below 1 and lowered when above (hazard ÷ factor product)
     hazard = vg('midterm_loss_hazard') / product if product > 0 else 1.0
@@ -408,7 +419,38 @@ def _cites(journey: dict, iv: List[dict]) -> List[str]:
     return [i for i in dict.fromkeys(ids) if i in known]
 
 
+def is_closed(journey: dict) -> bool:
+    return ((journey or {}).get('lifecycle') or {}).get('status') == 'closed'
+
+
+def closed_block(journey: dict, account, run_id: str, horizon_days: int) -> dict:
+    """A closed account (churned, vendor terminated) is not forecast: there is nothing left to retain.
+    Same shape as a forecast block so every reader and the AccountForecast row still work, with
+    status 'closed', probabilities 0 and $0 expected. The ARR it held is kept as arr_before_close."""
+    life = journey.get('lifecycle') or {}
+    as_of = _d(journey.get('as_of')) or datetime.utcnow()
+    level = settings.get('interval_level')
+    arr = float(getattr(account, 'revenue', 0) or 0)
+    zero = {'p': 0.0, 'low': 0.0, 'high': 0.0, 'prior_p': 0.0, 'interval_level': level, 'interval_semantics': 'closed'}
+    note = f"account closed on {str(life.get('closed_at'))[:10]} ({life.get('subtype')}); nothing is forecast"
+    return {
+        'generator': f'{LENS}_{GENERATOR_VERSION}', 'lens': LENS, 'run_id': run_id, 'status': 'closed',
+        'as_of': as_of.isoformat(), 'horizon_days': horizon_days, 'horizon_end': (as_of + timedelta(days=horizon_days)).date().isoformat(),
+        'basis': 'closed', 'basis_note': note, 'note': note, 'lifecycle': life,
+        'labels': {}, 'decision_point': {'at': None, 'kind': None, 'status': 'closed', 'days_to': None, 'inside_horizon': False},
+        'retention': zero | {'mode': 'closed'}, 'expansion': zero | {'size_share_of_arr': 0.0},
+        'revenue': {'arr': 0.0, 'arr_known': arr > 0, 'arr_before_close': round(arr, 2), 'expected_arr_end': 0.0, 'low': 0.0, 'high': 0.0,
+                    'nrr_contribution': 0.0, 'nrr_contribution_low': 0.0, 'nrr_contribution_high': 0.0,
+                    'loss_severity': None, 'loss_severity_basis': 'closed', 'formula': 'closed account: $0'},
+        'drivers': [], 'template': None,
+        'inputs': {'stratum': current_stratum(journey), 'episodes': len(journey.get('episodes') or [])},
+        'cites': [life['by']] if life.get('by') else [], 'stale': False, 'separation': SEPARATION_NOTE,
+    }
+
+
 def forecast_account(journey: dict, account, vertical: str, gate: dict, run_id: str, horizon_days: int) -> dict:
+    if is_closed(journey):
+        return closed_block(journey, account, run_id, horizon_days)
     as_of = _d(journey.get('as_of')) or datetime.utcnow()
     level = settings.get('interval_level')
     window = settings.get('calibration', 'label_window_days')
@@ -481,6 +523,9 @@ def forecast_account(journey: dict, account, vertical: str, gate: dict, run_id: 
 # ═══════════════════════════════════════════════════════════════════════
 
 def portfolio_rollup(blocks: List[dict]) -> dict:
+    # closed accounts are not in the book any more: counted and named, never rolled into ARR or NRR
+    closed = [b for b in blocks if b.get('status') == 'closed']
+    blocks = [b for b in blocks if b.get('status') != 'closed']
     level = settings.get('interval_level')
     z = z_for_level(level)
     arr = sum(b['revenue']['arr'] for b in blocks)
@@ -504,6 +549,8 @@ def portfolio_rollup(blocks: List[dict]) -> dict:
         'nrr': nrr(expected), 'nrr_low': nrr(head['low']), 'nrr_high': nrr(head['high']),
         'expected_retained_arr': round(sum(b['revenue']['arr'] * b['retention']['p'] for b in blocks), 2),
         'basis_counts': basis_counts,
+        'closed': {'accounts': len(closed), 'arr_before_close': round(sum((b.get('revenue') or {}).get('arr_before_close') or 0 for b in closed), 2),
+                   'note': 'closed accounts (churned / terminated) are excluded from every figure above'},
         'basis': 'calibrated' if basis_counts.get('calibrated') == len(blocks) and blocks else 'prior' if basis_counts.get('prior') == len(blocks) else 'mixed',
         'note': 'a revenue-weighted roll-up of per-account blocks; the range is propagated from their intervals, never a sum of point estimates. '
                 'Prior-basis half-widths are declared template ranges read as ±z·σ.',
@@ -535,12 +582,14 @@ def run_wizard_d(customer_id: int, persist: bool = True, created_by: str = 'wiza
         blocks.append((jd, acct, forecast_account(jd.journey_json, acct, vertical, gate, run_id, horizon)))
     portfolio = portfolio_rollup([b for _, _, b in blocks])
     as_of = max(_d(b['as_of']) for _, _, b in blocks)
+    n_closed = sum(1 for _, _, b in blocks if b['status'] == 'closed')
     results = {
         'status': 'completed', 'wizard': WIZARD, 'lens': LENS, 'run_id': run_id, 'generator_version': GENERATOR_VERSION,
         'vertical': vertical, 'horizon_days': horizon, 'as_of': as_of.isoformat(), 'accounts': len(blocks),
+        'closed_accounts': n_closed,
         'basis_counts': portfolio['basis_counts'], 'labels': gate,
         'portfolio': portfolio,
-        'account_forecasts': [{'account_id': acct.account_id, 'account_name': acct.account_name, 'basis': b['basis'],
+        'account_forecasts': [{'account_id': acct.account_id, 'account_name': acct.account_name, 'status': b['status'], 'basis': b['basis'],
                                'p_retain': b['retention']['p'], 'low': b['retention']['low'], 'high': b['retention']['high'],
                                'p_expand': b['expansion']['p'], 'expected_arr_end': b['revenue']['expected_arr_end'],
                                'decision_point': b['decision_point']['at'], 'decision_status': b['decision_point']['status']}
@@ -582,13 +631,20 @@ def not_run_block() -> dict:
 
 def with_staleness(block: dict, journey: dict) -> dict:
     """Mark a stored block stale when the journey has moved past the run it was read from."""
-    if block.get('status') != 'forecast':
+    if block.get('status') not in ('forecast', 'closed'):
         return block
     run_as_of = _d(block.get('as_of'))
     j_as_of = _d(journey.get('as_of'))
     last_ev = _d(journey.get('last_evidence_at'))
+    last_out = max((_d(e.get('date')) for e in (journey.get('episodes') or []) if e.get('kind') == 'outcome' and e.get('date')), default=None)
     stale_reason = None
-    if run_as_of and j_as_of and j_as_of > run_as_of:
+    if is_closed(journey) != (block.get('status') == 'closed'):
+        # the one change a forecast must never outlive: a 91%-retained number on a terminated account
+        stale_reason = ('the account has closed since this forecast' if is_closed(journey)
+                        else 'the account has reopened since it was recorded closed')
+    elif run_as_of and last_out and last_out > run_as_of:
+        stale_reason = f"an outcome dated {last_out.date().isoformat()} was logged after the forecast's as_of {run_as_of.date().isoformat()}"
+    elif run_as_of and j_as_of and j_as_of > run_as_of:
         stale_reason = f"journey as_of {j_as_of.date().isoformat()} is after the forecast's {run_as_of.date().isoformat()}"
     elif run_as_of and last_ev and last_ev > run_as_of:
         stale_reason = f"evidence dated {last_ev.date().isoformat()} arrived after the forecast's as_of {run_as_of.date().isoformat()}"
@@ -617,8 +673,12 @@ def embed_forecast(journey: dict, block: dict, account) -> dict:
     return journey
 
 
-def get_forecast(customer_id: int, account_id: Optional[int] = None) -> Optional[dict]:
-    """Latest run: the portfolio block with one compact row per account, or one account's full block."""
+def get_forecast(customer_id: int, account_id: Optional[int] = None, account_ids: Optional[set] = None) -> Optional[dict]:
+    """Latest run: the portfolio block with one compact row per account, or one account's full block.
+
+    account_ids: the caller's account scope (None = the whole tenant). A scoped caller gets only
+    those rows, and a portfolio block rolled up from those rows alone — the tenant-wide totals
+    (ARR, NRR, account count) are themselves something a one-account user must not read."""
     from models import ForecastRun, AccountForecast, Account
     run = ForecastRun.query.filter_by(customer_id=int(customer_id)).order_by(ForecastRun.id.desc()).first()
     if not run:
@@ -633,10 +693,18 @@ def get_forecast(customer_id: int, account_id: Optional[int] = None) -> Optional
         return head | {'account_id': int(account_id), 'forecast': row.forecast_json}
     rows = (AccountForecast.query.filter_by(run_id=run.run_id).join(Account, Account.account_id == AccountForecast.account_id)
             .add_entity(Account).order_by(Account.account_name).all())
-    return head | {'portfolio': run.portfolio, 'accounts': [
+    portfolio = run.portfolio
+    if account_ids is not None:
+        allowed = {int(a) for a in account_ids}
+        rows = [(r, a) for r, a in rows if r.account_id in allowed]
+        portfolio = portfolio_rollup([r.forecast_json for r, _ in rows]) | {'scope': 'restricted', 'scope_note': (
+            f'rolled up from the {len(rows)} account(s) this user may see, not the whole tenant')}
+        head = head | {'basis_counts': portfolio['basis_counts']}
+    return head | {'portfolio': portfolio, 'accounts': [
         {'account_id': r.account_id, 'account_name': a.account_name, 'basis': r.basis, 'p_retain': float(r.p_retain),
          'p_retain_low': float(r.p_retain_low), 'p_retain_high': float(r.p_retain_high), 'p_expand': float(r.p_expand),
          'arr': float(r.arr), 'expected_arr_end': float(r.expected_arr_end), 'expected_arr_low': float(r.expected_arr_low),
          'expected_arr_high': float(r.expected_arr_high), 'decision_point_at': r.decision_point_at.isoformat() if r.decision_point_at else None,
-         'decision_status': (r.forecast_json.get('decision_point') or {}).get('status'), 'stratum': r.stratum}
+         'decision_status': (r.forecast_json.get('decision_point') or {}).get('status'), 'stratum': r.stratum,
+         'status': r.forecast_json.get('status') or 'forecast'}
         for r, a in rows]}

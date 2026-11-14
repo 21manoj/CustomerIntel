@@ -301,7 +301,11 @@ def register_app_api_routes(mcp) -> None:
         aid = request.query_params.get('account_id')
         if aid and not allows_account(user, int(aid)):
             return _forbidden_scope()
-        res = await _with_app(lambda: get_forecast(int(cid), int(aid) if aid else None))
+        # no account named = the portfolio view: a user scoped to some accounts gets those rows only
+        # (this used to return every account's forecast and the tenant totals to a one-account user)
+        _, aids = user_scope(user)
+        scope = None if aids is None else {int(a) for a in aids if str(a).lstrip('-').isdigit()}
+        res = await _with_app(lambda: get_forecast(int(cid), int(aid) if aid else None, account_ids=scope))
         if res is None:
             return JSONResponse({'error': 'no Foresight run yet'}, status_code=404)
         return JSONResponse(res)

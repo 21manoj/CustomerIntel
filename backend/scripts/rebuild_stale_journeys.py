@@ -21,6 +21,10 @@ def main():
         out = rebuild_stale_journeys(args.customer_id)
     print(f"journeys: {out['stale']} stale → {out['rebuilt']} rebuilt to {out['generator_version']}"
           + (f" (per customer {out['customers']})" if out['customers'] else ''))
+    # said loudly, exit 0: a journey that cannot rebuild is stamped with build_error and shown as such on the
+    # read surface; it must not roll back a deploy whose app is already healthy
+    for f in out.get('failed', []):
+        print(f"journeys: FAILED customer {f['customer_id']} account {f['account_id']} ({f['account_name']}): {f['error']}", file=sys.stderr)
 
 
 if __name__ == '__main__':

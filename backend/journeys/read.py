@@ -191,7 +191,9 @@ def list_journeys(customer_id: int) -> List[dict]:
             'use_cases': (a.profile_metadata or {}).get('use_cases') or [],
             'contract_type': (a.profile_metadata or {}).get('contract_type'),
             'arc_type': arc.get('arc_type'), 'state': jj.get('state'), 'arc_confidence': arc.get('confidence'),
-            'current_phase': jj.get('current_phase'), 'last_scored_month': jj.get('last_scored_month'),
+            'current_phase': jj.get('current_phase'), 'current_phase_label': jj.get('current_phase_label') or jj.get('current_phase'),
+            'lifecycle': (jj.get('lifecycle') or {}).get('status') or 'active', 'build_error': jj.get('build_error'),
+            'last_scored_month': jj.get('last_scored_month'),
             'live_months': len(jj.get('live_months') or []), 'last_evidence_at': jj.get('last_evidence_at'),
             'latest': {'month': latest.get('month'), 'kpi_only': latest.get('kpi_only'), 'qual': latest.get('qual'),
                        'early_warning': latest.get('early_warning'), 'roles': latest.get('roles')},
@@ -210,7 +212,7 @@ def list_journeys(customer_id: int) -> List[dict]:
 def _forecast_row(fc: Optional[dict]) -> Optional[dict]:
     """The Foresight block reduced to the portfolio row: basis, label counts, retention with its range, expected ARR."""
     if not fc or fc.get('status') != 'forecast':
-        return {'status': (fc or {}).get('status') or 'not_run'}
+        return {'status': (fc or {}).get('status') or 'not_run'} | ({'note': fc.get('note'), 'stale': fc.get('stale')} if (fc or {}).get('status') == 'closed' else {})
     ret, rev, labels = fc.get('retention') or {}, fc.get('revenue') or {}, fc.get('labels') or {}
     return {'status': 'forecast', 'basis': fc.get('basis'), 'labels': {'n': labels.get('n'), 'needed': labels.get('needed')},
             'p_retain': ret.get('p'), 'p_retain_low': ret.get('low'), 'p_retain_high': ret.get('high'),

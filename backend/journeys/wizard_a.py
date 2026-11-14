@@ -41,7 +41,12 @@ logger = logging.getLogger(__name__)
 #   3.7  forecast block — the latest Wizard D (Foresight) run embedded, staleness marked, cited forecast sentence (2026-09-05)
 #   3.8  signals-only journeys: live months run to the latest sent intervention too, so a late intervention
 #        becomes a phase (and the tprm_v1 phase-transition chain reaches it) (2026-11-10)
-GENERATOR_VERSION = '3.8'
+#   3.9  wizard-sanctity pass (2026-11-14): lifecycle (a churned / terminated account is closed, not live);
+#        phase `label` (a critical period nobody intervened in is not called 'intervention'); neutral notes no
+#        longer score into the leading line and a warning needs a negative signal; lead-time wording says
+#        'critical band' and admits when the leading layer did not lead; a failed build is stamped on the
+#        stored journey (`build_error`) instead of leaving it silently old
+GENERATOR_VERSION = '3.9'
 
 
 def stale_journey_query(customer_id: Optional[int] = None):
@@ -58,11 +63,12 @@ def rebuild_stale_journeys(customer_id: Optional[int] = None) -> dict:
     by_customer: Dict[int, Set[int]] = {}
     for jd in stale:
         by_customer.setdefault(jd.customer_id, set()).add(jd.account_id)
-    out = {'generator_version': GENERATOR_VERSION, 'stale': len(stale), 'rebuilt': 0, 'customers': {}}
+    out = {'generator_version': GENERATOR_VERSION, 'stale': len(stale), 'rebuilt': 0, 'customers': {}, 'failed': []}
     for cid, aids in by_customer.items():
         res = run_wizard_a(cid, aids)
         out['rebuilt'] += res.get('processed', 0)
         out['customers'][cid] = res.get('processed', 0)
+        out['failed'].extend({'customer_id': cid, **f} for f in res.get('failed', []))
     logger.info('stale journeys: %d found, %d rebuilt to %s', out['stale'], out['rebuilt'], GENERATOR_VERSION)
     return out
 
@@ -87,6 +93,7 @@ def run_wizard_a(customer_id: int, account_ids: Optional[Iterable[int]] = None, 
         'status': 'completed', 'vertical': vertical, 'processed': 0, 'journeys_written': 0,
         'leading_rows_written': 0, 'arcs': {},
         'coverage': {'classified': 0, 'steady': 0, 'unclassified': 0},
+        'failed': [],
     }
     if not accounts:
         result['status'] = 'skipped'
@@ -94,14 +101,24 @@ def run_wizard_a(customer_id: int, account_ids: Optional[Iterable[int]] = None, 
 
     for acct in accounts:
         try:
-            journey = build_journey(acct, vertical)
+            with db.session.begin_nested():     # a savepoint: a failed build cannot undo the accounts already written
+                journey = build_journey(acct, vertical)
         except Exception as e:
             logger.error('Wizard A failed for account %s (%s): %s', acct.account_id, acct.account_name, e, exc_info=True)
+            err = {'account_id': acct.account_id, 'account_name': acct.account_name, 'error': f'{type(e).__name__}: {e}'[:300]}
+            result['failed'].append(err)
+            # The stored journey (if any) is now older than the data. Say so ON it, so every read surface shows
+            # a journey that failed to rebuild instead of serving the old one as if it were current.
+            jd = JourneyData.query.filter_by(customer_id=customer_id, account_id=acct.account_id).first()
+            if jd and jd.journey_json:
+                jd.journey_json = dict(jd.journey_json) | {'build_error': {
+                    'error': err['error'], 'at': datetime.utcnow().isoformat(),
+                    'note': 'the last rebuild of this journey failed; what is shown is the previous build and may be out of date'}}
             continue
         journey['generator_version'] = GENERATOR_VERSION
         arc = journey['arc']
         acct.arc_type = arc.get('arc_type')
-        acct.arc_phase = journey.get('current_phase')
+        acct.arc_phase = journey.get('current_phase_label') or journey.get('current_phase')
         acct.arc_confidence = arc.get('confidence')
 
         jd = JourneyData.query.filter_by(customer_id=customer_id, account_id=acct.account_id).first()
@@ -142,7 +159,8 @@ def run_wizard_a(customer_id: int, account_ids: Optional[Iterable[int]] = None, 
         result['coverage'][arc['state']] += 1
         result['arcs'][acct.account_id] = {
             'account_name': acct.account_name, 'state': arc['state'], 'arc_type': arc.get('arc_type'),
-            'phase': journey.get('current_phase'), 'confidence': arc.get('confidence'),
+            'phase': journey.get('current_phase'), 'phase_label': journey.get('current_phase_label'),
+            'lifecycle': (journey.get('lifecycle') or {}).get('status'), 'confidence': arc.get('confidence'),
             'supporting_episodes': len(arc.get('supporting_episode_ids', [])),
             'lead_days': journey['leading_vs_trailing'].get('lead_days'),
         }
@@ -152,6 +170,8 @@ def run_wizard_a(customer_id: int, account_ids: Optional[Iterable[int]] = None, 
 
     db.session.commit()
     n = result['processed']
+    if result['failed']:
+        result['status'] = 'partial' if n else 'failed'
     result['coverage']['classified_pct'] = round(100.0 * (result['coverage']['classified'] + result['coverage']['steady']) / n, 1) if n else 0.0
     if evaluate_playbooks and n:
         from playbooks.governance import evaluate_after_rebuild

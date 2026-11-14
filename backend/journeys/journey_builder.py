@@ -166,6 +166,8 @@ def collect_episodes(account, taxonomy, health_rows) -> List[Episode]:
 
     prev_status = None
     for hs in health_rows:
+        if hs.health_score is None:
+            continue    # a row with no score is not a scored month: it can neither be a transition nor break the build
         status = hs.health_status
         if prev_status is not None and status != prev_status:
             m = hs.measurement_month
@@ -295,6 +297,29 @@ def detect_phases(points: List[tuple], episodes: List[Episode]) -> List[dict]:
     return segments
 
 
+def label_phases(phases: List[dict], episodes: List[Episode]) -> List[dict]:
+    """Give every phase the word a reader should see.
+
+    The phase KEY stays one of baseline / deterioration / intervention / resolution -- config tables,
+    arc predicates and the forecast's phase factors are keyed on it. But a health-based 'intervention'
+    phase only means 'health was under the at-risk floor'. When nobody intervened in that window,
+    calling it 'intervention' on the journey states something that did not happen, so its label is
+    'critical'. Evidence-based phases are named 'intervention' only when one happened, so they keep it."""
+    for i, ph in enumerate(phases):
+        label = ph['name']
+        if ph['name'] == 'intervention' and ph.get('basis') != 'evidence':
+            start = datetime.fromisoformat(ph['entered_at'])
+            end = datetime.fromisoformat(ph['exited_at']) if ph.get('exited_at') else None
+            acted = any(
+                (e.kind in ('intervention', 'decision') or (e.kind == 'signal' and e.role == 'intervention'))
+                and e.date >= start and (end is None or e.date < end)
+                for e in episodes)
+            if not acted:
+                label = 'critical'
+        ph['label'] = label
+    return phases
+
+
 def detect_phases_from_evidence(episodes: List[Episode], months: List[date]) -> List[dict]:
     """Phases when there is no KPI layer: per month, from the roles that
     happened (evidence_phase_rules in health_thresholds.json). Same segment
@@ -379,6 +404,7 @@ def leading_series(points: List[tuple], kpi_only: Dict[date, float], episodes: L
     ]   # e.role: an unclassified signal (no evidence class) is visible on the journey but never scored
     series = []
     first_leading = first_trailing = None
+    trailing_at_first_leading = None
     for m, score in points:
         end = month_end(m)
         num = den = 0.0
@@ -386,19 +412,30 @@ def leading_series(points: List[tuple], kpi_only: Dict[date, float], episodes: L
         contributors = []
         roles: Dict[str, int] = {}
         unreviewed = 0
+        neg = pos = neutral = 0
         for e in behavioral:
             if end - window < e.date <= end:
                 w = math.exp(-lam * (end - e.date).days)
                 if e.meta.get('requires_review') and not e.meta.get('review'):
                     w *= unreviewed_w        # low-confidence, not yet verified: counts, but less
                     unreviewed += 1
-                h = (e.sentiment + 1.0) * 50.0
-                num += w * h
-                den += w
                 n += 1
                 contributors.append(e.episode_id)
                 if e.role:
                     roles[e.role] = roles.get(e.role, 0) + 1
+                if e.sentiment == 0:
+                    # A neutral note (a routine review, a status update) is on the journey and counted,
+                    # but it says nothing about direction. Scored at the 50 midpoint it dragged every
+                    # healthy account's leading line 30 points under its KPI line -- a false early warning.
+                    neutral += 1
+                    continue
+                h = (e.sentiment + 1.0) * 50.0
+                num += w * h
+                den += w
+                if e.sentiment < 0:
+                    neg += 1
+                else:
+                    pos += 1
         qual = round(num / den, 2) if den else None
         trailing = kpi_only.get(m, score)          # None on a live month: no KPI row yet
         div = round(qual - trailing, 2) if (qual is not None and trailing is not None) else None
@@ -406,20 +443,22 @@ def leading_series(points: List[tuple], kpi_only: Dict[date, float], episodes: L
             label = 'leading_only' if qual is not None else None
         elif div is None:
             label = None
-        elif div <= -warn:
-            label = 'early_warning'
-        elif div >= warn:
+        elif div <= -warn and neg:
+            label = 'early_warning'      # the gap alone is not a warning: something negative must have been said
+        elif div >= warn and pos:
             label = 'recovery_watch'
         else:
             label = 'aligned'
         if first_leading is None and qual is not None and (label == 'early_warning' or qual < at_risk):
             first_leading = m
+            trailing_at_first_leading = trailing
         if first_trailing is None and trailing is not None and trailing < at_risk:
             first_trailing = m
         series.append({
             'month': m.isoformat(), 'kpi_only': round(trailing, 2) if trailing is not None else None, 'qual': qual,
             'divergence': div, 'early_warning': label, 'signal_count': n, 'live': trailing is None,
             'unreviewed_count': unreviewed, 'contributing_episode_ids': contributors, 'roles': roles,
+            'negative_count': neg, 'positive_count': pos, 'neutral_count': neutral,
         })
     lead_days = (first_trailing - first_leading).days if first_leading and first_trailing else None
     return {
@@ -427,6 +466,11 @@ def leading_series(points: List[tuple], kpi_only: Dict[date, float], episodes: L
         'first_leading_warning_at': first_leading.isoformat() if first_leading else None,
         'first_trailing_warning_at': first_trailing.isoformat() if first_trailing else None,
         'lead_days': lead_days,
+        # what the trailing line read when the leading line first flagged: the lead-time claim is only
+        # 'ahead of the KPIs' if the KPIs were still healthy then
+        'trailing_at_first_leading': round(trailing_at_first_leading, 2) if trailing_at_first_leading is not None else None,
+        'trailing_warning_threshold': at_risk,
+        'trailing_healthy_threshold': ht.healthy_min(),
         'window_days': li['signal_window_days'],
         'divergence_warning_pts': warn,
         'note': 'qual is computed from signals only and is never blended into kpi_only (absolute-separation invariant).',
@@ -499,6 +543,27 @@ def _live_months(points: List[tuple], episodes: List[Episode]) -> List[date]:
     return out
 
 
+def account_lifecycle(episodes: List[Episode], taxonomy) -> dict:
+    """Is the relationship still live?
+
+    Closed when the latest account-ending outcome (taxonomy.account_ending_outcome_subtypes: churned,
+    vendor terminated ...) has no later positive outcome -- a win-back or a reinstatement reopens it.
+    A partial loss (contraction, a lost refresh) is in the 'lost' bucket but does not end the account."""
+    ending = taxonomy.account_ending_outcome_subtypes
+    last_end = None
+    for e in episodes:
+        if e.kind != 'outcome':
+            continue
+        if e.subtype in ending:
+            last_end = e
+        elif last_end is not None and e.revenue_bucket in ('protected', 'expansion') and e.date > last_end.date:
+            last_end = None
+    if last_end is None:
+        return {'status': 'active'}
+    return {'status': 'closed', 'closed_at': last_end.date.isoformat(), 'by': last_end.episode_id,
+            'subtype': last_end.subtype, 'title': last_end.title}
+
+
 def build_journey(account, vertical: str) -> dict:
     """Journey schema v3 for one account. Pure read; persistence is wizard_a.run_wizard_a."""
     from models import HealthScore
@@ -528,6 +593,11 @@ def build_journey(account, vertical: str) -> dict:
         # tenant is read as of its last signal, not as of the wall clock, or every 90-day window would be empty
         as_of = min(last_evidence, datetime.utcnow()) if last_evidence else datetime.utcnow()
 
+    lifecycle = account_lifecycle(episodes, taxonomy)
+    if lifecycle['status'] == 'closed':
+        # the ending is the last thing that happened: 'now' can never sit before it
+        as_of = max(as_of, min(datetime.fromisoformat(lifecycle['closed_at']), datetime.utcnow()))
+
     from journeys.coverage import data_coverage
     coverage = data_coverage(account, points, episodes, as_of)
     if points:
@@ -536,6 +606,7 @@ def build_journey(account, vertical: str) -> dict:
     else:
         phases = detect_phases_from_evidence(episodes, live_months)
         phases_basis = 'evidence'
+    phases = label_phases(phases, episodes)
     lvt = leading_series(points + [(m, None) for m in live_months], kpi_only, episodes)
     fv = feat.compute(account, vertical, taxonomy, points, episodes, phases, lvt, as_of)
     arc = arc_classifier.classify(fv, episodes, taxonomy, as_of)
@@ -558,6 +629,8 @@ def build_journey(account, vertical: str) -> dict:
         'arc': arc,
         'state': arc['state'],
         'current_phase': phases[-1]['name'] if phases else None,
+        'current_phase_label': phases[-1]['label'] if phases else None,
+        'lifecycle': lifecycle,
         'phases': phases,
         'phases_basis': phases_basis,
         'data_coverage': coverage,
