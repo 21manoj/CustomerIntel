@@ -146,6 +146,15 @@ services:
       DB_MAX_OVERFLOW: ${DB_MAX_OVERFLOW:-5}
       DB_POOL_PRE_PING: ${DB_POOL_PRE_PING:-true}
       DB_POOL_RECYCLE: ${DB_POOL_RECYCLE:-1800}
+      # Platform console (backend/platform_admin): the alert recipients it manages are this
+      # topic's subscribers, and a tenant is only deleted after its archive is written here.
+      # Both use the instance's IAM role; both are optional (the console says what is missing).
+      ALERT_SNS_TOPIC_ARN: ${ALERT_SNS_TOPIC_ARN:-}
+      BACKUP_S3_URI: ${BACKUP_S3_URI:-}
+    volumes:
+      # deploy/healthcheck_alert.sh's log, for the console's "host checks" — this one file,
+      # read-only; the database dumps beside it are deliberately not mounted.
+      - ${BACKUP_DIR:-${HOME}/backups/customerintelv1}/alert.log:/var/log/customerintel/alert.log:ro
     ports:
       - "127.0.0.1:8101:8101"
     deploy:

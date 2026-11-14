@@ -12,6 +12,7 @@ import type {
   InviteUserResponse,
   Journey,
   MeasuredRoiResponse,
+  PlatformAlerts,
   PlatformAuditPage,
   PlatformKey,
   PlatformOverview,
@@ -29,6 +30,7 @@ import type {
   Role,
   SessionUser,
   SetupTokenResponse,
+  TenantDeleted,
   TenantPlaybookConfig,
   UserView,
 } from './types'
@@ -281,6 +283,31 @@ export function suspendTenant(customerId: number, reason: string) {
 
 export function reactivateTenant(customerId: number) {
   return request<{ status: string }>(`/app/api/platform/tenants/${customerId}/reactivate`, { method: 'POST' })
+}
+
+export function deleteTenant(customerId: number, confirmName: string) {
+  return request<TenantDeleted>(`/app/api/platform/tenants/${customerId}/delete`, {
+    method: 'POST',
+    body: JSON.stringify({ confirm_name: confirmName }),
+  })
+}
+
+export function getPlatformAlerts() {
+  return request<PlatformAlerts>('/app/api/platform/alerts')
+}
+
+export function addAlertRecipient(protocol: string, endpoint: string) {
+  return request<PlatformAlerts>('/app/api/platform/alerts/recipients', {
+    method: 'POST',
+    body: JSON.stringify({ protocol, endpoint }),
+  })
+}
+
+export function removeAlertRecipient(id: string) {
+  return request<PlatformAlerts>('/app/api/platform/alerts/recipients/remove', {
+    method: 'POST',
+    body: JSON.stringify({ id }),
+  })
 }
 
 export function platformRevokeKey(keyId: number) {

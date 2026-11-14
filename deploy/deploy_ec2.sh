@@ -72,6 +72,7 @@ fi
 CRON_LINE="15 3 * * * /bin/bash $HOME/CustomerIntel/deploy/backup_db.sh >> $HOME/backups/customerintelv1/cron.log 2>&1"
 ALERT_CRON_LINE="*/5 * * * * /bin/bash $HOME/CustomerIntel/deploy/healthcheck_alert.sh >> $HOME/backups/customerintelv1/alert.log 2>&1"
 mkdir -p "$HOME/backups/customerintelv1"
+touch "$HOME/backups/customerintelv1/alert.log"   # bind-mounted into the app (a missing source would become a directory)
 if command -v crontab >/dev/null 2>&1; then
   # `crontab -l` exits 1 when the user has no crontab yet — under set -e/pipefail that silently killed the deploy (2026-09-05)
   EXISTING="$(crontab -l 2>/dev/null || true)"

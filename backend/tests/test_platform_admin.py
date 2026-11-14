@@ -101,6 +101,10 @@ def _platform_requests(w: dict) -> list:
         ('post', f"/app/api/platform/keys/{b['key_id']}/revoke", None, True),
         ('post', f"/app/api/platform/users/{b['admin_user_id']}/active", {'active': False}, True),
         ('post', f"/app/api/platform/users/{b['admin_user_id']}/reset-password", None, True),
+        ('post', f"/app/api/platform/tenants/{b['cid']}/delete", {'confirm_name': 'whatever'}, True),
+        ('get', '/app/api/platform/alerts', None, False),
+        ('post', '/app/api/platform/alerts/recipients', {'protocol': 'email', 'endpoint': 'oncall@ops.test'}, True),
+        ('post', '/app/api/platform/alerts/recipients/remove', {'id': 'arn:aws:sns:us-east-1:1:t:x'}, True),
     ]
 
 
@@ -286,6 +290,217 @@ def test_attention_names_real_problems(client, world):
 
 
 # ── the console is the only cross-tenant door ──
+
+def test_an_interrupted_run_is_closed_and_reported_as_interrupted(client, world):
+    """A run whose process was stopped part-way stays 'running' for ever unless something closes it.
+    The worker's closer marks it failed with the reason; a fresh run is left alone; the console
+    reports it as interrupted (a warning), not as a rejected run (critical)."""
+    from datetime import datetime, timedelta
+    w = world
+    with _ctx():
+        from extensions import db
+        from models import ProcessRun
+        from utils.process_runs import close_abandoned_runs, INTERRUPTED_PREFIX
+        old = ProcessRun(run_id=f'pd_{uuid.uuid4().hex[:16]}', customer_id=w['A']['cid'], mode='auto', status='running',
+                         started_at=datetime.utcnow() - timedelta(days=2))
+        fresh = ProcessRun(run_id=f'pd_{uuid.uuid4().hex[:16]}', customer_id=w['B']['cid'], mode='auto', status='running',
+                           started_at=datetime.utcnow() - timedelta(minutes=1))
+        db.session.add_all([old, fresh]); db.session.commit()
+        old_id, fresh_id = old.id, fresh.id
+        assert close_abandoned_runs() >= 1
+        old, fresh = db.session.get(ProcessRun, old_id), db.session.get(ProcessRun, fresh_id)
+        assert old.status == 'failed' and old.finished_at and old.errors[-1].startswith(INTERRUPTED_PREFIX)
+        assert fresh.status == 'running' and fresh.finished_at is None
+        assert close_abandoned_runs() == 0                      # idempotent
+        from platform_admin import service
+        kinds = {(i['kind'], i['customer_id'], i['severity']) for i in service.attention()}
+        assert ('process_run_interrupted', w['A']['cid'], 'warning') in kinds
+        assert not any(k == 'process_run_failed' and c == w['A']['cid'] for k, c, _ in kinds)
+        db.session.delete(old); db.session.delete(fresh); db.session.commit()
+
+
+class _FakeAws:
+    """SNS + CloudWatch, as much as platform_admin.alerts uses."""
+    def __init__(self, topic):
+        self.topic, self.subs, self.n = topic, [], 0
+    def list_subscriptions_by_topic(self, TopicArn, **_):
+        assert TopicArn == self.topic
+        return {'Subscriptions': [dict(s) for s in self.subs]}
+    def subscribe(self, TopicArn, Protocol, Endpoint, **_):
+        self.subs.append({'SubscriptionArn': 'PendingConfirmation', 'Protocol': Protocol, 'Endpoint': Endpoint})
+        return {'SubscriptionArn': 'pending confirmation'}
+    def confirm(self, endpoint):
+        self.n += 1
+        next(s for s in self.subs if s['Endpoint'] == endpoint)['SubscriptionArn'] = f'{self.topic}:{self.n}'
+    def unsubscribe(self, SubscriptionArn):
+        self.subs = [s for s in self.subs if s['SubscriptionArn'] != SubscriptionArn]
+    def describe_alarms(self, AlarmNamePrefix):
+        from datetime import datetime
+        return {'MetricAlarms': [{'AlarmName': f'{AlarmNamePrefix}-public-health', 'StateValue': 'ALARM', 'StateReason': 'health check failing',
+                                  'StateUpdatedTimestamp': datetime(2026, 11, 14, 20, 55), 'AlarmActions': [self.topic]}]}
+    def describe_alarm_history(self, AlarmName, **_):
+        from datetime import datetime
+        return {'AlarmHistoryItems': [{'Timestamp': datetime(2026, 11, 14, 20, 55), 'HistorySummary': 'Alarm updated from OK to ALARM'}]}
+
+
+@pytest.fixture
+def aws(monkeypatch, tmp_path):
+    from platform_admin import alerts
+    topic = 'arn:aws:sns:us-east-1:000000000000:test-alerts'
+    fake = _FakeAws(topic)
+    log = tmp_path / 'alert.log'
+    log.write_text('2026-11-14T20:55:02Z FAILING:\n- API is not answering on /health\n- root disk is 91% full\n2026-11-14T21:00:01Z recovered\n')
+    monkeypatch.setenv('ALERT_SNS_TOPIC_ARN', topic)
+    monkeypatch.setenv('ALERT_LOG_PATH', str(log))
+    monkeypatch.setattr(alerts, '_clients', lambda: (fake, fake))
+    return fake
+
+
+def test_alerts_without_a_topic_say_so_and_never_call_aws(client, world, monkeypatch):
+    from platform_admin import alerts
+    monkeypatch.delenv('ALERT_SNS_TOPIC_ARN', raising=False)
+    monkeypatch.setattr(alerts, '_clients', lambda: (_ for _ in ()).throw(AssertionError('AWS must not be called')))
+    _login(client, world['operator'])
+    try:
+        r = client.get('/app/api/platform/alerts').json()
+        assert r['configured'] is False and 'not sent to anyone' in r['error'] and r['recipients'] == []
+        assert client.post('/app/api/platform/alerts/recipients', json={'protocol': 'email', 'endpoint': 'a@b.co'}).status_code == 400
+    finally:
+        _logout(client)
+
+
+def test_alerts_show_alarms_history_host_checks_and_survive_an_aws_failure(client, world, aws, monkeypatch):
+    _login(client, world['viewer'])
+    try:
+        r = client.get('/app/api/platform/alerts').json()
+        assert r['configured'] and r['error'] is None and r['topic'] == 'test-alerts'
+        assert r['alarms'][0]['state'] == 'ALARM' and r['alarms'][0]['notifies'] is True
+        assert r['history'][0]['summary'].endswith('OK to ALARM')
+        hc = r['host_checks']
+        assert hc['available'] and hc['state'] == 'ok' and [e['kind'] for e in hc['events']] == ['recovered', 'failing']
+        assert hc['events'][1]['problems'] == ['API is not answering on /health', 'root disk is 91% full']
+        from platform_admin import alerts
+        monkeypatch.setattr(alerts, '_clients', lambda: (_ for _ in ()).throw(RuntimeError('no credentials')))
+        r = client.get('/app/api/platform/alerts')
+        assert r.status_code == 200 and 'no credentials' in r.json()['error'] and r.json()['host_checks']['available']
+    finally:
+        _logout(client)
+
+
+def test_operator_manages_alert_recipients(client, world, aws):
+    _login(client, world['operator'])
+    try:
+        add = lambda p, e: client.post('/app/api/platform/alerts/recipients', json={'protocol': p, 'endpoint': e})
+        remove = lambda i: client.post('/app/api/platform/alerts/recipients/remove', json={'id': i})
+        for p, e in (('email', 'not-an-address'), ('sms', '415-555-0123'), ('https', 'https://x.test/hook'), ('email', '')):
+            assert add(p, e).status_code == 400, (p, e)
+        r = add('email', 'OnCall@Ops.test')
+        assert r.status_code == 200
+        assert r.json()['recipients'] == [{'id': None, 'protocol': 'email', 'endpoint': 'oncall@ops.test', 'status': 'pending'}]
+        assert add('email', 'oncall@ops.test').status_code == 400                      # already there
+        assert add('sms', '+14155550123').status_code == 200
+        aws.confirm('oncall@ops.test')
+        first = next(x for x in client.get('/app/api/platform/alerts').json()['recipients'] if x['status'] == 'confirmed')
+        assert remove(first['id']).status_code == 400                                  # the only confirmed one stays
+        assert remove('arn:aws:sns:us-east-1:000000000000:someone-elses-topic:1').status_code == 404
+        assert remove(None).status_code == 404
+        aws.confirm('+14155550123')
+        r = remove(first['id'])
+        assert r.status_code == 200 and [x['endpoint'] for x in r.json()['recipients']] == ['+14155550123']
+    finally:
+        _logout(client)
+    with _ctx():
+        from models import ToolAuditLog
+        tools = [t.tool for t in ToolAuditLog.query.filter(ToolAuditLog.tool.like('platform.alert_recipient_%')).all()]
+        assert 'platform.alert_recipient_add' in tools and 'platform.alert_recipient_remove' in tools
+
+
+def test_deletion_plan_covers_every_table_in_the_schema(client, world):
+    """A table added later must be deletable with its tenant, or plan() must refuse — never silently left behind."""
+    with _ctx():
+        from extensions import db
+        from sqlalchemy import inspect
+        from platform_admin import deletion
+        planned = [t for t, _ in deletion.plan()]
+        assert planned[-1] == 'customers' and len(planned) == len(set(planned))
+        assert set(planned) | set(deletion.KEPT) | set(deletion.NOT_TENANT_DATA) == set(inspect(db.engine).get_table_names())
+
+
+def test_delete_tenant_is_guarded_archived_complete_and_audited(client, world, monkeypatch):
+    from platform_admin import deletion
+    doomed, bystander = _make_tenant('doomed'), world['A']
+    with _ctx():
+        from extensions import db
+        from models import Account, Customer
+        import api_key_service as svc
+        raw, _rec = svc.generate_api_key(doomed['cid'], doomed['admin_user_id'], 'integration')
+        name = db.session.get(Customer, doomed['cid']).customer_name
+        acct = Account.query.filter_by(customer_id=doomed['cid']).first()
+        assert acct is not None, 'fixture tenant should have an account'
+        before_other = {t: db.session.execute(db.text(f'SELECT count(*) FROM "{t}" WHERE {w}'), {'cid': bystander['cid']}).scalar()
+                        for t, w in deletion.plan()}
+    real_store = deletion._store_archive
+    stored = {}
+    path = f"/app/api/platform/tenants/{doomed['cid']}/delete"
+    _login(client, world['operator'])
+    try:
+        def fail(*_a):
+            raise AssertionError('nothing may be archived before every guard passes')
+        monkeypatch.setattr(deletion, '_store_archive', fail)
+        r = client.post(path, json={'confirm_name': name})
+        assert r.status_code == 400 and 'suspend the tenant first' in r.json()['error']
+        assert client.post(f"/app/api/platform/tenants/{doomed['cid']}/suspend", json={'reason': 'offboarding'}).status_code == 200
+        for wrong in (None, '', name.lower() + ' ', name[:-1]):
+            assert client.post(path, json={'confirm_name': wrong}).status_code == 400, wrong
+        assert client.post('/app/api/platform/tenants/99999999/delete', json={'confirm_name': 'x'}).status_code == 404
+
+        # the archive cannot be written -> nothing is deleted
+        monkeypatch.setattr(deletion, '_store_archive', lambda n, b: (_ for _ in ()).throw(RuntimeError('bucket unreachable')))
+        r = client.post(path, json={'confirm_name': name})
+        assert r.status_code == 400 and 'nothing was deleted' in r.json()['error']
+        monkeypatch.delenv('BACKUP_S3_URI', raising=False)
+        monkeypatch.setattr(deletion, '_store_archive', real_store)       # the real one, with nowhere to write
+        r = client.post(path, json={'confirm_name': name})
+        assert r.status_code == 400 and 'BACKUP_S3_URI' in r.json()['error']
+        with _ctx():
+            from extensions import db
+            from models import Customer
+            assert db.session.get(Customer, doomed['cid']) is not None
+
+        def store(n, body):
+            stored[n] = body
+            return f's3://test-bucket/deleted-tenants/{n}'
+        monkeypatch.setattr(deletion, '_store_archive', store)
+        r = client.post(path, json={'confirm_name': name})
+        assert r.status_code == 200, r.text
+        out = r.json()
+        assert out['deleted'] and out['rows']['customers'] == 1 and out['rows']['users'] >= 1 and out['archive'].startswith('s3://test-bucket/')
+        assert client.get(f"/app/api/platform/tenants/{doomed['cid']}").status_code == 404
+        assert client.post(path, json={'confirm_name': name}).status_code == 404
+        for p in ('/app/api/platform/overview', '/app/api/platform/tenants', f"/app/api/platform/audit?customer_id={doomed['cid']}"):
+            assert client.get(p).status_code == 200, p                      # the console still loads without the tenant
+    finally:
+        _logout(client)
+
+    import gzip, json as _json_mod
+    (fname, body), = stored.items()
+    archive = _json_mod.loads(gzip.decompress(body))
+    assert fname.startswith(f"tenant-{doomed['cid']}-") and archive['tenant']['name'] == name
+    assert {t: len(v) for t, v in archive['tables'].items() if v} == out['rows']
+    with _ctx():
+        from extensions import db
+        from models import ToolAuditLog
+        import api_key_service as svc
+        for t, w in deletion.plan():
+            assert db.session.execute(db.text(f'SELECT count(*) FROM "{t}" WHERE {w}'), {'cid': doomed['cid']}).scalar() == 0, t
+            assert db.session.execute(db.text(f'SELECT count(*) FROM "{t}" WHERE {w}'), {'cid': bystander['cid']}).scalar() == before_other[t], t
+        assert svc.validate_api_key(raw) is None
+        rows = ToolAuditLog.query.filter_by(customer_id=doomed['cid']).all()
+        deleted = [x for x in rows if x.tool == 'platform.tenant_delete']
+        assert len(deleted) == 1 and 'archive s3://test-bucket/' in deleted[0].detail and f'operator:' in deleted[0].detail
+        assert any(x.tool == 'platform.tenant_suspend' for x in rows)       # earlier history outlives the tenant
+    assert client.post('/app/api/auth/login', json={'email': doomed['logins']['admin'][0], 'password': doomed['logins']['admin'][1]}).status_code in (400, 401, 403)
+
 
 def test_platform_role_opens_nothing_on_tenant_routes(client, world):
     a = world['A']
