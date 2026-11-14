@@ -74,9 +74,13 @@ SUPPORTED_VERTICALS = _discover_verticals()
 # catches it), so callers that need to treat "signals-only" as a legitimate,
 # supported shape -- rather than a gap -- check membership here instead of
 # reinventing the same allowlist per test file or per tool.
-SIGNALS_ONLY_VERTICALS = frozenset({
-    'tprm_v1',  # Evidence Graph Platform TPRM pilot -- config/tprm_v1_kpi_catalog.json
-})
+SIGNALS_ONLY_VERTICALS = frozenset()   # tprm_v1 left this set when it gained its six-pillar catalog (2026-11)
+
+# Verticals that are scored but have no revenue economics. In tprm_v1 the "accounts" are a bank's
+# vendors: there is no ARR to retain or lose, so config/economics and config/investment (which price
+# a health point in retained revenue) have nothing true to say. The ROI tools fail closed for these
+# (roi.settings raises "no economics file") rather than borrow another vertical's numbers.
+NO_REVENUE_ECONOMICS_VERTICALS = frozenset({'tprm_v1'})
 
 
 def normalize_vertical(vertical: str) -> str:
