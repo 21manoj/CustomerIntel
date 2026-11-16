@@ -34,6 +34,15 @@ HOST="$(hostname)"
 NOW="$(date +%s)"
 PROBLEMS=()
 
+# --- the two files cron appends to on this host (this script's own output and the backup's).
+# Copy-then-empty, not rename: alert.log is bind-mounted into the app, and a rename would leave
+# the container holding the old file. One previous copy is kept.
+LOG_MAX_BYTES="${HOST_LOG_MAX_BYTES:-104857600}"   # 100 MB, the same as the container logs
+for f in "$DIR/alert.log" "$DIR/cron.log"; do
+  [ -f "$f" ] || continue
+  if [ "$(wc -c < "$f")" -ge "$LOG_MAX_BYTES" ]; then cp -f "$f" "$f.1" && : > "$f"; fi
+done
+
 # --- the app, the database and the worker, as /health sees them
 HEALTH="$(curl -sS -m 15 -H "Authorization: Bearer $SERVER_KEY" http://127.0.0.1:8101/health 2>&1)" \
   || PROBLEMS+=("API is not answering on /health: ${HEALTH:0:120}")
