@@ -457,14 +457,22 @@ export default function AccountDetail() {
         <Link to={`/portfolio${customerId ? `?customer_id=${customerId}` : ''}`} className="text-sm text-slate-500 hover:text-slate-800">
           ← Portfolio
         </Link>
-        {canSeeCanvas && (
+        <div className="flex items-center gap-5">
           <Link
-            to={`/accounts/${accountId}/canvas${customerId ? `?customer_id=${customerId}` : ''}`}
+            to={`/accounts/${accountId}/graph${customerId ? `?customer_id=${customerId}` : ''}`}
             className="text-sm font-medium text-slate-700 hover:text-slate-900"
           >
-            View Journey Canvas →
+            View journey graph (3D) →
           </Link>
-        )}
+          {canSeeCanvas && (
+            <Link
+              to={`/accounts/${accountId}/canvas${customerId ? `?customer_id=${customerId}` : ''}`}
+              className="text-sm font-medium text-slate-700 hover:text-slate-900"
+            >
+              View Journey Canvas →
+            </Link>
+          )}
+        </div>
       </div>
 
       {journey.synthetic && (

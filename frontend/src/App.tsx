@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import ProtectedRoute from './components/ProtectedRoute'
 import Shell from './components/Shell'
@@ -13,6 +14,9 @@ import Portfolio from './pages/Portfolio'
 import ReviewQueue from './pages/ReviewQueue'
 import Roi from './pages/Roi'
 import Settings from './pages/Settings'
+
+// three.js is large, so the 3D graph page is fetched only when someone opens it.
+const AccountGraph = lazy(() => import('./pages/AccountGraph'))
 
 // A console-only operator belongs to no tenant, so the tenant pages have nothing to show them.
 function Home() {
@@ -35,6 +39,14 @@ export default function App() {
           <Route path="/calibrations" element={<Calibrations />} />
           <Route path="/accounts/:accountId" element={<AccountDetail />} />
           <Route path="/accounts/:accountId/canvas" element={<JourneyCanvas />} />
+          <Route
+            path="/accounts/:accountId/graph"
+            element={
+              <Suspense fallback={<p className="text-sm text-slate-400">Loading the graph…</p>}>
+                <AccountGraph />
+              </Suspense>
+            }
+          />
           <Route path="/platform" element={<Platform />} />
           <Route path="/platform/tenants/:customerId" element={<PlatformTenant />} />
           <Route path="/" element={<Home />} />
