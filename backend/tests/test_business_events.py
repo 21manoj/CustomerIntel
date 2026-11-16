@@ -7,7 +7,7 @@ The business event log (playbooks/events.py, models.BusinessEvent) on a real Pos
   * each event carries the business context: account, playbook and version, step, money exposure, who, why
   * settings changes (level, per-class level, stop switch, playbook switched off or on) are events too
   * events never cross tenants; filters, paging and the date range work; an unknown filter value is refused
-  * who may read is per role, from config: admin, VP and CSM read the tenant; CRO and CFO are not granted;
+  * who may read is per role, from config: every app role reads the tenant today; a role not listed is not granted;
     'own_accounts' narrows to the user's accounts plus tenant-level events
   * the CSV export has every column and defuses spreadsheet formulas
   * backfill rebuilds the same events from history, marks them, and adds nothing on a second run
@@ -187,8 +187,8 @@ def test_the_reader_filters_pages_and_stays_inside_the_tenant(auto):
 def test_who_may_read_is_per_role_from_config(auto, monkeypatch):
     cid, accts, _ = auto
     with app.app_context():
-        assert [events.read_scope(r) for r in ('admin', 'vpcsm', 'csm')] == ['tenant'] * 3
-        assert [events.read_scope(r) for r in ('cro', 'cfo', 'nobody', None)] == [None] * 4
+        assert [events.read_scope(r) for r in ('admin', 'vpcsm', 'csm', 'cro', 'cfo')] == ['tenant'] * 5
+        assert [events.read_scope(r) for r in ('nobody', None)] == [None] * 2
         with monkeypatch.context() as m:
             m.setattr(events, 'settings', lambda: {'read_scope_by_role': {'csm': 'own_accounts', 'cfo': 'everything'}})
             assert events.read_scope('csm') == 'own_accounts' and events.read_scope('cfo') is None  # an unknown scope grants nothing
