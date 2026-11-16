@@ -46,6 +46,7 @@ ONBOARDING_TOOLS = frozenset({
 KEYED_TOOLS = frozenset({
     'configure_customer_kpis',
     'upload_csv',
+    'preflight_data_report',
     'process_data',
     'trigger_wizard',
     'submit_signal',
@@ -69,6 +70,8 @@ KEYED_TOOLS = frozenset({
     'evaluate_playbooks',
     'approve_intervention',
     'report_intervention',
+    'review_intervention',
+    'draft_intervention',
     'list_interventions',
     'configure_playbooks',
     'get_playbooks',
@@ -77,6 +80,7 @@ KEYED_TOOLS = frozenset({
     'get_power_of_1',
     'get_roi',
     'get_investment_cost',
+    'get_exposure',
     # Wizard D — Foresight (mcp_server/cs_pulse_wizard_d.py)
     'get_forecast',
     # Wizard B — Hindsight (mcp_server/cs_pulse_wizard_b.py)

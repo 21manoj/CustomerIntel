@@ -812,11 +812,12 @@ class Intervention(db.Model):
     state = db.Column(db.String(12), nullable=False, default='proposed', index=True)   # proposed | approved | sent | closed
     urgency = db.Column(db.String(10), nullable=True)                # the highest effective urgency among the cited evidence
 
-    trigger_key = db.Column(db.String(64), nullable=False)           # sha256 of the sorted trigger episode ids — idempotency
+    trigger_key = db.Column(db.String(64), nullable=False)           # sha256 of the sorted trigger episode ids (+ fact keys, when any) — idempotency
     trigger_episode_ids = db.Column(db.JSON, nullable=False, default=list)
     trigger_node_ids = db.Column(db.JSON, nullable=False, default=list)
     trigger_roles = db.Column(db.JSON, nullable=False, default=list)
     trigger_quote = db.Column(db.Text, nullable=True)                # the first cited quote
+    trigger_facts = db.Column(db.JSON, nullable=True)                # KPI readings / profile dates a fact trigger fired on: [{kind, ...}]; NULL for evidence-only rows
     evaluated_as_of = db.Column(db.DateTime, nullable=True)          # the journey's as_of when the proposal was made
     expected_outcome_types = db.Column(db.JSON, nullable=False, default=list)
     expected_window_days = db.Column(db.Integer, nullable=False)
@@ -839,6 +840,14 @@ class Intervention(db.Model):
     outcome_expected = db.Column(db.Boolean, nullable=True)          # the reported type is one the playbook expects
     node_id = db.Column(db.Integer, nullable=True)                   # the INTERVENTION node, written when the payload is sent
     notes = db.Column(db.JSON, nullable=False, default=list)         # [{at, by, transition, note}]
+    # multi-step plans and autonomy levels (config/playbook_governance.json → autonomy)
+    steps = db.Column(db.JSON, nullable=True)                        # [{id, label, action_class, effects, state, approved_by, approved_at, sent_at, done_at, delivery, policy}]; NULL = a single action
+    step_index = db.Column(db.Integer, nullable=True)                # the current step (0-based); NULL when steps is
+    approval_policy = db.Column(db.JSON, nullable=True)              # why the (first) approval was policy's or a person's: {by_policy, level, reason, review_afterwards}
+    review_required = db.Column(db.Boolean, nullable=True)           # policy approved an action a person reviews afterwards
+    reviewed_at = db.Column(db.DateTime, nullable=True)
+    reviewed_by = db.Column(db.String(120), nullable=True)
+    agent_plan = db.Column(db.JSON, nullable=True)                   # the playbook agent's draft (playbooks/agent.py); never read by approval or sending
 
     __table_args__ = (
         db.UniqueConstraint('account_id', 'playbook_id', 'trigger_key', name='uq_intervention_trigger'),

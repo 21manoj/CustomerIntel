@@ -253,7 +253,8 @@ def test_investment_cost_end_to_end_on_real_tenant(tenant):
         ic = investment_cost(cid)
         assert ic['customer_id'] == cid and ic['vertical'] == 'saas_premium' and ic['basis'] == 'assumed'
         assert {p['playbook_id'] for p in ic['playbooks']} == {'champion_departure_sponsor_rebuild', 'expansion_intent_handoff',
-                                                                'escalation_exec_response', 'seat_truedown_save'}
+                                                                'escalation_exec_response', 'seat_truedown_save',
+                                                                   'adoption_drop_renewal_review'}
         by_id = {p['playbook_id']: p for p in ic['playbooks']}
         assert by_id['champion_departure_sponsor_rebuild']['lift']['source'] in ('estimated', 'measured')
         assert by_id['expansion_intent_handoff']['cost_per_health_point']['value'] is None

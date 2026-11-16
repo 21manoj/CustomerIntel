@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ApiError, getInvestmentPriorities, getMeasuredRoi, getPowerOfOne } from '../api/client'
+import { ApiError, getExposure, getInvestmentPriorities, getMeasuredRoi, getPowerOfOne, getVertical } from '../api/client'
+import { DEFAULT_LABELS } from '../api/useVertical'
 import type {
+  ExposureResponse,
+  VerticalLabels,
   Money,
   MeasuredRoiResponse,
   PowerOfOneResponse,
@@ -51,7 +54,12 @@ function lensBadge(lens: string) {
   return <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${cls}`}>{lens}</span>
 }
 
-type Tab = 'priorities' | 'po1' | 'measured'
+type Tab = 'priorities' | 'po1' | 'measured' | 'exposure'
+
+function reason(r: PromiseSettledResult<unknown>): string | null {
+  if (r.status === 'fulfilled') return null
+  return r.reason instanceof ApiError ? r.reason.message : 'Failed to load.'
+}
 
 export default function Roi() {
   const { user } = useAuth()
@@ -61,6 +69,10 @@ export default function Roi() {
   const [priorities, setPriorities] = useState<PrioritiesResponse | null>(null)
   const [po1, setPo1] = useState<PowerOfOneResponse | null>(null)
   const [measured, setMeasured] = useState<MeasuredRoiResponse | null>(null)
+  const [exposure, setExposure] = useState<ExposureResponse | null>(null)
+  const [moneyBasis, setMoneyBasis] = useState<'revenue' | 'exposure'>('revenue')
+  const [labels, setLabels] = useState<VerticalLabels>(DEFAULT_LABELS)
+  const [tabErrors, setTabErrors] = useState<Partial<Record<Tab, string>>>({})
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
@@ -71,11 +83,43 @@ export default function Roi() {
     if (!permitted || customerId == null) return
     setLoading(true)
     setError(null)
-    Promise.all([getInvestmentPriorities(customerId), getPowerOfOne(customerId), getMeasuredRoi(customerId)])
-      .then(([p, po, m]) => {
-        setPriorities(p)
-        setPo1(po)
-        setMeasured(m)
+    setTabErrors({})
+    // The tenant's vertical says which money view applies: revenue (priorities, Power-of-1) or
+    // exposure (what a failure would cost). Each view loads on its own, so one that does not
+    // apply or fails shows its own message instead of blanking the page.
+    getVertical(customerId)
+      .then(async (v) => {
+        const basis = v.capabilities.money_basis === 'exposure' ? 'exposure' : 'revenue'
+        setMoneyBasis(basis)
+        setLabels({ ...DEFAULT_LABELS, ...v.labels })
+        if (basis === 'exposure') {
+          const [e, m] = await Promise.allSettled([getExposure(customerId), getMeasuredRoi(customerId)])
+          setExposure(e.status === 'fulfilled' ? e.value : null)
+          setMeasured(m.status === 'fulfilled' ? m.value : null)
+          setPriorities(null)
+          setPo1(null)
+          const errs: Partial<Record<Tab, string>> = {}
+          if (reason(e)) errs.exposure = reason(e)!
+          if (reason(m)) errs.measured = reason(m)!
+          setTabErrors(errs)
+          setTab('exposure')
+        } else {
+          const [p, po, m] = await Promise.allSettled([
+            getInvestmentPriorities(customerId),
+            getPowerOfOne(customerId),
+            getMeasuredRoi(customerId),
+          ])
+          setPriorities(p.status === 'fulfilled' ? p.value : null)
+          setPo1(po.status === 'fulfilled' ? po.value : null)
+          setMeasured(m.status === 'fulfilled' ? m.value : null)
+          setExposure(null)
+          const errs: Partial<Record<Tab, string>> = {}
+          if (reason(p)) errs.priorities = reason(p)!
+          if (reason(po)) errs.po1 = reason(po)!
+          if (reason(m)) errs.measured = reason(m)!
+          setTabErrors(errs)
+          setTab((t) => (t === 'exposure' ? 'priorities' : t))
+        }
       })
       .catch((err) => setError(err instanceof ApiError ? err.message : 'Failed to load ROI data.'))
       .finally(() => setLoading(false))
@@ -93,7 +137,7 @@ export default function Roi() {
   return (
     <div>
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-slate-900">ROI &amp; Power-of-1</h1>
+        <h1 className="text-xl font-semibold text-slate-900">{moneyBasis === 'exposure' ? 'Exposure & cost' : 'ROI & Power-of-1'}</h1>
         {canPickTenant && (
           <label className="flex items-center gap-2 text-sm text-slate-500">
             Customer ID
@@ -116,11 +160,16 @@ export default function Roi() {
         <>
           <div className="mb-6 flex gap-2 border-b border-slate-200">
             {(
-              [
-                ['priorities', 'Priorities'],
-                ['po1', 'Power-of-1'],
-                ['measured', 'Measured ROI'],
-              ] as [Tab, string][]
+              (moneyBasis === 'exposure'
+                ? [
+                    ['exposure', 'Exposure'],
+                    ['measured', 'Measured outcomes'],
+                  ]
+                : [
+                    ['priorities', 'Priorities'],
+                    ['po1', 'Power-of-1'],
+                    ['measured', 'Measured ROI'],
+                  ]) as [Tab, string][]
             ).map(([key, label]) => (
               <button
                 key={key}
@@ -134,6 +183,8 @@ export default function Roi() {
             ))}
           </div>
 
+          {tabErrors[tab] && <p className="mb-4 text-sm text-red-600">{tabErrors[tab]}</p>}
+          {tab === 'exposure' && <ExposureTab data={exposure} labels={labels} />}
           {tab === 'priorities' && <PrioritiesTab data={priorities} />}
           {tab === 'po1' && <Po1Tab data={po1} />}
           {tab === 'measured' && <MeasuredTab data={measured} />}
@@ -147,6 +198,176 @@ function OriginBanner({ synthetic, disclosure }: { synthetic: boolean; disclosur
   if (!synthetic) return null
   return (
     <div className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">{disclosure}</div>
+  )
+}
+
+// ── Exposure (a vertical whose accounts cost money when they fail) ──
+
+const NOT_PRICED_REASON: Record<string, string> = {
+  no_tier: 'no tier recorded',
+  unknown_tier: 'tier not one the economics file prices',
+  no_health_score: 'no health score yet',
+}
+
+function ExposureTab({ data, labels }: { data: ExposureResponse | null; labels: VerticalLabels }) {
+  if (!data) return null
+  const many = labels.accounts
+  const one = labels.account
+  if (data.status !== 'ok' || !data.portfolio) {
+    return <p className="text-sm text-slate-500">No {many.toLowerCase()} to price yet.</p>
+  }
+  const pf = data.portfolio
+  const unpriced = Object.entries(pf.not_priced)
+  return (
+    <div>
+      <OriginBanner synthetic={data.synthetic} disclosure={data.disclosure} />
+      <p className="mb-4 text-xs text-slate-500">{data.note}</p>
+
+      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <StatTile label={`${many} priced`} value={`${pf.priced_accounts} / ${pf.accounts}`} />
+        <StatTile label="Expected annual exposure" money={pf.expected_annual_exposure} />
+        <StatTile label="Avoidable at next band" money={pf.avoidable_exposure_next_band} />
+        <StatTile label={labels.revenue} money={pf.contract_value} />
+      </div>
+      {unpriced.length > 0 && (
+        <p className="mb-6 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+          Not priced, so not in the totals:{' '}
+          {unpriced.map(([why, ids]) => `${ids.length} (${NOT_PRICED_REASON[why] ?? why})`).join(' · ')}
+        </p>
+      )}
+
+      <h2 className="mb-2 text-sm font-semibold text-slate-900">By tier</h2>
+      <div className="mb-6 overflow-x-auto rounded-lg border border-slate-200 bg-white">
+        <table className="min-w-full divide-y divide-slate-200 text-sm">
+          <thead className="bg-slate-50 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
+            <tr>
+              <th className="px-4 py-2">Tier</th>
+              <th className="px-4 py-2 text-right">{many}</th>
+              <th className="px-4 py-2 text-right">Regulated critical service</th>
+              <th className="px-4 py-2 text-right">{labels.revenue}</th>
+              <th className="px-4 py-2 text-right">Expected annual exposure</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {pf.by_tier.map((t) => (
+              <tr key={t.tier}>
+                <td className="px-4 py-3 font-medium capitalize text-slate-900">{t.tier}</td>
+                <td className="px-4 py-3 text-right text-slate-600">
+                  {t.priced_accounts} / {t.accounts}
+                </td>
+                <td className="px-4 py-3 text-right text-slate-600">{t.regulated_flag_accounts}</td>
+                <td className="px-4 py-3 text-right">
+                  <MoneyView money={t.contract_value} />
+                </td>
+                <td className="px-4 py-3 text-right">
+                  <MoneyView money={t.expected_annual_exposure} />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <h2 className="mb-2 text-sm font-semibold text-slate-900">By {one.toLowerCase()}</h2>
+      <div className="mb-6 overflow-x-auto rounded-lg border border-slate-200 bg-white">
+        <table className="min-w-full divide-y divide-slate-200 text-sm">
+          <thead className="bg-slate-50 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
+            <tr>
+              <th className="px-4 py-2">{one}</th>
+              <th className="px-4 py-2">Tier</th>
+              <th className="px-4 py-2 text-right">Health</th>
+              <th className="px-4 py-2 text-right">Failure cost</th>
+              <th className="px-4 py-2 text-right">Likelihood / yr</th>
+              <th className="px-4 py-2 text-right">Expected annual exposure</th>
+              <th className="px-4 py-2 text-right">Avoidable at next band</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {[...data.accounts]
+              .sort((a, b) => (b.expected_annual_exposure?.value ?? -1) - (a.expected_annual_exposure?.value ?? -1))
+              .map((a) => (
+                <tr key={a.account_id}>
+                  <td className="px-4 py-3 font-medium text-slate-900">
+                    {a.account_name}
+                    {a.regulated_flag && (
+                      <span className="ml-2 rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-rose-700" title={a.regulated_note}>
+                        regulated critical service
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 capitalize text-slate-600">{a.tier ?? '—'}</td>
+                  <td className="px-4 py-3 text-right text-slate-600">{a.health_now != null ? Math.round(a.health_now) : '—'}</td>
+                  <td className="px-4 py-3 text-right">
+                    <MoneyView money={a.failure_cost} />
+                    {a.failure_event && <div className="text-[11px] text-slate-400">{a.failure_event.replace(/_/g, ' ')}</div>}
+                  </td>
+                  <td className="px-4 py-3 text-right text-slate-600">
+                    {a.annual_failure_likelihood != null ? `${(a.annual_failure_likelihood * 100).toFixed(0)}%` : '—'}
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    {a.not_priced ? (
+                      <span className="text-xs text-amber-700">not priced: {NOT_PRICED_REASON[a.not_priced] ?? a.not_priced}</span>
+                    ) : (
+                      <MoneyView money={a.expected_annual_exposure} />
+                    )}
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    {a.next_band ? (
+                      <>
+                        <MoneyView money={a.next_band.avoidable_exposure} />
+                        <div className="text-[11px] text-slate-400">+{a.next_band.health_points_needed} health points</div>
+                      </>
+                    ) : (
+                      <span className="text-slate-400">—</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+          </tbody>
+        </table>
+      </div>
+
+      <h2 className="mb-2 text-sm font-semibold text-slate-900">Playbooks: cost beside exposure avoided</h2>
+      {data.playbooks?.status !== 'ok' ? (
+        <p className="text-sm text-slate-500">{data.playbooks?.reason ?? 'No playbook cost file for this vertical.'}</p>
+      ) : (
+        <>
+          <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+            <table className="min-w-full divide-y divide-slate-200 text-sm">
+              <thead className="bg-slate-50 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
+                <tr>
+                  <th className="px-4 py-2">Playbook</th>
+                  <th className="px-4 py-2 text-right">Proposed</th>
+                  <th className="px-4 py-2 text-right">Approved</th>
+                  <th className="px-4 py-2 text-right">Closed done</th>
+                  <th className="px-4 py-2 text-right">Hours each</th>
+                  <th className="px-4 py-2 text-right">Cost to date</th>
+                  <th className="px-4 py-2 text-right">Exposure avoided</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {data.playbooks.rows.map((r) => (
+                  <tr key={r.playbook_id}>
+                    <td className="px-4 py-3 font-medium text-slate-900">{r.playbook_id}</td>
+                    <td className="px-4 py-3 text-right text-slate-600">{r.interventions}</td>
+                    <td className="px-4 py-3 text-right text-slate-600">{r.runs}</td>
+                    <td className="px-4 py-3 text-right text-slate-600">{r.closed_done}</td>
+                    <td className="px-4 py-3 text-right text-slate-600">{r.estimated_hours}</td>
+                    <td className="px-4 py-3 text-right">
+                      <MoneyView money={r.estimated_cost_to_date} />
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <MoneyView money={r.exposure_avoided} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="mt-2 text-xs text-slate-500">{data.playbooks.note}</p>
+        </>
+      )}
+    </div>
   )
 }
 

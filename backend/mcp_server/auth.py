@@ -97,6 +97,8 @@ WRITE_TOOLS = {
     'evaluate_playbooks',
     'approve_intervention',
     'report_intervention',
+    'review_intervention',
+    'draft_intervention',
     'configure_playbooks',
     'import_from_source',
     'approve_calibration',

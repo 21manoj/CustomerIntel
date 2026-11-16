@@ -59,17 +59,19 @@ def research_company(company_name: str, domain: Optional[str] = None, customer_i
     """One web-search-backed LLM call, gated by the customer's LLM budget.
     Returns {status:'ok', findings_text, model, searched_at} or {status:'error', error}.
     Raises PermissionError if the budget circuit breaker is tripped, RuntimeError if no API key."""
-    import os
-    if not os.environ.get('ANTHROPIC_API_KEY'):
+    from utils import model_provider
+    if not model_provider.available():
         raise RuntimeError('external research needs a real model — no stub exists for "go research the real world"')
+    if not model_provider.supports('web_search'):
+        raise RuntimeError(f'external research needs a model host that can search the web; '
+                           f'the active provider ({model_provider.active_name()}) cannot')
 
-    import anthropic
     from utils.llm_budget_controller import can_call_and_run
 
     cfg = settings.get('external_research')
     domain_hint = f' ({domain})' if domain else ''
     user = USER_PROMPT_TEMPLATE.format(company_name=company_name, domain_hint=domain_hint)
-    client = anthropic.Anthropic()
+    client = model_provider.sdk_client()
     model = cfg['model']
 
     response = can_call_and_run(

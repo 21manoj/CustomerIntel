@@ -1,7 +1,11 @@
 {
   "version": "1.0",
   "vertical": "tprm_v1",
-  "_doc": "TPRM vendor-risk playbooks. Trigger roles are the taxonomy signal roles shared with every vertical (see config/taxonomy_tprm_v1.json's signal_roles for the vendor-specific subtypes filed under each); expected_outcome.types are this vertical's revenue_bucket outcome subtypes. evaluate_playbooks reads only the journey's latest leading month, so these fire on CURRENT vendor activity, not resolved history.",
+  "_doc": "TPRM vendor-risk playbooks. Trigger roles are the taxonomy signal roles shared with every vertical (see config/taxonomy_tprm_v1.json's signal_roles for the vendor-specific subtypes filed under each); expected_outcome.types are this vertical's revenue_bucket outcome subtypes. evaluate_playbooks reads only the journey's latest leading month, so these fire on CURRENT vendor activity, not resolved history. The last four fire on recorded facts instead of communications (trigger.kpi / trigger.date, see config/playbook_governance.json fact_triggers): KPI codes are this vertical's catalog codes; date fields are account profile fields.",
+  "always_human": {
+    "_doc": "Account profile fields that keep every action on that vendor with a person, whatever the tenant's automation level. A vendor behind a regulated critical service is never acted on by policy.",
+    "account_flags": ["regulated_critical_service"]
+  },
   "playbooks": [
     {
       "id": "incident_corrective_action",
@@ -58,6 +62,44 @@
       "action_class": "notify",
       "approval": "auto",
       "expected_outcome": { "types": ["vendor_scope_expanded", "vendor_contract_renewed"], "window_days": 90 }
+    },
+    {
+      "id": "remediation_overdue",
+      "label": "Findings past due: remediation follow-up",
+      "trigger": { "kpi": [{ "code": "R-KPI2", "op": ">", "value": 0, "periods": 2 }, { "code": "S-KPI2", "op": ">", "value": 3 }], "kpi_match": "any", "urgency": "high" },
+      "action_class": "schedule",
+      "approval": "human",
+      "steps": [
+        { "id": "remind_vendor_owner", "label": "Remind the vendor owner of the overdue findings", "action_class": "notify" },
+        { "id": "remediation_review", "label": "Book a remediation review with the vendor", "action_class": "schedule" },
+        { "id": "escalate_to_vendor_executive", "label": "Escalate to the vendor's executive sponsor", "action_class": "escalate" }
+      ],
+      "expected_outcome": { "types": ["vendor_risk_remediated", "vendor_retained_after_review"], "window_days": 60 }
+    },
+    {
+      "id": "assurance_lapse",
+      "label": "Assurance report expiring: request the new report",
+      "trigger": { "date": { "field": "assurance_report_expiry", "within_days": 60, "label": "independent assurance report expiry" }, "urgency": "medium" },
+      "action_class": "notify",
+      "approval": "auto",
+      "expected_outcome": { "types": ["vendor_risk_remediated", "vendor_retained_after_review"], "window_days": 60 }
+    },
+    {
+      "id": "sla_recovery",
+      "label": "SLA missed two periods running: recovery plan",
+      "trigger": { "kpi": [{ "code": "P-KPI1", "op": "<", "value": 95, "periods": 2 }], "urgency": "high" },
+      "action_class": "escalate",
+      "approval": "human",
+      "expected_outcome": { "types": ["vendor_sla_restored", "vendor_replaced"], "window_days": 60 }
+    },
+    {
+      "id": "exit_readiness",
+      "label": "Contract ending with an untested exit plan: exit readiness review",
+      "trigger": { "kpi": [{ "code": "O-KPI4", "op": "<", "value": 50 }], "date": { "field": "contract_end", "within_days": 365, "label": "contract end" }, "urgency": "medium" },
+      "action_class": "schedule",
+      "approval": "human",
+      "effects": ["exit"],
+      "expected_outcome": { "types": ["vendor_contract_renewed", "vendor_replaced", "vendor_retained_after_review"], "window_days": 180 }
     }
   ]
 }

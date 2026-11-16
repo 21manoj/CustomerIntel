@@ -165,6 +165,7 @@ def _routes(t: dict) -> list:
     return [
         ('portfolio',             'get',   f'/app/api/portfolio?customer_id={cid}', None, ROLES),
         ('account detail',        'get',   f"/app/api/accounts/{aid}?customer_id={cid}", None, ROLES),
+        ('account graph',         'get',   f"/app/api/accounts/{aid}/graph?customer_id={cid}", None, ROLES),
         ('interventions list',    'get',   f'/app/api/interventions?customer_id={cid}', None, ROLES),
         ('interventions list+acct', 'get', f'/app/api/interventions?customer_id={cid}&account_id={aid}', None, ROLES),
         ('interventions evaluate', 'get',  f'/app/api/interventions/evaluate?customer_id={cid}', None, ROLES),
@@ -173,12 +174,19 @@ def _routes(t: dict) -> list:
                                            {'customer_id': cid, 'note': 'x'}, ('admin', 'csm')),
         ('intervention report',   'post',  f"/app/api/interventions/{t['intervention_id']}/report",
                                            {'customer_id': cid, 'state': 'done'}, ('admin', 'csm')),
+        ('intervention review',   'post',  f"/app/api/interventions/{t['intervention_id']}/review",
+                                           {'customer_id': cid, 'note': 'x'}, ('admin', 'csm')),
+        ('intervention draft',    'post',  f"/app/api/interventions/{t['intervention_id']}/draft",
+                                           {'customer_id': cid}, ('admin', 'csm')),
         ('roi measured',          'get',   f'/app/api/roi?customer_id={cid}', None, ('admin', 'cfo', 'cro')),
         ('roi priorities',        'get',   f'/app/api/roi/priorities?customer_id={cid}', None, ('admin', 'cfo', 'cro')),
         ('roi power-of-1',        'get',   f'/app/api/roi/power-of-1?customer_id={cid}', None, ('admin', 'cfo', 'cro')),
+        ('roi exposure',          'get',   f'/app/api/roi/exposure?customer_id={cid}', None, ('admin', 'cfo', 'cro')),
         ('forecast',              'get',   f'/app/api/forecast?customer_id={cid}', None, ROLES),
         ('forecast+account',      'get',   f'/app/api/forecast?customer_id={cid}&account_id={aid}', None, ROLES),
         ('ask ai',                'post',  '/app/api/ask', {'customer_id': cid, 'question': 'how are we doing?'}, ROLES),
+        ('ask questions',         'get',   f'/app/api/ask/questions?customer_id={cid}', None, ROLES),
+        ('vertical',              'get',   f'/app/api/vertical?customer_id={cid}', None, ROLES),
         ('calibrations get',      'get',   f'/app/api/calibrations?customer_id={cid}', None, ('admin',)),
         ('calibrations propose',  'post',  '/app/api/calibrations/propose', {'customer_id': cid}, ('admin',)),
         ('calibration approve',   'post',  f"/app/api/calibrations/{t['proposal_id']}/approve", {'customer_id': cid}, ('admin',)),
@@ -253,7 +261,7 @@ def test_positive_control_the_same_requests_against_your_own_tenant_are_not_scop
         for label, method, path, body, roles in _routes(A):
             if role not in roles or label == 'ask ai':      # ask ai would spend a real model call
                 continue
-            if label in ('users patch', 'users reset-password', 'intervention approve', 'intervention report',
+            if label in ('users patch', 'users reset-password', 'intervention approve', 'intervention report', 'intervention draft',
                          'calibration approve', 'calibration reject', 'users invite', 'review post',
                          'playbook config post', 'calibrations propose'):
                 continue                                     # writes: covered by test_app_api_http.py, skipped here
@@ -280,6 +288,8 @@ def test_foreign_object_ids_are_refused_even_with_your_own_customer_id(client, t
         assert r.status_code == 400 and 'not found' in r.json()['error']
         r = client.post(f"/app/api/interventions/{B['intervention_id']}/report",
                         json={'customer_id': A['cid'], 'state': 'done'})
+        assert r.status_code == 400 and 'not found' in r.json()['error']
+        r = client.post(f"/app/api/interventions/{B['intervention_id']}/review", json={'customer_id': A['cid']})
         assert r.status_code == 400 and 'not found' in r.json()['error']
         r = client.post(f"/app/api/calibrations/{B['proposal_id']}/approve", json={'customer_id': A['cid']})
         assert r.status_code == 400 and 'not found' in r.json()['error']
@@ -383,7 +393,6 @@ NO_TENANT = {
     '/app/api/auth/logout': 'clears the cookie; touches no tenant data',
     '/app/api/auth/set-password': 'consumes an admin-issued token; the token identifies the user',
     '/app/api/me': "returns the caller's own row only",
-    '/app/api/ask/questions': 'static curated question list per role; no tenant data',
 }
 
 

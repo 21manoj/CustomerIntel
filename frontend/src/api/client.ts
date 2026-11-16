@@ -2,6 +2,8 @@
 // same functions the design doc's route table names. No business logic here, just
 // the HTTP call + typed response.
 import type {
+  AgentPlan,
+  AccountGraph,
   AskQuestionsResponse,
   AskResponse,
   AskTurn,
@@ -12,6 +14,8 @@ import type {
   InviteUserResponse,
   Journey,
   MeasuredRoiResponse,
+  ExposureResponse,
+  VerticalInfo,
   PlatformAlerts,
   PlatformAuditPage,
   PlatformKey,
@@ -88,6 +92,10 @@ export function getAccount(customerId: number, accountId: number) {
   return request<Journey>(`/app/api/accounts/${accountId}?customer_id=${customerId}`)
 }
 
+export function getAccountGraph(customerId: number, accountId: number) {
+  return request<AccountGraph>(`/app/api/accounts/${accountId}/graph?customer_id=${customerId}`)
+}
+
 export function getInterventions(customerId: number, opts?: { accountId?: number; state?: string }) {
   const params = new URLSearchParams({ customer_id: String(customerId) })
   if (opts?.accountId != null) params.set('account_id', String(opts.accountId))
@@ -106,6 +114,20 @@ export function evaluatePlaybooks(customerId: number, accountId?: number) {
 
 export function approveIntervention(interventionId: number, customerId: number, note?: string) {
   return request<{ intervention_id: number; state: string }>(`/app/api/interventions/${interventionId}/approve`, {
+    method: 'POST',
+    body: JSON.stringify({ customer_id: customerId, note }),
+  })
+}
+
+export function draftIntervention(interventionId: number, customerId: number) {
+  return request<{ agent_plan: AgentPlan }>(`/app/api/interventions/${interventionId}/draft`, {
+    method: 'POST',
+    body: JSON.stringify({ customer_id: customerId }),
+  })
+}
+
+export function reviewIntervention(interventionId: number, customerId: number, note?: string) {
+  return request<{ intervention_id: number; state: string }>(`/app/api/interventions/${interventionId}/review`, {
     method: 'POST',
     body: JSON.stringify({ customer_id: customerId, note }),
   })
@@ -164,6 +186,16 @@ export function getMeasuredRoi(customerId: number) {
   return request<MeasuredRoiResponse>(`/app/api/roi?customer_id=${customerId}`)
 }
 
+// Only for a vertical whose money basis is exposure; the backend answers 422 for any other.
+export function getExposure(customerId: number) {
+  return request<ExposureResponse>(`/app/api/roi/exposure?customer_id=${customerId}`)
+}
+
+// What the tenant's vertical declares: capabilities (e.g. money basis) and display labels. Every role.
+export function getVertical(customerId: number) {
+  return request<VerticalInfo>(`/app/api/vertical?customer_id=${customerId}`)
+}
+
 // ── Settings: users (admin) ──
 
 export function getUsers(customerId: number) {
@@ -203,6 +235,7 @@ export function configurePlaybooks(payload: {
   webhook_secret?: string
   disabled_playbooks?: string[]
   automation_level?: number
+  automation_levels_by_class?: Record<string, number | null>
   kill_switch?: boolean
 }) {
   return request<TenantPlaybookConfig>('/app/api/playbooks/config', { method: 'POST', body: JSON.stringify(payload) })
@@ -237,8 +270,10 @@ export function rejectCalibration(proposalId: number, customerId: number, note?:
   })
 }
 
-export function getAskQuestions() {
-  return request<AskQuestionsResponse>('/app/api/ask/questions')
+// With a customer id the set is that tenant's vertical's own (a vertical may replace a role's questions).
+export function getAskQuestions(customerId?: number | null) {
+  const q = customerId != null ? `?customer_id=${customerId}` : ''
+  return request<AskQuestionsResponse>(`/app/api/ask/questions${q}`)
 }
 
 // history: the earlier turns of the SAME chat, held in the browser and replayed with each new

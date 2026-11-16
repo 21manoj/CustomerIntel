@@ -5,6 +5,7 @@ CS Pulse MCP — Power-of-1 / ROI read tools (docs/design/power-of-1-roi.md).
     get_power_of_1(customer_id, account_id=None)
     get_roi(customer_id)
     get_investment_cost(customer_id)
+    get_exposure(customer_id, account_id=None)
 
 Reads only. Keyed over HTTP (onboarding_tool_registry.KEYED_TOOLS); the
 computation lives in roi/ and is shared with the /api/roi/* routes and the
@@ -119,3 +120,25 @@ def get_investment_cost(customer_id: int) -> dict:
     _require_auth_if_key_present('get_investment_cost', customer_id)
     from roi.investment import investment_cost
     return _read(customer_id, lambda: investment_cost(int(customer_id)))
+
+
+@mcp.tool
+def get_exposure(customer_id: int, account_id: int = None) -> dict:
+    """The money view for a vertical whose accounts cost money when they fail instead of bringing
+    revenue to retain (catalog capability money_basis = 'exposure'). Per account: its tier and flags
+    from the profile, the failure cost (the account's own recorded figure, else the largest applicable
+    failure-event cost at its tier from config/economics/<vertical>.json), the annual failure likelihood
+    for the band its latest health score falls in, the expected annual exposure (cost x likelihood) and
+    what reaching the next likelihood band would remove. Portfolio totals by tier, the accounts that
+    could not be priced and why (no tier, no health score), exposure avoided on closed interventions
+    that carry a health reading before and after, and the estimated cost of the playbooks. Every
+    exposure figure is labelled assumed with its chain. Exposure and cost are reported side by side
+    and are never divided into a return. A revenue-basis vertical gets an error naming get_power_of_1.
+
+    Args:
+        customer_id: The customer ID
+        account_id: One account only (optional)
+    """
+    _require_auth_if_key_present('get_exposure', customer_id)
+    from roi.exposure import exposure
+    return _read(customer_id, lambda: exposure(int(customer_id), int(account_id) if account_id is not None else None))

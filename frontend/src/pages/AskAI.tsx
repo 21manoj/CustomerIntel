@@ -32,7 +32,7 @@ function AnswerCard({ turn }: { turn: Turn }) {
         </p>
         <div className="flex items-center gap-2">
           <ConfidencePill confidence={res.confidence} />
-          <span className="text-xs text-slate-400">{res.model}</span>
+          <span className="text-xs text-slate-400">{res.model_label ?? res.model}</span>
         </div>
       </div>
       {res.synthetic && <p className="mt-2 text-xs text-amber-700">{res.disclosure}</p>}
@@ -86,14 +86,14 @@ export default function AskAI() {
   const endRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
-    getAskQuestions()
+    getAskQuestions(customerId)
       .then((r) => {
         setQuestionsByRole(r.questions)
         setAvailableRoles(r.roles)
         setViewRole((user?.role as Role) ?? null)
       })
       .catch((err) => setError(err instanceof ApiError ? err.message : 'Failed to load suggested questions.'))
-  }, [user])
+  }, [user, customerId])
 
   useEffect(() => {
     if (customerId == null) return
@@ -116,16 +116,20 @@ export default function AskAI() {
       }))
   }
 
-  async function ask(question: string, requiresAccount: boolean) {
+  // scope 'account': needs the picked account. 'portfolio': a suggested portfolio-wide question, which
+  // always runs across the whole portfolio whatever the picker says (it used to send the picked account
+  // and get one account's story back). 'free': the user's own words; the picker decides, and the line
+  // under the box says which before they send.
+  async function ask(question: string, scope: 'account' | 'portfolio' | 'free') {
     if (customerId == null || !question.trim()) return
-    if (requiresAccount && !accountId) {
+    if (scope === 'account' && !accountId) {
       setError('Pick an account first — this question needs one.')
       return
     }
     setAsking(true)
     setError(null)
     try {
-      const res = await askQuestion(customerId, question, accountId ? Number(accountId) : undefined, historyFor(turns))
+      const res = await askQuestion(customerId, question, scope !== 'portfolio' && accountId ? Number(accountId) : undefined, historyFor(turns))
       setTurns((prev) => [...prev, { question, res }])
       setFreeText('')
     } catch (err) {
@@ -205,32 +209,42 @@ export default function AskAI() {
           {questions.map((q) => (
             <button
               key={q.id}
-              onClick={() => ask(q.text, q.scope === 'account')}
+              onClick={() => ask(q.text, q.scope === 'account' ? 'account' : 'portfolio')}
               disabled={asking}
-              title={q.scope === 'account' ? 'needs an account picked above' : 'runs portfolio-wide'}
+              title={q.scope === 'account' ? 'needs an account picked above' : 'always runs across the whole portfolio, whatever account is picked'}
               className="rounded-full border border-slate-300 px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50 disabled:opacity-50"
             >
               {q.text}{q.scope === 'account' && ' •'}
             </button>
           ))}
         </div>
+        <p className="mt-2 text-xs text-slate-400">
+          • runs on the account picked above. The others always run across the whole portfolio, whatever is picked.
+        </p>
 
         <div className="mt-4 flex gap-2">
           <input
             value={freeText}
             onChange={(e) => setFreeText(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && ask(freeText, false)}
+            onKeyDown={(e) => e.key === 'Enter' && ask(freeText, 'free')}
             placeholder={turns.length ? 'Ask a follow-up…' : 'Or ask your own question…'}
             className="flex-1 rounded border border-slate-300 px-3 py-2 text-sm"
           />
           <button
-            onClick={() => ask(freeText, false)}
+            onClick={() => ask(freeText, 'free')}
             disabled={asking || !freeText.trim()}
             className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50"
           >
             {asking ? 'Asking…' : 'Ask'}
           </button>
         </div>
+        <p className="mt-2 text-xs text-slate-500">
+          Your own question will run on:{' '}
+          <span className="font-medium text-slate-700">
+            {accountId ? (accounts.find((a) => a.account_id === Number(accountId))?.account_name ?? 'the picked account') : 'the whole portfolio'}
+          </span>
+          {accountId ? ' (set the picker to Portfolio-wide to ask about every account)' : ' (or the account you name in the question)'}
+        </p>
       </div>
 
       {error && <p className="text-sm text-red-600">{error}</p>}

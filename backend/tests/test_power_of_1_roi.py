@@ -468,7 +468,7 @@ def test_tools_are_keyed_reads_and_round_trip(tenants):
         assert t in KEYED_TOOLS and t not in ONBOARDING_TOOLS and t not in WRITE_TOOLS
     src = (BACKEND / 'mcp_server' / 'cs_pulse_roi.py').read_text()
     assert set(re.findall(r"_require_auth_if_key_present\('([a-z_0-9]+)'", src)) == \
-        {'get_investment_priorities', 'get_power_of_1', 'get_roi', 'get_investment_cost'}
+        {'get_investment_priorities', 'get_power_of_1', 'get_roi', 'get_investment_cost', 'get_exposure'}
     cid, ids = tenants['saas']
     with app.app_context():
         from mcp_server.cs_pulse_roi import get_investment_priorities, get_power_of_1, get_roi, get_investment_cost
@@ -479,7 +479,7 @@ def test_tools_are_keyed_reads_and_round_trip(tenants):
         ic = get_investment_cost(cid)
         assert ic['vertical'] == 'saas_premium' and ic['csm_hourly_cost']['value'] == 85
         assert {p['playbook_id'] for p in ic['playbooks']} == {'champion_departure_sponsor_rebuild', 'expansion_intent_handoff',
-                                                                'escalation_exec_response', 'seat_truedown_save'}
+                                                                'escalation_exec_response', 'seat_truedown_save', 'adoption_drop_renewal_review'}
         with pytest.raises(ToolError, match='not found'):
             get_roi(cid + 100_000)
         with pytest.raises(ToolError, match='not found'):
@@ -498,7 +498,7 @@ def test_http_routes_are_keyed(tenants):
         from server import build_asgi_app
         from roi.http import ROUTES
         from starlette.testclient import TestClient
-        assert ROUTES == ('/api/roi/priorities', '/api/roi/power-of-1', '/api/roi')
+        assert ROUTES == ('/api/roi/priorities', '/api/roi/power-of-1', '/api/roi/exposure', '/api/roi')
         with TestClient(build_asgi_app(TEST_DB, create_schema=False)) as c:
             for path in ROUTES:
                 assert c.get(f'{path}?customer_id={cid}').status_code == 401
@@ -510,6 +510,8 @@ def test_http_routes_are_keyed(tenants):
             assert r.status_code == 200 and r.json()['portfolio']['revenue_base']['value'] == 2_700_000
             r = c.get(f'/api/roi?customer_id={cid}', headers=h)
             assert r.status_code == 200 and r.json()['by_playbook']
+            r = c.get(f'/api/roi/exposure?customer_id={cid}', headers=h)       # a revenue-basis tenant: refused, with the reason
+            assert r.status_code == 422 and 'money basis' in r.json()['error']
     finally:
         auth.MCP_SERVER_API_KEY = prev
         os.environ['MCP_TRANSPORT'] = 'stdio'

@@ -1,5 +1,6 @@
 """
-Phase-transition edge derivation — tprm_v1 only.
+Phase-transition edge derivation — for verticals that declare the
+`phase_transition_edges` capability in their catalog.
 
 The platform already computes phase structure (journeys/journey_builder.py's
 detect_phases / detect_phases_from_evidence) and each phase names the
@@ -15,8 +16,9 @@ CLOSE_LINK_DERIVATION.
 
     derive_phase_transition_edges(customer_id, account_id, phases, episodes) -> list
 
-Wired from journeys/wizard_a.py's run_wizard_a(), gated strictly on
-`vertical == 'tprm_v1'` — no other vertical is touched.
+Wired from journeys/wizard_a.py's run_wizard_a(), gated on
+utils.vertical_registry.capability(vertical, 'phase_transition_edges') —
+a vertical that does not declare it is not touched.
 
 Takes the dict shapes build_journey already returns (journey['phases'],
 journey['episodes'] — the latter is [Episode.to_json() for e in episodes],
@@ -40,7 +42,7 @@ from typing import Dict, List, Optional
 PHASE_TRANSITION_DERIVATION = 'system.self.phase_transition_chain'
 
 # edge_factory.create_inferred_edge's source_platform — wizard_a is where
-# this is called from (journeys/wizard_a.py's run_wizard_a, tprm_v1 only).
+# this is called from (journeys/wizard_a.py's run_wizard_a).
 SOURCE_PLATFORM = 'journeys.wizard_a'
 
 

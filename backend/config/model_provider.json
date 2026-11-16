@@ -1,0 +1,22 @@
+{
+  "_doc": "Which model host the platform calls. Read by utils/model_provider.py, the one module every model call goes through (Ask AI, signal extraction, external research). Change 'provider' here, or set env MODEL_PROVIDER, to move every call site at once. A provider's key is read from the env var it names and is never stored in this file. 'features' says what the host can do: a call site that needs a feature the active provider lacks says so in plain words instead of failing oddly. 'model_map' renames the model ids the call sites ask for (their own config files) to what the host calls its models; an id with no entry is passed through unchanged.",
+  "provider": "anthropic",
+  "providers": {
+    "anthropic": {
+      "kind": "anthropic",
+      "api_key_env": "ANTHROPIC_API_KEY",
+      "base_url_env": "ANTHROPIC_BASE_URL",
+      "features": ["tool_call", "web_search"],
+      "model_map": {}
+    },
+    "hosted_open_model": {
+      "_doc": "Any host that speaks the OpenAI-style /chat/completions API with tool calling (most hosts of open-source models do). Set MODEL_BASE_URL to the host's API root (for example https://host.example/v1) and MODEL_API_KEY to its key, fill model_map, then set provider to hosted_open_model. Not yet run against a real host: run the Ask AI and extraction evals on it before production use. No web search, so external research stays unavailable on this provider.",
+      "kind": "openai_compatible",
+      "api_key_env": "MODEL_API_KEY",
+      "base_url_env": "MODEL_BASE_URL",
+      "timeout_seconds": 120,
+      "features": ["tool_call"],
+      "model_map": {}
+    }
+  }
+}

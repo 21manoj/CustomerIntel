@@ -494,8 +494,19 @@ function PlaybookSection({ customerId }: { customerId: number }) {
               onChange={(e) => setAutomationLevel(Number(e.target.value))}
               className="rounded-md border border-slate-300 px-2 py-1.5 text-sm"
             >
-              <option value={0}>0 — every approval is human</option>
-              <option value={1}>1 — auto-approve notify-class playbooks</option>
+              {[
+                '0 — every approval is a person\'s',
+                '1 — notifications declared automatic',
+                '2 — notify and schedule, after a person approves the plan once',
+                '3 — notify and schedule on their own',
+                '4 — escalations too, reviewed afterwards',
+              ]
+                .filter((_, lvl) => lvl <= (data.tenant.ceiling ?? 1))
+                .map((label, lvl) => (
+                  <option key={lvl} value={lvl}>
+                    {label}
+                  </option>
+                ))}
             </select>
           </div>
           <label className="mb-1.5 flex items-center gap-2 text-sm text-red-700">

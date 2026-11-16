@@ -5,14 +5,48 @@
   "approval_modes": ["auto", "human"],
   "auto_approval_allowed_for": ["notify"],
   "roles_match_modes": ["any", "all"],
+  "fact_triggers": {
+    "_doc": "Triggers on recorded facts rather than communications, for every vertical. trigger.kpi = [{code, op, value, periods?}] reads the account's latest kpi_measurements (periods = that many latest readings must all breach); trigger.date = {field, within_days | overdue_by_days} reads a date in the account profile. roles, kpi and date are ANDed; a trigger needs at least one of them.",
+    "kpi_ops": ["<", "<=", ">", ">="],
+    "kpi_match_modes": ["any", "all"],
+    "kpi_max_periods": 12
+  },
   "states": ["proposed", "approved", "sent", "closed"],
   "closed_states": ["done", "failed", "cancelled"],
   "report_states": ["started", "done", "failed", "cancelled"],
   "automation_levels": {
     "0": "every approval is human",
-    "1": "playbooks declared approval=auto (notify only) are approved by policy at evaluation time"
+    "1": "playbooks declared approval=auto (notify only) are approved by policy at evaluation time",
+    "2": "notify and schedule steps are approved by policy once a human has approved that playbook's plan (per playbook version)",
+    "3": "notify and schedule steps are approved by policy on their own; escalations and offers need a human",
+    "4": "escalations are approved by policy too and marked for a human to review afterwards; offers need a human"
   },
   "default_automation_level": 0,
+  "autonomy": {
+    "_doc": "How far policy may act without a human, for every vertical. A tenant has one level plus optional per-action-class levels; each is capped by ceiling / ceiling_by_class (the platform's limit: an FDE chooses at or below it). policy_approves[level] = the action classes policy may approve at that level. At level 1 only playbooks declared approval=auto qualify; at the levels in needs_plan_approval a human must have approved that playbook version once for the tenant. always_human wins over every level: those action classes, any playbook or step that declares one of those effects, and any account carrying a flag the vertical's playbook file lists under always_human.account_flags. A declined proposal or a failed report lowers the level of that action class by lower_by (never below lower_floor); only a person raises a level again. suggest_raise_after = the run of human approvals with no decline or failure after which a raise is suggested (never applied).",
+    "ceiling": 4,
+    "ceiling_by_class": {"offer": 0},
+    "policy_approves": {
+      "0": [],
+      "1": ["notify"],
+      "2": ["notify", "schedule"],
+      "3": ["notify", "schedule"],
+      "4": ["notify", "schedule", "escalate"]
+    },
+    "declared_auto_only": [1],
+    "needs_plan_approval": [2],
+    "review_afterwards": ["escalate"],
+    "always_human": {
+      "action_classes": ["offer"],
+      "effects": ["money", "contract", "exit"]
+    },
+    "lower_on": ["declined", "failed"],
+    "lower_by": 1,
+    "lower_floor": 0,
+    "suggest_raise_after": 10,
+    "log_keep": 50,
+    "max_steps": 8
+  },
   "evaluate_on_journey_rebuild": true,
   "stuck_after_days": 14,
   "webhook": {

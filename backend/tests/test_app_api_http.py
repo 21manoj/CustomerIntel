@@ -114,6 +114,7 @@ def test_every_protected_route_is_401_with_no_session(client, tenant):
     for method, path, body in [
         ('get', f"/app/api/portfolio?customer_id={tenant['customer_id']}", None),
         ('get', f"/app/api/accounts/{tenant['account_a']}?customer_id={tenant['customer_id']}", None),
+        ('get', f"/app/api/accounts/{tenant['account_a']}/graph?customer_id={tenant['customer_id']}", None),
         ('get', f"/app/api/interventions?customer_id={tenant['customer_id']}", None),
         ('get', f"/app/api/roi?customer_id={tenant['customer_id']}", None),
         ('get', f"/app/api/users?customer_id={tenant['customer_id']}", None),
@@ -130,6 +131,11 @@ def test_portfolio_scopes_to_allowed_accounts_for_a_restricted_user(client, tena
     assert ids == {tenant['account_a']}          # account B is invisible to this user
     assert client.get(f"/app/api/accounts/{tenant['account_b']}?customer_id={tenant['customer_id']}").status_code == 403
     assert client.get(f"/app/api/accounts/{tenant['account_a']}?customer_id={tenant['customer_id']}").status_code == 200
+    assert client.get(f"/app/api/accounts/{tenant['account_b']}/graph?customer_id={tenant['customer_id']}").status_code == 403
+    g = client.get(f"/app/api/accounts/{tenant['account_a']}/graph?customer_id={tenant['customer_id']}")
+    assert g.status_code == 200 and {'nodes', 'edges', 'account_name'} <= set(g.json())
+    ids = {n['node_id'] for n in g.json()['nodes']}
+    assert all(e['from_node_id'] in ids and e['to_node_id'] in ids for e in g.json()['edges'])
     client.post('/app/api/auth/logout')
 
 
@@ -188,4 +194,31 @@ def test_interventions_approve_requires_csm_or_admin_role(client, tenant):
     _login(client, tenant['csm_email'], 'csm-password-1')
     r2 = client.post('/app/api/interventions/999999/approve', json={'customer_id': tenant['customer_id']})
     assert r2.status_code == 400 and 'not found' in r2.json()['error']     # role gate passed; the row just doesn't exist
+    client.post('/app/api/auth/logout')
+
+
+def test_vertical_route_returns_the_tenants_capabilities_and_labels(client, tenant):
+    cid = tenant['customer_id']
+    assert client.get(f'/app/api/vertical?customer_id={cid}').status_code == 401     # no session
+    _login(client, tenant['csm_email'], 'csm-password-1')
+    assert client.get('/app/api/vertical').status_code == 400
+    r = client.get(f'/app/api/vertical?customer_id={cid}')
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body['vertical'] == 'saas_premium'
+    assert body['capabilities']['money_basis'] == 'revenue'
+    assert body['labels']['accounts'] == 'Accounts' and body['labels']['recurring_revenue'] == 'ARR'
+    client.post('/app/api/auth/logout')
+
+
+def test_ask_questions_with_a_customer_id_serves_that_tenants_vertical_set(client, tenant):
+    from ask_ai import settings as ask_settings
+    _login(client, tenant['cfo_email'], 'cfo-password-1')
+    plain = client.get('/app/api/ask/questions').json()
+    scoped = client.get(f"/app/api/ask/questions?customer_id={tenant['customer_id']}")
+    assert scoped.status_code == 200, scoped.text
+    assert scoped.json() == plain                                    # this tenant's vertical ships no set of its own
+    assert set(plain['questions']) == {'cfo'}                        # a non-admin sees their own role only
+    assert plain['questions']['cfo'] == ask_settings.curated_questions()['cfo']
+    assert client.get('/app/api/ask/questions?customer_id=999999999').status_code == 403
     client.post('/app/api/auth/logout')

@@ -1,5 +1,5 @@
 {
-  "_doc": "Investment-cost model for saas_premium — covers every real playbook in config/playbooks/saas_premium.json (4 of 4) and the pillars they reach (P1, P2, P3, P5) plus one deliberately-uncovered pillar (P4, no playbook targets it) shown for contrast. Companion to config/economics/<vertical>.json: economics answers 'what is a point worth', this answers 'what does it cost to move one'. Same discipline: every figure carries {value, basis}, and a figure computed from two assumed inputs is itself 'assumed' (roi.basis.money()'s weakest-link rule), never 'derived' just because arithmetic was involved. Loaded by roi.settings.investment(); read by roi.investment.investment_cost() and the get_investment_cost MCP tool.",
+  "_doc": "Investment-cost model for saas_premium — covers every real playbook in config/playbooks/saas_premium.json (5 of 5) and the pillars they reach (P1, P2, P3, P5) plus one deliberately-uncovered pillar (P4, no playbook targets it) shown for contrast. Companion to config/economics/<vertical>.json: economics answers 'what is a point worth', this answers 'what does it cost to move one'. Same discipline: every figure carries {value, basis}, and a figure computed from two assumed inputs is itself 'assumed' (roi.basis.money()'s weakest-link rule), never 'derived' just because arithmetic was involved. Loaded by roi.settings.investment(); read by roi.investment.investment_cost() and the get_investment_cost MCP tool.",
   "version": "1.0",
   "vertical": "saas_premium",
   "basis": "assumed",
@@ -25,6 +25,23 @@
       "estimated_health_point_lift_per_execution": {
         "value": 4,
         "basis": "assumed: informal CS-leadership estimate for a successful sponsor rebuild on P2 (Executive Sponsor Engagement); no saas_premium tenant yet has >=5 closed instances of this playbook with both a measured lift and a revenue outcome — replace with roi.measured's sensitivity figure once one does"
+      }
+    },
+    "adoption_drop_renewal_review": {
+      "targets_pillars": ["P1"],
+      "targets_kpis": ["P1-KPI1"],
+      "estimated_csm_hours": {
+        "value": 5,
+        "basis": "assumed: usage analysis + a working session with the account's admins + a follow-up plan, 'schedule' action_class"
+      },
+      "estimated_cost_per_execution": {
+        "value": 425,
+        "basis": "assumed: estimated_csm_hours (assumed) x csm_hourly_cost (assumed)"
+      },
+      "estimated_health_point_lift_per_execution": {
+        "value": null,
+        "basis": "assumed: no estimate authored",
+        "note": "This playbook fires on a KPI reading and a date, not on a signal role. No closed instance exists yet to measure a lift from, and none is guessed, so it carries no cost per health point."
       }
     },
     "expansion_intent_handoff": {
@@ -82,8 +99,8 @@
   "pillars": {
     "P1": {
       "name": "Product Adoption & Usage",
-      "playbooks": ["seat_truedown_save"],
-      "note": "pillar-level attribution only — seat_truedown_save's trigger (usage_decline) doesn't cleanly point to one specific P1 KPI over another (DAU Rate vs. Golden Path Velocity are both plausible), so no targets_kpis entry was claimed for it. Shares this playbook's cost/lift with P5 below rather than duplicating a second cost estimate for the same execution."
+      "playbooks": ["adoption_drop_renewal_review", "seat_truedown_save"],
+      "note": "adoption_drop_renewal_review names P1-KPI1 directly (see kpis). For seat_truedown_save: pillar-level attribution only — seat_truedown_save's trigger (usage_decline) doesn't cleanly point to one specific P1 KPI over another (DAU Rate vs. Golden Path Velocity are both plausible), so no targets_kpis entry was claimed for it. Shares this playbook's cost/lift with P5 below rather than duplicating a second cost estimate for the same execution."
     },
     "P2": {
       "name": "Customer Engagement",
@@ -108,8 +125,13 @@
     }
   },
 
-  "_kpis_doc": "KPI-level entries exist only for KPIs a playbook actually names in targets_kpis — same non-guessing rule as pillars. Every other KPI (including some impact:high ones, e.g. P1-KPI1, P1-KPI10, P3-KPI3) has no playbook naming it specifically yet; they're covered at the pillar level only, or not at all.",
+  "_kpis_doc": "KPI-level entries exist only for KPIs a playbook actually names in targets_kpis — same non-guessing rule as pillars. Every other KPI (including some impact:high ones, e.g. P1-KPI10, P3-KPI3) has no playbook naming it specifically yet; they're covered at the pillar level only, or not at all.",
   "kpis": {
+    "P1-KPI1": {
+      "name": "Daily Active Users (DAU) Rate",
+      "playbooks": ["adoption_drop_renewal_review"],
+      "note": "the playbook fires on this KPI's own readings; it carries no lift estimate, so no cost per point is computed"
+    },
     "P2-KPI1": {
       "name": "Executive Sponsor Engagement",
       "playbooks": ["champion_departure_sponsor_rebuild"],

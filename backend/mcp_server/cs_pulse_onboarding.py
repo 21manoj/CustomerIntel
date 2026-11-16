@@ -45,14 +45,14 @@ from mcp_server.auth import require_auth_if_key_present as _require_auth_if_key_
 
 
 # ===================================================================
-# KPI Tier resolution (SaaS verticals)
+# KPI Tier resolution (verticals that declare a kpi_tiers_file capability)
 # ===================================================================
 
-def _load_tier_config():
-    """Load the SaaS KPI tier definitions from config."""
+def _load_tier_config(filename: str):
+    """Load a vertical's KPI tier definitions from config/<filename>."""
     import json
     import os
-    path = os.path.join(os.path.dirname(__file__), '..', 'config', 'saas_kpi_tiers.json')
+    path = os.path.join(os.path.dirname(__file__), '..', 'config', os.path.basename(filename))
     try:
         with open(path) as f:
             return json.load(f)
@@ -61,11 +61,13 @@ def _load_tier_config():
 
 
 def _resolve_kpi_tier(tier: str, vertical: str) -> dict:
-    """Resolve tier name to tier definition. Returns None for non-SaaS or unrecognized tier."""
-    if vertical not in ('saas_premium', 'saas'):
-        return None  # Non-SaaS verticals use the full catalog — no tiers yet
+    """Resolve tier name to tier definition. Returns None for a vertical with no tiers or an unrecognized tier."""
+    from utils.vertical_registry import capability
+    tiers_file = capability(vertical, 'kpi_tiers_file')
+    if not tiers_file:
+        return None  # No tiers declared — the vertical uses its full catalog
 
-    config = _load_tier_config()
+    config = _load_tier_config(tiers_file)
     if not config:
         return None
 
@@ -74,8 +76,8 @@ def _resolve_kpi_tier(tier: str, vertical: str) -> dict:
     if tier and tier in tiers:
         return tiers[tier]
 
-    default = config.get('default_tier', 'saas_starter_9')
-    return tiers.get(default)
+    default = config.get('default_tier')
+    return tiers.get(default) if default else None
 
 
 def _apply_kpi_tier(customer_config, tier_def: dict) -> dict:
@@ -317,6 +319,33 @@ def create_customer(
         return result
 
 
+@mcp.tool
+def preflight_data_report(customer_id: int) -> dict:
+    """What the staged files would do, before anything is loaded. Run after upload_csv and before
+    process_data. Reads only — nothing is written.
+
+    Reports: the staged files (rows, columns read, columns kept as attributes, missing required
+    columns); accounts that are new vs already loaded; rows in every account-keyed file that name an
+    account the tenant does not have (these are dropped at load — listed with examples); KPI codes the
+    vertical's catalog does not define, rows with no date or value, core KPIs with no reading, months
+    covered; how many accounts carry each field the vertical's own config reads (playbook date
+    triggers, exposure economics); fact-trigger playbooks whose KPI has too few months to ever fire.
+    `ok` is false when there is at least one error; `problems` lists every finding in plain words.
+
+    Args:
+        customer_id: The customer ID
+    """
+    _require_auth_if_key_present('preflight_data_report', customer_id)
+    _check_mcp_enabled()
+    app = _get_flask_app()
+    with app.app_context():
+        from utils.preflight import preflight
+        try:
+            return preflight(int(customer_id))
+        except ValueError as e:
+            raise ToolError(str(e))
+
+
 # ===================================================================
 # KPI Dependency Guard
 # ===================================================================
@@ -447,6 +476,7 @@ def _process_data_impl(customer_id: int, mode: str = 'auto') -> dict:
         db.session.commit()
         run_db_id = run.id
         counts: dict = {}
+        data_warnings: list = []
 
         try:
             accounts = Account.query.filter_by(customer_id=customer_id).all()
@@ -472,6 +502,7 @@ def _process_data_impl(customer_id: int, mode: str = 'auto') -> dict:
                 errors.extend(ingest.errors)
                 timings.update(ingest.timings)
                 counts.update(ingest.counts)
+                data_warnings = list(ingest.warnings)
                 upload_ids = ingest.upload_ids
                 files_processed = ingest.files
                 accounts = Account.query.filter_by(customer_id=customer_id).all()
@@ -578,12 +609,15 @@ def _process_data_impl(customer_id: int, mode: str = 'auto') -> dict:
                     if wa_summary else None
                 ),
                 'errors': errors,
+                # rows the load dropped or could not score (utils.preflight.unmatched_rows); [] is a clean load
+                'data_warnings': data_warnings,
                 'duration_s': duration,
                 'timings': timings,
                 'message': (
                     f"Data processing {'completed' if status == 'success' else 'completed with issues'} "
                     f"(mode={mode}, {duration}s). "
                     f"Steps: {', '.join(steps) if steps else 'none'}."
+                    + (f" DATA WARNINGS ({len(data_warnings)}): {' '.join(data_warnings)}" if data_warnings else '')
                 ),
             }
         except Exception as e:
@@ -2115,6 +2149,7 @@ def clone_customer(source_customer_id: int, name: str, domain: str, admin_email:
 
         # ---- Intervention -> intervention_map (node_map ready; trigger_key recomputed
         #      from the remapped episode ids so the row stays internally consistent) ----
+        from playbooks.governance import _trigger_key as _playbook_trigger_key
         intervention_map = {}
         for iv in Intervention.query.filter_by(customer_id=source_customer_id).order_by(Intervention.id).all():
             new_trigger_episode_ids = _remap_episode_str_list(iv.trigger_episode_ids, maps)
@@ -2123,10 +2158,10 @@ def clone_customer(source_customer_id: int, name: str, domain: str, admin_email:
                 playbook_id=iv.playbook_id, playbook_version=iv.playbook_version,
                 action_class=iv.action_class, approval_mode=iv.approval_mode, state=iv.state,
                 urgency=iv.urgency,
-                trigger_key=hashlib.sha256(','.join(sorted(new_trigger_episode_ids)).encode('utf-8')).hexdigest(),
+                trigger_key=_playbook_trigger_key(new_trigger_episode_ids, iv.trigger_facts),
                 trigger_episode_ids=new_trigger_episode_ids,
                 trigger_node_ids=_remap_int_list(iv.trigger_node_ids, maps['node']),
-                trigger_roles=iv.trigger_roles, trigger_quote=iv.trigger_quote,
+                trigger_roles=iv.trigger_roles, trigger_quote=iv.trigger_quote, trigger_facts=iv.trigger_facts,
                 evaluated_as_of=iv.evaluated_as_of, expected_outcome_types=iv.expected_outcome_types,
                 expected_window_days=iv.expected_window_days, exposure_revenue=iv.exposure_revenue,
                 proposed_at=iv.proposed_at, proposed_by=iv.proposed_by,
@@ -2362,7 +2397,7 @@ def get_playbooks(customer_id: int) -> dict:
 @mcp.tool
 def configure_playbooks(customer_id: int, webhook_url: str = None, webhook_secret: str = None,
                         disabled_playbooks: list = None, automation_level: int = None, kill_switch: bool = None,
-                        slack_webhook_url: str = None) -> dict:
+                        slack_webhook_url: str = None, automation_levels_by_class: dict = None) -> dict:
     """Set the tenant's playbook overlay. Only the fields given change.
 
     - webhook_url / webhook_secret: where approved interventions are POSTed
@@ -2374,16 +2409,32 @@ def configure_playbooks(customer_id: int, webhook_url: str = None, webhook_secre
       playbook, quote, intervention id). The URL is a secret: stored per
       tenant, never returned (reads show slack_webhook_url_set).
     - disabled_playbooks: playbook ids to switch off for this tenant.
-    - automation_level: 0 = every approval is human; 1 = playbooks declared
-      approval=auto (notify only) are approved by policy at evaluation time.
-    - kill_switch: true stops evaluation and sending for the tenant.
+    - automation_level: how far policy may act without a person, 0 to 4
+      (never above the platform ceiling):
+        0 every approval is a person's;
+        1 playbooks declared approval=auto (notify only) are approved by policy;
+        2 notify and schedule steps, once a person has approved that
+          playbook's plan (remembered per playbook version);
+        3 notify and schedule steps on their own; escalations need a person;
+        4 escalations too, each marked for a person to review afterwards.
+      Offers, anything a playbook declares as having a money, contract or
+      exit effect, and accounts carrying one of the vertical's always-human
+      flags wait for a person at every level.
+    - automation_levels_by_class: {action_class: level | null} — a level for
+      one action class (notify, schedule, escalate, offer); null clears it
+      so the class follows automation_level again. A declined proposal or a
+      failed report lowers that class by one level automatically (it shows
+      here and in the tenant's autonomy_log); only this tool raises it.
+    - kill_switch: the stop switch. true stops evaluation, approval, sending
+      and the start of any next step for the tenant.
 
     Args:
         customer_id: The customer ID
         webhook_url: Absolute https URL of the workflow engine's endpoint ('' clears it)
         webhook_secret: Shared secret for the signature ('' clears it)
         disabled_playbooks: Playbook ids to switch off (replaces the list)
-        automation_level: 0 or 1
+        automation_level: 0 to 4
+        automation_levels_by_class: e.g. {"schedule": 2, "escalate": null}
         kill_switch: true/false
         slack_webhook_url: https://hooks.slack.com/services/... ('' clears it)
     """
@@ -2400,14 +2451,17 @@ def configure_playbooks(customer_id: int, webhook_url: str = None, webhook_secre
         try:
             cfg = configure_tenant(customer_id, webhook_url=webhook_url, webhook_secret=webhook_secret,
                                    disabled_playbooks=disabled_playbooks, automation_level=automation_level, kill_switch=kill_switch,
-                                   slack_webhook_url=slack_webhook_url)
+                                   slack_webhook_url=slack_webhook_url, automation_levels_by_class=automation_levels_by_class,
+                                   changed_by=current_actor()['label'])
         except ValueError as e:
             raise ToolError(str(e))
         changed = [k for k, v in (('webhook_url', webhook_url), ('webhook_secret', webhook_secret), ('disabled_playbooks', disabled_playbooks),
                                   ('automation_level', automation_level), ('kill_switch', kill_switch),
-                                  ('slack_webhook_url', slack_webhook_url)) if v is not None]
+                                  ('slack_webhook_url', slack_webhook_url),
+                                  ('automation_levels_by_class', automation_levels_by_class)) if v is not None]
         _audit(customer_id, 'configure', current_actor(),
                f"changed {changed}; url_host={cfg['webhook_url'] and cfg['webhook_url'].split('/')[2]} level={cfg['automation_level']} "
+               f"by_class={cfg['automation_levels_by_class']} "
                f"kill={cfg['kill_switch']} off={cfg['disabled_playbooks']} slack={cfg['slack_webhook_url_set']}")
         return {'customer_id': int(customer_id), 'tenant': cfg}
 
@@ -2422,8 +2476,9 @@ def evaluate_playbooks(customer_id: int, account_id: int = None, dry_run: bool =
 
     Idempotent per (account, playbook, trigger set); one open proposal per
     (account, playbook); nothing within window_days of a closed one. Nothing
-    is sent here unless the tenant's automation_level is 1 and the playbook is
-    declared approval=auto (notify only).
+    is sent here unless the tenant's automation level lets policy approve
+    that action (see configure_playbooks); each proposal says which it was
+    and why under approval_policy.
 
     Args:
         customer_id: The customer ID
@@ -2455,6 +2510,11 @@ def approve_intervention(customer_id: int, intervention_id: int, note: str = Non
     delivery problem is a finding, not a reason to hide it. To decline a
     proposal, call report_intervention with state='cancelled'.
 
+    On a multi-step playbook this approves the current step: the first from
+    'proposed', a later one when list_interventions shows it awaiting
+    approval. A person's first approval of a playbook is also its plan
+    approval (what automation level 2 waits for).
+
     Args:
         customer_id: The customer ID
         intervention_id: The proposed intervention
@@ -2482,6 +2542,13 @@ def report_intervention(customer_id: int, intervention_id: int, state: str, note
     landed inside the playbook's window and is one of the outcomes the
     playbook expects.
 
+    On a multi-step playbook, 'done' without an outcome closes the current
+    step and starts the next (policy approves and sends it when the tenant's
+    level allows, otherwise it waits for a person); 'done' on the last step,
+    or with an outcome, closes the intervention. A declined proposal or a
+    'failed' report lowers the tenant's automation level for that action
+    class by one (returned under autonomy_lowered).
+
     Args:
         customer_id: The customer ID
         intervention_id: The intervention being reported on
@@ -2499,6 +2566,57 @@ def report_intervention(customer_id: int, intervention_id: int, state: str, note
         try:
             return report(customer_id, intervention_id, state, note=note, outcome_type=outcome_type,
                           outcome_date=outcome_date, revenue=revenue)
+        except ValueError as e:
+            raise ToolError(str(e))
+
+
+@mcp.tool
+def review_intervention(customer_id: int, intervention_id: int, note: str = None) -> dict:
+    """Record that a person has looked at an action policy approved on its
+    own (automation level 4 approves escalations and marks each for review
+    afterwards; list_interventions lists them under awaiting_review). It
+    records the review and nothing else. To say the action was wrong, call
+    report_intervention with state='failed' or 'cancelled'.
+
+    Args:
+        customer_id: The customer ID
+        intervention_id: The intervention marked for review
+        note: What the reviewer found (kept on the row and in the audit log)
+    """
+    _require_auth_if_key_present('review_intervention', customer_id)
+    _check_mcp_enabled()
+    app = _get_flask_app()
+    with app.app_context():
+        from playbooks.governance import review
+        try:
+            return review(customer_id, intervention_id, note=note)
+        except ValueError as e:
+            raise ToolError(str(e))
+
+
+@mcp.tool
+def draft_intervention(customer_id: int, intervention_id: int) -> dict:
+    """Ask the playbook agent to draft the wording for each step of one open
+    intervention. It writes a draft and nothing else: it cannot approve, send,
+    report, add or reorder steps, or change a level. Every draft cites the
+    facts or evidence the proposal was raised on; a draft that cites nothing
+    it was shown is discarded and listed under 'unsupported'. With no model
+    configured the draft is built by fixed rules and labelled as such.
+    Refused while the tenant's stop switch is on, when the agent's daily cap
+    or the tenant's model budget is used up, or when the row is closed.
+
+    Args:
+        customer_id: The customer ID
+        intervention_id: The open intervention to draft for
+    """
+    _require_auth_if_key_present('draft_intervention', customer_id)
+    _check_mcp_enabled()
+    app = _get_flask_app()
+    with app.app_context():
+        from playbooks import agent
+        from playbooks.governance import current_actor
+        try:
+            return agent.draft(customer_id, intervention_id, requested_by=current_actor())
         except ValueError as e:
             raise ToolError(str(e))
 

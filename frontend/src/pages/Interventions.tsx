@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
-import { ApiError, approveIntervention, getInterventions, reportIntervention } from '../api/client'
+import { ApiError, approveIntervention, draftIntervention, getInterventions, reportIntervention, reviewIntervention } from '../api/client'
 import type { Intervention, InterventionsResponse, InterventionState, ReportState } from '../api/types'
 import { useAuth } from '../auth/AuthContext'
 
@@ -204,6 +204,8 @@ export default function Interventions() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [openAction, setOpenAction] = useState<{ id: number; kind: 'approve' | 'report' } | null>(null)
+  const [drafting, setDrafting] = useState<number | null>(null)
+  const [draftError, setDraftError] = useState<string | null>(null)
 
   const canPickTenant = useMemo(() => user?.role === 'admin', [user])
   const canAct = user?.role === 'csm' || user?.role === 'admin'
@@ -243,15 +245,79 @@ export default function Interventions() {
     reload()
   }
 
+  async function handleReview(id: number) {
+    if (customerId == null) return
+    await reviewIntervention(id, customerId)
+    reload()
+  }
+
+  async function handleDraft(id: number) {
+    if (customerId == null) return
+    setDrafting(id)
+    setDraftError(null)
+    try {
+      await draftIntervention(id, customerId)
+      reload()
+    } catch (e) {
+      setDraftError(e instanceof ApiError ? e.message : 'The draft could not be written.')
+    } finally {
+      setDrafting(null)
+    }
+  }
+
+  function renderDraft(row: Intervention) {
+    const plan = row.agent_plan
+    if (!plan) return null
+    return (
+      <div className="mt-2 rounded-md border border-slate-200 bg-slate-50 p-2 text-xs not-italic text-slate-700">
+        <div className="mb-1 font-medium text-slate-500">Draft, not sent. {plan.model_label}</div>
+        {plan.gaps.map((g) => (
+          <div key={g} className="text-amber-700">{g}</div>
+        ))}
+        {plan.steps.map((s) => (
+          <div key={s.id} className="mt-1">
+            <div className="font-medium text-slate-900">
+              {s.label} <span className="font-normal text-slate-400">(approved by {s.approval.by})</span>
+            </div>
+            {s.draft ? (
+              <div>
+                {s.draft}
+                <div className="text-slate-400" title={s.cites.map((c) => plan.citable[c] ?? c).join(' | ')}>
+                  Based on: {s.cites.join(', ')}
+                </div>
+              </div>
+            ) : (
+              <div className="text-slate-400">No draft for this step.</div>
+            )}
+          </div>
+        ))}
+        {plan.unsupported.length > 0 && (
+          <div className="mt-1 text-amber-700">
+            {plan.unsupported.length} draft{plan.unsupported.length === 1 ? '' : 's'} discarded for citing nothing that was shown.
+          </div>
+        )}
+      </div>
+    )
+  }
+
   function renderRow(row: Intervention) {
     const isActionOpen = openAction?.id === row.intervention_id
+    const waitingStep = row.state === 'sent' && row.awaiting_approval === true
     return (
       <tr key={row.intervention_id} className="hover:bg-slate-50 align-top">
         <td className="px-4 py-3 font-medium text-slate-900">{row.account_name ?? `#${row.account_id}`}</td>
-        <td className="px-4 py-3 text-slate-600">{row.playbook_id}</td>
+        <td className="px-4 py-3 text-slate-600">
+          {row.playbook_id}
+          {row.step && (
+            <div className="mt-1 text-xs text-slate-400">
+              Step {row.step.number} of {row.step.of}: {row.step.label}
+            </div>
+          )}
+        </td>
         <td className="px-4 py-3">
           {stateBadge(row.state)}
           {row.closed_state && <div className="mt-1 text-xs text-slate-400">{row.closed_state}</div>}
+          {row.approved_by?.startsWith('policy:') && <div className="mt-1 text-xs text-slate-400">approved by policy</div>}
         </td>
         <td className="px-4 py-3 text-slate-600">{row.urgency ?? '—'}</td>
         <td className="px-4 py-3 text-right text-slate-900">{money(row.exposure_revenue)}</td>
@@ -265,14 +331,23 @@ export default function Interventions() {
             {row.delivery_problem && (
               <span className="rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700">delivery problem</span>
             )}
-            {!row.stuck && !row.delivery_problem && <span className="text-xs text-slate-300">—</span>}
+            {waitingStep && (
+              <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">step awaits approval</span>
+            )}
+            {row.review?.pending && (
+              <span className="rounded-full bg-violet-50 px-2 py-0.5 text-xs font-medium text-violet-700">review due</span>
+            )}
+            {!row.stuck && !row.delivery_problem && !waitingStep && !row.review?.pending && (
+              <span className="text-xs text-slate-300">—</span>
+            )}
           </div>
         </td>
         <td className="px-4 py-3 max-w-xs text-slate-600">
           <span className="italic">{truncate(row.trigger.quote)}</span>
+          {renderDraft(row)}
         </td>
         <td className="px-4 py-3">
-          {canAct && row.state === 'proposed' && (
+          {canAct && (row.state === 'proposed' || waitingStep) && (
             <>
               {!isActionOpen && (
                 <button
@@ -286,6 +361,23 @@ export default function Interventions() {
                 <ApproveForm onSubmit={(note) => handleApprove(row.intervention_id, note)} onCancel={() => setOpenAction(null)} />
               )}
             </>
+          )}
+          {canAct && row.state !== 'closed' && (
+            <button
+              onClick={() => handleDraft(row.intervention_id)}
+              disabled={drafting === row.intervention_id}
+              className="mb-1 block rounded-md border border-slate-300 px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+            >
+              {drafting === row.intervention_id ? 'Drafting…' : row.agent_plan ? 'Redraft steps' : 'Draft steps'}
+            </button>
+          )}
+          {canAct && row.review?.pending && (
+            <button
+              onClick={() => handleReview(row.intervention_id)}
+              className="mb-1 block rounded-md border border-violet-300 px-2 py-1 text-xs font-medium text-violet-700 hover:bg-violet-50"
+            >
+              Mark reviewed
+            </button>
           )}
           {canAct && row.state === 'sent' && (
             <>
@@ -357,6 +449,7 @@ export default function Interventions() {
       {loading && <p className="text-sm text-slate-400">Loading…</p>}
 
       {error && <p className="text-sm text-red-600">{error}</p>}
+      {draftError && <p className="text-sm text-red-600">{draftError}</p>}
 
       {data && (
         <>

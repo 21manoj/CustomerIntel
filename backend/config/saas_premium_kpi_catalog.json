@@ -1,6 +1,9 @@
 {
   "version": "3.1",
   "vertical": "saas_premium",
+  "capabilities": {
+    "kpi_tiers_file": "saas_kpi_tiers.json"
+  },
   "description": "SaaS Premium KPI catalog \u2014 aligned with Maturity Framework (Loveable). V3.1: added P1-KPI10 Golden Path Velocity, P2-KPI8 Persona Breadth for Predictive 11 tier.",
   "pillars": {
     "P1": {

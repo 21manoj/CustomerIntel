@@ -1,0 +1,153 @@
+{
+  "_doc": "Exposure model for tprm_v1 (the accounts are a bank's vendors, so money is the cost of a vendor failing, not revenue to retain). Read by roi.exposure through roi.settings.exposure_economics. Every figure is ASSUMED: a published average or a stated scale-down, each with its basis sentence and sources (verified = the page was read directly; false = seen only in a search result). Replace any figure with the bank's own number when it is supplied; a vendor's own recorded failure cost (account profile field failure_cost) always wins over these. Compiled 2026-11-16.",
+  "version": "1.0",
+  "vertical": "tprm_v1",
+  "model": "exposure",
+  "basis": "assumed",
+  "horizon_months": 12,
+  "account_fields": {
+    "tier": "criticality_tier",
+    "regulated_flag": "regulated_critical_service",
+    "recorded_failure_cost": "failure_cost"
+  },
+  "tiers": [
+    "critical",
+    "important",
+    "standard"
+  ],
+  "_failure_cost_rule": "A vendor's failure cost is its own recorded figure when the profile has one; otherwise the largest cost among the failure events that apply to it at its tier (the largest, not the sum: one failure is one event).",
+  "failure_events": {
+    "service_outage": {
+      "label": "Service outage",
+      "applies_when": null,
+      "cost_by_tier": {
+        "critical": 1200000,
+        "important": 300000,
+        "standard": 25000
+      },
+      "basis": "assumed: Assumed $300,000 per hour x 4 hours for a critical service. Published per-hour figures are for large banks (about $0.8M-1.8M per hour); scaled down for a mid-size bank. Important and Standard are assumed.",
+      "sources": [
+        {
+          "claim": "UK investment banks lose about GBP 600K per outage hour (GFT / Censuswide 2025)",
+          "url": "https://www.computerweekly.com/news/366634484/UK-investment-bank-IT-outages-cost-600k-an-hour",
+          "verified": false
+        },
+        {
+          "claim": "Downtime costs financial services firms $152M a year on average (Splunk / Oxford Economics)",
+          "url": "https://www.splunk.com/en_us/perspectives/cost-of-downtime-banking.html",
+          "verified": true
+        },
+        {
+          "claim": "High-impact outages cost $1.8M per hour in financial services (New Relic, Jan 2026)",
+          "url": null,
+          "verified": false
+        }
+      ]
+    },
+    "data_breach": {
+      "label": "Breach of customer data held by the vendor",
+      "applies_when": "holds_customer_data",
+      "cost_by_tier": {
+        "critical": 4910000,
+        "important": 2500000,
+        "standard": 500000
+      },
+      "basis": "assumed: Critical = published average cost of a breach through a third party. Important and Standard are assumed scale-downs (about half, about a tenth). Applies only to vendors holding customer data.",
+      "sources": [
+        {
+          "claim": "Financial industry average breach cost $5.56M; supply chain compromise 15% of financial breaches; 157 days to identify, 45 to contain",
+          "url": "https://www.northdoor.co.uk/insight/blog/financial-data-breaches-ai-security-trends/",
+          "verified": true,
+          "note": "Read in IBM's own Cost of a Data Breach 2025 financial industry sheet"
+        },
+        {
+          "claim": "Third-party vendor / supply chain compromise averaged $4.91M and 267 days to resolve (IBM 2025, global)",
+          "url": "https://cyberscoop.com/ibm-cost-data-breach-2025/",
+          "verified": false
+        },
+        {
+          "claim": "Global average $4.44M; US average $10.22M; financial services $5.56M",
+          "url": "https://www.bakerdonelson.com/ten-key-insights-from-ibms-cost-of-a-data-breach-report-2025",
+          "verified": true
+        }
+      ]
+    }
+  },
+  "annual_failure_likelihood_by_health": {
+    "bands": [
+      {
+        "min_health": 70,
+        "value": 0.02
+      },
+      {
+        "min_health": 50,
+        "value": 0.05
+      },
+      {
+        "min_health": 0,
+        "value": 0.1
+      }
+    ],
+    "basis": "assumed: Base rate about 4.9% a year (2,671 disclosed breach events across 27,458 rated companies over two years; our calculation). Spread 5x between best and worst band, matching the published 5x gap between low- and high-rated companies. Mapping our health score onto those bands is an assumption.",
+    "sources": [
+      {
+        "claim": "Companies rated 400 or below are more than 5x as likely to have a disclosed breach as those rated 700+; 27,458 companies, 2,671 breach events",
+        "url": "https://www.bitsight.com/resources/datasheets/security-ratings-correlate-to-breaches",
+        "verified": false,
+        "note": "Site refused automated reading; figures from search results"
+      },
+      {
+        "claim": "Third-party involvement in breaches doubled from 15% to 30% (Verizon DBIR 2025)",
+        "url": "https://www.verizon.com/about/news/2025-data-breach-investigations-report-emea",
+        "verified": true
+      },
+      {
+        "claim": "Global speculative-grade corporate default rate 3.9% in 2024 (cross-check for vendor financial failure)",
+        "url": "https://www.spglobal.com/ratings/en/research/articles/250327-default-transition-and-recovery-2024-annual-global-corporate-default-and-rating-transition-study-13452126",
+        "verified": true
+      }
+    ]
+  },
+  "regulated_flag_note": {
+    "text": "Regulated critical service: a failure here can also bring a supervisory penalty. Penalties are rare and have been sized to very large banks (USD 15M to 65M in the published cases), so none is added to the expected cost; treat it as a worst case on top.",
+    "basis": "assumed: Not in the expected-cost sum. Penalties are rare and sized to very large banks; shown as a worst-case note on regulated critical services only.",
+    "sources": [
+      {
+        "claim": "OCC $60M penalty, Morgan Stanley Bank N.A. and Morgan Stanley Private Bank N.A., 8 Oct 2020, vendor due diligence and oversight failures in data-centre decommissioning",
+        "url": "https://www.occ.gov/news-issuances/news-releases/2020/nr-occ-2020-134.html",
+        "verified": true
+      },
+      {
+        "claim": "OCC $15M penalty, American Express National Bank, July 2023, third-party oversight",
+        "url": "https://www.americanbanker.com/news/occ-fines-american-express-15-million-for-third-party-noncompliance",
+        "verified": true
+      },
+      {
+        "claim": "OCC $65M penalty, City National Bank, risk management shortcomings",
+        "url": "https://www.americanbanker.com/news/occ-fines-city-national-65-million-over-risk-management-shortcomings",
+        "verified": false
+      }
+    ]
+  },
+  "not_priced": {
+    "switching_cost": {
+      "basis": "18-24 months lead time to replace a core processor. No reliable published switching cost; the only figure found ($2-5M for a $1B bank) is an unsourced blog, so cost is left empty and must come from the bank.",
+      "lead_time_months_critical": 18,
+      "sources": [
+        {
+          "claim": "Core conversion needs 18-24 months lead time",
+          "url": "https://www.icba.org/newsroom/blogs/main-street-matters---innovation/2018/10/05/taking-stock-of-your-core-processor-relationship",
+          "verified": false
+        },
+        {
+          "claim": "$2-5M upfront for a $1B bank (weak, unsourced)",
+          "url": "https://visbanking.com/the-community-bank-tech-stack-trap-why-legacy-cores-are-becoming-an-existential-risk",
+          "verified": false
+        }
+      ]
+    },
+    "contract_value_multiple": {
+      "basis": "A multiple of contract value was considered as a fallback and left out: no published source supports one."
+    }
+  }
+}
