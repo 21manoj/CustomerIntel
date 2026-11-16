@@ -32,16 +32,15 @@ import struct
 # ============================================================
 # Vertical Prefixes
 # ============================================================
-VERTICAL_PREFIXES = {
-    'saas': 'saas',
-    'saas_premium': 'saas',
-    'datacenter': 'dc',
-    'datacenter_v1': 'dc',
-    'data_center': 'dc',
-    'dc': 'dc',
-    'dc2_s': 'dc',
-    'msp': 'msp',
-}
+# Hand-picked prefixes live in config/verticals.json (id_prefixes) — no vertical is named in code.
+# A vertical with no entry there gets a derived prefix (see _derive_fallback_prefix).
+def _load_vertical_names() -> dict:
+    import json
+    with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config', 'verticals.json'), encoding='utf-8') as f:
+        return json.load(f)
+
+_NAMES = _load_vertical_names()
+VERTICAL_PREFIXES = dict(_NAMES['id_prefixes'])
 
 # ============================================================
 # Entity Prefixes
@@ -69,7 +68,7 @@ ENTITY_PREFIXES = {
 }
 
 # Valid verticals for validation
-VALID_VERTICALS = {'saas', 'saas_premium', 'dc', 'dc2_s', 'datacenter', 'datacenter_v1', 'msp'}
+VALID_VERTICALS = set(_NAMES['legacy_id_first_segments'])
 
 
 def _generate_uuid7() -> str:

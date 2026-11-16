@@ -123,7 +123,7 @@ class TestResearchCompany:
         monkeypatch.setattr(budget, 'record_usage', lambda **kw: None)
 
         client_instance = FakeClient()
-        monkeypatch.setattr(anthropic, 'Anthropic', lambda: client_instance)
+        monkeypatch.setattr(anthropic, 'Anthropic', lambda **kw: client_instance)   # the provider layer passes the key explicitly
         with app.app_context():
             research_company('Acme Corp', customer_id=cid)
 

@@ -1,0 +1,21 @@
+{
+  "_doc": "The playbook agent (playbooks/agent.py): it writes a draft for each step of an open intervention and nothing else. Every number it uses lives here. Env PLAYBOOK_AGENT_MODEL overrides llm.model at runtime. The agent has no approve, send, report or level-change path: those stay in playbooks/governance.py and refuse an actor of kind 'agent'.",
+  "llm": {
+    "model": "claude-sonnet-5",
+    "max_tokens": 1500,
+    "module": "playbook_agent",
+    "estimated_tokens": 3000
+  },
+  "limits": {
+    "_doc": "daily_drafts_per_tenant counts every draft written today (UTC) for the tenant, model or not; it is the agent's own cap, on top of the tenant's model budget (utils/llm_budget_controller). draft_chars cuts a step draft; quote_chars cuts each evidence quote shown to the model; max_evidence caps how many evidence items are shown.",
+    "daily_drafts_per_tenant": 40,
+    "draft_chars": 900,
+    "rationale_chars": 600,
+    "quote_chars": 280,
+    "max_evidence": 12
+  },
+  "labels": {
+    "stub": "No model: drafted from the trigger facts by fixed rules",
+    "actor": "agent:playbook_agent"
+  }
+}

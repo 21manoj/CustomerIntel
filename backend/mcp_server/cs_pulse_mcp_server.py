@@ -144,7 +144,7 @@ def _resolve_customer_vertical(customer_id: int) -> str:
     # 3. Fail closed — no legacy dc2_s fallback
     raise ToolError(
         f"Cannot resolve vertical for customer {customer_id}: no "
-        f"CustomerConfig.vertical and no Customer.vertical set. No fallback to dc2_s."
+        f"CustomerConfig.vertical and no Customer.vertical set. No fallback vertical."
     )
 
 

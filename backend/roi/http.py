@@ -3,6 +3,7 @@ Power-of-1 / ROI read routes (Starlette, mounted beside /mcp). Read scope.
 
   GET /api/roi/priorities?customer_id=…&account_id=     ranked accounts, cited; portfolio totals
   GET /api/roi/power-of-1?customer_id=…&account_id=     $ per pillar / KPI point on the tenant's own base, labelled
+  GET /api/roi/exposure?customer_id=…&account_id=       expected annual exposure per account and tier, labelled (exposure-basis verticals)
   GET /api/roi?customer_id=…                            realized vs exposure per playbook / pillar, ledger, hindsight, sensitivity
 """
 from __future__ import annotations
@@ -16,6 +17,7 @@ def register_roi_routes(mcp) -> None:
     from roi.priorities import investment_priorities
     from roi.power_of_1 import power_of_1
     from roi.measured import roi
+    from roi.exposure import exposure
 
     async def _guard(request):
         cid = request.query_params.get('customer_id')
@@ -48,6 +50,14 @@ def register_roi_routes(mcp) -> None:
         aid = request.query_params.get('account_id')
         return await _run(lambda: power_of_1(int(cid), int(aid) if aid else None))
 
+    @mcp.custom_route('/api/roi/exposure', methods=['GET'], name='roi_exposure')
+    async def roi_exposure(request):
+        cid, err = await _guard(request)
+        if err:
+            return err
+        aid = request.query_params.get('account_id')
+        return await _run(lambda: exposure(int(cid), int(aid) if aid else None))
+
     @mcp.custom_route('/api/roi', methods=['GET'], name='roi_measured')
     async def roi_measured(request):
         cid, err = await _guard(request)
@@ -56,4 +66,4 @@ def register_roi_routes(mcp) -> None:
         return await _run(lambda: roi(int(cid)))
 
 
-ROUTES = ('/api/roi/priorities', '/api/roi/power-of-1', '/api/roi')
+ROUTES = ('/api/roi/priorities', '/api/roi/power-of-1', '/api/roi/exposure', '/api/roi')

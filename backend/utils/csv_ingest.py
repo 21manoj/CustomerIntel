@@ -972,6 +972,7 @@ class IngestResult:
     consumed: bool = False
     upload_ids: list = field(default_factory=list)
     counts: dict = field(default_factory=dict)
+    warnings: list[str] = field(default_factory=list)   # rows the load dropped or could not score, in plain words
 
 
 def staged_files(customer_id: int) -> dict[str, str]:
@@ -1054,6 +1055,23 @@ def ingest_staged_csvs(customer_id: int, vertical: str, process_run_id: Optional
         db.session.rollback()
         resolve = AccountResolver(customer_id, account_rows)
     result.timings['csv_load'] = round(time.time() - t0, 2)
+
+    # A row that names an account the tenant does not have is skipped by every loader. Say so: in
+    # the result, in the steps and in the log — a run that loads fewer rows than it was given must
+    # not look like a clean run. It does not fail the run.
+    try:
+        from utils.preflight import unmatched_rows, unmatched_warnings
+        unmatched = unmatched_rows(rows, resolve, vertical)
+        if unmatched:
+            result.counts['unmatched_rows'] = unmatched
+            result.warnings = unmatched_warnings(unmatched)
+            for ft, found in unmatched.items():
+                if 'unmatched_account' in found:
+                    result.steps.append(f"UNMATCHED_ROWS_{ft}_{found['unmatched_account']['rows']}")
+            for line in result.warnings:
+                logger.warning('csv ingest customer %s: %s', customer_id, line)
+    except Exception:
+        logger.exception('unmatched-row report failed for customer %s', customer_id)
 
     # ── Phase 2 ──
     t0 = time.time()

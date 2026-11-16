@@ -1,6 +1,12 @@
 {
   "version": "1.0",
   "vertical": "tprm_v1",
+  "capabilities": {
+    "phase_transition_edges": true,
+    "revenue_economics": false,
+    "money_basis": "exposure"
+  },
+  "labels": {"account": "Vendor", "accounts": "Vendors", "revenue": "Contract value", "recurring_revenue": "Annual contract value", "renewal": "Contract end"},
   "description": "Third-party risk management for a bank: six pillars (Security, Operational resilience, Risk exposure, Compliance, Performance, Governance), 33 KPIs. The 12 marked core are the minimum set; a KPI with no measurement is left out of the score and the remaining weights are rescaled, so a vendor can be scored on the core set alone.",
   "pillars": {
     "S": {

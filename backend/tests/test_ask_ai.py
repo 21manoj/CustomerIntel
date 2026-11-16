@@ -246,6 +246,102 @@ class TestPortfolio:
         assert [s['cites'] for s in res['sentences']] == [[f'row:{aid}']]
         assert res['unsupported'][0]['unresolved'] == ['row:424242']
 
+    def test_a_whole_book_sentence_citing_portfolio_is_kept_and_its_count_is_read(self, tenant, monkeypatch):
+        """The persona eval's most common loss: the model cites `portfolio` for "N of the M accounts…",
+        the block was not citable, and the headline sentence was dropped. Now it is, and the count is
+        in the block, so it is also not flagged as an unverified number."""
+        cid, aid, bid, _, _ = tenant
+        monkeypatch.setenv('ANTHROPIC_API_KEY', 'test-key')
+        monkeypatch.setattr('ask_ai.answer._call_model', lambda c, s, u: ({'answer_sentences': [
+            {'text': 'There are 2 accounts in this portfolio.', 'cites': ['portfolio']},
+            {'text': 'Northwind Analytics is one of the 2.', 'cites': [f'row:{aid}', 'portfolio']},
+        ], 'evidence_gaps': [], 'confidence': 0.9}, 'fake-model'))
+        with app.app_context():
+            res = ask(cid, 'summarise the portfolio')
+        assert [s['cites'] for s in res['sentences']] == [['portfolio'], [f'row:{aid}', 'portfolio']] and not res['unsupported']
+        assert all('unverified_numbers' not in s for s in res['sentences'])
+        assert res['citations']['portfolio']['accounts'] == 2
+
+    def test_portfolio_summary_counts_every_account(self):
+        from ask_ai.answer import _portfolio_summary
+        rows = [{'account_id': 1, 'revenue': 100.0, 'state': 'classified', 'arc_type': 'crisis_recovery', 'current_phase': 'resolution',
+                 'open_review_count': 2, 'latest': {'early_warning': 'leading_only', 'roles': {'escalation': 3}}},
+                {'account_id': 2, 'revenue': 50.0, 'state': 'steady', 'arc_type': None, 'current_phase': 'baseline',
+                 'open_review_count': 0, 'latest': {'early_warning': None, 'roles': {'escalation': 1, 'advocacy': 1}}},
+                {'account_id': 3, 'revenue': None, 'state': 'steady', 'arc_type': None, 'current_phase': 'baseline', 'latest': None}]
+        s = _portfolio_summary(rows)
+        assert s['accounts'] == 3 and s['revenue_total'] == 150.0 and s['accounts_with_revenue'] == 2
+        assert s['accounts_by_state'] == {'steady': 2, 'classified': 1}
+        assert s['accounts_by_arc_type'] == {'none': 2, 'crisis_recovery': 1}
+        assert s['accounts_by_latest_early_warning'] == {'none': 2, 'leading_only': 1}
+        assert s['accounts_by_role_in_latest_month'] == {'escalation': 2, 'advocacy': 1}
+        assert s['accounts_with_open_reviews'] == 1 and s['open_reviews_total'] == 2
+        assert _portfolio_summary([])['accounts'] == 0 and _portfolio_summary([])['revenue_total'] is None
+
+    @staticmethod
+    def _rows(n):
+        return [{'account_id': i, 'account_name': f'Account {i:03d}', 'revenue': 1000.0 * i, 'arc_type': 'crisis_recovery',
+                 'state': 'classified', 'arc_confidence': 0.8, 'current_phase': 'resolution', 'last_scored_month': '2026-08-01',
+                 'live_months': 1, 'last_evidence_at': '2026-09-05T10:00:00', 'lead_days': 30, 'episodes': 14, 'open_review_count': 0,
+                 'latest': {'early_warning': 'leading_only', 'kpi_only': None, 'month': '2026-09-01', 'qual': 74.93,
+                            'roles': {'advocacy': 1, 'champion_change': 2, 'recovery': 2}},
+                 'forecast': {'basis': 'prior', 'decision_point': '2027-03-09', 'expected_arr_end': 240423.76, 'expected_arr_high': 319885.02,
+                              'expected_arr_low': 166875.84, 'horizon_days': 365, 'labels': {'n': 2, 'needed': 30}, 'p_expand': 0.0432,
+                              'p_retain': 0.4977, 'p_retain_high': 0.6477, 'p_retain_low': 0.3477, 'run_id': 'wizard_d_x', 'stale': False,
+                              'status': 'forecast'},
+                 'priority': {'addressable_weighted': 288000.0, 'basis': 'derived', 'cited_episodes': 6, 'headroom_factor': None, 'lens': 'grow',
+                              'opportunity_factor': 0.6, 'pending_approvals': 1, 'revenue_weighted': 288000.0, 'risk_factor': 0.43,
+                              'secondary_lens': 'protect'}} for i in range(1, n + 1)]
+
+    def _portfolio(self, monkeypatch, n, budget):
+        from ask_ai.answer import portfolio_context
+        real = settings.get
+        monkeypatch.setattr(settings, 'get', lambda a, b: budget if (a, b) == ('context', 'max_chars') else real(a, b))
+        return portfolio_context(1, 'summarise the portfolio', self._rows(n), None)      # not investment-shaped: no DB reads
+
+    def test_rows_are_shown_in_full_when_they_all_fit(self, monkeypatch):
+        ctx, gaps, meta = self._portfolio(monkeypatch, 20, 48000)
+        assert meta == {'accounts': 20, 'shown': 20} and not ctx.truncated and not any('budget' in g for g in gaps)
+        assert '"p_retain_high"' in ctx.text() and '"detail":"short"' not in ctx.text()
+
+    def test_every_account_is_shown_in_short_form_before_any_is_dropped(self, monkeypatch):
+        """Full rows need ~22,000 characters here, so they would stop partway down the list. The old loop did exactly that, in name order —
+        the model then answered "which accounts…" from the first half of the alphabet."""
+        ctx, gaps, meta = self._portfolio(monkeypatch, 20, 16000)
+        assert meta['shown'] == 20 and not ctx.truncated
+        assert all(f'row:{i}' in ctx.citable for i in range(1, 21))
+        assert '"detail":"short"' in ctx.text() and '"p_retain_high"' not in ctx.text()
+        assert any('short form' in g for g in gaps) and not any('missing from this answer' in g for g in gaps)
+        assert ctx.citable['row:7']['forecast']['p_retain_high'] == 0.6477          # the citation is still the full row
+
+    def test_when_even_short_rows_do_not_fit_the_largest_accounts_win_and_the_gap_counts_the_rest(self, monkeypatch):
+        ctx, gaps, meta = self._portfolio(monkeypatch, 20, 4000)
+        shown = meta['shown']
+        assert 0 < shown < 20 and 'portfolio' in ctx.citable
+        assert all(f'row:{i}' in ctx.citable for i in range(20, 20 - shown, -1))    # revenue rises with the id
+        assert f'row:{20 - shown}' not in ctx.citable
+        assert any(f'{shown} of 20 account rows were shown' in g and f'the other {20 - shown} are missing' in g for g in gaps)
+        assert ctx.citable['portfolio']['accounts'] == 20                            # the counts still cover every account
+
+    def test_context_size_predicts_what_add_charges(self):
+        from ask_ai.answer import Context
+        ctx = Context(1000)
+        n = ctx.size('row', {'a': 1}, 'row:1')
+        assert ctx.add('row', {'a': 1}, cite_id='row:1') and ctx.used == n and ctx.room == 1000 - n
+        assert ctx.citable['row:1'] == {'cite': 'row:1', 'a': 1}
+
+    def test_empty_fields_are_not_sent_and_a_quote_is_not_sent_twice(self):
+        from ask_ai.answer import _prune, _episode_compact, _evidence_compact
+        assert _prune({'a': None, 'b': '', 'c': [], 'd': {}, 'e': 0, 'f': False, 'g': {'h': None, 'i': 1}, 'j': [{'k': None}]}) == \
+            {'e': 0, 'f': False, 'g': {'i': 1}, 'j': [{}]}
+        ep = _episode_compact({'episode_id': 'renewal', 'date': '2027-03-09', 'kind': 'renewal', 'subtype': 'renewal_date',
+                               'title': 'Renewal date', 'source': 'observed', 'evidence_node_ids': []}, 240)
+        assert ep == {'id': 'renewal', 'date': '2027-03-09', 'kind': 'renewal', 'subtype': 'renewal_date', 'title': 'Renewal date', 'tier': 'observed'}
+        v = {'node_id': 9, 'account_id': 1, 'role': 'champion_change', 'quote': 'She is leaving.', 'requires_review': False}
+        assert _evidence_compact(v, 240)['quote'] == 'She is leaving.' and 'quote_in_episode' not in _evidence_compact(v, 240)
+        short = _evidence_compact(v, 240, quoted_in='sig:9')
+        assert 'quote' not in short and short['quote_in_episode'] == 'sig:9' and short['requires_review'] is False
+
     def test_decide_scope_rules(self):
         rows = [{'account_id': 1, 'account_name': 'Acme'}, {'account_id': 2, 'account_name': 'Acme Cloud'}]
         assert decide_scope(1, 'anything', 7, rows) == ('account', 7)
@@ -543,7 +639,8 @@ class TestInvestmentContext:
         monkeypatch.setattr(roi_settings, 'economics', boom)
         with app.app_context():
             ctx, gaps, meta, narrative = account_context(cid, aid, 'what happened?', None, None)
-        assert any('power_of_1 not available' in g for g in gaps)
+        assert any('revenue-per-health-point figures are not set up for this tenant' in g for g in gaps)
+        assert not any('power_of_1' in g or '.json' in g for g in gaps)      # plain words, no internal names
         assert f'priority:{aid}' in ctx.citable                               # investment_priorities doesn't need economics — unaffected
         assert f'po1:{aid}' not in ctx.citable
 
@@ -561,7 +658,8 @@ class TestInvestmentContext:
         with app.app_context():
             # a cost-shaped question: account scope only reaches investment_cost when the question asks for it
             ctx, gaps, meta, narrative = account_context(cid, aid, 'what would this cost?', None, None)
-        assert any('investment cost not available' in g for g in gaps)
+        assert any('playbook cost figures are not set up for this tenant' in g for g in gaps)
+        assert not any('.json' in g or 'investment file' in g for g in gaps)
         assert f'priority:{aid}' in ctx.citable and f'po1:{aid}' in ctx.citable    # unaffected — different config file
         assert f'investment_cost:{aid}' not in ctx.citable
 

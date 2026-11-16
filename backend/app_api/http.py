@@ -8,13 +8,15 @@ docs/design/ui-rbac.md §4 for the route → function table.
     GET  /app/api/me
     GET  /app/api/portfolio?customer_id=
     GET  /app/api/accounts/{account_id}?customer_id=
-    GET  /app/api/interventions | GET .../evaluate | POST .../{id}/approve | .../{id}/report
-    GET  /app/api/roi | /app/api/roi/priorities | /app/api/roi/power-of-1
+    GET  /app/api/accounts/{account_id}/graph?customer_id=      evidence nodes + the causal edges between them
+    GET  /app/api/interventions | GET .../evaluate | POST .../{id}/approve | .../{id}/report | .../{id}/review | .../{id}/draft
+    GET  /app/api/roi | /app/api/roi/priorities | /app/api/roi/power-of-1 | /app/api/roi/exposure
     GET  /app/api/calibrations | POST .../propose | .../{id}/approve | .../{id}/reject      (admin)
     GET  /app/api/review-queue | POST /app/api/review                                        (csm/admin)
     GET  /app/api/playbooks/config | POST /app/api/playbooks/config                          (admin)
     GET  /app/api/users | POST /app/api/users | PATCH /app/api/users/{id} | POST .../{id}/reset-password  (admin)
-    GET  /app/api/ask/questions | POST /app/api/ask                                              (every role)
+    GET  /app/api/vertical?customer_id=       the tenant's vertical: capabilities + display labels  (every role)
+    GET  /app/api/ask/questions[?customer_id=] | POST /app/api/ask                               (every role)
 
 Every route that names a customer_id runs it through _scoped_cid / allows_customer,
 role gate or not — a role gate says WHAT you may do, never WHOSE data you may do it
@@ -81,12 +83,13 @@ def _me_view(u) -> dict:
 
 
 def register_app_api_routes(mcp) -> None:
-    from journeys.read import list_journeys, get_journey, origin_block
+    from journeys.read import db_get_account, list_journeys, get_journey, get_evidence_graph, origin_block
     from playbooks import governance as gov
     from playbooks.definitions import playbooks_for_customer, configure_tenant
     from roi.priorities import investment_priorities
     from roi.power_of_1 import power_of_1
     from roi.measured import roi as roi_measured
+    from roi.exposure import exposure as roi_exposure
     from wizards import wizard_c_calibration as wc
     from wizards.wizard_d_foresight import get_forecast
     from signal_engine.ingest_api import review_queue
@@ -165,6 +168,30 @@ def register_app_api_routes(mcp) -> None:
             return JSONResponse({'error': 'no journey for this account'}, status_code=404)
         return JSONResponse(j)
 
+    @mcp.custom_route('/app/api/accounts/{account_id:int}/graph', methods=['GET'], name='ui_account_graph')
+    async def ui_account_graph(request):
+        """The account's evidence nodes and the causal edges between them, for the graph view.
+        Same scope rule as the account page: the tenant AND the account must both be the caller's."""
+        user, err = await _guard(request)
+        if err:
+            return err
+        cid, err = _scoped_cid(user, request.query_params.get('customer_id'))
+        if err:
+            return err
+        aid = request.path_params['account_id']
+        if not allows_account(user, aid):
+            return _forbidden_scope()
+
+        def read():
+            account = db_get_account(aid)
+            if account is None or account.customer_id != cid:
+                return None
+            return {**get_evidence_graph(cid, aid), 'account_name': account.account_name, **origin_block(cid)}
+        g = await _with_app(read)
+        if g is None:
+            return JSONResponse({'error': 'no such account'}, status_code=404)
+        return JSONResponse(g)
+
     # ── interventions ──
 
     @mcp.custom_route('/app/api/interventions', methods=['GET'], name='ui_interventions_list')
@@ -242,6 +269,39 @@ def register_app_api_routes(mcp) -> None:
         except ValueError as e:
             return JSONResponse({'error': str(e)}, status_code=400)
 
+    @mcp.custom_route('/app/api/interventions/{intervention_id:int}/review', methods=['POST'], name='ui_interventions_review')
+    async def ui_interventions_review(request):
+        """A person records that they looked at an action policy approved on its own (automation level 4)."""
+        user, err = await _guard(request, role=('csm', 'vpcsm'))
+        if err:
+            return err
+        data = await _json(request)
+        cid = data.get('customer_id')
+        if not cid or not allows_customer(user, int(cid)):
+            return _forbidden_scope() if cid else JSONResponse({'error': 'customer_id is required'}, status_code=400)
+        try:
+            actor = {'key_kind': 'user', 'key_record': None, 'key_id': None, 'label': f'user:{user.user_id}'}
+            return JSONResponse(await _with_app(lambda: gov.review(int(cid), request.path_params['intervention_id'], data.get('note'), actor=actor)))
+        except ValueError as e:
+            return JSONResponse({'error': str(e)}, status_code=400)
+
+    @mcp.custom_route('/app/api/interventions/{intervention_id:int}/draft', methods=['POST'], name='ui_interventions_draft')
+    async def ui_interventions_draft(request):
+        """Ask the playbook agent to draft the steps of one open intervention. It writes the draft and nothing else."""
+        from playbooks import agent
+        user, err = await _guard(request, role=('csm', 'vpcsm'))
+        if err:
+            return err
+        data = await _json(request)
+        cid = data.get('customer_id')
+        if not cid or not allows_customer(user, int(cid)):
+            return _forbidden_scope() if cid else JSONResponse({'error': 'customer_id is required'}, status_code=400)
+        try:
+            who = {'label': f'user:{user.user_id}'}
+            return JSONResponse(await _with_app(lambda: agent.draft(int(cid), request.path_params['intervention_id'], requested_by=who)))
+        except ValueError as e:
+            return JSONResponse({'error': str(e)}, status_code=400)
+
     # ── ROI / Power-of-1 (cfo, cro, admin) ──
 
     async def _finance_guard(request):
@@ -278,6 +338,19 @@ def register_app_api_routes(mcp) -> None:
         except ValueError as e:
             return JSONResponse({'error': str(e)}, status_code=422)
 
+    @mcp.custom_route('/app/api/roi/exposure', methods=['GET'], name='ui_roi_exposure')
+    async def ui_roi_exposure(request):
+        user, err = await _finance_guard(request)
+        if err:
+            return err
+        cid = request.query_params.get('customer_id')
+        if not cid or not allows_customer(user, int(cid)):
+            return _forbidden_scope() if cid else JSONResponse({'error': 'customer_id is required'}, status_code=400)
+        try:
+            return JSONResponse(await _with_app(lambda: roi_exposure(int(cid))))
+        except ValueError as e:
+            return JSONResponse({'error': str(e)}, status_code=422)
+
     @mcp.custom_route('/app/api/roi', methods=['GET'], name='ui_roi_measured')
     async def ui_roi_measured(request):
         user, err = await _finance_guard(request)
@@ -311,6 +384,24 @@ def register_app_api_routes(mcp) -> None:
             return JSONResponse({'error': 'no Foresight run yet'}, status_code=404)
         return JSONResponse(res)
 
+    # ── what this tenant's vertical declares (every role): its capabilities and display labels ──
+
+    @mcp.custom_route('/app/api/vertical', methods=['GET'], name='ui_vertical')
+    async def ui_vertical(request):
+        user, err = await _guard(request)
+        if err:
+            return err
+        cid = request.query_params.get('customer_id')
+        if not cid or not allows_customer(user, int(cid)):
+            return _forbidden_scope() if cid else JSONResponse({'error': 'customer_id is required'}, status_code=400)
+        from utils import vertical_registry as vr
+        try:
+            vertical = await _with_app(lambda: vr.get_vertical_for_customer(int(cid)))
+        except ValueError as e:
+            return JSONResponse({'error': str(e)}, status_code=422)
+        return JSONResponse({'customer_id': int(cid), 'vertical': vertical,
+                             'capabilities': vr.capabilities(vertical), 'labels': vr.labels(vertical)})
+
     # ── ask ai (every role; admin may also preview any role's curated set) ──
 
     @mcp.custom_route('/app/api/ask/questions', methods=['GET'], name='ui_ask_questions')
@@ -319,7 +410,19 @@ def register_app_api_routes(mcp) -> None:
         if err:
             return err
         from ask_ai import settings as ask_ai_settings
-        by_role = ask_ai_settings.curated_questions()
+        # with a customer_id the set is that tenant's vertical's (a vertical may replace a role's
+        # questions); without one, the platform set. The vertical is tenant data, so it is scoped.
+        cid = request.query_params.get('customer_id')
+        vertical = None
+        if cid:
+            if not allows_customer(user, int(cid)):
+                return _forbidden_scope()
+            from utils.vertical_registry import get_vertical_for_customer
+            try:
+                vertical = await _with_app(lambda: get_vertical_for_customer(int(cid)))
+            except ValueError as e:
+                return JSONResponse({'error': str(e)}, status_code=422)
+        by_role = ask_ai_settings.curated_questions(vertical)
         # non-admin roles only ever see their own set; admin gets all sets, to preview/use any of them
         visible = by_role if user.role == 'admin' else {user.role: by_role.get(user.role, [])}
         return JSONResponse({'roles': list(by_role.keys()), 'questions': visible})
@@ -487,7 +590,8 @@ def register_app_api_routes(mcp) -> None:
             return JSONResponse(await _with_app(lambda: configure_tenant(
                 cid, webhook_url=data.get('webhook_url'), webhook_secret=data.get('webhook_secret'),
                 disabled_playbooks=data.get('disabled_playbooks'), automation_level=data.get('automation_level'),
-                kill_switch=data.get('kill_switch'))))
+                kill_switch=data.get('kill_switch'), automation_levels_by_class=data.get('automation_levels_by_class'),
+                changed_by=f'user:{user.user_id}')))
         except ValueError as e:
             return JSONResponse({'error': str(e)}, status_code=400)
 
@@ -559,8 +663,8 @@ def register_app_api_routes(mcp) -> None:
 ROUTES = ('/app/api/auth/login', '/app/api/auth/logout', '/app/api/auth/set-password', '/app/api/me',
           '/app/api/portfolio', '/app/api/accounts/{id}', '/app/api/interventions', '/app/api/interventions/evaluate',
           '/app/api/interventions/{id}/approve',
-          '/app/api/interventions/{id}/report', '/app/api/roi', '/app/api/roi/priorities', '/app/api/roi/power-of-1',
+          '/app/api/interventions/{id}/report', '/app/api/interventions/{id}/review', '/app/api/interventions/{id}/draft', '/app/api/roi', '/app/api/roi/priorities', '/app/api/roi/power-of-1', '/app/api/roi/exposure',
           '/app/api/forecast', '/app/api/calibrations', '/app/api/calibrations/propose', '/app/api/calibrations/{id}/approve',
           '/app/api/calibrations/{id}/reject', '/app/api/review-queue', '/app/api/review', '/app/api/playbooks/config',
           '/app/api/users', '/app/api/users/{id}', '/app/api/users/{id}/reset-password',
-          '/app/api/ask/questions', '/app/api/ask')
+          '/app/api/vertical', '/app/api/ask/questions', '/app/api/ask')

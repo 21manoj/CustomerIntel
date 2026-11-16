@@ -152,7 +152,8 @@ def review_queue(customer_id: int, account_id: Optional[int] = None, urgency: Op
 
 def status_payload() -> dict:
     enabled = engine_enabled()
-    llm_available = bool(os.environ.get('ANTHROPIC_API_KEY'))
+    from utils import model_provider
+    llm_available = model_provider.available()
     return {
         'signal_engine_enabled': enabled,
         'version': '2.0.0',

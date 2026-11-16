@@ -282,7 +282,7 @@ class TestStatusEndpoint:
         path = os.path.join(BACKEND_DIR, 'signal_engine', 'ingest_api.py')
         with open(path) as f:
             source = f.read()
-        assert "llm_available = bool(os.environ.get('ANTHROPIC_API_KEY'))" in source
+        assert "llm_available = model_provider.available()" in source     # asks the provider layer, not the env
         assert "'llm_enrichment': llm_available" in source
 
     def test_channels_in_status(self):

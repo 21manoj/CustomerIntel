@@ -1,0 +1,383 @@
+{
+  "_doc": "Investment-cost model for tprm_v1: what each vendor-risk playbook costs to run. Covers every playbook in config/playbooks/tprm_v1.json. Every figure is ASSUMED and carries its basis; sources are listed once under _sources. The hourly figure is a vendor-risk analyst's loaded cost (the key is named csm_hourly_cost because the platform uses one name for 'the person who does the work' in every vertical). No health-point lift is estimated, so no cost per health point is shown until measured lifts exist. Cost is reported beside exposure (roi.exposure), never divided into it.",
+  "version": "1.0",
+  "vertical": "tprm_v1",
+  "basis": "assumed",
+  "csm_hourly_cost": {
+    "value": 80,
+    "basis": "assumed: loaded hourly cost of a vendor-risk analyst. Median wage $56.41/hour divided by (1 - 0.297 benefits share) = $80.24, rounded."
+  },
+  "_sources": {
+    "hourly_cost": [
+      {
+        "claim": "Financial Risk Specialists (SOC 13-2054) US median $56.41/hour, $117,330/year, 2025 BLS OEWS data",
+        "url": "https://www.onetonline.org/link/localwages/13-2054.00",
+        "verified": true
+      },
+      {
+        "claim": "Benefits were 29.7% of private-industry compensation, March 2025",
+        "url": "https://www.bls.gov/opub/ted/2025/compensation-costs-for-private-industry-averaged-45-38-per-hour-worked-in-march-2025.htm",
+        "verified": true
+      }
+    ],
+    "playbook_hours": [
+      {
+        "claim": "12+ hours for an annual vendor due-diligence review",
+        "url": "https://www.acaglobal.com/industry-insights/secret-ingredient-effective-vendor-risk-management",
+        "verified": false
+      },
+      {
+        "claim": "60% say assessments take four months or longer end to end (elapsed, not effort)",
+        "url": "https://info.processunity.com/rs/638-QKL-150/images/Report-ProcessUnity-State-of-Third-Party-Risk-Assessments-2026.pdf",
+        "verified": false
+      },
+      {
+        "claim": "4-8+ hours per vendor (Prevalent case studies); 15.23 hours per incident-triggered assessment (survey, secondary)",
+        "url": null,
+        "verified": false
+      }
+    ]
+  },
+  "playbooks": {
+    "incident_corrective_action": {
+      "targets_pillars": [
+        "O"
+      ],
+      "targets_kpis": [
+        "O-KPI2"
+      ],
+      "estimated_csm_hours": {
+        "value": 16,
+        "basis": "assumed: Assumed. Anchored on published effort per vendor review: 4-8+ hours per assessment (vendor case studies), 12+ hours for an annual due-diligence review, about 15 hours for an incident-triggered assessment. No published per-playbook figures exist."
+      },
+      "estimated_cost_per_execution": {
+        "value": 1280,
+        "basis": "assumed: estimated hours (assumed) x hourly cost (assumed); both links assumed, so the product is assumed"
+      },
+      "estimated_health_point_lift_per_execution": {
+        "value": null,
+        "basis": "assumed: no figure given. No published health-point lift exists for vendor-risk actions and no tenant has five closed instances yet.",
+        "note": "no lift estimate for this playbook yet; cost per health point appears once five closed instances carry a measured lift"
+      }
+    },
+    "escalation_exec_response": {
+      "targets_pillars": [
+        "G"
+      ],
+      "targets_kpis": [
+        "G-KPI5"
+      ],
+      "estimated_csm_hours": {
+        "value": 8,
+        "basis": "assumed: Assumed. Anchored on published effort per vendor review: 4-8+ hours per assessment (vendor case studies), 12+ hours for an annual due-diligence review, about 15 hours for an incident-triggered assessment. No published per-playbook figures exist."
+      },
+      "estimated_cost_per_execution": {
+        "value": 640,
+        "basis": "assumed: estimated hours (assumed) x hourly cost (assumed); both links assumed, so the product is assumed"
+      },
+      "estimated_health_point_lift_per_execution": {
+        "value": null,
+        "basis": "assumed: no figure given. No published health-point lift exists for vendor-risk actions and no tenant has five closed instances yet.",
+        "note": "no lift estimate for this playbook yet; cost per health point appears once five closed instances carry a measured lift"
+      }
+    },
+    "commercial_pressure_review": {
+      "targets_pillars": [
+        "R"
+      ],
+      "targets_kpis": [
+        "R-KPI1"
+      ],
+      "estimated_csm_hours": {
+        "value": 6,
+        "basis": "assumed: Assumed. Anchored on published effort per vendor review: 4-8+ hours per assessment (vendor case studies), 12+ hours for an annual due-diligence review, about 15 hours for an incident-triggered assessment. No published per-playbook figures exist."
+      },
+      "estimated_cost_per_execution": {
+        "value": 480,
+        "basis": "assumed: estimated hours (assumed) x hourly cost (assumed); both links assumed, so the product is assumed"
+      },
+      "estimated_health_point_lift_per_execution": {
+        "value": null,
+        "basis": "assumed: no figure given. No published health-point lift exists for vendor-risk actions and no tenant has five closed instances yet.",
+        "note": "no lift estimate for this playbook yet; cost per health point appears once five closed instances carry a measured lift"
+      }
+    },
+    "delivery_stall_escalation": {
+      "targets_pillars": [
+        "P"
+      ],
+      "targets_kpis": [
+        "P-KPI2"
+      ],
+      "estimated_csm_hours": {
+        "value": 8,
+        "basis": "assumed: Assumed. Anchored on published effort per vendor review: 4-8+ hours per assessment (vendor case studies), 12+ hours for an annual due-diligence review, about 15 hours for an incident-triggered assessment. No published per-playbook figures exist."
+      },
+      "estimated_cost_per_execution": {
+        "value": 640,
+        "basis": "assumed: estimated hours (assumed) x hourly cost (assumed); both links assumed, so the product is assumed"
+      },
+      "estimated_health_point_lift_per_execution": {
+        "value": null,
+        "basis": "assumed: no figure given. No published health-point lift exists for vendor-risk actions and no tenant has five closed instances yet.",
+        "note": "no lift estimate for this playbook yet; cost per health point appears once five closed instances carry a measured lift"
+      }
+    },
+    "engagement_decline_outreach": {
+      "targets_pillars": [
+        "P"
+      ],
+      "targets_kpis": [
+        "P-KPI5"
+      ],
+      "estimated_csm_hours": {
+        "value": 3,
+        "basis": "assumed: Assumed. Anchored on published effort per vendor review: 4-8+ hours per assessment (vendor case studies), 12+ hours for an annual due-diligence review, about 15 hours for an incident-triggered assessment. No published per-playbook figures exist."
+      },
+      "estimated_cost_per_execution": {
+        "value": 240,
+        "basis": "assumed: estimated hours (assumed) x hourly cost (assumed); both links assumed, so the product is assumed"
+      },
+      "estimated_health_point_lift_per_execution": {
+        "value": null,
+        "basis": "assumed: no figure given. No published health-point lift exists for vendor-risk actions and no tenant has five closed instances yet.",
+        "note": "no lift estimate for this playbook yet; cost per health point appears once five closed instances carry a measured lift"
+      }
+    },
+    "champion_change_relationship_rebuild": {
+      "targets_pillars": [
+        "G"
+      ],
+      "targets_kpis": [
+        "G-KPI4"
+      ],
+      "estimated_csm_hours": {
+        "value": 4,
+        "basis": "assumed: Assumed. Anchored on published effort per vendor review: 4-8+ hours per assessment (vendor case studies), 12+ hours for an annual due-diligence review, about 15 hours for an incident-triggered assessment. No published per-playbook figures exist."
+      },
+      "estimated_cost_per_execution": {
+        "value": 320,
+        "basis": "assumed: estimated hours (assumed) x hourly cost (assumed); both links assumed, so the product is assumed"
+      },
+      "estimated_health_point_lift_per_execution": {
+        "value": null,
+        "basis": "assumed: no figure given. No published health-point lift exists for vendor-risk actions and no tenant has five closed instances yet.",
+        "note": "no lift estimate for this playbook yet; cost per health point appears once five closed instances carry a measured lift"
+      }
+    },
+    "expansion_scope_handoff": {
+      "targets_pillars": [],
+      "targets_kpis": [],
+      "estimated_csm_hours": {
+        "value": 6,
+        "basis": "assumed: Assumed. Anchored on published effort per vendor review: 4-8+ hours per assessment (vendor case studies), 12+ hours for an annual due-diligence review, about 15 hours for an incident-triggered assessment. No published per-playbook figures exist."
+      },
+      "estimated_cost_per_execution": {
+        "value": 480,
+        "basis": "assumed: estimated hours (assumed) x hourly cost (assumed); both links assumed, so the product is assumed"
+      },
+      "estimated_health_point_lift_per_execution": {
+        "value": null,
+        "basis": "assumed: no figure given. No published health-point lift exists for vendor-risk actions and no tenant has five closed instances yet.",
+        "note": "no lift estimate for this playbook yet; cost per health point appears once five closed instances carry a measured lift"
+      }
+    },
+    "remediation_overdue": {
+      "targets_pillars": [
+        "R",
+        "S"
+      ],
+      "targets_kpis": [
+        "R-KPI2",
+        "S-KPI2"
+      ],
+      "estimated_csm_hours": {
+        "value": 6,
+        "basis": "assumed: Assumed. Anchored on published effort per vendor review: 4-8+ hours per assessment (vendor case studies), 12+ hours for an annual due-diligence review, about 15 hours for an incident-triggered assessment. No published per-playbook figures exist."
+      },
+      "estimated_cost_per_execution": {
+        "value": 480,
+        "basis": "assumed: estimated hours (assumed) x hourly cost (assumed); both links assumed, so the product is assumed"
+      },
+      "estimated_health_point_lift_per_execution": {
+        "value": null,
+        "basis": "assumed: no figure given. No published health-point lift exists for vendor-risk actions and no tenant has five closed instances yet.",
+        "note": "no lift estimate for this playbook yet; cost per health point appears once five closed instances carry a measured lift"
+      }
+    },
+    "assurance_lapse": {
+      "targets_pillars": [
+        "C"
+      ],
+      "targets_kpis": [
+        "C-KPI1"
+      ],
+      "estimated_csm_hours": {
+        "value": 8,
+        "basis": "assumed: Assumed. Anchored on published effort per vendor review: 4-8+ hours per assessment (vendor case studies), 12+ hours for an annual due-diligence review, about 15 hours for an incident-triggered assessment. No published per-playbook figures exist."
+      },
+      "estimated_cost_per_execution": {
+        "value": 640,
+        "basis": "assumed: estimated hours (assumed) x hourly cost (assumed); both links assumed, so the product is assumed"
+      },
+      "estimated_health_point_lift_per_execution": {
+        "value": null,
+        "basis": "assumed: no figure given. No published health-point lift exists for vendor-risk actions and no tenant has five closed instances yet.",
+        "note": "no lift estimate for this playbook yet; cost per health point appears once five closed instances carry a measured lift"
+      }
+    },
+    "sla_recovery": {
+      "targets_pillars": [
+        "P"
+      ],
+      "targets_kpis": [
+        "P-KPI1"
+      ],
+      "estimated_csm_hours": {
+        "value": 10,
+        "basis": "assumed: Assumed. Anchored on published effort per vendor review: 4-8+ hours per assessment (vendor case studies), 12+ hours for an annual due-diligence review, about 15 hours for an incident-triggered assessment. No published per-playbook figures exist."
+      },
+      "estimated_cost_per_execution": {
+        "value": 800,
+        "basis": "assumed: estimated hours (assumed) x hourly cost (assumed); both links assumed, so the product is assumed"
+      },
+      "estimated_health_point_lift_per_execution": {
+        "value": null,
+        "basis": "assumed: no figure given. No published health-point lift exists for vendor-risk actions and no tenant has five closed instances yet.",
+        "note": "no lift estimate for this playbook yet; cost per health point appears once five closed instances carry a measured lift"
+      }
+    },
+    "exit_readiness": {
+      "targets_pillars": [
+        "O"
+      ],
+      "targets_kpis": [
+        "O-KPI4"
+      ],
+      "estimated_csm_hours": {
+        "value": 40,
+        "basis": "assumed: Assumed. Anchored on published effort per vendor review: 4-8+ hours per assessment (vendor case studies), 12+ hours for an annual due-diligence review, about 15 hours for an incident-triggered assessment. No published per-playbook figures exist."
+      },
+      "estimated_cost_per_execution": {
+        "value": 3200,
+        "basis": "assumed: estimated hours (assumed) x hourly cost (assumed); both links assumed, so the product is assumed"
+      },
+      "estimated_health_point_lift_per_execution": {
+        "value": null,
+        "basis": "assumed: no figure given. No published health-point lift exists for vendor-risk actions and no tenant has five closed instances yet.",
+        "note": "no lift estimate for this playbook yet; cost per health point appears once five closed instances carry a measured lift"
+      }
+    }
+  },
+  "pillars": {
+    "S": {
+      "name": "Security & Data Protection",
+      "playbooks": [
+        "remediation_overdue"
+      ]
+    },
+    "O": {
+      "name": "Operational Resilience",
+      "playbooks": [
+        "exit_readiness",
+        "incident_corrective_action"
+      ]
+    },
+    "R": {
+      "name": "Risk Exposure",
+      "playbooks": [
+        "commercial_pressure_review",
+        "remediation_overdue"
+      ]
+    },
+    "C": {
+      "name": "Compliance & Assurance",
+      "playbooks": [
+        "assurance_lapse"
+      ]
+    },
+    "P": {
+      "name": "Performance & Service Delivery",
+      "playbooks": [
+        "delivery_stall_escalation",
+        "engagement_decline_outreach",
+        "sla_recovery"
+      ]
+    },
+    "G": {
+      "name": "Governance & Oversight",
+      "playbooks": [
+        "champion_change_relationship_rebuild",
+        "escalation_exec_response"
+      ]
+    }
+  },
+  "kpis": {
+    "O-KPI2": {
+      "name": "Severity 1-2 incidents, trailing 90 days",
+      "playbooks": [
+        "incident_corrective_action"
+      ]
+    },
+    "G-KPI5": {
+      "name": "Issues escalated to the oversight committee within policy",
+      "playbooks": [
+        "escalation_exec_response"
+      ]
+    },
+    "R-KPI1": {
+      "name": "Financial stability score (0-100)",
+      "playbooks": [
+        "commercial_pressure_review"
+      ]
+    },
+    "P-KPI2": {
+      "name": "Delivery milestones met on time",
+      "playbooks": [
+        "delivery_stall_escalation"
+      ]
+    },
+    "P-KPI5": {
+      "name": "Response time to the bank's requests",
+      "playbooks": [
+        "engagement_decline_outreach"
+      ]
+    },
+    "G-KPI4": {
+      "name": "Named relationship owner and risk owner in place",
+      "playbooks": [
+        "champion_change_relationship_rebuild"
+      ]
+    },
+    "R-KPI2": {
+      "name": "Open critical / high risk findings past due",
+      "playbooks": [
+        "remediation_overdue"
+      ]
+    },
+    "S-KPI2": {
+      "name": "Critical / high vulnerabilities past remediation due date",
+      "playbooks": [
+        "remediation_overdue"
+      ]
+    },
+    "C-KPI1": {
+      "name": "Independent assurance report: days until it expires",
+      "playbooks": [
+        "assurance_lapse"
+      ]
+    },
+    "P-KPI1": {
+      "name": "SLA attainment",
+      "playbooks": [
+        "sla_recovery"
+      ]
+    },
+    "O-KPI4": {
+      "name": "Exit / substitution plan tested in the last 12 months",
+      "playbooks": [
+        "exit_readiness"
+      ]
+    }
+  }
+}

@@ -366,7 +366,8 @@ def test_receiver_closes_the_loop_with_the_real_governance_layer(tenant, platfor
             row = db.session.get(Intervention, iid)
             assert row.state == 'closed' and row.closed_by == 'server_key' and row.notes[-1]['note'].startswith('closed by the reference receiver')
             audits = [a.tool for a in ToolAuditLog.query.filter_by(customer_id=cid).filter(ToolAuditLog.tool.like('intervention.%')).order_by(ToolAuditLog.id).all()]
-            assert audits[-4:] == ['intervention.approve', 'intervention.send', 'intervention.started', 'intervention.done']
+            # the first approval of a playbook that is not by policy also records the plan approval (autonomy level 2 reads it)
+            assert audits[-5:] == ['intervention.approve', 'intervention.plan_approved', 'intervention.send', 'intervention.started', 'intervention.done']
             assert ToolAuditLog.query.filter_by(customer_id=cid, tool='intervention.started').order_by(ToolAuditLog.id.desc()).first().key_kind == 'server'
         rapp.state.receiver.drain()
         events = _log(cfg)

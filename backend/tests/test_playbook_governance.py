@@ -410,12 +410,12 @@ def test_tenant_overlay_validation(tenant):
 def test_mcp_tools_are_keyed_and_registered():
     from mcp_server.onboarding_tool_registry import KEYED_TOOLS
     from mcp_server.auth import WRITE_TOOLS
-    for t in ('evaluate_playbooks', 'approve_intervention', 'report_intervention', 'list_interventions', 'configure_playbooks', 'get_playbooks'):
+    for t in ('evaluate_playbooks', 'approve_intervention', 'report_intervention', 'review_intervention', 'list_interventions', 'configure_playbooks', 'get_playbooks'):
         assert t in KEYED_TOOLS
-    assert {'evaluate_playbooks', 'approve_intervention', 'report_intervention', 'configure_playbooks'} <= WRITE_TOOLS
+    assert {'evaluate_playbooks', 'approve_intervention', 'report_intervention', 'review_intervention', 'configure_playbooks'} <= WRITE_TOOLS
     assert 'list_interventions' not in WRITE_TOOLS and 'get_playbooks' not in WRITE_TOOLS
     import mcp_server.cs_pulse_onboarding as m
-    for t in ('evaluate_playbooks', 'approve_intervention', 'report_intervention', 'list_interventions', 'configure_playbooks', 'get_playbooks'):
+    for t in ('evaluate_playbooks', 'approve_intervention', 'report_intervention', 'review_intervention', 'list_interventions', 'configure_playbooks', 'get_playbooks'):
         assert hasattr(m, t)
 
 
@@ -442,3 +442,133 @@ def test_delete_customer_removes_interventions(tenant):
         assert n >= 3
         out = delete_customer(cid, c.domain, 'test teardown')
         assert out['deleted_rows']['interventions'] == n and Intervention.query.filter_by(customer_id=cid).count() == 0
+
+
+# ── fact triggers: KPI thresholds and profile dates (config/playbook_governance.json → fact_triggers) ──
+
+def test_fact_trigger_definitions_validate():
+    from playbooks.definitions import _validate_playbook, PlaybookConfigError, governance
+    from utils.taxonomy_loader import get_taxonomy
+    from utils.vertical_registry import get_kpis
+    tax, gov = get_taxonomy('saas_premium'), governance()
+    code = sorted(get_kpis('saas_premium'))[0]
+    base = {'id': 'f', 'action_class': 'schedule', 'approval': 'human',
+            'expected_outcome': {'types': ['escalation_resolved'], 'window_days': 30}}
+    ok = _validate_playbook({**base, 'trigger': {'kpi': [{'code': code, 'op': '<', 'value': 50}],
+                                                 'date': {'field': 'renewal_date', 'within_days': 90}, 'urgency': 'high'}},
+                            'saas_premium', tax, gov, set())
+    assert ok['trigger']['roles'] == [] and ok['trigger']['kpi'][0]['periods'] == 1 and ok['trigger']['kpi_match'] == 'any'
+    assert ok['trigger']['date'] == {'field': 'renewal_date', 'within_days': 90, 'overdue_by_days': None, 'label': 'renewal date'}
+    for trig, msg in [
+        ({}, 'at least one of roles'),
+        ({'kpi': [{'code': 'NOPE', 'op': '<', 'value': 1}]}, 'not in the saas_premium KPI catalog'),
+        ({'kpi': [{'code': code, 'op': '!=', 'value': 1}]}, 'kpi op'),
+        ({'kpi': [{'code': code, 'op': '<', 'value': 'low'}]}, 'must be a number'),
+        ({'kpi': [{'code': code, 'op': '<', 'value': 1, 'periods': 0}]}, 'periods'),
+        ({'kpi': [{'code': code, 'op': '<', 'value': 1}], 'kpi_match': 'some'}, 'kpi_match'),
+        ({'date': {'field': 'renewal_date'}}, 'exactly one of'),
+        ({'date': {'field': 'renewal_date', 'within_days': 5, 'overdue_by_days': 5}}, 'exactly one of'),
+        ({'date': {'field': 'renewal_date', 'within_days': -1}}, '0 or more'),
+        ({'kpi': [{'code': code, 'op': '<', 'value': 1}], 'urgency_floor': 'high'}, 'needs trigger.roles'),
+        ({'kpi': [{'code': code, 'op': '<', 'value': 1}], 'urgency': 'urgent'}, 'trigger.urgency'),
+    ]:
+        with pytest.raises(PlaybookConfigError, match=msg):
+            _validate_playbook({**base, 'trigger': trig}, 'saas_premium', tax, gov, set())
+
+
+@pytest.fixture()
+def fact_tenant(monkeypatch):
+    """A tenant whose only playbooks are fact-triggered ones (patched in: no vertical file is changed)."""
+    from models import KPIMeasurement
+    from playbooks import definitions
+    from utils.taxonomy_loader import get_taxonomy
+    from utils.vertical_registry import get_kpis
+    with app.app_context():
+        db.create_all()
+        from mcp_server.cs_pulse_onboarding import create_customer
+        tag = uuid.uuid4().hex[:8]
+        cid = create_customer(name=f'Facts {tag}', domain=f'facts-{tag}.test', vertical='saas_premium',
+                              admin_email=f'facts_{tag}@t.test', admin_name='F', data_origin='synthetic_test')['customer_id']
+        code = sorted(get_kpis('saas_premium'))[0]
+        mk = lambda name, pm: Account(customer_id=cid, account_name=name, revenue=100_000, vertical='saas_premium', profile_metadata=pm)
+        low, fine, due = mk('Low KPI', {}), mk('Fine KPI', {}), mk('Review Due', {'review_due': '2026-09-20'})
+        db.session.add_all([low, fine, due]); db.session.commit()
+        t = lambda m, d: datetime(2026, m, d)
+        for acct, vals in [(low, [(t(7, 1), 70), (t(8, 1), 40), (t(9, 1), 35)]), (fine, [(t(8, 1), 40), (t(9, 1), 80)]),
+                           (due, [(t(9, 1), 90)])]:
+            for when, v in vals:
+                db.session.add(KPIMeasurement(account_id=acct.account_id, kpi_code=code, value=v, measured_at=when))
+        db.session.commit()
+        gov, tax = definitions.governance(), get_taxonomy('saas_premium')
+        seen = set()
+        eo = {'types': ['escalation_resolved'], 'window_days': 30}
+        pbs = [definitions._validate_playbook(p, 'saas_premium', tax, gov, seen) for p in [
+            {'id': 'kpi_low_twice', 'label': 'KPI low twice running', 'action_class': 'schedule', 'approval': 'human', 'expected_outcome': eo,
+             'trigger': {'kpi': [{'code': code, 'op': '<', 'value': 50, 'periods': 2}], 'urgency': 'high'}},
+            {'id': 'review_overdue', 'label': 'Review overdue', 'action_class': 'notify', 'approval': 'auto', 'expected_outcome': eo,
+             'trigger': {'date': {'field': 'review_due', 'overdue_by_days': 7, 'label': 'review due date'}}},
+            {'id': 'review_soon_and_low', 'label': 'Review soon with a low KPI', 'action_class': 'schedule', 'approval': 'human',
+             'expected_outcome': eo, 'trigger': {'kpi': [{'code': code, 'op': '<', 'value': 50}],
+                                                 'date': {'field': 'review_due', 'within_days': 30}}},
+        ]]
+        real = definitions.load_vertical
+        monkeypatch.setattr(definitions, 'load_vertical',
+                            lambda v: {'vertical': v, 'version': '9.9', 'playbooks': pbs, 'source': 'test'} if v == 'saas_premium' else real(v))
+        from journeys.wizard_a import run_wizard_a
+        run_wizard_a(cid, evaluate_playbooks=False)
+        for jd in JourneyData.query.filter_by(customer_id=cid).all():      # pin "today" so the date maths is fixed
+            jd.journey_json = {**(jd.journey_json or {}), 'as_of': '2026-10-01T00:00:00'}
+        db.session.commit()
+        yield cid, {'low': low.account_id, 'fine': fine.account_id, 'due': due.account_id}, code
+        db.session.remove()          # the rows go with the module's drop_all
+
+
+def test_fact_triggers_propose_cite_and_stay_idempotent(fact_tenant, receiver):
+    cid, ids, code = fact_tenant
+    with app.app_context():
+        from models import KPIMeasurement
+        from playbooks.governance import evaluate, approve, list_interventions
+        from playbooks.definitions import configure_tenant
+        out = evaluate(cid, dry_run=True)
+        got = {(p['account_id'], p['playbook_id']): p for p in out['proposed']}
+        # two latest readings below 50 → fires; one below, one above → does not; overdue 11 days ≥ 7 → fires;
+        # the AND playbook needs both a low KPI and a near date → nobody has both
+        assert set(got) == {(ids['low'], 'kpi_low_twice'), (ids['due'], 'review_overdue')}
+        k = got[(ids['low'], 'kpi_low_twice')]
+        assert k['trigger_episode_ids'] == [] and k['urgency'] == 'high'
+        assert k['trigger_facts'][0]['value'] == 35.0 and k['trigger_facts'][0]['measured_at'] == '2026-09-01'
+        assert 'is 35 for 2 readings in a row (measured 2026-09-01); the trigger is < 50' in k['trigger_quote']
+        d = got[(ids['due'], 'review_overdue')]
+        assert d['trigger_facts'][0]['days_until'] == -11 and 'was 11 days ago' in d['trigger_quote']
+        reasons = {(s['account_id'], s['playbook_id']): s['reason'] for s in out['skipped']}
+        assert reasons[(ids['fine'], 'kpi_low_twice')].startswith('kpi_not_breached')
+        assert reasons[(ids['low'], 'review_overdue')] == 'no_date:review_due'
+        assert _rows(cid) == []
+
+        evaluate(cid)
+        rows = {r.playbook_id: r for r in _rows(cid)}
+        assert set(rows) == {'kpi_low_twice', 'review_overdue'} and rows['kpi_low_twice'].trigger_facts[0]['code'] == code
+        again = evaluate(cid)
+        assert again['proposed'] == [] and {s['reason'] for s in again['skipped'] if s.get('intervention_id')} == {'exists'}
+        # a newer reading that still breaches is new evidence, but one open proposal per (account, playbook) holds
+        db.session.add(KPIMeasurement(account_id=ids['low'], kpi_code=code, value=30, measured_at=datetime(2026, 10, 1)))
+        db.session.commit()
+        third = evaluate(cid, account_id=ids['low'])
+        assert third['proposed'] == [] and [s['reason'] for s in third['skipped'] if s['playbook_id'] == 'kpi_low_twice'] == ['open']
+
+        configure_tenant(cid, webhook_url=receiver.url, webhook_secret='s3cret')
+        receiver.requests.clear()
+        res = approve(cid, rows['kpi_low_twice'].id, note='ok')
+        body = json.loads(receiver.requests[-1]['body'])
+        assert body['trigger'] == [] and body['trigger_facts'][0]['code'] == code and body['trigger_facts'][0]['threshold'] == 50.0
+        assert 'key' not in body['trigger_facts'][0] and 'kpi_id' not in body['trigger_facts'][0]
+        node = db.session.get(ContextNode, res['node_id'])
+        assert node.properties['trigger_facts'][0]['kind'] == 'kpi' and res['trigger']['facts'][0]['value'] == 35.0
+        assert list_interventions(cid)['count'] == 2
+
+
+def test_existing_evidence_trigger_key_is_unchanged():
+    import hashlib
+    from playbooks.governance import _trigger_key
+    assert _trigger_key(['b', 'a']) == hashlib.sha256(b'a,b').hexdigest()
+    assert _trigger_key([], [{'key': 'kpi:X:2026-01-01'}]) != _trigger_key([], [{'key': 'kpi:X:2026-02-01'}])

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { ApiError, getPortfolio } from '../api/client'
 import type { PortfolioResponse } from '../api/types'
 import { useAuth } from '../auth/AuthContext'
+import { useVertical } from '../api/useVertical'
 
 function money(value: number | null): string {
   if (value == null) return '—'
@@ -30,6 +31,7 @@ export default function Portfolio() {
   const [loading, setLoading] = useState(false)
 
   const canPickTenant = useMemo(() => user?.role === 'admin', [user])
+  const { labels } = useVertical(customerId)
 
   useEffect(() => {
     if (customerId == null) return
@@ -73,19 +75,19 @@ export default function Portfolio() {
             </div>
           )}
           {data.accounts.length === 0 ? (
-            <p className="text-sm text-slate-500">No accounts with a journey yet for this customer.</p>
+            <p className="text-sm text-slate-500">No {labels.accounts.toLowerCase()} with a journey yet for this customer.</p>
           ) : (
             <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
               <table className="min-w-full divide-y divide-slate-200 text-sm">
                 <thead className="bg-slate-50 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
                   <tr>
-                    <th className="px-4 py-2">Account</th>
+                    <th className="px-4 py-2">{labels.account}</th>
                     <th className="px-4 py-2">State</th>
                     <th className="px-4 py-2">Arc</th>
                     <th className="px-4 py-2">Forecast</th>
                     <th className="px-4 py-2">Priority</th>
                     <th className="px-4 py-2">Open interventions</th>
-                    <th className="px-4 py-2 text-right">Revenue</th>
+                    <th className="px-4 py-2 text-right">{labels.revenue}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">

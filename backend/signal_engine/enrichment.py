@@ -331,33 +331,31 @@ def enrich_signal(signal_id: str, raw_text: str, account_id: int, customer_id: i
                               similar_signals_block=_similar_block(similar),
                               raw_text=raw_text[:settings.get('llm', 'prompt_text_chars')])
 
-    api_key = os.environ.get('ANTHROPIC_API_KEY')
-    if not api_key:
-        logger.warning('enrichment: ANTHROPIC_API_KEY not set — keyword stub')
+    from utils import model_provider
+    if not model_provider.available():
+        logger.warning('enrichment: no model key set (%s) — keyword stub', model_provider.active()['api_key_env'])
         return _stub_enrichment(raw_text, taxonomy)
 
     model = settings.llm_model()
     try:
-        import anthropic
-        client = anthropic.Anthropic(api_key=api_key)
         tool = record_signals_tool(taxonomy, roster)
-        response = client.messages.create(
-            model=model, max_tokens=settings.get('llm', 'max_tokens'), system=system,
-            messages=[{'role': 'user', 'content': user}],
-            tools=[tool], tool_choice={'type': 'tool', 'name': TOOL_NAME})
+        no_tool = None
+        try:
+            called = model_provider.tool_call(model=model, max_tokens=settings.get('llm', 'max_tokens'),
+                                              system=system, user=user, tool=tool)
+            tokens_in, tokens_out = called.tokens_in, called.tokens_out
+        except model_provider.NoToolCall as e:   # the host answered (tokens spent) but not through the tool
+            no_tool, tokens_in, tokens_out = e, e.tokens_in, e.tokens_out
         try:
             from utils.llm_budget_controller import record_usage
             record_usage(customer_id=customer_id, module='signal_engine_enrichment',
-                         tokens_in=response.usage.input_tokens, tokens_out=response.usage.output_tokens,
-                         model=model, success=True)
+                         tokens_in=tokens_in, tokens_out=tokens_out, model=model, success=True)
         except Exception as cost_err:
             logger.debug('signal_engine_enrichment: cost tracking failed: %s', cost_err)
         _record_call(customer_id, account_id)
-
-        payload = next((b.input for b in response.content if getattr(b, 'type', '') == 'tool_use'), None)
-        if payload is None:
-            raise ValueError('model returned no tool_use block')
-        result = normalize_extraction(payload, taxonomy)
+        if no_tool is not None:
+            raise no_tool
+        result = normalize_extraction(called.payload, taxonomy)
         result['llm_model_version'] = model
         result['_similar_signal_count'] = len(similar)
         logger.info('extraction complete: signal=%s subtypes=%s review=%s duplicate=%s',
@@ -396,7 +394,7 @@ def _stub_enrichment(raw_text: str, taxonomy=None) -> Dict:
     requires_review (not LLM-verified)."""
     if taxonomy is None:
         from utils.taxonomy_loader import get_taxonomy
-        taxonomy = get_taxonomy('dc2_s')   # base vocabulary is what the stub emits; any vertical carries it
+        taxonomy = get_taxonomy()   # base vocabulary is what the stub emits; every vertical carries it
     text_lower = (raw_text or '').lower()
     pos = sum(1 for w in _POSITIVE_WORDS if w in text_lower)
     neg = sum(1 for w in _NEGATIVE_WORDS if w in text_lower)

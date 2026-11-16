@@ -61,7 +61,6 @@ from __future__ import annotations
 import copy
 import json
 import logging
-import os
 import re
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple
@@ -72,8 +71,10 @@ logger = logging.getLogger(__name__)
 
 GENERATOR = 'ask_v1'
 STUB_MODEL = 'stub_narrative_v1'
+STUB_LABEL = 'No model: answered from the data by fixed rules'
 TOOL_NAME = 'answer_with_citations'
 CITATION_RULE = ('every sentence cites >=1 id shown to the model (episode id, evidence node id, row:<account_id>, '
+                 'portfolio for the whole-book counts, '
                  'journey:<account_id> for the arc/phases/series/forecast block, priority:<account_id>/priority:portfolio '
                  'for investment priority, po1:<account_id>/po1:portfolio for Power-of-1, roi:portfolio for realized '
                  'vs. exposure $, or investment_cost:<account_id>/investment_cost:portfolio for playbook cost and $ per '
@@ -82,14 +83,16 @@ CITATION_RULE = ('every sentence cites >=1 id shown to the model (episode id, ev
 SYSTEM_PROMPT = """You are Ask AI for a B2B Customer Success platform. You answer questions about one account's journey, or a portfolio of accounts, using ONLY the context blocks in the user message. The blocks come from the platform's evidence read layer: a cited narrative, a journey (arc, phases, leading-vs-trailing series), its episodes, the evidence index behind them, and — for portfolio questions — one row per account.
 
 RULES (the product contract; the validator enforces them after you answer)
-1. Every sentence cites. Each answer sentence lists the ids it was built from: episode ids (sig:N, out:N, dec:N, hs:N, renewal), evidence node ids (the bare node_id), row:<account_id>, journey:<account_id> (arc, phases, leading/trailing series, forecast, state — cite for arc confidence, lead_days, qual/kpi_only values), priority:<account_id> or priority:portfolio (lens, risk_factor, opportunity_factor, revenue_weighted — cite for who should get the next dollar/hour and why), po1:<account_id> or po1:portfolio (revenue per pillar/KPI point, revenue at risk by band — cite for what a 1-point or 1% move is worth), roi:portfolio (realized vs. exposure $ by playbook/pillar, the outcome ledger, Wizard B's lift — cite for what past interventions actually returned), or investment_cost:<account_id> / investment_cost:portfolio (estimated CSM hours and $ per playbook execution, $ per health point that buys — cite for what an intervention would cost, and whether that cost is estimated or backed by a measured lift). Cite only ids that appear in the blocks. A sentence that cannot cite is not written.
+1. Every sentence cites. Each answer sentence lists the ids it was built from: episode ids (sig:N, out:N, dec:N, hs:N, renewal), evidence node ids (the bare node_id), row:<account_id>, portfolio (the whole-book counts block on a portfolio question: how many accounts are in each state, arc type, phase and early-warning label, how many have open reviews, total revenue), journey:<account_id> (arc, phases, leading/trailing series, forecast, state — cite for arc confidence, lead_days, qual/kpi_only values), priority:<account_id> or priority:portfolio (lens, risk_factor, opportunity_factor, revenue_weighted — cite for who should get the next dollar/hour and why), po1:<account_id> or po1:portfolio (revenue per pillar/KPI point, revenue at risk by band — cite for what a 1-point or 1% move is worth), roi:portfolio (realized vs. exposure $ by playbook/pillar, the outcome ledger, Wizard B's lift — cite for what past interventions actually returned), exposure:<account_id> or exposure:portfolio (shown when the tenant's money is measured in exposure, not revenue: expected annual exposure per account and for the book, the split by tier, what reaching the next likelihood band would remove, and each playbook's cost beside the exposure it avoided — cite for any question about exposure or what a failure would cost), or investment_cost:<account_id> / investment_cost:portfolio (estimated CSM hours and $ per playbook execution, $ per health point that buys — cite for what an intervention would cost, and whether that cost is estimated or backed by a measured lift). Cite only ids that appear in the blocks. A sentence that cannot cite is not written.
 2. Numbers are read, never computed. Quote scores, dates, counts, revenue and lead days exactly as they appear in the cited blocks. Do not add, average, subtract or estimate. If the answer needs a number the blocks do not contain, say that it is not in the evidence.
 3. "Why" states its evidence tier. When you explain a cause, say what kind of evidence backs it: observed evidence (a quote from a named source, its evidence_tier, confidence, whether it still requires review) versus system-derived facts (health transitions, arc hypotheses with their confidence semantics). Rejected or unreviewed evidence is said to be so.
 4. Absence of evidence is an answer. If the blocks do not support a claim, say so plainly and list what is missing under evidence_gaps (e.g. no outcome recorded after the renewal date, no evidence since a month, an arc left unclassified). Never fill a gap with general knowledge or a plausible story.
 5. Never invent: no people, quotes, dates, causes, playbooks or outcomes beyond the blocks. Do not speculate about what the customer "probably" feels.
 6. Time travel. If the context is marked as_of, answer as of that instant only — nothing later exists.
-7. Portfolio questions aggregate the same objects: every account you mention cites its row:<account_id>; rank or compare only on values present in the rows. priority:portfolio, po1:portfolio, roi:portfolio and investment_cost:portfolio (when shown) already are portfolio totals — cite those directly rather than summing per-account rows yourself.
+7. Portfolio questions aggregate the same objects: every account you mention cites its row:<account_id>; rank or compare only on values present in the rows. A count or statement about the whole book ("2 of the 20 accounts…", "no account is…") cites portfolio and takes its number from that block's counts; if the count you need is not one of them, name the accounts and cite their rows instead of tallying. priority:portfolio, po1:portfolio, roi:portfolio and investment_cost:portfolio (when shown) already are portfolio totals — cite those directly rather than summing per-account rows yourself.
 8. Money has a basis, and every cost figure here is an informal estimate. Every dollar figure in a priority/po1/roi/investment_cost block carries a basis: measured (cited to a real outcome), derived (computed from the tenant's own data), or assumed (a configured economics or investment-cost estimate) — state which when it matters, the way you already state an evidence tier for a cause. risk_factor, opportunity_factor and revenue_weighted are a prioritization ranking, not a computed ROI — never call them "ROI" or "return". investment_cost figures (estimated CSM hours, $ per playbook execution, $ per health point) are basis assumed — informal CS-leadership estimates, not audited or measured costs, even on the rare figure where the $ per health point uses a measured lift (the cost side is still never measured, so the ratio stays assumed) — say so plainly if asked what something would cost, and never present an investment_cost figure as a precise or audited number.
+
+8a. Exposure is assumed, and is never divided by cost. Every figure in an exposure block is basis assumed (published averages and stated scale-downs applied to the tenant's own tiers and health scores) — say so. Report exposure avoided and playbook cost side by side; never divide one by the other or call the result a return or ROI. An account the block lists as not priced has no exposure figure: say it could not be priced and why, do not estimate one.
 
 9. The conversation recap is not evidence. If a CONVERSATION SO FAR section is present, it is a record of what this user already asked and what you already answered, nothing more. Use it ONLY to work out what the new question means — who "they" are, which account "it" is, what "that drop" refers to. It carries no ids and you may not cite it. A fact you stated in an earlier turn is not usable here unless the context blocks below say it again; if this turn's blocks do not support it, say so rather than repeating yourself on the strength of having said it before.
 
@@ -214,11 +217,27 @@ class Context:
         self.used = 0
         self.citable: Dict[str, dict] = {}
         self.truncated: List[str] = []
+        # Plain statements about what the DATA cannot answer, said before the answer itself (never a
+        # claim from evidence, so they sit outside the citation rule): "cost figures are not set up".
+        self.notices: List[str] = []
 
-    def add(self, label: str, obj, cite_id: Optional[str] = None, citation: Optional[dict] = None) -> bool:
+    @staticmethod
+    def _render(label: str, obj, cite_id: Optional[str] = None) -> str:
         if cite_id is not None and isinstance(obj, dict):
             obj = {'cite': str(cite_id), **obj}          # the exact string the answer must cite for this block
-        s = f'[{label}] ' + json.dumps(obj, default=str, separators=(',', ':'), sort_keys=True)
+        return f'[{label}] ' + json.dumps(obj, default=str, separators=(',', ':'), sort_keys=True)
+
+    def size(self, label: str, obj, cite_id: Optional[str] = None) -> int:
+        """What add() would charge for this block — lets a caller choose a level of detail that fits
+        BEFORE adding, instead of finding out by losing the tail of a list."""
+        return len(self._render(label, obj, cite_id)) + 1
+
+    @property
+    def room(self) -> int:
+        return self.budget - self.used
+
+    def add(self, label: str, obj, cite_id: Optional[str] = None, citation: Optional[dict] = None) -> bool:
+        s = self._render(label, obj, cite_id)
         if self.used + len(s) + 1 > self.budget:
             if label not in self.truncated:
                 self.truncated.append(label)
@@ -226,7 +245,7 @@ class Context:
         self.parts.append(s)
         self.used += len(s) + 1
         if cite_id is not None:
-            self.citable[str(cite_id)] = citation if citation is not None else obj
+            self.citable[str(cite_id)] = citation if citation is not None else ({'cite': str(cite_id), **obj} if isinstance(obj, dict) else obj)
         return True
 
     def text(self) -> str:
@@ -316,9 +335,23 @@ def apply_as_of(journey: dict, as_of: Optional[datetime]) -> Tuple[dict, List[st
 
 # ── gather ──────────────────────────────────────────────────────────────
 
+def _prune(obj):
+    """Drop keys whose value is None / '' / [] / {} (recursively). A signal episode carries ~14 such
+    keys (health fields on a signal, person fields on a health change…): measured on the persona-eval
+    tenants they were over a third of every episode block, and that padding is what pushed the later
+    episodes, the evidence index and the narrative out of the budget. False and 0 are kept — they say
+    something; an absent key says exactly what a null did."""
+    if isinstance(obj, dict):
+        out = {k: _prune(v) for k, v in obj.items()}
+        return {k: v for k, v in out.items() if v is not None and v != '' and v != [] and v != {}}
+    if isinstance(obj, list):
+        return [_prune(v) for v in obj]
+    return obj
+
+
 def _episode_compact(e: dict, quote_chars: int) -> dict:
     meta = e.get('meta') or {}
-    return {
+    return _prune({
         'id': e['episode_id'], 'date': str(e.get('date') or '')[:10], 'kind': e.get('kind'), 'subtype': e.get('subtype'),
         'role': e.get('role'), 'title': e.get('title'), 'quote': (meta.get('quote') or '')[:quote_chars] or None,
         'evidence_node_ids': e.get('evidence_node_ids') or [], 'tier': e.get('source'),
@@ -326,19 +359,23 @@ def _episode_compact(e: dict, quote_chars: int) -> dict:
         'person': meta.get('stakeholder'), 'person_role': meta.get('stakeholder_role'), 'person_unresolved': meta.get('person_unresolved'),
         'confidence': meta.get('confidence'), 'requires_review': meta.get('requires_review'), 'review': meta.get('review'),
         'health_score': meta.get('health_score'), 'from': meta.get('from'), 'to': meta.get('to'),
-    }
+    })
 
 
-def _evidence_compact(v: dict, quote_chars: int) -> dict:
+def _evidence_compact(v: dict, quote_chars: int, quoted_in: Optional[str] = None) -> dict:
+    """quoted_in: the id of an episode ALREADY shown that carries this node's quote. The evidence
+    block then points at it instead of repeating the quote — the same sentence twice bought nothing
+    and cost the budget the evidence blocks further down the list."""
     prov = v.get('provenance') or {}
-    return {
+    return _prune({
         'node_id': v['node_id'], 'account_id': v.get('account_id'), 'role': v.get('role'), 'subtype': v.get('subtype'),
-        'occurred_at': str(v.get('occurred_at') or '')[:10], 'quote': (v.get('quote') or '')[:quote_chars],
+        'occurred_at': str(v.get('occurred_at') or '')[:10],
+        'quote': None if quoted_in else (v.get('quote') or '')[:quote_chars], 'quote_in_episode': quoted_in,
         'person': v.get('person'), 'sentiment': v.get('sentiment'), 'effective_urgency': v.get('effective_urgency'),
         'evidence_tier': prov.get('evidence_tier') or prov.get('tier'), 'source_platform': prov.get('source_platform'),
         'classification_basis': prov.get('classification_basis'), 'confidence': v.get('confidence'),
         'requires_review': v.get('requires_review'), 'review': v.get('review'),
-    }
+    })
 
 
 def _row_compact(r: dict) -> dict:
@@ -347,6 +384,58 @@ def _row_compact(r: dict) -> dict:
                                   'lead_days', 'episodes', 'open_review_count', 'forecast',
                                   'priority')}          # list_journeys already attaches this (roi.priorities.compact); it was
                                                          # dropped here silently — nothing upstream of this whitelist filters it
+
+
+def _row_slim(r: dict) -> dict:
+    """The same account row at a lower level of detail, for a portfolio too large to show every full
+    row. It keeps what a portfolio question ranks and counts by; the forecast ranges, the role counts
+    and the priority factors stay on the full row. Cited as row:<id> exactly like the full one."""
+    f, p, lt = r.get('forecast') or {}, r.get('priority') or {}, r.get('latest') or {}
+    return _prune({
+        'account_id': r.get('account_id'), 'account_name': r.get('account_name'), 'revenue': r.get('revenue'),
+        'arc_type': r.get('arc_type'), 'state': r.get('state'), 'current_phase': r.get('current_phase'),
+        'last_evidence_at': str(r.get('last_evidence_at') or '')[:10], 'lead_days': r.get('lead_days'),
+        'episodes': r.get('episodes'), 'open_review_count': r.get('open_review_count'),
+        'latest': {k: lt.get(k) for k in ('month', 'early_warning', 'qual')},
+        'forecast': {k: f.get(k) for k in ('status', 'basis', 'decision_point', 'p_retain', 'p_expand', 'expected_arr_end')},
+        'priority': {k: p.get(k) for k in ('lens', 'revenue_weighted', 'risk_factor', 'opportunity_factor', 'pending_approvals')},
+        'detail': 'short',
+    })
+
+
+def _tally(values) -> Dict[str, int]:
+    out: Dict[str, int] = {}
+    for v in values:
+        key = 'none' if v in (None, '') else str(v)
+        out[key] = out.get(key, 0) + 1
+    return dict(sorted(out.items(), key=lambda kv: (-kv[1], kv[0])))
+
+
+def _portfolio_summary(rows: List[dict]) -> dict:
+    """Whole-book counts over EVERY account row (not only the rows that fit the budget), so a
+    statement about the portfolio as a whole has one block to cite and its numbers are read from
+    it. Counts only — nothing here is a judgement, and no dollar figure is summed except total
+    revenue, which is the plain sum of the rows' own `revenue`."""
+    with_reviews = [r for r in rows if (r.get('open_review_count') or 0) > 0]
+    roles: Dict[str, int] = {}
+    for r in rows:
+        for role in ((r.get('latest') or {}).get('roles') or {}):
+            roles[role] = roles.get(role, 0) + 1
+    revenues = [r.get('revenue') for r in rows if isinstance(r.get('revenue'), (int, float))]
+    return {
+        'accounts': len(rows),
+        'revenue_total': round(sum(revenues), 2) if revenues else None, 'accounts_with_revenue': len(revenues),
+        'accounts_by_state': _tally(r.get('state') for r in rows),
+        'accounts_by_arc_type': _tally(r.get('arc_type') for r in rows),
+        'accounts_by_current_phase': _tally(r.get('current_phase') for r in rows),
+        'accounts_by_latest_early_warning': _tally((r.get('latest') or {}).get('early_warning') for r in rows),
+        'accounts_by_role_in_latest_month': dict(sorted(roles.items(), key=lambda kv: (-kv[1], kv[0]))),
+        'accounts_with_open_reviews': len(with_reviews),
+        'open_reviews_total': sum(r.get('open_review_count') or 0 for r in rows),
+        'note': 'counts over every account in the portfolio, one row per account below; "none" = the field is empty for that '
+                'account; latest = last month of the leading-vs-trailing series. Cite `portfolio` for these counts and for '
+                'statements about the whole book; cite row:<account_id> for each account you name',
+    }
 
 
 def _trim_money(m: Optional[dict]) -> Optional[dict]:
@@ -399,7 +488,7 @@ def _po1_account_compact(acct: dict) -> dict:
     """One account's power_of_1.account_power_of_1() row: pillars in full (a handful), KPIs trimmed to
     the top-10-by-revenue-impact of the ones with a real measurement. A catalog can carry 40+ KPIs
     (measured live on a real datacenter_v1 account: 38 kpis, all measured, 18KB serialized — 75% of the
-    whole 24000-char context budget for one block) — an unmeasured KPI's $/point is config arithmetic
+    whole context budget of the time, 24000 chars, for one block) — an unmeasured KPI's $/point is config arithmetic
     and the rest are long-tail next to the top movers, so both are worth cutting before the model sees it."""
     scored = [{'kpi': k['kpi'], 'name': k.get('name'), 'pillar': k.get('pillar'), 'unit': k.get('unit'),
               'revenue_per_kpi_score_point': _trim_money(k.get('revenue_per_kpi_score_point')),
@@ -431,9 +520,28 @@ def _po1_portfolio_compact(portfolio: dict) -> dict:
             'scenarios': [{k: v for k, v in s.items() if k != 'basis'} for s in (portfolio.get('scenarios') or [])]}
 
 
+def _po1_top_at_risk(accounts: List[dict], n: int = 5) -> List[dict]:
+    """The accounts carrying the most revenue at risk, largest first — so "which accounts carry most of it"
+    can be answered from the same block as the band totals. Figures are power_of_1's own (band_view)."""
+    rows = []
+    for a in accounts:
+        bv = a.get('band_view') or {}
+        at_risk = _mv(bv.get('revenue_at_risk'))
+        if at_risk:
+            rows.append({'account_id': a.get('account_id'), 'account_name': a.get('account_name'), 'band': bv.get('band'),
+                         'health_now': bv.get('health_now'), 'revenue': _mv(a.get('revenue')), 'revenue_at_risk': at_risk})
+    return sorted(rows, key=lambda r: -r['revenue_at_risk'])[:n]
+
+
 def _roi_compact(r: dict) -> dict:
-    by_pillar = [{**{k: v for k, v in row.items() if k not in ('realized_revenue', 'exposure_revenue')},
-                 'realized_revenue': _trim_money(row.get('realized_revenue')), 'exposure_revenue': _trim_money(row.get('exposure_revenue'))}
+    # `note` is the same sentence on every pillar row (do not sum pillars): shown once, as
+    # by_pillar_note. An unmapped row's `reason` keeps which roles have no pillar and drops
+    # catalog_pillar_roles_notes — paragraphs about how the catalog was authored, not about this tenant.
+    notes = list(dict.fromkeys(row.get('note') for row in (r.get('by_pillar') or []) if row.get('note')))
+    by_pillar = [{**{k: v for k, v in row.items() if k not in ('realized_revenue', 'exposure_revenue', 'note', 'reason')},
+                 'realized_revenue': _trim_money(row.get('realized_revenue')), 'exposure_revenue': _trim_money(row.get('exposure_revenue')),
+                 **({'reason': {k: v for k, v in row['reason'].items() if k != 'catalog_pillar_roles_notes'}}
+                    if isinstance(row.get('reason'), dict) else ({'reason': row['reason']} if row.get('reason') else {}))}
                 for row in (r.get('by_pillar') or [])]
     ledger = r.get('ledger') or {}
     by_bucket = [{**{k: v for k, v in row.items() if k not in ('revenue', 'linked_revenue')},
@@ -442,6 +550,7 @@ def _roi_compact(r: dict) -> dict:
     hindsight = r.get('hindsight') or {}
     sensitivity = r.get('sensitivity') or {}
     return {'revenue_base': _trim_money(r.get('revenue_base')), 'interventions': r.get('interventions'), 'by_pillar': by_pillar,
+            'by_pillar_note': notes[0] if len(notes) == 1 else (notes or None),
             'ledger': {'by_bucket': by_bucket, 'outside_buckets': ledger.get('outside_buckets')},
             'hindsight': {'status': hindsight.get('status'), 'run_id': hindsight.get('run_id'), 'evidence_label': hindsight.get('evidence_label'),
                          'interventions': hindsight.get('interventions'), 'realized_nrr': hindsight.get('realized_nrr'),
@@ -464,10 +573,17 @@ def _investment_playbook_compact(p: dict) -> dict:
 def _investment_rollup_compact(rows: List[dict], key: str) -> List[dict]:
     """pillars or kpis rollup from roi.investment.investment_cost() — the covering playbooks' cost/point
     figures only (not the full playbook detail again), trimmed."""
-    return [{key: r.get(key), 'name': r.get('name'), 'status': r.get('status'),
-            'playbooks': [{'playbook_id': pb['playbook_id'], 'estimated_cost_per_execution': _trim_money(pb.get('estimated_cost_per_execution')),
-                          'cost_per_health_point': _trim_money(pb.get('cost_per_health_point'))} for pb in (r.get('playbooks') or [])],
-            'note': r.get('note')} for r in rows]
+    # Each covering playbook is already shown in full (basis, lift, the note explaining a null) in
+    # the block's own `playbooks` list, so the rollup repeats only the two figures, as plain numbers
+    # — the block-level `basis` covers them. A row's config-authoring note is kept only where the row
+    # is NOT covered (there it is the reason); on a covered row it is commentary for whoever edits
+    # the config. Measured: the two rollups were 4900 of this block's 8300 chars, mostly those repeats.
+    return [_prune({key: r.get(key), 'name': r.get('name'), 'status': r.get('status'),
+                    'playbooks': [{'playbook_id': pb['playbook_id'],
+                                   'estimated_cost_per_execution': (pb.get('estimated_cost_per_execution') or {}).get('value'),
+                                   'cost_per_health_point': (pb.get('cost_per_health_point') or {}).get('value')}
+                                  for pb in (r.get('playbooks') or [])],
+                    'note': None if r.get('status') == 'covered' else r.get('note')}) for r in rows]
 
 
 def _investment_cost_compact(ic: dict) -> dict:
@@ -480,6 +596,90 @@ def _investment_cost_compact(ic: dict) -> dict:
             'pillars': _investment_rollup_compact(ic.get('pillars') or [], 'pillar'),
             'kpis': _investment_rollup_compact(ic.get('kpis') or [], 'kpi'),
             'note': ic.get('note')}
+
+
+def _money_basis(customer_id: int) -> str:
+    """What the tenant's vertical measures money in (catalog capability money_basis): 'revenue' or
+    'exposure'. The context builders ask this, never which vertical it is."""
+    try:
+        from utils.vertical_registry import get_vertical_for_customer, capability
+        return capability(get_vertical_for_customer(int(customer_id)), 'money_basis')
+    except Exception:
+        return 'revenue'
+
+
+def _account_words(customer_id: int) -> Tuple[str, str]:
+    """(singular, plural) the tenant's vertical uses for an account, lower-cased."""
+    try:
+        from utils.vertical_registry import get_vertical_for_customer, labels
+        lab = labels(get_vertical_for_customer(int(customer_id)))
+        return lab['account'].lower(), lab['accounts'].lower()
+    except Exception:
+        return 'account', 'accounts'
+
+
+def _money_unavailable(ctx: 'Context', gaps: List[str], what: str, err: Exception, asked: bool) -> None:
+    """A money block could not be built. The reason goes to the log in full; the reader gets plain
+    words with no file names or module paths. When the question itself asked for money, the same
+    sentence also leads the answer (ctx.notices) instead of sitting in a list under it."""
+    logger.info('ask_ai: %s not available: %s', what, err)
+    line = f'{what} are not set up for this tenant, so questions about them cannot be answered from data yet'
+    if line not in gaps:
+        gaps.append(line)
+    if asked and line not in ctx.notices:
+        ctx.notices.append(line[0].upper() + line[1:] + '.')
+
+
+def _mv(m) -> Optional[float]:
+    return m.get('value') if isinstance(m, dict) else m
+
+
+def _exposure_account_compact(r: dict) -> dict:
+    nb = r.get('next_band') or {}
+    return _prune({'account_id': r.get('account_id'), 'account_name': r.get('account_name'), 'tier': r.get('tier'),
+                   'regulated_flag': r.get('regulated_flag') or None, 'health_now': r.get('health_now'),
+                   'failure_cost': _mv(r.get('failure_cost')), 'failure_cost_source': r.get('failure_cost_source'),
+                   'annual_failure_likelihood': r.get('annual_failure_likelihood'),
+                   'expected_annual_exposure': _mv(r.get('expected_annual_exposure')),
+                   'health_points_to_next_band': nb.get('health_points_needed'),
+                   'avoidable_exposure_next_band': _mv(nb.get('avoidable_exposure')),
+                   'not_priced': r.get('not_priced') or None, 'regulated_note': r.get('regulated_note')})
+
+
+def _exposure_playbooks_compact(pb: Optional[dict]) -> Optional[dict]:
+    if not pb or pb.get('status') != 'ok':
+        return None
+    return {'hourly_cost': _mv(pb.get('hourly_cost')), 'estimated_cost_to_date': _mv(pb.get('estimated_cost_to_date')), 'note': pb.get('note'),
+            'rows': [_prune({'playbook_id': r['playbook_id'], 'interventions': r['interventions'], 'runs': r.get('runs'), 'closed_done': r['closed_done'],
+                             'estimated_hours': r['estimated_hours'], 'estimated_cost_per_execution': _mv(r['estimated_cost_per_execution']),
+                             'estimated_cost_to_date': _mv(r['estimated_cost_to_date']), 'exposure_avoided': _mv(r['exposure_avoided']),
+                             'exposure_avoided_note': (r['exposure_avoided'] or {}).get('note')}) for r in pb.get('rows') or []]}
+
+
+def _exposure_compact(ex: dict) -> dict:
+    """roi.exposure.exposure(), trimmed for the model: every account's exposure figures as plain
+    numbers (largest first), the book totals and tier split, and playbook cost beside exposure avoided.
+    The block says once that every figure is assumed and that cost and exposure are never divided."""
+    pf = ex.get('portfolio') or {}
+    econ = ex.get('economics') or {}
+    accounts = sorted((_exposure_account_compact(r) for r in ex.get('accounts') or []),
+                      key=lambda r: -(r.get('expected_annual_exposure') or 0))
+    return _prune({
+        'money_basis': ex.get('money_basis'), 'basis': 'assumed', 'note': ex.get('note'), 'horizon_months': econ.get('horizon_months'),
+        'assumptions': {'failure_events': {k: {'label': v.get('label'), 'cost_by_tier': v.get('cost_by_tier'), 'basis': v.get('basis')}
+                                           for k, v in (econ.get('failure_events') or {}).items()},
+                        'annual_failure_likelihood_by_health': {k: v for k, v in (econ.get('annual_failure_likelihood_by_health') or {}).items() if k != 'sources'}},
+        'portfolio': {'accounts': pf.get('accounts'), 'priced_accounts': pf.get('priced_accounts'),
+                      'not_priced_accounts': (pf.get('accounts') or 0) - (pf.get('priced_accounts') or 0), 'not_priced': pf.get('not_priced'),
+                      'regulated_flag_accounts': pf.get('regulated_flag_accounts'), 'contract_value': _mv(pf.get('contract_value')),
+                      'expected_annual_exposure': _mv(pf.get('expected_annual_exposure')),
+                      'avoidable_exposure_next_band': _mv(pf.get('avoidable_exposure_next_band')),
+                      'by_tier': [{'tier': t['tier'], 'accounts': t['accounts'], 'priced_accounts': t['priced_accounts'],
+                                   'contract_value': _mv(t['contract_value']), 'expected_annual_exposure': _mv(t['expected_annual_exposure'])}
+                                  for t in pf.get('by_tier') or []]} if pf else None,
+        'playbooks': _exposure_playbooks_compact(ex.get('playbooks')),
+        'accounts': accounts,
+    })
 
 
 def detect_investment_intent(question: str) -> bool:
@@ -556,44 +756,65 @@ def account_context(customer_id: int, account_id: int, question: str, as_of: Opt
     if row:
         ctx.add('row', _row_compact(row), cite_id=f"row:{row['account_id']}", citation=row)
 
+    asked_money = detect_investment_intent(question)
+    exposure_basis = _money_basis(customer_id) == 'exposure'
     try:
         from roi.priorities import investment_priorities
         pr = investment_priorities(int(customer_id), int(account_id))
         if pr.get('status') == 'ok' and pr.get('rows'):
             prow = pr['rows'][0]
             ctx.add('priority', _priority_account_compact(prow), cite_id=f"priority:{account_id}", citation=prow)
-    except ValueError as e:
-        gaps.append(f'investment priority not available: {e}')
-    try:
-        from roi.power_of_1 import power_of_1
-        p1 = power_of_1(int(customer_id), int(account_id))
-        if p1.get('status') == 'ok' and p1.get('accounts'):
-            arow = p1['accounts'][0]
-            ctx.add('po1', _po1_account_compact(arow), cite_id=f"po1:{account_id}", citation=arow)
-    except ValueError as e:
-        gaps.append(f'power_of_1 not available: {e}')
+    except Exception as e:  # noqa: BLE001 — a money block that cannot be built must not take the answer down
+        _money_unavailable(ctx, gaps, 'investment priorities', e, asked_money)
+    if exposure_basis:
+        # The vertical prices exposure, not revenue (capability money_basis): the revenue blocks do not
+        # apply, and asking for them only produced "not available". One account is cheap, so its exposure
+        # block is always shown — as po1 is for a revenue vertical.
+        try:
+            from roi.exposure import exposure
+            ex = exposure(int(customer_id), int(account_id))
+            if ex.get('status') == 'ok':
+                block = _exposure_compact(ex)
+                ctx.add('exposure', block, cite_id=f"exposure:{account_id}", citation=block)
+        except Exception as e:  # noqa: BLE001 — a money block that cannot be built must not take the answer down
+            _money_unavailable(ctx, gaps, 'exposure figures', e, asked_money)
+    else:
+        try:
+            from roi.power_of_1 import power_of_1
+            p1 = power_of_1(int(customer_id), int(account_id))
+            if p1.get('status') == 'ok' and p1.get('accounts'):
+                arow = p1['accounts'][0]
+                ctx.add('po1', _po1_account_compact(arow), cite_id=f"po1:{account_id}", citation=arow)
+        except Exception as e:  # noqa: BLE001 — a money block that cannot be built must not take the answer down
+            _money_unavailable(ctx, gaps, 'revenue-per-health-point figures', e, asked_money)
     # Gated on the question, as the portfolio path gates its own investment blocks and for the same
     # budget reason: this is by far the largest optional block (every playbook plus the pillar and KPI
     # rollups), and on a NON-investment question it bought nothing while pushing episodes out of the
     # budget entirely — which silently emptied the whole answer (see the narrative filter below).
-    if detect_investment_intent(question):
+    if asked_money:
         try:
             from roi.investment import investment_cost
             ic = investment_cost(int(customer_id))
             ctx.add('investment_cost', _investment_cost_compact(ic), cite_id=f"investment_cost:{account_id}", citation=ic)
-        except ValueError as e:
-            gaps.append(f'investment cost not available: {e}')
+        except Exception as e:  # noqa: BLE001 — a money block that cannot be built must not take the answer down
+            _money_unavailable(ctx, gaps, 'playbook cost figures', e, True)
 
     # Episodes and evidence FIRST, narrative second. The narrative's own sentences carry episode ids,
     # so it teaches the model the citation vocabulary; added before the episodes it names, it can teach
     # ids that never made the budget. The model then cites them faithfully, validate_answer drops every
     # such sentence as unresolved_citation, and the caller gets a confident, empty answer.
     episodes = sorted(j.get('episodes') or [], key=lambda e: str(e.get('date') or ''), reverse=True)
+    quoted_in: Dict[str, Tuple[str, str]] = {}          # evidence node id → (shown episode id, the quote it carries)
     for e in episodes:
         if not ctx.add('episode', _episode_compact(e, quote_chars), cite_id=e['episode_id'], citation=e):
             break
+        q = ((e.get('meta') or {}).get('quote') or '')[:quote_chars]
+        for nid in (e.get('evidence_node_ids') or []) if q else []:
+            quoted_in.setdefault(str(nid), (e['episode_id'], q))
     for nid, v in (j.get('evidence') or {}).items():
-        if not ctx.add('evidence', _evidence_compact(v, quote_chars), cite_id=str(nid), citation=v):
+        eid, q = quoted_in.get(str(nid), (None, None))
+        same = eid if q == (v.get('quote') or '')[:quote_chars] else None          # only when it IS the same text
+        if not ctx.add('evidence', _evidence_compact(v, quote_chars, quoted_in=same), cite_id=str(nid), citation=v):
             break
 
     narrative = j.get('narrative') or {}
@@ -628,8 +849,13 @@ def portfolio_context(customer_id: int, question: str, rows: List[dict], as_of: 
     ctx = Context(settings.get('context', 'max_chars'))
     gaps = []
     cap = settings.get('context', 'portfolio_max_rows')
-    ctx.add('portfolio', {'accounts': len(rows), 'shown': min(len(rows), cap),
-                          'note': 'one row per account, computed from cited evidence; latest = last month of the leading-vs-trailing series'})
+    # Citable, as `portfolio`. It was not: the model cited it anyway for every whole-book statement
+    # ("2 of the 20 accounts have an open review") and validate_answer dropped that sentence as an
+    # unresolved citation — in the persona eval, 11 of the 12 dropped portfolio sentences, and usually
+    # the headline one. It also now carries the counts those sentences state, so rule 2 (numbers are
+    # read, never computed) is satisfiable for them instead of quietly broken by the model's own tally.
+    summary = _portfolio_summary(rows)
+    ctx.add('portfolio', summary, cite_id='portfolio', citation=summary)
     if not rows:
         gaps.append('no journeys for this customer yet — run process_data')
     if as_of:
@@ -637,11 +863,11 @@ def portfolio_context(customer_id: int, question: str, rows: List[dict], as_of: 
 
     # Investment blocks are added BEFORE the rows loop, on purpose: measured live on a real 12-account
     # tenant, the original three portfolio aggregates (priority/po1/roi) alone ran ~11000 of the
-    # 24000-char budget, and rows are capped by count (portfolio_max_rows) but not by size — a tenant
+    # then-24000-char budget (48000 since 2026-11), and rows are capped by count (portfolio_max_rows) but not by size — a tenant
     # with more accounts would let rows exhaust the budget first and silently starve the very blocks an
     # investment question is asking for. investment_cost_portfolio (added 2026-09-07) follows the same
     # rule for the same reason: measured live on a real 2-account tenant, all four investment blocks
-    # (priority/po1/roi/investment_cost) plus every row used 15959 of 24000 chars — see
+    # (priority/po1/roi/investment_cost) plus every row used 15959 of the then 24000 chars — see
     # test_investment_cost.py::test_portfolio_investment_blocks_fit_budget_together, which asserts the
     # general property (not just this one measurement) so a future regression on a larger tenant shows
     # up as a test failure, not a silently-starved block. Added first, the CFO's actual answer survives
@@ -652,37 +878,72 @@ def portfolio_context(customer_id: int, question: str, rows: List[dict], as_of: 
             pr = investment_priorities(int(customer_id))
             if pr.get('status') == 'ok' and pr.get('portfolio'):
                 ctx.add('priority_portfolio', _priority_portfolio_compact(pr['portfolio']), cite_id='priority:portfolio', citation=pr['portfolio'])
-        except ValueError as e:
-            gaps.append(f'investment priority not available: {e}')
-        try:
-            from roi.power_of_1 import power_of_1
-            p1 = power_of_1(int(customer_id))
-            if p1.get('status') == 'ok' and p1.get('portfolio'):
-                ctx.add('po1_portfolio', _po1_portfolio_compact(p1['portfolio']), cite_id='po1:portfolio', citation=p1['portfolio'])
-        except ValueError as e:
-            gaps.append(f'power_of_1 not available: {e}')
-        try:
-            from roi.measured import roi as measured_roi
-            rr = measured_roi(int(customer_id))
-            ctx.add('roi_portfolio', _roi_compact(rr), cite_id='roi:portfolio', citation=rr)
-        except ValueError as e:
-            gaps.append(f'roi not available: {e}')
+        except Exception as e:  # noqa: BLE001 — a money block that cannot be built must not take the answer down
+            _money_unavailable(ctx, gaps, 'investment priorities', e, True)
+        if _money_basis(customer_id) == 'exposure':
+            # Exposure verticals: one block carries the book totals, every account's exposure and the
+            # playbooks' cost beside exposure avoided. The revenue blocks (po1, measured ROI) do not apply.
+            try:
+                from roi.exposure import exposure
+                ex = exposure(int(customer_id))
+                if ex.get('status') == 'ok':
+                    block = _exposure_compact(ex)
+                    ctx.add('exposure_portfolio', block, cite_id='exposure:portfolio', citation=block)
+            except Exception as e:  # noqa: BLE001 — a money block that cannot be built must not take the answer down
+                _money_unavailable(ctx, gaps, 'exposure figures', e, True)
+        else:
+            try:
+                from roi.power_of_1 import power_of_1
+                p1 = power_of_1(int(customer_id))
+                if p1.get('status') == 'ok' and p1.get('portfolio'):
+                    top = _po1_top_at_risk(p1.get('accounts') or [])
+                    ctx.add('po1_portfolio', {**_po1_portfolio_compact(p1['portfolio']), 'top_revenue_at_risk': top},
+                            cite_id='po1:portfolio', citation={**p1['portfolio'], 'top_revenue_at_risk': top})
+            except Exception as e:  # noqa: BLE001 — a money block that cannot be built must not take the answer down
+                _money_unavailable(ctx, gaps, 'revenue-per-health-point figures', e, True)
+            try:
+                from roi.measured import roi as measured_roi
+                rr = measured_roi(int(customer_id))
+                ctx.add('roi_portfolio', _roi_compact(rr), cite_id='roi:portfolio', citation=rr)
+            except Exception as e:  # noqa: BLE001 — a money block that cannot be built must not take the answer down
+                _money_unavailable(ctx, gaps, 'measured return figures', e, True)
         try:
             from roi.investment import investment_cost
             ic = investment_cost(int(customer_id))
             ctx.add('investment_cost_portfolio', _investment_cost_compact(ic), cite_id='investment_cost:portfolio', citation=ic)
-        except ValueError as e:
-            gaps.append(f'investment cost not available: {e}')
+        except Exception as e:  # noqa: BLE001 — a money block that cannot be built must not take the answer down
+            _money_unavailable(ctx, gaps, 'playbook cost figures', e, True)
 
-    for r in rows[:cap]:
-        if not ctx.add('row', _row_compact(r), cite_id=f"row:{r['account_id']}", citation=r):
+    # Every account before any account's detail. The rows used to be added in full, in name order,
+    # until one did not fit — so on an investment question over a 20-account tenant the model saw the
+    # aggregates and the first 5 accounts alphabetically, and answered "which accounts…" from those 5
+    # (persona eval, 2026-11: all 12 such questions). Now the level of detail is chosen up front: full
+    # rows when they all fit, otherwise the short row for every account; and if even the short rows do
+    # not fit, the largest accounts by revenue are the ones shown and the gap says how many were not.
+    listed = rows[:cap]
+    def _fits(compact):
+        return sum(ctx.size('row', compact(r), f"row:{r['account_id']}") for r in listed) <= ctx.room
+    compact = _row_compact
+    if listed and not _fits(_row_compact):
+        compact = _row_slim
+        gaps.append('account rows are shown in short form so that every account fits the context budget '
+                    '(forecast ranges, role counts and priority factors per account were left out)')
+        if not _fits(_row_slim):
+            listed = sorted(listed, key=lambda r: -(r.get('revenue') or 0))
+    shown = 0
+    for r in listed:
+        if not ctx.add('row', compact(r), cite_id=f"row:{r['account_id']}", citation=r):
             break
+        shown += 1
     if len(rows) > cap:
-        gaps.append(f'portfolio has {len(rows)} accounts; only the first {cap} rows (by name) were shown')
-
-    if ctx.truncated:
-        gaps.append(f"context budget reached; not every block was shown to the model ({', '.join(ctx.truncated)})")
-    return ctx, gaps, {'accounts': len(rows), 'shown': min(len(rows), cap)}
+        gaps.append(f'portfolio has {len(rows)} accounts; only the first {cap} rows (by name) were considered')
+    if shown < len(listed):
+        gaps.append(f'context budget reached; {shown} of {len(listed)} account rows were shown to the model '
+                    f'(largest by revenue first) — the other {len(listed) - shown} are missing from this answer')
+    other = [t for t in ctx.truncated if t != 'row']
+    if other:
+        gaps.append(f"context budget reached; not every block was shown to the model ({', '.join(other)})")
+    return ctx, gaps, {'accounts': len(rows), 'shown': shown}
 
 
 # ── model ───────────────────────────────────────────────────────────────
@@ -733,16 +994,20 @@ def _coerce_payload(data) -> dict:
 
 def _call_model(customer_id: int, system: str, user: str) -> Tuple[dict, str]:
     """One forced tool call; metered through record_usage on success AND failure."""
-    import anthropic
+    from utils import model_provider
     from utils.llm_budget_controller import record_usage
     model = settings.llm_model()
     module = settings.get('llm', 'module')
-    client = anthropic.Anthropic(api_key=os.environ.get('ANTHROPIC_API_KEY'))
     try:
-        response = client.messages.create(
-            model=model, max_tokens=settings.get('llm', 'max_tokens'), system=system,
-            messages=[{'role': 'user', 'content': user}],
-            tools=[answer_tool()], tool_choice={'type': 'tool', 'name': TOOL_NAME})
+        result = model_provider.tool_call(model=model, max_tokens=settings.get('llm', 'max_tokens'),
+                                          system=system, user=user, tool=answer_tool())
+    except model_provider.NoToolCall as e:      # the host answered (tokens spent) but not through the tool
+        try:
+            record_usage(customer_id=int(customer_id), module=module, tokens_in=e.tokens_in,
+                         tokens_out=e.tokens_out, model=model, success=True)
+        except Exception as cost_err:  # pragma: no cover
+            logger.debug('%s: cost tracking failed: %s', module, cost_err)
+        raise
     except Exception as e:
         try:
             record_usage(customer_id=int(customer_id), module=module, model=model, success=False, error_message=str(e)[:200])
@@ -750,14 +1015,11 @@ def _call_model(customer_id: int, system: str, user: str) -> Tuple[dict, str]:
             logger.debug('%s: cost tracking failed: %s', module, cost_err)
         raise
     try:
-        record_usage(customer_id=int(customer_id), module=module, tokens_in=response.usage.input_tokens,
-                     tokens_out=response.usage.output_tokens, model=model, success=True)
+        record_usage(customer_id=int(customer_id), module=module, tokens_in=result.tokens_in,
+                     tokens_out=result.tokens_out, model=model, success=True)
     except Exception as cost_err:  # pragma: no cover
         logger.debug('%s: cost tracking failed: %s', module, cost_err)
-    payload = next((b.input for b in response.content if getattr(b, 'type', '') == 'tool_use'), None)
-    if payload is None:
-        raise ValueError('model returned no tool_use block')
-    return _coerce_payload(payload), model
+    return _coerce_payload(result.payload), model
 
 
 # ── stub (no API key) ───────────────────────────────────────────────────
@@ -775,13 +1037,150 @@ def _stub_keyword_weights(question: str, history: Optional[List[dict]]) -> Dict[
     return weights
 
 
+def _fmt_money(v) -> str:
+    """Dollars as the block holds them (whole when whole, else cents), so the figure in a sentence is
+    literally the figure in the cited block and the number check passes without rounding."""
+    f = float(v)
+    return f'${int(f):,}' if f == int(f) else f'${f:,.2f}'
+
+
+_NOT_PRICED_WORDS = {'no_tier': 'no tier is recorded', 'unknown_tier': 'the recorded tier is not one the cost figures cover',
+                     'no_health_score': 'there is no health score yet', 'no_failure_event_applies': 'no failure event in the cost figures applies'}
+
+
+def _not_priced_words(code) -> str:
+    return _NOT_PRICED_WORDS.get(str(code), str(code).replace('_', ' '))
+
+
+def _stub_money_answer(question: str, ctx: Context, words: Tuple[str, str]) -> Optional[List[dict]]:
+    """Without a model, a money question is answered from the money blocks by fixed rules — not by
+    keyword-matching the story, which recited a timeline at someone who asked what playbooks cost.
+    None when the context holds no money block (the caller then leads with why)."""
+    q = (question or '').lower()
+    one, many = words
+    ex_id = next((c for c in ctx.citable if c.startswith('exposure:')), None)
+    ic_id = next((c for c in ctx.citable if c.startswith('investment_cost:')), None)
+    out: List[dict] = []
+    if ex_id:
+        ex = ctx.citable[ex_id]
+        pf, accts = ex.get('portfolio') or {}, ex.get('accounts') or []
+        priced = [a for a in accts if a.get('expected_annual_exposure') is not None]
+        pb = ex.get('playbooks') or {}
+        wants_cost = any(k in q for k in ('playbook', 'cost', 'spend', 'spent', 'budget'))
+        if ex_id == 'exposure:portfolio':
+            if pf.get('expected_annual_exposure') is not None:
+                out.append({'text': f"Expected annual exposure across {pf.get('priced_accounts')} priced {many} is "
+                                    f"{_fmt_money(pf['expected_annual_exposure'])}, on assumed figures; "
+                                    f"{pf.get('not_priced_accounts')} of {pf.get('accounts')} {many} could not be priced.", 'cites': [ex_id]})
+            elif pf.get('accounts'):
+                why = '; '.join(f"{len(ids)} because {_not_priced_words(code)}" for code, ids in (pf.get('not_priced') or {}).items())
+                out.append({'text': f"None of the {pf.get('accounts')} {many} could be priced, so there is no exposure figure yet: {why}.", 'cites': [ex_id]})
+            if 'tier' in q or 'split' in q:
+                parts = [f"{t['tier']} {_fmt_money(t['expected_annual_exposure'])} ({t['accounts']} {many})"
+                         for t in pf.get('by_tier') or [] if t.get('expected_annual_exposure') is not None]
+                if parts:
+                    out.append({'text': 'By tier: ' + '; '.join(parts) + '.', 'cites': [ex_id]})
+            if priced and not wants_cost:
+                top = ', '.join(f"{a['account_name']} ({_fmt_money(a['expected_annual_exposure'])})" for a in priced[:3])
+                out.append({'text': f'The largest exposures are {top}.', 'cites': [ex_id]})
+            if pf.get('avoidable_exposure_next_band') is not None and not wants_cost:
+                out.append({'text': f"Moving every {one} below the best band up one band would remove "
+                                    f"{_fmt_money(pf['avoidable_exposure_next_band'])} of that exposure.", 'cites': [ex_id]})
+        elif priced:
+            a = priced[0]
+            out.append({'text': f"{a['account_name']} ({a.get('tier')} tier) carries an expected annual exposure of "
+                                f"{_fmt_money(a['expected_annual_exposure'])}, on assumed figures: a failure cost of "
+                                f"{_fmt_money(a['failure_cost'])} at an annual likelihood of {a['annual_failure_likelihood']}.", 'cites': [ex_id]})
+            if a.get('avoidable_exposure_next_band') is not None:
+                out.append({'text': f"Reaching the next band ({a['health_points_to_next_band']} health points away) would remove "
+                                    f"{_fmt_money(a['avoidable_exposure_next_band'])} of it.", 'cites': [ex_id]})
+        elif accts:
+            out.append({'text': f"{accts[0]['account_name']} could not be priced, so it has no exposure figure: "
+                                f"{_not_priced_words(accts[0].get('not_priced'))}.", 'cites': [ex_id]})
+        rows = pb.get('rows') or []
+        if rows and wants_cost:
+            by_cost = sorted(rows, key=lambda r: -(r.get('estimated_cost_per_execution') or 0))
+            listed = '; '.join(f"{r['playbook_id']} {_fmt_money(r['estimated_cost_per_execution'])}" for r in by_cost)
+            out.append({'text': f"Each playbook's estimated cost per run, in analyst time at {_fmt_money(pb['hourly_cost'])} an hour (assumed): {listed}.",
+                        'cites': [ex_id]})
+            used = [r for r in rows if r.get('runs', r.get('interventions'))]       # approved runs: a proposal nobody approved costs nothing
+            if used:
+                parts = '; '.join(f"{r['playbook_id']} {_fmt_money(r['estimated_cost_to_date'])} over {r.get('runs', r['interventions'])} approved run(s)"
+                                  + (f", exposure avoided {_fmt_money(r['exposure_avoided'])}" if r.get('exposure_avoided') is not None
+                                     else ', exposure avoided not yet measurable') for r in used)
+                out.append({'text': f'Cost to date beside exposure avoided (the two are not divided into a return): {parts}.', 'cites': [ex_id]})
+            else:
+                out.append({'text': 'No playbook has been run yet, so there is no cost to date and no exposure avoided to report.', 'cites': [ex_id]})
+        return out or None
+    p1_id = next((c for c in ctx.citable if c.startswith('po1:')), None)
+    wants_cost = any(k in q for k in ('playbook', 'cost', 'spend', 'spent', 'budget', 'per dollar', 'lift'))
+    wants_risk = bool(re.search(r'\b(at[ -]risk|revenue|arr|exposure|churn|lose|losing)\b', q))
+    if p1_id and (wants_risk or not wants_cost):
+        p1 = ctx.citable[p1_id]
+        if p1_id == 'po1:portfolio':
+            bands = [b for b in p1.get('bands') or [] if _mv(b.get('revenue_at_risk')) is not None]
+            if bands:
+                total = sum(_mv(b['revenue_at_risk']) for b in bands)
+                parts = '; '.join(f"{b['band']} {_fmt_money(_mv(b['revenue_at_risk']))} ({b['accounts']} {many})" for b in bands)
+                base = _mv(p1.get('revenue_base'))
+                out.append({'text': f"Revenue at risk across {p1.get('accounts')} {many} is {_fmt_money(round(total, 2))}"
+                                    + (f" of {_fmt_money(base)} in revenue" if base is not None else '')
+                                    + f", on assumed loss shares by health band: {parts}.", 'cites': [p1_id]})
+            top = p1.get('top_revenue_at_risk') or []
+            if top:
+                listed = ', '.join(f"{a['account_name']} ({_fmt_money(a['revenue_at_risk'])}, {a['band']})" for a in top[:3])
+                out.append({'text': f'The {many} carrying the most of it are {listed}.', 'cites': [p1_id]})
+            per_pt = _mv(p1.get('revenue_per_health_point'))
+            if per_pt is not None and not wants_cost:        # a question that also asks for costs needs the room
+                out.append({'text': f"One health point across the portfolio is worth {_fmt_money(per_pt)} a year (assumed).", 'cites': [p1_id]})
+        else:
+            bv = p1.get('band_view') or {}
+            at_risk, rev, per_pt = _mv(bv.get('revenue_at_risk')), _mv(p1.get('revenue')), _mv(p1.get('revenue_per_health_point'))
+            if at_risk is not None:
+                out.append({'text': f"This {one} is in the {bv.get('band')} band at a health of {bv.get('health_now')}, which puts "
+                                    f"{_fmt_money(at_risk)}" + (f" of its {_fmt_money(rev)} revenue" if rev is not None else '')
+                                    + ' at risk, on an assumed loss share for that band.', 'cites': [p1_id]})
+            if per_pt is not None:
+                out.append({'text': f"One health point on this {one} is worth {_fmt_money(per_pt)} a year (assumed).", 'cites': [p1_id]})
+    if ic_id and (wants_cost or not out):
+        ic = ctx.citable[ic_id]
+        pbs = [_investment_playbook_compact(p) for p in ic.get('playbooks') or []]
+        def cv(p, k):
+            return _mv(p.get(k))
+        costed = sorted([p for p in pbs if cv(p, 'cost_per_health_point') is not None], key=lambda p: cv(p, 'cost_per_health_point'))
+        uncosted = [p for p in pbs if cv(p, 'cost_per_health_point') is None]
+        if costed:
+            best = costed[0]
+            out.append({'text': f"{best['playbook_id']} gives the most health-point lift per dollar: {_fmt_money(cv(best, 'cost_per_health_point'))} "
+                                f"per health point ({best.get('lift_source')} lift of {best.get('lift_value')} points).", 'cites': [ic_id]})
+        priced = [p for p in costed + uncosted if cv(p, 'estimated_cost_per_execution') is not None]
+        if priced:
+            listed = '; '.join(f"{p['playbook_id']} {_fmt_money(cv(p, 'estimated_cost_per_execution'))} per run"
+                               + (f" and {_fmt_money(cv(p, 'cost_per_health_point'))} per health point" if cv(p, 'cost_per_health_point') is not None else '')
+                               for p in priced)
+            hourly = cv(ic, 'csm_hourly_cost')
+            out.append({'text': 'Estimated cost of each playbook' + (f', at {_fmt_money(hourly)} an hour' if hourly is not None else '')
+                                + f' (assumed figures), best value first: {listed}.', 'cites': [ic_id]})
+    return out or None
+
+
 def _stub_answer(question: str, scope: str, ctx: Context, narrative: Optional[dict], rows: List[dict],
-                 history: Optional[List[dict]] = None) -> dict:
+                 history: Optional[List[dict]] = None, words: Tuple[str, str] = ('account', 'accounts')) -> dict:
     """Deterministic: the narrative sentences (or portfolio rows) that share
     the most keywords with the question, already carrying their citations."""
     n = settings.get('answer', 'stub_max_sentences')
     weights = _stub_keyword_weights(question, history)
     sentences: List[dict] = []
+    if detect_investment_intent(question):
+        money = _stub_money_answer(question, ctx, words)
+        if money:
+            return {'answer_sentences': money[:n], 'confidence': settings.get('answer', 'stub_confidence'),
+                    'evidence_gaps': ['no model: answered from the money figures by fixed rules, not by reading the question in full']}
+        if ctx.notices:
+            # The question asked for money and the data has none: say only that (ask() leads with the
+            # notice). Reciting the nearest-matching story sentences here is the bug this replaces.
+            return {'answer_sentences': [], 'confidence': None,
+                    'evidence_gaps': ['no model: the question asks for money figures this tenant does not have']}
     if scope == 'account':
         pool = [{'text': s['text'], 'cites': list(s['cites'])}
                 for ch in (narrative or {}).get('chapters') or [] for s in ch.get('sentences') or []]
@@ -886,15 +1285,22 @@ def ask(customer_id: int, question: str, account_id: Optional[int] = None, as_of
         ctx, gaps, meta = portfolio_context(customer_id, question, rows, when)
         scope_line = f"portfolio — {meta['shown']} of {meta['accounts']} accounts shown"
     meta = {**meta, 'history_turns': len(turns), 'scope_carried_from_history': carried}
+    if account_id and scope == 'account' and any(p in question.lower() for p in settings.get('scope', 'portfolio_phrases')):
+        # The picked account wins over the wording — but silently answering "across the portfolio…"
+        # for one account reads as a wrong answer. Say which it was and how to get the other.
+        ctx.notices.insert(0, f"This was answered for {meta.get('account_name')} only, because that account was picked; the question "
+                              f"reads as portfolio-wide. Ask it with no account picked to cover the whole portfolio.")
+        meta['scope_mismatch'] = 'portfolio_wording_account_picked'
 
     max_sentences = settings.get('answer', 'max_sentences')
     system = SYSTEM_PROMPT.format(max_sentences=max_sentences)
     user = USER_PROMPT.format(history_block=history_block(turns), question=question, scope_line=scope_line, context=ctx.text())
 
-    if os.environ.get('ANTHROPIC_API_KEY'):
+    from utils import model_provider
+    if model_provider.available():
         payload, model = _call_model(customer_id, system, user)
     else:
-        payload, model = _stub_answer(question, scope, ctx, narrative, rows, turns), STUB_MODEL
+        payload, model = _stub_answer(question, scope, ctx, narrative, rows, turns, _account_words(customer_id)), STUB_MODEL
 
     sentences, unsupported = validate_answer(payload, ctx.citable, max_sentences)
     cited_ids = list(dict.fromkeys(c for s in sentences for c in s['cites']))
@@ -909,7 +1315,8 @@ def ask(customer_id: int, question: str, account_id: Optional[int] = None, as_of
         reasons = sorted({u['reason'] for u in unsupported})
         gaps.append(f'the model answered but every sentence was dropped by the citation rule ({", ".join(reasons)}); '
                     f'see "unsupported" for the text and the ids that did not resolve')
-    answer = ' '.join(s['text'] for s in sentences)
+    notices = list(ctx.notices)
+    answer = ' '.join(notices + [s['text'] for s in sentences])
     if origin['synthetic']:
         prefix = f"[{origin['label']}] "
         if answer.startswith(prefix):                        # model imitated the prefix from history_block; don't double it
@@ -920,6 +1327,7 @@ def ask(customer_id: int, question: str, account_id: Optional[int] = None, as_of
         'question': question, 'scope': scope, 'scope_detail': meta, **origin,
         'answer': answer,
         'sentences': sentences,
+        'notices': notices,                    # plain statements that lead the answer; about the data, not from it
         'citations': {c: ctx.citable[c] for c in cited_ids},
         'unsupported': unsupported,
         'evidence_gaps': list(dict.fromkeys(gaps + model_gaps)),
@@ -928,4 +1336,5 @@ def ask(customer_id: int, question: str, account_id: Optional[int] = None, as_of
         'context_chars': ctx.used,
         'history_turns': len(turns),          # counted separately from context_chars: the recap is not a context block
         'model': model, 'generator': GENERATOR,
+        'model_label': STUB_LABEL if model == STUB_MODEL else model,
     }

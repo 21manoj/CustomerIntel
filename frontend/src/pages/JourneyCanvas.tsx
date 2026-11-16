@@ -3,6 +3,7 @@ import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { ApiError, getAccount } from '../api/client'
 import type { Journey } from '../api/types'
 import { useAuth } from '../auth/AuthContext'
+import { useVertical } from '../api/useVertical'
 import JourneyCanvasSvg from '../components/canvas/JourneyCanvasSvg'
 
 const ALLOWED_ROLES = ['cfo', 'cro', 'admin']
@@ -50,6 +51,7 @@ export default function JourneyCanvas() {
   }, [searchParams, user])
 
   const permitted = !!user && ALLOWED_ROLES.includes(user.role)
+  const { labels } = useVertical(customerId)
 
   const [journey, setJourney] = useState<Journey | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -124,7 +126,7 @@ export default function JourneyCanvas() {
           value={journey.arc.arc_type ?? journey.arc.state}
           foot={journey.arc.confidence != null ? `${Math.round(journey.arc.confidence * 100)}% confidence` : undefined}
         />
-        <NowTile label="ARR" value={money(arr)} foot={`renews ${day(journey.account.renewal_date)}`} />
+        <NowTile label={labels.recurring_revenue} value={money(arr)} foot={`${labels.renewal.toLowerCase()} ${day(journey.account.renewal_date)}`} />
         <NowTile
           label="People present"
           value={roster.filter((r) => r.present).map((r) => r.label).join(', ') || '—'}

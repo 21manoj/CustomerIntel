@@ -1,0 +1,31 @@
+{
+  "_doc": "Suggested Ask AI questions for the tprm_v1 vertical (a bank's vendors). Each role listed here replaces the platform's list for that role (config/ask_ai_questions.json); a role not listed keeps the platform's. The accounts are vendors, so nothing here asks about revenue: money questions are about exposure (roi/exposure.py), with cost shown beside it and never as a ratio. In this vertical the 'cro' role is read as the chief risk officer.",
+  "cfo": [
+    {"id": "tprm-cfo-1", "scope": "portfolio", "text": "What is the total expected annual exposure across our vendors, and how many vendors could not be priced?"},
+    {"id": "tprm-cfo-2", "scope": "portfolio", "text": "Which vendors carry the largest expected annual exposure?"},
+    {"id": "tprm-cfo-3", "scope": "portfolio", "text": "How much exposure could be avoided by moving each vendor up one health band?"},
+    {"id": "tprm-cfo-4", "scope": "portfolio", "text": "What has each playbook cost to date, and how much exposure has it avoided?"},
+    {"id": "tprm-cfo-5", "scope": "portfolio", "text": "How does expected annual exposure split across the Critical, Important and Standard tiers?"},
+    {"id": "tprm-cfo-6", "scope": "portfolio", "text": "Which vendors are approaching contract end soonest?"},
+    {"id": "tprm-cfo-7", "scope": "portfolio", "text": "Which of the money figures are assumed rather than measured, and what are they based on?"},
+    {"id": "tprm-cfo-8", "scope": "account", "text": "What is this vendor's expected annual exposure, and what is that figure based on?"},
+    {"id": "tprm-cfo-9", "scope": "account", "text": "What would moving this vendor up one health band avoid, and how many health points does that take?"},
+    {"id": "tprm-cfo-10", "scope": "account", "text": "What would it cost in analyst hours and dollars to intervene on this vendor?"},
+    {"id": "tprm-cfo-11", "scope": "account", "text": "How many months of evidence does this vendor have, and how recent is the latest?"},
+    {"id": "tprm-cfo-12", "scope": "account", "text": "What decision point is coming up for this vendor?"}
+  ],
+  "cro": [
+    {"id": "tprm-cro-1", "scope": "portfolio", "text": "Which vendors showed an early-warning label in the most recent scored month?"},
+    {"id": "tprm-cro-2", "scope": "portfolio", "text": "Which regulated critical services carry the largest expected annual exposure?"},
+    {"id": "tprm-cro-3", "scope": "portfolio", "text": "Which vendors have had an incident or escalation recently?"},
+    {"id": "tprm-cro-4", "scope": "portfolio", "text": "Which vendors have had a relationship owner or key contact change recently?"},
+    {"id": "tprm-cro-5", "scope": "portfolio", "text": "Which vendors have the richest evidence trail (most cited episodes)?"},
+    {"id": "tprm-cro-6", "scope": "portfolio", "text": "Which vendors have no forecast run yet?"},
+    {"id": "tprm-cro-7", "scope": "account", "text": "What does the evidence say about this vendor's risk?"},
+    {"id": "tprm-cro-8", "scope": "account", "text": "What phase is this vendor currently in, and what triggered the transition?"},
+    {"id": "tprm-cro-9", "scope": "account", "text": "Which interventions are open on this vendor, and what triggered them?"},
+    {"id": "tprm-cro-10", "scope": "account", "text": "What outcomes has this vendor recorded so far?"},
+    {"id": "tprm-cro-11", "scope": "account", "text": "Is this vendor a regulated critical service, and what is its worst-case failure event?"},
+    {"id": "tprm-cro-12", "scope": "account", "text": "Has this vendor shown any commercial pressure or delivery stall recently?"}
+  ]
+}

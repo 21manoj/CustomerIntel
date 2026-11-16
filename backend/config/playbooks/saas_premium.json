@@ -84,6 +84,31 @@
         ],
         "window_days": 90
       }
+    },
+    {
+      "id": "adoption_drop_renewal_review",
+      "label": "Adoption drop ahead of renewal: usage review",
+      "trigger": {
+        "kpi": [
+          { "code": "P1-KPI1", "op": "<", "value": 40, "periods": 2 }
+        ],
+        "date": { "field": "renewal_date", "within_days": 180, "label": "renewal" },
+        "urgency": "high"
+      },
+      "action_class": "schedule",
+      "approval": "human",
+      "steps": [
+        { "id": "alert_account_owner", "label": "Alert the account owner to the adoption drop", "action_class": "notify" },
+        { "id": "usage_review", "label": "Book a usage review with the customer", "action_class": "schedule" }
+      ],
+      "expected_outcome": {
+        "types": [
+          "renewal_secured",
+          "revenue_protected",
+          "churn_lost"
+        ],
+        "window_days": 120
+      }
     }
   ]
 }

@@ -10,7 +10,8 @@ X-CI-Timestamp: unix seconds. The timestamp is inside the signed string so a
 captured payload cannot be replayed with a fresh header.
 
 Minimum necessary: intervention id, playbook id and action class, account
-id and name, the trigger quotes with their episode ids, the approver, and
+id and name, the trigger quotes with their episode ids (and, for a fact
+trigger, the KPI reading or profile date it fired on), the approver, and
 the callback. No raw communication text, no roster, no scores.
 """
 from __future__ import annotations
@@ -52,6 +53,13 @@ def build_payload(row, account, customer, triggers: list, approved_by: str, disc
         'urgency': row.urgency,
         'trigger': [{'episode_id': t['episode_id'], 'node_id': t['node_id'], 'role': t.get('role'), 'subtype': t.get('subtype'),
                      'quote': (t.get('quote') or '')[:n], 'occurred_at': t.get('occurred_at')} for t in triggers],
+        'trigger_facts': [{k: f.get(k) for k in ('kind', 'code', 'name', 'value', 'op', 'threshold', 'periods', 'measured_at',
+                                                  'field', 'label', 'date', 'days_until', 'text') if f.get(k) is not None}
+                          for f in (row.trigger_facts or [])],
+        'step': ({'number': row.step_index + 1, 'of': len(row.steps), 'id': row.steps[row.step_index]['id'],
+                  'label': row.steps[row.step_index]['label'], 'action_class': row.steps[row.step_index]['action_class']}
+                 if row.steps and row.step_index is not None else None),
+        'review_afterwards': bool(row.review_required),
         'approved_by': approved_by,
         'approved_at': row.approved_at.isoformat() if row.approved_at else None,
         'expected_outcome': {'types': row.expected_outcome_types, 'window_days': row.expected_window_days},

@@ -1,0 +1,20 @@
+{
+  "_doc": "Names the platform accepts for verticals. A vertical itself is defined by its config files (config/<vertical>_kpi_catalog.json and friends), never by code. `aliases` maps short or legacy names to the canonical vertical. `id_prefixes` pins the short prefix used in generated IDs; a vertical with no entry gets one derived from its name. `legacy_id_first_segments` lists first segments that older IDs may carry. Platform code must not name a vertical: tests/test_platform_names_no_vertical.py enforces it.",
+  "aliases": {
+    "dc2s": "dc2_s",
+    "dc": "dc2_s",
+    "datacenter": "dc2_s",
+    "saas": "saas_premium"
+  },
+  "id_prefixes": {
+    "saas": "saas",
+    "saas_premium": "saas",
+    "datacenter": "dc",
+    "datacenter_v1": "dc",
+    "data_center": "dc",
+    "dc": "dc",
+    "dc2_s": "dc",
+    "msp": "msp"
+  },
+  "legacy_id_first_segments": ["saas", "saas_premium", "dc", "dc2_s", "datacenter", "datacenter_v1", "msp"]
+}

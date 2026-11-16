@@ -103,3 +103,40 @@ Deliberate differences from §2–§7, each for a reason:
 Not built, per §9, and one more: the step stubs / simulated close / closure report the user asked for later (backlog).
 
 Same day, two loose ends closed: the INTERVENTION node title is built by one helper, `playbooks.governance.intervention_title(label, account_name)` = `"<label> — <account>"` (the narrative cuts at the first ` — `, so a label with one is refused at load; the labels moved to colon form for that reason), and `scripts/repair_intervention_titles.py` (dry run by default, `--apply`, `--customer-id`) re-titles nodes written under an older label and rebuilds their journeys. `/health` counts interventions (`total`, `by_state`, `stuck`, `delivery_problems`) through `playbooks.governance.health_counts()`, the same `_stuck` / delivery definitions `list_interventions` uses.
+
+## Fact triggers (added 2026-11-16)
+
+A trigger can fire on recorded facts as well as on communications. This is a platform option for every vertical; the enums live in `config/playbook_governance.json` → `fact_triggers`.
+
+- `trigger.kpi`: a list of `{code, op, value, periods?}`. Each reads the account's latest `periods` readings of that KPI in `kpi_measurements` (default 1) and holds when every one breaches. `kpi_match` is `any` (default) or `all`. Codes must be in the vertical's KPI catalog.
+- `trigger.date`: `{field, within_days | overdue_by_days, label?}`. Reads a date in the account profile and compares it with the journey's `as_of`. `within_days` also fires for a date already past.
+- `trigger.urgency`: the urgency a proposal carries when no communication is cited.
+- `roles`, `kpi` and `date` are ANDed; a trigger needs at least one. `urgency_floor` needs `roles`.
+
+A fact-triggered proposal cites the reading or date it fired on in `interventions.trigger_facts` (migration 0009), in the webhook payload (`trigger_facts`) and on the INTERVENTION node. The idempotency key includes the reading date or the date value, so the same fact never proposes twice and a new reading is new evidence.
+
+## Steps and autonomy levels (added 2026-11-16)
+
+Platform options for every vertical. Every rule and number is in `config/playbook_governance.json` → `autonomy`; a vertical adds only what is its own, in its playbook file.
+
+**Steps.** A playbook may carry `steps`: 2 to `max_steps` entries of `{id, label, action_class, effects?}`. Each step is approved, sent and reported on its own. `report_intervention(state='done')` on a step that is not the last closes that step and starts the next; `done` on the last step, or any report with an outcome, closes the intervention (later steps are marked `skipped`). The row's state list is unchanged: a later step that waits for a person leaves the row `sent` with `awaiting_approval: true`. There is one INTERVENTION node per intervention; a later step updates its properties. The webhook payload carries `step {number, of, id, label, action_class}`.
+
+**Levels.** `automation_level` is 0 to 4, per tenant, with an optional level per action class (`automation_levels_by_class`).
+
+| Level | Policy approves |
+|---|---|
+| 0 | nothing; every approval is a person's |
+| 1 | notify playbooks declared `approval: auto` |
+| 2 | notify and schedule, once a person has approved that playbook's plan (remembered per playbook version) |
+| 3 | notify and schedule on their own |
+| 4 | escalate too; each is marked `review_required` and listed under `awaiting_review` until `review_intervention` |
+
+The platform sets a ceiling (`ceiling`, and `ceiling_by_class`); a tenant's level is set at or below it. Each proposal records the decision and its reason in `approval_policy`.
+
+**Always a person**, at every level: the `offer` action class; a playbook or step whose `effects` include `money`, `contract` or `exit`; an account that carries one of the vertical's `always_human.account_flags` (a top-level block in the vertical's playbook file, naming account profile fields).
+
+**Lowering.** A declined proposal or step, or a `failed` report, lowers the level for that action class by `lower_by` (never below `lower_floor`) and withdraws that playbook's plan approval. It is written as a per-class level, to the tenant's `autonomy_log`, and to the audit log as `intervention.autonomy_lowered`. Nothing raises a level except `configure_playbooks`. `get_playbooks` returns `autonomy.suggested_raises`: per action class, a run of `suggest_raise_after` approvals by people with no decline or failure since. It is a suggestion only.
+
+**Stop switch.** The existing `kill_switch`. While it is on, evaluation and every approval are refused, and a step reported done leaves the next step waiting (`stop_switch_on`).
+
+Surfaces: `configure_playbooks(automation_levels_by_class=…)`, the new `review_intervention` tool, `POST /api/interventions/{id}/review` and `POST /app/api/interventions/{id}/review`. Columns: `interventions.steps`, `step_index`, `approval_policy`, `review_required`, `reviewed_at`, `reviewed_by` (migration 0010). Tests: `backend/tests/test_playbook_autonomy.py`.

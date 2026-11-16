@@ -4,9 +4,10 @@ Playbook governance routes (Starlette, mounted beside /mcp).
   GET  /api/interventions?customer_id=…&account_id=&state=          read scope — rows, stuck ones, per-playbook numbers
   POST /api/interventions/evaluate   {customer_id, account_id?, dry_run?}                          write scope
   POST /api/interventions/{id}/approve   {customer_id, note?}                                     write scope
+  POST /api/interventions/{id}/draft     {customer_id}                                            write scope — the agent's draft only
   POST /api/interventions/{id}/report    {customer_id, state, note?, outcome_type?, outcome_date?, revenue?}   write scope
   GET  /api/playbooks?customer_id=…                                  read scope — the tenant's playbooks + overlay (secret masked)
-  POST /api/playbooks  {customer_id, webhook_url?, webhook_secret?, disabled_playbooks?, automation_level?, kill_switch?, slack_webhook_url?}   write scope
+  POST /api/playbooks  {customer_id, webhook_url?, webhook_secret?, disabled_playbooks?, automation_level?, automation_levels_by_class?, kill_switch?, slack_webhook_url?}   write scope
 
 Auth: the same Bearer keys as MCP. The workflow engine reports back with its
 own key (write scope), the way it already calls submit_signal / log_outcome.
@@ -74,6 +75,33 @@ def register_playbook_routes(mcp) -> None:
         except ValueError as e:
             return _bad(e)
 
+    @mcp.custom_route('/api/interventions/{intervention_id:int}/review', methods=['POST'], name='interventions_review')
+    async def interventions_review(request):
+        data = await _json(request)
+        cid = data.get('customer_id')
+        ok, err = await _with_app(lambda: _authorize(cid, 'write'))
+        if not ok:
+            return JSONResponse(err, status_code=401)
+        try:
+            return JSONResponse(await _with_app(lambda: gov.review(int(cid), request.path_params['intervention_id'], data.get('note'))))
+        except ValueError as e:
+            return _bad(e)
+
+    @mcp.custom_route('/api/interventions/{intervention_id:int}/draft', methods=['POST'], name='interventions_draft')
+    async def interventions_draft(request):
+        """The playbook agent drafts the steps of one open intervention (playbooks/agent.py). It writes the draft only."""
+        from playbooks import agent
+        data = await _json(request)
+        cid = data.get('customer_id')
+        ok, err = await _with_app(lambda: _authorize(cid, 'write'))
+        if not ok:
+            return JSONResponse(err, status_code=401)
+        try:
+            return JSONResponse(await _with_app(lambda: agent.draft(int(cid), request.path_params['intervention_id'],
+                                                                    requested_by=gov.current_actor())))
+        except ValueError as e:
+            return _bad(e)
+
     @mcp.custom_route('/api/playbooks', methods=['GET'], name='playbooks_get')
     async def playbooks_get(request):
         cid = request.query_params.get('customer_id')
@@ -95,10 +123,11 @@ def register_playbook_routes(mcp) -> None:
             return JSONResponse(await _with_app(lambda: configure_tenant(
                 int(cid), webhook_url=data.get('webhook_url'), webhook_secret=data.get('webhook_secret'),
                 disabled_playbooks=data.get('disabled_playbooks'), automation_level=data.get('automation_level'),
-                kill_switch=data.get('kill_switch'), slack_webhook_url=data.get('slack_webhook_url'))))
+                kill_switch=data.get('kill_switch'), slack_webhook_url=data.get('slack_webhook_url'),
+                automation_levels_by_class=data.get('automation_levels_by_class'), changed_by=gov.current_actor()['label'])))
         except ValueError as e:
             return _bad(e)
 
 
 ROUTES = ('/api/interventions', '/api/interventions/evaluate', '/api/interventions/{id}/approve',
-          '/api/interventions/{id}/report', '/api/playbooks')
+          '/api/interventions/{id}/report', '/api/interventions/{id}/review', '/api/interventions/{id}/draft', '/api/playbooks')

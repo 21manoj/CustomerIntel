@@ -378,6 +378,7 @@ export interface Phase {
   health_start: number | null
   health_end: number | null
   trigger_episode_id: string | null
+  label?: string | null   // what to show; 'critical' when the intervention band has no intervention in it
   basis?: 'evidence' | string
   negative_signals?: number
   positive_signals?: number
@@ -511,6 +512,42 @@ export interface Intervention {
   stuck: boolean
   stuck_days: number | null
   notes: InterventionNote[]
+  // Steps and autonomy (playbooks/governance.py row_view). Absent on rows from an older backend.
+  approval_policy?: { by_policy: boolean; level: number; reason: string; review_afterwards: boolean } | null
+  agent_plan?: AgentPlan | null
+  steps?: InterventionStep[]
+  step?: (InterventionStep & { number: number; of: number }) | null
+  awaiting_approval?: boolean
+  review?: { required: boolean; reviewed_at: string | null; reviewed_by: string | null; pending: boolean }
+}
+
+/** The playbook agent's draft for an intervention. It is wording only: it approves and sends nothing. */
+export interface AgentPlan {
+  at: string
+  by: string
+  requested_by: string | null
+  model: string
+  model_label: string
+  rationale: { text: string; cites: string[] } | null
+  steps: {
+    id: string
+    label: string
+    action_class: string
+    draft: string | null
+    cites: string[]
+    approval: { by: string; level: number; reason: string; review_afterwards: boolean }
+  }[]
+  citable: Record<string, string>
+  unsupported: { step_id: string | null; text: string; reason: string }[]
+  missing_steps: string[]
+  gaps: string[]
+}
+
+export interface InterventionStep {
+  id: string
+  label: string
+  action_class: string
+  state: string
 }
 
 export interface PlaybookRollup {
@@ -959,6 +996,12 @@ export interface TenantPlaybookConfig {
   automation_level: number
   automation_level_meaning: string
   kill_switch: boolean
+  // Autonomy (playbooks/definitions.py tenant_config)
+  automation_levels_by_class?: Record<string, number>
+  effective_levels?: Record<string, number>
+  ceiling?: number
+  approved_plans?: Record<string, { version: string | null; by: string | null; at: string | null }>
+  autonomy_log?: { at: string; event: string; action_class?: string; from?: number | null; to?: number; reason?: string; by?: string | null; detail?: string }[]
 }
 
 export interface PlaybookConfigResponse {
@@ -969,6 +1012,8 @@ export interface PlaybookConfigResponse {
   playbooks: PlaybookDef[]
   disabled: string[]
   tenant: TenantPlaybookConfig
+  always_human?: { account_flags: string[] }
+  autonomy?: { suggested_raises: { action_class: string; from: number; to: number; clean_approvals: number }[] }
 }
 // ── Calibrations (Wizard C) — backend/wizards/wizard_c_calibration.py ──
 // Labels come from logged OUTCOME nodes, never from HealthScore (that would be circular).
@@ -1209,6 +1254,10 @@ export type AskResponse = OriginBlock & {
   context_chars: number
   history_turns: number
   model: string
+  // What to show for the model: its name, or a plain "no model" line when the fixed-rule fallback answered.
+  model_label?: string
+  // Plain statements that lead the answer (about what the data cannot answer, or which scope ran).
+  notices?: string[]
   generator: string
 }
 
@@ -1413,4 +1462,132 @@ export interface TenantDeleted {
   rows: Record<string, number>
   total_rows: number
   archive: string
+}
+
+// The account's evidence nodes and the causal edges between them (GET /app/api/accounts/{id}/graph).
+export interface GraphNode {
+  node_id: number
+  node_type: string
+  subtype: string | null
+  title: string | null
+  quote: string | null
+  occurred_at: string | null
+  sentiment: string | null
+  person: { name: string | null; title: string | null; role: string | null } | null
+}
+
+export interface GraphEdge {
+  edge_id: number
+  from_node_id: number
+  to_node_id: number
+  edge_type: string
+  confidence: number | null
+  derivation: string | null
+  evidence_tier: string | null
+}
+
+export interface AccountGraph {
+  account_id: number
+  account_name: string
+  nodes: GraphNode[]
+  edges: GraphEdge[]
+  synthetic?: boolean
+  disclosure?: string
+}
+
+// -- roi/exposure.py: the money view for a vertical whose accounts cost money when they fail --
+
+export interface ExposureNextBand {
+  min_health: number
+  annual_failure_likelihood: number
+  health_points_needed: number
+  avoidable_exposure: Money
+}
+
+export interface ExposureAccountRow {
+  account_id: number
+  account_name: string
+  tier: string | null
+  regulated_flag: boolean
+  regulated_note?: string
+  contract_value: Money
+  failure_cost: Money
+  failure_cost_source: string | null
+  failure_event: string | null
+  health_now: number | null
+  measurement_month: string | null
+  annual_failure_likelihood: number | null
+  expected_annual_exposure: Money | null
+  next_band: ExposureNextBand | null
+  not_priced: string | null
+}
+
+export interface ExposureTierRow {
+  tier: string
+  accounts: number
+  priced_accounts: number
+  regulated_flag_accounts: number
+  contract_value: Money
+  expected_annual_exposure: Money
+}
+
+export interface ExposurePlaybookRow {
+  playbook_id: string
+  interventions: number
+  /** approved runs: the ones cost to date counts */
+  runs: number
+  closed_done: number
+  estimated_hours: number
+  estimated_cost_per_execution: Money
+  estimated_cost_to_date: Money
+  exposure_avoided: Money
+  closed_with_health_before_and_after: number
+}
+
+export interface ExposureResponse {
+  customer_id: number
+  vertical: string
+  account_id: number | null
+  synthetic: boolean
+  disclosure: string
+  money_basis: 'exposure'
+  status: 'ok' | 'no_accounts'
+  note: string
+  economics: { file: string; basis: string; horizon_months: number; tiers: string[] }
+  portfolio: {
+    accounts: number
+    priced_accounts: number
+    not_priced: Record<string, number[]>
+    regulated_flag_accounts: number
+    contract_value: Money
+    expected_annual_exposure: Money
+    avoidable_exposure_next_band: Money
+    by_tier: ExposureTierRow[]
+  } | null
+  playbooks: {
+    status: string
+    reason?: string
+    rows: ExposurePlaybookRow[]
+    playbooks_without_a_cost_entry?: string[]
+    estimated_cost_to_date?: Money
+    note?: string
+  } | null
+  accounts: ExposureAccountRow[]
+}
+
+// -- /app/api/vertical: what the tenant's vertical declares --
+
+export interface VerticalLabels {
+  account: string
+  accounts: string
+  revenue: string
+  recurring_revenue: string
+  renewal: string
+}
+
+export interface VerticalInfo {
+  customer_id: number
+  vertical: string
+  capabilities: { money_basis: 'revenue' | 'exposure'; revenue_economics: boolean; [k: string]: unknown }
+  labels: VerticalLabels
 }

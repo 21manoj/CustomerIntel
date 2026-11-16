@@ -11,11 +11,11 @@ Writes:
                          existed for the two-layer model and had no writer.
 
 Does NOT write ContextNode / ContextEdge rows — with one narrow, additive
-exception: for the tprm_v1 vertical only, journeys.edge_derivation.derive_
-phase_transition_edges writes inferred LED_TO ContextEdge rows chaining
-each phase's trigger episode to the next (system.self.phase_transition_chain,
-via utils/edge_factory.py). Every other vertical is unaffected — the call
-is gated strictly on `vertical == 'tprm_v1'`. Templates are attached to
+exception: for a vertical whose catalog declares the `phase_transition_edges`
+capability, journeys.edge_derivation.derive_phase_transition_edges writes
+inferred LED_TO ContextEdge rows chaining each phase's trigger episode to
+the next (system.self.phase_transition_chain, via utils/edge_factory.py).
+A vertical that does not declare it is unaffected. Templates are attached to
 the journey as `expected_path` only.
 """
 from __future__ import annotations
@@ -79,7 +79,7 @@ def run_wizard_a(customer_id: int, account_ids: Optional[Iterable[int]] = None, 
     the journey they just changed and must not re-enter evaluation."""
     from models import Account, JourneyData
     from extensions import db
-    from utils.vertical_registry import get_vertical_for_customer
+    from utils.vertical_registry import get_vertical_for_customer, capability
     from journeys.journey_builder import build_journey
     from journeys.edge_derivation import derive_phase_transition_edges
 
@@ -136,22 +136,22 @@ def run_wizard_a(customer_id: int, account_ids: Optional[Iterable[int]] = None, 
             ))
         result['journeys_written'] += 1
 
-        # tprm_v1 only (design note at module top): chain each phase's trigger
+        # Only for verticals declaring phase_transition_edges (design note at module top): chain each phase's trigger
         # episode to the next phase's trigger episode as inferred LED_TO edges.
         # Non-blocking, like the invariants audit — a derivation failure must
         # never take down the journey write that already succeeded above.
-        if vertical == 'tprm_v1':
+        if capability(vertical, 'phase_transition_edges'):
             try:
                 derived = derive_phase_transition_edges(
                     customer_id, acct.account_id, journey['phases'], journey['episodes'],
                 )
                 written = sum(1 for d in derived if d['status'] in ('created', 'updated'))
                 if written:
-                    logger.info('Wizard A tprm_v1: account=%s phase-transition edges written=%d of %d pairs considered',
-                                acct.account_id, written, len(derived))
+                    logger.info('Wizard A %s: account=%s phase-transition edges written=%d of %d pairs considered',
+                                vertical, acct.account_id, written, len(derived))
             except Exception as e:
-                logger.error('Wizard A tprm_v1: phase-transition edge derivation failed for account %s: %s',
-                             acct.account_id, e, exc_info=True)
+                logger.error('Wizard A %s: phase-transition edge derivation failed for account %s: %s',
+                             vertical, acct.account_id, e, exc_info=True)
 
         result['leading_rows_written'] += _write_leading_columns(acct.account_id, journey['leading_vs_trailing'])
 
