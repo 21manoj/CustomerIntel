@@ -170,6 +170,46 @@ class TestMcpOverHttp:
                       key='csp_write_not-a-real-key-at-all-0000000000000000')
         assert res['result'].get('isError') and 'Invalid or expired' in res['result']['content'][0]['text']
 
+    def test_every_tool_call_over_http_leaves_an_audit_row(self, client):
+        """Found on production 2026-11-16: over real HTTP the auth check runs before the tool opens
+        its Flask app context, so audit.record() failed ("Working outside of application context"),
+        swallowed the error as designed, and wrote nothing. Allowed and refused MCP calls alike left
+        no trace, and refused ones never counted toward the denied-calls alert. The other tests call
+        the auth check inside an app context, which is why none of them saw it."""
+        import mcp_server.common as common
+        from models import ToolAuditLog
+
+        def rows(cid):
+            with common.get_flask_app().app_context():
+                return [(a.tool, a.key_kind, a.outcome, a.key_id, a.transport) for a in
+                        ToolAuditLog.query.filter_by(surface='mcp', customer_id=cid).order_by(ToolAuditLog.id).all()]
+
+        r, res = _rpc(client, 'tools/call', {'name': 'create_customer', 'arguments': {
+            'name': 'Audited Co', 'domain': f'audited-{uuid.uuid4().hex[:6]}.test', 'vertical': 'saas_premium',
+            'admin_email': f'a_{uuid.uuid4().hex[:6]}@t.test', 'admin_name': 'A', 'data_origin': 'synthetic_test'}}, id_=20)
+        created = json.loads(res['result']['content'][0]['text'])
+        key, cid = created['api_key'], created['customer_id']
+        other = cid + 1000
+
+        _rpc(client, 'tools/call', {'name': 'process_data', 'arguments': {'customer_id': cid}}, id_=21, key=key)          # allowed, customer key
+        _rpc(client, 'tools/call', {'name': 'process_data', 'arguments': {'customer_id': cid}}, id_=22)                   # allowed, server key
+        _rpc(client, 'tools/call', {'name': 'list_journeys', 'arguments': {'customer_id': cid}}, id_=23, key=None)        # refused, no key
+        _rpc(client, 'tools/call', {'name': 'list_api_keys', 'arguments': {'customer_id': cid}}, id_=24, key=key)         # refused, not an admin key
+        _rpc(client, 'tools/call', {'name': 'process_data', 'arguments': {'customer_id': cid}}, id_=25,
+             key='csp_write_not-a-real-key-at-all-0000000000000000')                                                     # refused, made-up key
+        _rpc(client, 'tools/call', {'name': 'list_journeys', 'arguments': {'customer_id': other}}, id_=26, key=key)       # refused, someone else's tenant
+
+        mine = rows(cid)
+        assert all(t == 'http' for *_, t in mine), mine
+        seen = [(tool, kind, outcome) for tool, kind, outcome, _, _ in mine]
+        assert seen == [('create_customer', 'n/a', 'allowed'),          # written by the tool itself, once the tenant exists
+                        ('process_data', 'customer', 'allowed'), ('process_data', 'server', 'allowed'),
+                        ('list_journeys', 'none', 'denied'), ('list_api_keys', 'customer', 'denied'),
+                        ('process_data', 'none', 'denied')], seen
+        key_ids = {kid for _, kind, _, kid, _ in mine if kind == 'customer'}
+        assert len(key_ids) == 1 and None not in key_ids, 'a customer-key row names the key that made the call'
+        assert [(tool, kind, outcome) for tool, kind, outcome, _, _ in rows(other)] == [('list_journeys', 'customer', 'denied')]
+
     def test_a_request_carrying_only_a_stale_session_id_gets_no_special_treatment(self, client):
         """Regression guard for the auth model, not just the transport: under
         stateful mode a request with NO Authorization header but a session id
