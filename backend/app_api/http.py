@@ -10,6 +10,8 @@ docs/design/ui-rbac.md §4 for the route → function table.
     GET  /app/api/accounts/{account_id}?customer_id=
     GET  /app/api/accounts/{account_id}/graph?customer_id=      evidence nodes + the causal edges between them
     GET  /app/api/interventions | GET .../evaluate | POST .../{id}/approve | .../{id}/report | .../{id}/review | .../{id}/draft
+    GET  /app/api/activity?customer_id=[&account_id=&playbook_id=&event_type=&intervention_id=&from=&to=&limit=&offset=&format=csv]
+                                                               the business event log (roles per config)
     GET  /app/api/roi | /app/api/roi/priorities | /app/api/roi/power-of-1 | /app/api/roi/exposure
     GET  /app/api/calibrations | POST .../propose | .../{id}/approve | .../{id}/reject      (admin)
     GET  /app/api/review-queue | POST /app/api/review                                        (csm/admin)
@@ -26,10 +28,10 @@ from __future__ import annotations
 
 import os
 
-from starlette.responses import JSONResponse
+from starlette.responses import JSONResponse, Response
 
 from app_api import settings
-from app_api.auth import AuthError, allows_account, allows_customer, require_session, user_scope
+from app_api.auth import AuthError, _as_ids, allows_account, allows_customer, require_session, user_scope
 from signal_engine.http import _json, _with_app
 
 _INSECURE_ENV = 'SESSION_COOKIE_INSECURE'   # tests / a local http-only dev box; never set on the box
@@ -301,6 +303,49 @@ def register_app_api_routes(mcp) -> None:
             return JSONResponse(await _with_app(lambda: agent.draft(int(cid), request.path_params['intervention_id'], requested_by=who)))
         except ValueError as e:
             return JSONResponse({'error': str(e)}, status_code=400)
+
+    # ── activity: the business event log ──
+
+    @mcp.custom_route('/app/api/activity', methods=['GET'], name='ui_activity')
+    async def ui_activity(request):
+        """The tenant's business events (playbooks.events), newest first. Who may read is per role, from
+        config (business_events.read_scope_by_role): the whole tenant, or the user's own accounts plus
+        tenant-level settings events. format=csv returns the same rows as a file."""
+        from playbooks import events
+        user, err = await _guard(request)
+        if err:
+            return err
+        q = request.query_params
+        cid, err = _scoped_cid(user, q.get('customer_id'))
+        if err:
+            return err
+        scope = events.read_scope(user.role)
+        if scope is None:
+            return JSONResponse({'error': 'forbidden for this role'}, status_code=403)
+        try:
+            aid = int(q['account_id']) if q.get('account_id') else None
+            iid = int(q['intervention_id']) if q.get('intervention_id') else None
+        except ValueError:
+            return JSONResponse({'error': 'account_id and intervention_id must be integers'}, status_code=400)
+        only = None
+        if scope == 'own_accounts':
+            _, aids = user_scope(user)
+            if aids is not None:
+                only = sorted(_as_ids(aids))
+                if aid is not None and aid not in only:
+                    return _forbidden_scope()
+        filters = dict(account_id=aid, playbook_id=q.get('playbook_id') or None, event_type=q.get('event_type') or None,
+                       intervention_id=iid, since=q.get('from'), until=q.get('to'), only_account_ids=only)
+        try:
+            if (q.get('format') or '').lower() == 'csv':
+                body = await _with_app(lambda: events.export_csv(cid, **filters))
+                return Response(body, media_type='text/csv; charset=utf-8',
+                                headers={'Content-Disposition': f'attachment; filename="activity_customer_{cid}.csv"'})
+            out = await _with_app(lambda: events.list_events(cid, limit=q.get('limit'), offset=q.get('offset') or 0, **filters))
+        except ValueError as e:
+            return JSONResponse({'error': str(e)}, status_code=400)
+        out['read_scope'] = scope
+        return JSONResponse(out)
 
     # ── ROI / Power-of-1 (cfo, cro, admin) ──
 
@@ -663,7 +708,7 @@ def register_app_api_routes(mcp) -> None:
 ROUTES = ('/app/api/auth/login', '/app/api/auth/logout', '/app/api/auth/set-password', '/app/api/me',
           '/app/api/portfolio', '/app/api/accounts/{id}', '/app/api/interventions', '/app/api/interventions/evaluate',
           '/app/api/interventions/{id}/approve',
-          '/app/api/interventions/{id}/report', '/app/api/interventions/{id}/review', '/app/api/interventions/{id}/draft', '/app/api/roi', '/app/api/roi/priorities', '/app/api/roi/power-of-1', '/app/api/roi/exposure',
+          '/app/api/interventions/{id}/report', '/app/api/interventions/{id}/review', '/app/api/interventions/{id}/draft', '/app/api/activity', '/app/api/roi', '/app/api/roi/priorities', '/app/api/roi/power-of-1', '/app/api/roi/exposure',
           '/app/api/forecast', '/app/api/calibrations', '/app/api/calibrations/propose', '/app/api/calibrations/{id}/approve',
           '/app/api/calibrations/{id}/reject', '/app/api/review-queue', '/app/api/review', '/app/api/playbooks/config',
           '/app/api/users', '/app/api/users/{id}', '/app/api/users/{id}/reset-password',

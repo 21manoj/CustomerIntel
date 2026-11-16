@@ -320,6 +320,10 @@ def draft(customer_id: int, intervention_id: int, *, requested_by: Optional[dict
     }
     if not dry_run:
         row.agent_plan = plan
+        from playbooks import events
+        events.record(customer_id, 'agent_drafted', actor, row=row, state_before=row.state, state_after=row.state,
+                      detail={'steps_drafted': len(checked['drafts']), 'steps': len(units), 'discarded': len(checked['unsupported']),
+                              'model': model, 'requested_by': plan['requested_by'] or 'local'})
         db.session.commit()
         from mcp_server import audit
         audit.record(gov.AUDIT_SURFACE, AUDIT_TOOL, customer_id, key_kind=actor['key_kind'], key_record=None, outcome='allowed',

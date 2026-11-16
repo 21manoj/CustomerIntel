@@ -25,6 +25,8 @@ import os
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 
+from playbooks import events
+
 logger = logging.getLogger(__name__)
 
 NODE_TYPE = 'INTERVENTION'
@@ -399,6 +401,10 @@ def evaluate(customer_id: int, account_id: Optional[int] = None, dry_run: bool =
                 step_index=0 if pb['steps'] else None,
             )
             db.session.add(row)
+            db.session.flush()                            # the event names the row: it needs the id, in the same transaction
+            events.record(customer_id, 'proposed', actor, row=row, step=_step(row), state_after='proposed', at=now,
+                          detail={'urgency': urgency, 'cites': (episode_ids + [f['key'] for f in facts])[:20],
+                                  'policy': decision.get('reason')})
             db.session.commit()
             _audit(customer_id, 'propose', actor,
                    f'#{row.id} {pb["id"]} account {jd.account_id} urgency={urgency} cites '
@@ -512,10 +518,13 @@ def approve(customer_id: int, intervention_id: int, note: Optional[str] = None, 
     if by_policy and actor.get('review_afterwards'):
         row.review_required, row.reviewed_at, row.reviewed_by = True, None, None
     _note(row, actor, 'approve' if first else 'approve_step', note)
+    events.record(customer_id, 'approved', actor, row=row, step=step, state_before='proposed' if first else 'sent',
+                  state_after='approved', reason=note, at=now)
     db.session.commit()
     what = f"step {row.step_index + 1}/{len(row.steps)} {step['id']} " if step else ''
     _audit(customer_id, 'approve', actor, f'#{row.id} {row.playbook_id} {what}account {row.account_id} by {actor["label"]}')
-    if first and not by_policy and record_plan_approval(customer_id, row.playbook_id, row.playbook_version, actor['label']):
+    if first and not by_policy and record_plan_approval(customer_id, row.playbook_id, row.playbook_version, actor['label'],
+                                                                {'actor': actor, 'row': row}):
         _audit(customer_id, 'plan_approved', actor, f'{row.playbook_id} v{row.playbook_version} (first approval, #{row.id}) by {actor["label"]}')
 
     acct = db.session.get(Account, row.account_id)
@@ -565,6 +574,11 @@ def approve(customer_id: int, intervention_id: int, note: Optional[str] = None, 
             node.properties = {**(node.properties or {}), 'step': step['id'], 'step_number': row.step_index + 1,
                                'steps_total': len(row.steps), 'delivery_status': delivery['status'],
                                'delivery_error': delivery.get('error'), 'delivery_host': delivery.get('url_host')}
+    events.record(customer_id, 'sent', actor, row=row, step=step, state_before='approved', state_after='sent', at=sent_at,
+                  delivery_status=delivery['status'],
+                  detail={k: v for k, v in {'host': delivery.get('url_host'), 'attempts': delivery.get('attempts'),
+                                            'error': (delivery.get('error') or '')[:200] or None,
+                                            'slack': (delivery.get('slack') or {}).get('status')}.items() if v is not None})
     db.session.commit()
     _audit(customer_id, 'send', actor, f'#{row.id} {row.playbook_id} {what}→ {delivery["status"]} host={delivery.get("url_host")} '
                                         f'attempts={delivery["attempts"]} node={row.node_id}' + (f' error={delivery["error"][:80]}' if delivery.get('error') else '')
@@ -586,6 +600,7 @@ def review(customer_id: int, intervention_id: int, note: Optional[str] = None, a
         raise ValueError(f'intervention {row.id} was already reviewed by {row.reviewed_by}')
     row.reviewed_at, row.reviewed_by = datetime.utcnow(), actor['label']
     _note(row, actor, 'reviewed', note)
+    events.record(customer_id, 'reviewed', actor, row=row, state_before=row.state, state_after=row.state, reason=note, at=row.reviewed_at)
     db.session.commit()
     _audit(customer_id, 'reviewed', actor, f'#{row.id} {row.playbook_id} reviewed by {actor["label"]}')
     return row_view(row)
@@ -595,7 +610,7 @@ def _lower(row, action_class: str, reason: str, actor: dict) -> Optional[dict]:
     """A decline or a failure lowers the tenant's level for that action class (playbooks.definitions.lower_level)."""
     from playbooks.definitions import lower_level
     change = lower_level(row.customer_id, action_class, reason, f'intervention #{row.id} ({row.playbook_id}) {reason} by {actor["label"]}',
-                         playbook_id=row.playbook_id)
+                         playbook_id=row.playbook_id, event_ctx={'actor': actor, 'row': row})
     if change:
         _audit(row.customer_id, 'autonomy_lowered', actor,
                f'{action_class} level {change["from"]} → {change["to"]} after #{row.id} {row.playbook_id} {reason}'
@@ -624,6 +639,10 @@ def _advance(row, actor: dict, note: Optional[str]) -> dict:
         decision = {**decision, 'by_policy': False, 'reason': 'stop_switch_on'}
     _set_step(row, state='awaiting_approval', policy=decision)
     _note(row, actor, 'step_done', note)
+    events.record(row.customer_id, 'step_done', actor, row=row, step=done, step_number=row.step_index, state_before='sent',
+                  state_after='sent', reason=note, at=now,
+                  detail={'next_step': nxt['id'], 'next_action_class': nxt['action_class'],
+                          'next_approval': 'policy' if decision['by_policy'] else 'person', 'policy': decision['reason']})
     db.session.commit()
     _audit(row.customer_id, 'step_done', actor,
            f'#{row.id} {row.playbook_id} step {row.step_index}/{len(row.steps)} {done["id"]} done; next {nxt["id"]} '
@@ -670,6 +689,7 @@ def report(customer_id: int, intervention_id: int, state: str, note: Optional[st
         row.started_at = row.started_at or now
         row.last_report_at = now
         _note(row, actor, 'started', note)
+        events.record(customer_id, 'started', actor, row=row, step=_step(row), state_before='sent', state_after='sent', reason=note, at=now)
         db.session.commit()
         _audit(customer_id, 'started', actor, f'#{row.id} {row.playbook_id} started (reported by {actor["label"]})')
         return row_view(row)
@@ -714,8 +734,13 @@ def report(customer_id: int, intervention_id: int, state: str, note: Optional[st
         final = {'done': 'done', 'failed': 'failed', 'cancelled': 'declined' if declined else 'cancelled'}[state]
         row.steps = [{**st, 'state': final, 'done_at': now.isoformat()} if i == row.step_index
                      else ({**st, 'state': 'skipped'} if i > row.step_index else dict(st)) for i, st in enumerate(row.steps)]
+    state_before = row.state
     row.state, row.closed_at, row.closed_state, row.closed_by, row.last_report_at = 'closed', now, state, actor['label'], now
     _note(row, actor, state, note)
+    events.record(customer_id, 'declined' if declined else state, actor, row=row, step=step, state_before=state_before,
+                  state_after='closed', reason=note, at=now, outcome_node_id=row.outcome_node_id if outcome else None,
+                  outcome_type=outcome['outcome_type'] if outcome else None,
+                  detail={k: outcome[k] for k in ('status', 'bucket', 'revenue', 'in_window', 'expected')} if outcome else None)
     if row.node_id:
         node = db.session.get(ContextNode, row.node_id)
         if node:

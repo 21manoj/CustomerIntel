@@ -1616,6 +1616,8 @@ def delete_customer(customer_id: int, confirm_domain: str, reason: str) -> dict:
         def _del(model, q):
             n = q.delete(synchronize_session=False)
             counts[model.__tablename__] = counts.get(model.__tablename__, 0) + int(n or 0)
+        from models import BusinessEvent
+        _del(BusinessEvent, BusinessEvent.query.filter_by(customer_id=c.customer_id))
         _del(Intervention, Intervention.query.filter_by(customer_id=c.customer_id))
         _del(AccountForecast, AccountForecast.query.filter_by(customer_id=c.customer_id))
         _del(ForecastRun, ForecastRun.query.filter_by(customer_id=c.customer_id))
@@ -2641,3 +2643,42 @@ def list_interventions(customer_id: int, account_id: int = None, state: str = No
     with app.app_context():
         from playbooks.governance import list_interventions as _list
         return _list(customer_id, account_id, state)
+
+
+@mcp.tool
+def list_business_events(customer_id: int, account_id: int = None, playbook_id: str = None, event_type: str = None,
+                         intervention_id: int = None, since: str = None, until: str = None,
+                         limit: int = None, offset: int = 0) -> dict:
+    """The tenant's business transaction log, newest first: what was
+    proposed for which account, who approved it (a person, a key, or
+    policy), what was sent and how delivery went, what the workflow
+    reported, the outcome it linked, what the agent drafted, and every
+    change to the automation level, the stop switch, plan approvals and
+    switched-off playbooks. Each row was written in the same transaction
+    as the change it records. Playbook events only for now; data loads
+    and review-queue decisions are not in it. Rows rebuilt from history
+    that predates the log are marked backfilled.
+
+    Args:
+        customer_id: The customer ID
+        account_id: Filter to one account (optional)
+        playbook_id: Filter to one playbook (optional)
+        event_type: proposed | approved | sent | started | step_done | done | failed | cancelled | declined | reviewed |
+            agent_drafted | plan_approved | autonomy_lowered | level_set | class_level_set | class_level_cleared |
+            stop_switch_on | stop_switch_off | playbook_disabled | playbook_enabled (optional)
+        intervention_id: Filter to one intervention (optional)
+        since: Earliest date, YYYY-MM-DD or ISO timestamp, UTC (optional)
+        until: Latest date, inclusive when a bare date (optional)
+        limit: Page size (default and maximum from config)
+        offset: Rows to skip
+    """
+    _require_auth_if_key_present('list_business_events', customer_id)
+    _check_mcp_enabled()
+    app = _get_flask_app()
+    with app.app_context():
+        from playbooks import events
+        try:
+            return events.list_events(customer_id, account_id=account_id, playbook_id=playbook_id, event_type=event_type,
+                                      intervention_id=intervention_id, since=since, until=until, limit=limit, offset=offset)
+        except ValueError as e:
+            raise ToolError(str(e))

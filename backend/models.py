@@ -799,7 +799,8 @@ class Intervention(db.Model):
     transition is also a tool_audit_log row carrying the key. The workflow
     itself runs outside the platform (n8n, Salesforce Flow, a partner's
     system) and is reached by the signed webhook; it reports back through
-    report_intervention. No events table, no approvals table."""
+    report_intervention. Each transition is also a business_events row
+    (BusinessEvent), written in the same transaction."""
     __tablename__ = 'interventions'
 
     id = db.Column(db.Integer, primary_key=True)
@@ -852,6 +853,45 @@ class Intervention(db.Model):
     __table_args__ = (
         db.UniqueConstraint('account_id', 'playbook_id', 'trigger_key', name='uq_intervention_trigger'),
         db.Index('idx_intervention_customer_state', 'customer_id', 'state'),
+    )
+
+
+class BusinessEvent(db.Model):
+    """The business transaction log: one row per playbook event — a proposal, an approval, a send, a step
+    done, a close with its outcome, a draft by the agent, a change of automation level or of the stop switch.
+    Written in the SAME transaction as the change it records (playbooks.events.record adds the row, the
+    caller's commit carries both), unlike tool_audit_log, which is written afterwards and best-effort.
+    Append-only: nothing updates or deletes a row except tenant deletion. intervention_id and account_id
+    carry no foreign key on purpose: the log must never block a delete."""
+    __tablename__ = 'business_events'
+
+    id = db.Column(db.Integer, primary_key=True)
+    at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, index=True)
+    customer_id = db.Column(db.Integer, db.ForeignKey('customers.customer_id'), nullable=False, index=True)
+    event_type = db.Column(db.String(40), nullable=False, index=True)   # playbooks.events.EVENT_TYPES
+    actor_kind = db.Column(db.String(12), nullable=False)             # user | key | policy | system | agent | local
+    actor_label = db.Column(db.String(120), nullable=False)
+    intervention_id = db.Column(db.Integer, nullable=True, index=True)
+    account_id = db.Column(db.Integer, nullable=True, index=True)
+    playbook_id = db.Column(db.String(80), nullable=True, index=True)
+    playbook_version = db.Column(db.String(20), nullable=True)
+    step_id = db.Column(db.String(80), nullable=True)
+    step_number = db.Column(db.Integer, nullable=True)                # 1-based
+    steps_total = db.Column(db.Integer, nullable=True)
+    action_class = db.Column(db.String(20), nullable=True)
+    exposure_revenue = db.Column(db.Numeric(15, 2), nullable=True)    # the account's revenue when the intervention was proposed
+    state_before = db.Column(db.String(24), nullable=True)
+    state_after = db.Column(db.String(24), nullable=True)
+    reason = db.Column(db.Text, nullable=True)                        # the note a person gave, or why policy acted
+    trigger_key = db.Column(db.String(64), nullable=True)
+    delivery_status = db.Column(db.String(24), nullable=True)
+    outcome_node_id = db.Column(db.Integer, nullable=True)
+    outcome_type = db.Column(db.String(80), nullable=True)
+    detail = db.Column(db.JSON, nullable=True)                        # what does not fit a column: levels from/to, model, counts
+    backfilled = db.Column(db.Boolean, nullable=False, default=False) # rebuilt from history, not written with the change
+
+    __table_args__ = (
+        db.Index('idx_business_event_customer_at', 'customer_id', 'at'),
     )
 
 

@@ -59,5 +59,12 @@
     "allowed_schemes": ["https"],
     "insecure_http_env": "PLAYBOOK_WEBHOOK_ALLOW_HTTP",
     "quote_chars": 280
+  },
+  "business_events": {
+    "_doc": "The business transaction log (models.BusinessEvent, playbooks/events.py): one row per playbook event, written in the same transaction as the change. read_scope_by_role = who may read it in the app: 'tenant' (every event of the tenant) or 'own_accounts' (events on the user's assigned accounts, plus tenant-level settings events); a role not listed cannot read it. Tenant keys over MCP read the whole tenant.",
+    "read_scope_by_role": {"admin": "tenant", "vpcsm": "tenant", "csm": "tenant"},
+    "page_size": 100,
+    "max_page_size": 500,
+    "export_max_rows": 20000
   }
 }

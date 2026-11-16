@@ -73,6 +73,7 @@ KEYED_TOOLS = frozenset({
     'review_intervention',
     'draft_intervention',
     'list_interventions',
+    'list_business_events',
     'configure_playbooks',
     'get_playbooks',
     # Power-of-1 / ROI (roi/, mcp_server/cs_pulse_roi.py) — reads
