@@ -2,6 +2,8 @@
 // same functions the design doc's route table names. No business logic here, just
 // the HTTP call + typed response.
 import type {
+  ActivityFilters,
+  ActivityResponse,
   AgentPlan,
   AccountGraph,
   AskQuestionsResponse,
@@ -101,6 +103,44 @@ export function getInterventions(customerId: number, opts?: { accountId?: number
   if (opts?.accountId != null) params.set('account_id', String(opts.accountId))
   if (opts?.state) params.set('state', opts.state)
   return request<InterventionsResponse>(`/app/api/interventions?${params.toString()}`)
+}
+
+function activityParams(customerId: number, f?: ActivityFilters) {
+  const params = new URLSearchParams({ customer_id: String(customerId) })
+  if (f?.accountId != null) params.set('account_id', String(f.accountId))
+  if (f?.interventionId != null) params.set('intervention_id', String(f.interventionId))
+  if (f?.playbookId) params.set('playbook_id', f.playbookId)
+  if (f?.eventType) params.set('event_type', f.eventType)
+  if (f?.from) params.set('from', f.from)
+  if (f?.to) params.set('to', f.to)
+  if (f?.limit != null) params.set('limit', String(f.limit))
+  if (f?.offset) params.set('offset', String(f.offset))
+  return params
+}
+
+// The business event log: who did what to which playbook run, and every automation settings change.
+export function getActivity(customerId: number, filters?: ActivityFilters) {
+  return request<ActivityResponse>(`/app/api/activity?${activityParams(customerId, filters).toString()}`)
+}
+
+// The same rows as a CSV file (every row matching the filters, not one page). Fetched with the
+// session cookie and handed to the browser as a download.
+export async function downloadActivityCsv(customerId: number, filters?: ActivityFilters) {
+  const params = activityParams(customerId, { ...filters, limit: undefined, offset: undefined })
+  params.set('format', 'csv')
+  const res = await fetch(`${BASE}/app/api/activity?${params.toString()}`, { credentials: 'include' })
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}))
+    throw new ApiError(res.status, body.error ?? `${res.status} ${res.statusText}`)
+  }
+  const url = URL.createObjectURL(await res.blob())
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `activity_customer_${customerId}.csv`
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  URL.revokeObjectURL(url)
 }
 
 // Why-panel B3 ("why didn't playbook X fire for this account") — a read-only look at

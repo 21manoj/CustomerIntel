@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { Fragment, useEffect, useMemo, useState, type FormEvent } from 'react'
 import { ApiError, approveIntervention, draftIntervention, getInterventions, reportIntervention, reviewIntervention } from '../api/client'
 import type { Intervention, InterventionsResponse, InterventionState, ReportState } from '../api/types'
 import { useAuth } from '../auth/AuthContext'
+import EventTimeline from '../components/EventTimeline'
 
 const STATE_TABS: { value: InterventionState | 'all'; label: string }[] = [
   { value: 'all', label: 'All' },
@@ -206,6 +207,7 @@ export default function Interventions() {
   const [openAction, setOpenAction] = useState<{ id: number; kind: 'approve' | 'report' } | null>(null)
   const [drafting, setDrafting] = useState<number | null>(null)
   const [draftError, setDraftError] = useState<string | null>(null)
+  const [historyFor, setHistoryFor] = useState<number | null>(null)
 
   const canPickTenant = useMemo(() => user?.role === 'admin', [user])
   const canAct = user?.role === 'csm' || user?.role === 'admin'
@@ -303,8 +305,10 @@ export default function Interventions() {
   function renderRow(row: Intervention) {
     const isActionOpen = openAction?.id === row.intervention_id
     const waitingStep = row.state === 'sent' && row.awaiting_approval === true
+    const showHistory = historyFor === row.intervention_id
     return (
-      <tr key={row.intervention_id} className="hover:bg-slate-50 align-top">
+      <Fragment key={row.intervention_id}>
+      <tr className="hover:bg-slate-50 align-top">
         <td className="px-4 py-3 font-medium text-slate-900">{row.account_name ?? `#${row.account_id}`}</td>
         <td className="px-4 py-3 text-slate-600">
           {row.playbook_id}
@@ -394,9 +398,23 @@ export default function Interventions() {
               )}
             </>
           )}
-          {(!canAct || (row.state !== 'proposed' && row.state !== 'sent')) && <span className="text-xs text-slate-300">—</span>}
+          <button
+            onClick={() => setHistoryFor(showHistory ? null : row.intervention_id)}
+            aria-expanded={showHistory}
+            className="mt-1 block text-xs font-medium text-slate-500 hover:text-slate-800"
+          >
+            {showHistory ? 'Hide history' : 'History'}
+          </button>
         </td>
       </tr>
+      {showHistory && customerId != null && (
+        <tr className="bg-slate-50">
+          <td colSpan={8} className="px-6 py-4">
+            <EventTimeline customerId={customerId} interventionId={row.intervention_id} refreshKey={data} />
+          </td>
+        </tr>
+      )}
+      </Fragment>
     )
   }
 

@@ -136,6 +136,10 @@ def _make_tenant(label: str) -> dict:
         sig = QualitativeSignal(signal_id=sig_id, customer_id=cid, account_id=aid, signal_date=date.today(),
                                 signal_type='email', content='confidential', requires_review=True)
         db.session.add_all([iv, cal, sig]); db.session.commit()
+        from playbooks import events
+        events.record(cid, 'proposed', {'key_kind': 'system', 'label': 'system:journey_rebuild'}, row=iv, state_after='proposed',
+                      reason=f'{label} confidential business event')
+        db.session.commit()
         return {'cid': cid, 'account_id': aid, 'intervention_id': iv.id, 'proposal_id': cal.id, 'signal_id': sig_id,
                 'admin_user_id': res['admin_user_id'], 'logins': logins, 'unscoped': unscoped}
 
@@ -178,6 +182,9 @@ def _routes(t: dict) -> list:
                                            {'customer_id': cid, 'note': 'x'}, ('admin', 'csm')),
         ('intervention draft',    'post',  f"/app/api/interventions/{t['intervention_id']}/draft",
                                            {'customer_id': cid}, ('admin', 'csm')),
+        ('activity',              'get',   f'/app/api/activity?customer_id={cid}', None, ('admin', 'csm', 'vpcsm', 'cro', 'cfo')),
+        ('activity+account',      'get',   f'/app/api/activity?customer_id={cid}&account_id={aid}', None, ('admin', 'csm', 'vpcsm', 'cro', 'cfo')),
+        ('activity csv',          'get',   f'/app/api/activity?customer_id={cid}&format=csv', None, ('admin', 'csm', 'vpcsm', 'cro', 'cfo')),
         ('roi measured',          'get',   f'/app/api/roi?customer_id={cid}', None, ('admin', 'cfo', 'cro')),
         ('roi priorities',        'get',   f'/app/api/roi/priorities?customer_id={cid}', None, ('admin', 'cfo', 'cro')),
         ('roi power-of-1',        'get',   f'/app/api/roi/power-of-1?customer_id={cid}', None, ('admin', 'cfo', 'cro')),

@@ -1591,3 +1591,55 @@ export interface VerticalInfo {
   capabilities: { money_basis: 'revenue' | 'exposure'; revenue_economics: boolean; [k: string]: unknown }
   labels: VerticalLabels
 }
+
+// -- /app/api/activity: the business event log (playbook events and automation settings) --
+
+export interface BusinessEvent {
+  id: number
+  at: string | null
+  event_type: string
+  event: string
+  actor_kind: string | null
+  actor: string | null
+  account_id: number | null
+  account: string | null
+  intervention_id: number | null
+  playbook_id: string | null
+  playbook_version: string | null
+  step: string | null
+  step_number: number | null
+  steps_total: number | null
+  action_class: string | null
+  exposure_revenue: number | null
+  state_before: string | null
+  state_after: string | null
+  reason: string | null
+  delivery_status: string | null
+  outcome_type: string | null
+  outcome_node_id: number | null
+  trigger_key: string | null
+  backfilled: boolean
+  detail: Record<string, unknown> | null
+}
+
+export interface ActivityFilters {
+  accountId?: number
+  interventionId?: number
+  playbookId?: string
+  eventType?: string
+  from?: string
+  to?: string
+  limit?: number
+  offset?: number
+}
+
+export interface ActivityResponse {
+  customer_id: number
+  total: number
+  limit: number
+  offset: number
+  events: BusinessEvent[]
+  event_types: { id: string; label: string }[]
+  coverage: string
+  read_scope: 'tenant' | 'own_accounts'
+}

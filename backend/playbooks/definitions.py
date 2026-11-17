@@ -294,13 +294,30 @@ def effective_level(cfg: dict, action_class: str) -> int:
     return max(0, min(int(level), ceiling_for(action_class)))
 
 
+EVENTS_KEY = '_events'             # settings changes waiting to be written as business events; never stored
+
+
+def _event(cfg: dict, entry: dict) -> None:
+    """Queue a settings change for the business event log. _flush_events writes it in the commit that
+    stores the change, so the two exist together or not at all."""
+    cfg.setdefault(EVENTS_KEY, []).append(entry)
+
+
+def _flush_events(customer_id: int, cfg: dict, ctx: Optional[dict] = None) -> None:
+    from playbooks import events
+    for entry in cfg.pop(EVENTS_KEY, []):
+        events.record_setting(customer_id, entry, ctx)
+
+
 def _log(cfg: dict, entry: dict) -> None:
     keep = int(governance()['autonomy']['log_keep'])
     cfg['autonomy_log'] = (list(cfg.get('autonomy_log') or []) + [entry])[-keep:]
+    _event(cfg, entry)
 
 
-def _write(customer_id: int, mutate) -> dict:
-    """Read-modify-write of the overlay's config (creates the row when absent). mutate(cfg) edits in place."""
+def _write(customer_id: int, mutate, event_ctx: Optional[dict] = None) -> dict:
+    """Read-modify-write of the overlay's config (creates the row when absent). mutate(cfg) edits in place.
+    event_ctx = {actor, row}: who caused the change and for which intervention, for the business event."""
     from extensions import db
     from models import FeatureToggle
     t = _toggle(customer_id)
@@ -309,12 +326,13 @@ def _write(customer_id: int, mutate) -> dict:
         db.session.add(t)
     cfg = dict(t.config or {})
     mutate(cfg)
+    _flush_events(customer_id, cfg, event_ctx)
     t.config = cfg
     db.session.commit()
     return tenant_config(customer_id)
 
 
-def record_plan_approval(customer_id: int, playbook_id: str, version: str, by: str) -> bool:
+def record_plan_approval(customer_id: int, playbook_id: str, version: str, by: str, event_ctx: Optional[dict] = None) -> bool:
     """A person approved this playbook for the tenant: remembered per playbook version, which is what lets
     policy approve the same plan later at the levels in autonomy.needs_plan_approval. True when newly recorded."""
     from datetime import datetime
@@ -326,11 +344,12 @@ def record_plan_approval(customer_id: int, playbook_id: str, version: str, by: s
     def mutate(cfg):
         cfg['approved_plans'] = {**(cfg.get('approved_plans') or {}), playbook_id: {'version': version, 'by': by, 'at': at}}
         _log(cfg, {'at': at, 'event': 'plan_approved', 'playbook_id': playbook_id, 'version': version, 'by': by})
-    _write(customer_id, mutate)
+    _write(customer_id, mutate, event_ctx)
     return True
 
 
-def lower_level(customer_id: int, action_class: str, reason: str, detail: str, playbook_id: Optional[str] = None) -> Optional[dict]:
+def lower_level(customer_id: int, action_class: str, reason: str, detail: str, playbook_id: Optional[str] = None,
+                event_ctx: Optional[dict] = None) -> Optional[dict]:
     """A declined proposal or a failed report: the level for that action class drops by autonomy.lower_by, never
     below lower_floor, and the playbook's plan approval (if named) is withdrawn. Returns {action_class, from, to,
     reason, plan_approval_withdrawn} or None when nothing changed (already at the floor, no plan approval). Only configure_tenant (a person) raises it again."""
@@ -354,7 +373,7 @@ def lower_level(customer_id: int, action_class: str, reason: str, detail: str, p
         if had_plan:
             cfg['approved_plans'] = {k: v for k, v in (cfg.get('approved_plans') or {}).items() if k != playbook_id}
         _log(cfg, {'at': at, 'event': 'lowered', **change, 'detail': detail})
-    _write(customer_id, mutate)
+    _write(customer_id, mutate, event_ctx)
     return change
 
 
@@ -420,9 +439,15 @@ def configure_tenant(customer_id: int, *, webhook_url=None, webhook_secret=None,
         bad = [p for p in disabled_playbooks if p not in known]
         if bad:
             raise ValueError(f'unknown playbook ids for vertical {vertical!r}: {bad} (known: {sorted(known)})')
-        cfg['disabled_playbooks'] = sorted(set(disabled_playbooks))
+        was, now_off = set(cfg.get('disabled_playbooks') or []), set(disabled_playbooks)
+        cfg['disabled_playbooks'] = sorted(now_off)
     from datetime import datetime
     at = datetime.utcnow().isoformat()
+    if disabled_playbooks is not None:                        # not in the automation log; the business event log has them
+        for p in sorted(now_off - was):
+            _event(cfg, {'at': at, 'event': 'playbook_disabled', 'playbook_id': p, 'by': changed_by})
+        for p in sorted(was - now_off):
+            _event(cfg, {'at': at, 'event': 'playbook_enabled', 'playbook_id': p, 'by': changed_by})
     ceiling = int(gov['autonomy']['ceiling'])
     if automation_level is not None:
         if isinstance(automation_level, bool) or str(int(automation_level)) not in gov['automation_levels']:
@@ -457,6 +482,7 @@ def configure_tenant(customer_id: int, *, webhook_url=None, webhook_secret=None,
         if bool(kill_switch) != (not t.enabled):
             _log(cfg, {'at': at, 'event': 'stop_switch_on' if kill_switch else 'stop_switch_off', 'by': changed_by})
         t.enabled = not bool(kill_switch)
+    _flush_events(customer_id, cfg)
     t.config = cfg
     db.session.commit()
     return tenant_config(customer_id)

@@ -8,6 +8,7 @@ const NAV_ITEMS: { to: string; label: string; roles?: string[] }[] = [
   { to: '/portfolio', label: 'Portfolio' },
   { to: '/ask', label: 'Ask AI' },
   { to: '/interventions', label: 'Interventions' },
+  { to: '/activity', label: 'Activity' },
   { to: '/review-queue', label: 'Review Queue', roles: ['csm', 'admin'] },
   { to: '/roi', label: 'ROI & Power-of-1', roles: ['cfo', 'cro', 'admin'] },
   { to: '/settings', label: 'Settings', roles: ['admin'] },
@@ -33,8 +34,8 @@ export default function Shell() {
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
       <header className="border-b border-slate-200 bg-white">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3">
-          <div className="flex items-center gap-8">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-6 px-6 py-3">
+          <div className="flex shrink-0 items-center gap-8">
             <span className="font-semibold tracking-tight text-slate-900">CustomerIntel</span>
             <nav className="flex gap-4">
               {navItems.map((item) => (
@@ -42,7 +43,7 @@ export default function Shell() {
                   key={item.to}
                   to={item.to}
                   className={({ isActive }) =>
-                    `text-sm font-medium ${isActive ? 'text-slate-900' : 'text-slate-500 hover:text-slate-700'}`
+                    `whitespace-nowrap text-sm font-medium ${isActive ? 'text-slate-900' : 'text-slate-500 hover:text-slate-700'}`
                   }
                 >
                   {item.label}
@@ -50,12 +51,12 @@ export default function Shell() {
               ))}
             </nav>
           </div>
-          <div className="flex items-center gap-3 text-sm">
-            <span className="text-slate-500">{user?.email}</span>
-            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium uppercase tracking-wide text-slate-600">
+          <div className="flex min-w-0 items-center gap-3 text-sm">
+            <span className="min-w-0 truncate text-slate-500" title={user?.email}>{user?.email}</span>
+            <span className="shrink-0 whitespace-nowrap rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium uppercase tracking-wide text-slate-600">
               {user?.platform_role ? `platform ${user.platform_role}` : user?.role}
             </span>
-            <button onClick={handleLogout} className="font-medium text-slate-500 hover:text-slate-900">
+            <button onClick={handleLogout} className="shrink-0 whitespace-nowrap font-medium text-slate-500 hover:text-slate-900">
               Log out
             </button>
           </div>
