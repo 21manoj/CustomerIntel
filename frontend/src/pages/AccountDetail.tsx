@@ -11,6 +11,7 @@ import {
 import type { Episode, EvidenceView, Intervention, Journey, LinkedEvidence, PlaybookEvaluation, ReportState } from '../api/types'
 import { REPORT_STATES } from '../api/types'
 import { useAuth } from '../auth/AuthContext'
+import EventTimeline from '../components/EventTimeline'
 
 function money(value: number | null | undefined): string {
   if (value == null) return '—'
@@ -665,6 +666,18 @@ export default function AccountDetail() {
       )}
 
       <PlaybookEvaluationSection customerId={customerId} accountId={Number(accountId)} />
+
+      {/* Activity: the business event log for this account */}
+      <div className="rounded-lg border border-slate-200 bg-white p-5">
+        <div className="flex items-baseline justify-between">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Activity</h2>
+          <Link to={`/activity?customer_id=${customerId}&account_id=${accountId}`} className="text-xs font-medium text-slate-500 hover:text-slate-800">
+            Open in Activity
+          </Link>
+        </div>
+        <p className="mb-4 mt-1 text-xs text-slate-400">Playbook events on this account, newest first: what happened, who did it and why.</p>
+        <EventTimeline customerId={customerId} accountId={Number(accountId)} limit={20} refreshKey={reloadKey} />
+      </div>
     </div>
   )
 }

@@ -4,6 +4,7 @@ import ProtectedRoute from './components/ProtectedRoute'
 import Shell from './components/Shell'
 import { useAuth } from './auth/AuthContext'
 import AccountDetail from './pages/AccountDetail'
+import Activity from './pages/Activity'
 import AskAI from './pages/AskAI'
 import Calibrations from './pages/Calibrations'
 import Interventions from './pages/Interventions'
@@ -33,6 +34,7 @@ export default function App() {
           <Route path="/portfolio" element={<Portfolio />} />
           <Route path="/ask" element={<AskAI />} />
           <Route path="/interventions" element={<Interventions />} />
+          <Route path="/activity" element={<Activity />} />
           <Route path="/review-queue" element={<ReviewQueue />} />
           <Route path="/roi" element={<Roi />} />
           <Route path="/settings" element={<Settings />} />
