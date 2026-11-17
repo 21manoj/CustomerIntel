@@ -7,6 +7,8 @@
     "timestamp_tolerance_seconds": 300,
     "max_body_bytes": 262144,
     "log_path_default": "ci_receiver_events.jsonl",
+    "log_rotate_bytes": 104857600,
+    "log_keep_files": 5,
     "policy": {
       "modes": [
         "auto_done",

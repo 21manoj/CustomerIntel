@@ -578,3 +578,24 @@ def test_no_bare_numbers_outside_the_config():
         settings.get('receiver', 'nope')
     c = settings.contract()
     assert c['signature_header'] == 'X-CI-Signature' and c['timestamp_header'] == 'X-CI-Timestamp' and 'started' in c['report_states']
+
+
+def test_receiver_event_log_rotates_at_the_configured_size_and_replays_survive_it(tmp_path, monkeypatch):
+    """The event log is the receiver's memory, so rotation must not make it forget: an intervention
+    first seen before a rotation is still a replay after a restart."""
+    from adapters import settings
+    from adapters.receiver import ReceiverConfig
+    from adapters.receiver.app import Receiver
+    real = settings.get
+    monkeypatch.setattr(settings, 'get', lambda *k: {('receiver', 'log_rotate_bytes'): 400, ('receiver', 'log_keep_files'): 2}.get(k) or real(*k))
+    cfg = ReceiverConfig(secret='s', platform_url='http://x', platform_key='k', log_path=str(tmp_path / 'events.jsonl'))
+    r = Receiver(cfg)
+    for iid in range(1, 13):
+        r._log('received', intervention_id=iid, customer_id=1, playbook_id='p')
+    files = sorted(p.name for p in tmp_path.iterdir())
+    assert files == ['events.jsonl', 'events.jsonl.1', 'events.jsonl.2']            # never more than the kept count
+    assert all(p.stat().st_size < 400 + 200 for p in tmp_path.iterdir())            # each closed near the limit
+    again = Receiver(cfg)                                                            # a restart
+    kept = sorted(again.seen)
+    assert 12 in kept and kept == list(range(kept[0], 13)) and len(kept) >= 6        # the newest run, unbroken, across files
+    assert again._log_files()[-1] == cfg.log_path                                    # oldest first, live file last

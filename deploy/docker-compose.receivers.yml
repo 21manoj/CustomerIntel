@@ -25,11 +25,21 @@
 
 name: customerintelv1-receivers
 
+# Same rotation as the platform stack (docker-compose.customerintelv1.yml): container output is
+# rotated at 100 MB, five files kept. The receiver's own event log (CI_RECEIVER_LOG) rotates itself
+# at the same size -- see config/adapters.json receiver.log_rotate_bytes.
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "100m"
+    max-file: "5"
+
 services:
   ci-receiver-10:
     image: customerintelv1-app
     container_name: customerintelv1-receiver-10
     restart: unless-stopped
+    logging: *default-logging
     command: ["python", "-m", "adapters.receiver", "--host", "0.0.0.0", "--port", "8210"]
     environment:
       CI_RECEIVER_SECRET: ${CI_RECEIVER_SECRET_10:?set in .env.receivers}
@@ -58,6 +68,7 @@ services:
     image: customerintelv1-app
     container_name: customerintelv1-receiver-11
     restart: unless-stopped
+    logging: *default-logging
     command: ["python", "-m", "adapters.receiver", "--host", "0.0.0.0", "--port", "8211"]
     environment:
       CI_RECEIVER_SECRET: ${CI_RECEIVER_SECRET_11:?set in .env.receivers}
@@ -90,6 +101,7 @@ services:
     image: customerintelv1-app
     container_name: customerintelv1-receiver-14
     restart: unless-stopped
+    logging: *default-logging
     command: ["python", "-m", "adapters.receiver", "--host", "0.0.0.0", "--port", "8214"]
     environment:
       CI_RECEIVER_SECRET: ${CI_RECEIVER_SECRET_14:?set in .env.receivers}

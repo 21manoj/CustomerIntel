@@ -96,10 +96,21 @@ class Receiver:
 
     # ── the log is the memory ─────────────────────────────────────────
 
+    def _log_files(self) -> list:
+        """The event log and its rotated copies, oldest first (events.jsonl.5 … events.jsonl.1, events.jsonl)."""
+        keep = int(settings.get('receiver', 'log_keep_files'))
+        paths = [f'{self.cfg.log_path}.{n}' for n in range(keep, 0, -1)] + [self.cfg.log_path]
+        return [p for p in paths if os.path.exists(p)]
+
     def _reload_log(self) -> None:
-        if not os.path.exists(self.cfg.log_path):
-            return
-        with open(self.cfg.log_path, encoding='utf-8') as f:
+        # Rotated files are read too: a replay of an intervention first seen before a rotation is
+        # still a replay. One older than every kept file is no longer remembered here; the platform
+        # refuses a second callback for a closed intervention, so that is its job, not this log's.
+        for path in self._log_files():
+            self._reload_file(path)
+
+    def _reload_file(self, path: str) -> None:
+        with open(path, encoding='utf-8') as f:
             for line in f:
                 try:
                     ev = json.loads(line)
@@ -114,8 +125,24 @@ class Receiver:
     def _log(self, event: str, **fields) -> None:
         line = {'event': event, 'at': datetime.utcnow().isoformat() + 'Z', **fields}
         with self._lock:
+            self._rotate_if_full()
             with open(self.cfg.log_path, 'a', encoding='utf-8') as f:
                 f.write(json.dumps(line, sort_keys=True) + '\n')
+
+    def _rotate_if_full(self) -> None:
+        """events.jsonl → .1 → .2 … once it reaches the configured size; the oldest kept file is dropped.
+        Called with the lock held. A failure to rotate never loses the event: it is appended anyway."""
+        try:
+            if os.path.getsize(self.cfg.log_path) < int(settings.get('receiver', 'log_rotate_bytes')):
+                return
+            keep = int(settings.get('receiver', 'log_keep_files'))
+            for n in range(keep, 0, -1):
+                src = self.cfg.log_path if n == 1 else f'{self.cfg.log_path}.{n - 1}'
+                if os.path.exists(src):
+                    os.replace(src, f'{self.cfg.log_path}.{n}')
+        except OSError as e:
+            if os.path.exists(self.cfg.log_path):
+                logger.warning('event log rotation failed (%s); still appending to %s', e, self.cfg.log_path)
 
     # ── verification ─────────────────────────────────────────────────
 

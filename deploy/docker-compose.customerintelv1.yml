@@ -28,11 +28,12 @@
 name: customerintelv1
 
 # Docker's json-file driver keeps every line a container ever wrote unless told otherwise; on a
-# small root disk that is how a chatty week takes the database down with it. 5 x 10 MB a service.
+# small root disk that is how a chatty week takes the database down with it. Rotated at 100 MB,
+# five files kept: at most 500 MB a service (3 GB for the six here, on a 30 GB disk).
 x-logging: &default-logging
   driver: json-file
   options:
-    max-size: "10m"
+    max-size: "100m"
     max-file: "5"
 
 services:
