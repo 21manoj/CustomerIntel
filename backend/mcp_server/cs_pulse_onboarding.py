@@ -119,6 +119,159 @@ def _apply_kpi_tier(customer_config, tier_def: dict) -> dict:
 # Tool: create_customer
 # ===================================================================
 
+def _create_customer_impl(name: str, domain: str, vertical: str, admin_email: str, admin_name: str,
+                          data_origin: str, tier: str = None, audit_surface: str = 'mcp') -> dict:
+    """The tenant-creation write, shared by the create_customer tool and the platform console's
+    onboarding route. The caller has already authorised the request and holds a Flask app
+    context. Raises ValueError for anything the caller got wrong. audit_surface=None leaves the
+    audit row to the caller."""
+    from utils.data_origin import validate as _validate_origin, disclosure as _disclosure
+    data_origin = _validate_origin(data_origin)
+    from models import Customer, User, CustomerConfig
+    from extensions import db
+
+    existing = Customer.query.filter_by(domain=domain).first()
+    if existing:
+        raise ValueError(
+            f"A customer with domain '{domain}' already exists "
+            f"(customer_id={existing.customer_id}). "
+            f"Use complete_onboarding(check_only=True) to check its state."
+        )
+
+    existing_user = User.query.filter_by(email=admin_email).first()
+    if existing_user:
+        raise ValueError(f"Email '{admin_email}' is already registered.")
+
+    try:
+        from id_generator import generate_id
+        uuid_vertical = 'dc' if vertical.startswith('dc') else vertical
+        customer_uuid = generate_id(uuid_vertical, 'customer')
+    except Exception:
+        customer_uuid = None
+
+    customer = Customer(
+        customer_name=name,
+        email=admin_email,
+        domain=domain,
+        vertical=vertical,
+        data_origin=data_origin,
+    )
+    if customer_uuid:
+        customer.uuid = customer_uuid
+    db.session.add(customer)
+    db.session.flush()
+
+    customer_id = customer.customer_id
+
+    user = User(
+        customer_id=customer_id,
+        user_name=admin_name,
+        email=admin_email,
+        role='admin',
+        vertical=vertical,
+        # This tenant's administrator — NOT a platform operator. The scope column has
+        # to say so explicitly: app_api.auth.allows_customer is fail-closed and reads
+        # only this list (see that module's docstring for the leak this closes). The
+        # platform-wide identity is the Bearer MCP_SERVER_API_KEY, never a session role.
+        allowed_customer_ids=[customer_id],
+    )
+    if customer_uuid:
+        user.customer_uuid = customer_uuid
+    try:
+        from id_generator import generate_id as _gen_id
+        user.uuid = _gen_id('dc' if vertical.startswith('dc') else vertical, 'user')
+    except Exception:
+        pass
+    db.session.add(user)
+    db.session.flush()
+
+    from app_api.auth import issue_setup_token
+    setup_token = issue_setup_token(user)
+
+    config = CustomerConfig(
+        customer_id=customer_id,
+        vertical=vertical,
+    )
+
+    # ── Apply KPI tier (SaaS verticals) ──
+    resolved_tier = _resolve_kpi_tier(tier, vertical)
+    tier_info = None
+    if resolved_tier:
+        tier_info = _apply_kpi_tier(config, resolved_tier)
+
+    db.session.add(config)
+
+    # Known gap: api_key_service.py + CustomerApiKey aren't ported yet
+    # (see mcp_server/auth.py's module docstring) — degrades to no key
+    # issued, same as the old repo's own try/except around this call.
+    try:
+        from api_key_service import generate_api_key as _gen_api_key
+        full_key, _key_record = _gen_api_key(
+            customer_id=customer_id,
+            created_by=user.user_id,
+            name='MCP Onboarding Key',
+            scopes=['read', 'write'],
+        )
+    except Exception:
+        full_key = None
+
+    # ── Auto-enable ALL features for Beta ──
+    ALL_FEATURES = [
+        'context_graph', 'story_arcs', 'signal_edges',
+        'stakeholder_tracking', 'decision_lifecycle',
+        'outcome_economics', 'industry_benchmarks',
+    ]
+    from models import FeatureToggle as _FT
+    for feat in ALL_FEATURES:
+        existing_toggle = _FT.query.filter_by(customer_id=customer_id, feature_name=feat).first()
+        if not existing_toggle:
+            db.session.add(_FT(
+                customer_id=customer_id,
+                feature_name=feat,
+                enabled=True,
+                config={sub: True for sub in ALL_FEATURES if sub != 'context_graph'} if feat == 'context_graph' else {},
+                description='Auto-enabled at customer creation (Beta)',
+            ))
+
+    db.session.commit()
+
+    result = {
+        'scope': 'customer',
+        'customer_id': customer_id,
+        'customer_name': name,
+        'customer_uuid': customer_uuid,
+        'domain': domain,
+        'vertical': vertical,
+        'created_at': customer.created_at.isoformat() if customer.created_at else None,
+        'admin_user_id': user.user_id,
+        'admin_email': admin_email,
+        'admin_setup_token': setup_token,
+        'admin_setup_token_note': 'Shown only once — use it at POST /app/api/auth/set-password to set the admin login password.',
+        'data_origin': data_origin,
+        'disclosure': _disclosure(data_origin),
+    }
+    if audit_surface:
+        from mcp_server import audit as _audit
+        _audit.record(audit_surface, 'create_customer', customer_id, key_kind='n/a', outcome='allowed', detail=f'data_origin={data_origin}')
+
+    if full_key:
+        result['api_key'] = full_key
+        result['api_key_note'] = (
+            'Save this API key — it is shown only once. '
+            'Use it for the intelligence tools (list_accounts, get_account_health, etc.).'
+        )
+        import logging as _key_log
+        _masked = full_key[:12] + '...' + full_key[-4:] if len(full_key) > 16 else '***'
+        _key_log.getLogger(__name__).info(
+            f"API key generated for customer {customer_id}: {_masked}"
+        )
+
+    if tier_info:
+        result['tier'] = tier_info
+
+    return result
+
+
 @mcp.tool
 def create_customer(
     name: str,
@@ -167,156 +320,11 @@ def create_customer(
     from mcp_server.auth import require_tenant_creation_auth
     require_tenant_creation_auth('create_customer')
     _check_mcp_enabled()
-    from utils.data_origin import validate as _validate_origin, disclosure as _disclosure
-    try:
-        data_origin = _validate_origin(data_origin)
-    except ValueError as e:
-        raise ToolError(str(e))
-    app = _get_flask_app()
-
-    with app.app_context():
-        from models import Customer, User, CustomerConfig
-        from extensions import db
-
-        existing = Customer.query.filter_by(domain=domain).first()
-        if existing:
-            raise ToolError(
-                f"A customer with domain '{domain}' already exists "
-                f"(customer_id={existing.customer_id}). "
-                f"Use complete_onboarding(check_only=True) to check its state."
-            )
-
-        existing_user = User.query.filter_by(email=admin_email).first()
-        if existing_user:
-            raise ToolError(f"Email '{admin_email}' is already registered.")
-
+    with _get_flask_app().app_context():
         try:
-            from id_generator import generate_id
-            uuid_vertical = 'dc' if vertical.startswith('dc') else vertical
-            customer_uuid = generate_id(uuid_vertical, 'customer')
-        except Exception:
-            customer_uuid = None
-
-        customer = Customer(
-            customer_name=name,
-            email=admin_email,
-            domain=domain,
-            vertical=vertical,
-            data_origin=data_origin,
-        )
-        if customer_uuid:
-            customer.uuid = customer_uuid
-        db.session.add(customer)
-        db.session.flush()
-
-        customer_id = customer.customer_id
-
-        user = User(
-            customer_id=customer_id,
-            user_name=admin_name,
-            email=admin_email,
-            role='admin',
-            vertical=vertical,
-            # This tenant's administrator — NOT a platform operator. The scope column has
-            # to say so explicitly: app_api.auth.allows_customer is fail-closed and reads
-            # only this list (see that module's docstring for the leak this closes). The
-            # platform-wide identity is the Bearer MCP_SERVER_API_KEY, never a session role.
-            allowed_customer_ids=[customer_id],
-        )
-        if customer_uuid:
-            user.customer_uuid = customer_uuid
-        try:
-            from id_generator import generate_id as _gen_id
-            user.uuid = _gen_id('dc' if vertical.startswith('dc') else vertical, 'user')
-        except Exception:
-            pass
-        db.session.add(user)
-        db.session.flush()
-
-        from app_api.auth import issue_setup_token
-        setup_token = issue_setup_token(user)
-
-        config = CustomerConfig(
-            customer_id=customer_id,
-            vertical=vertical,
-        )
-
-        # ── Apply KPI tier (SaaS verticals) ──
-        resolved_tier = _resolve_kpi_tier(tier, vertical)
-        tier_info = None
-        if resolved_tier:
-            tier_info = _apply_kpi_tier(config, resolved_tier)
-
-        db.session.add(config)
-
-        # Known gap: api_key_service.py + CustomerApiKey aren't ported yet
-        # (see mcp_server/auth.py's module docstring) — degrades to no key
-        # issued, same as the old repo's own try/except around this call.
-        try:
-            from api_key_service import generate_api_key as _gen_api_key
-            full_key, _key_record = _gen_api_key(
-                customer_id=customer_id,
-                created_by=user.user_id,
-                name='MCP Onboarding Key',
-                scopes=['read', 'write'],
-            )
-        except Exception:
-            full_key = None
-
-        # ── Auto-enable ALL features for Beta ──
-        ALL_FEATURES = [
-            'context_graph', 'story_arcs', 'signal_edges',
-            'stakeholder_tracking', 'decision_lifecycle',
-            'outcome_economics', 'industry_benchmarks',
-        ]
-        from models import FeatureToggle as _FT
-        for feat in ALL_FEATURES:
-            existing_toggle = _FT.query.filter_by(customer_id=customer_id, feature_name=feat).first()
-            if not existing_toggle:
-                db.session.add(_FT(
-                    customer_id=customer_id,
-                    feature_name=feat,
-                    enabled=True,
-                    config={sub: True for sub in ALL_FEATURES if sub != 'context_graph'} if feat == 'context_graph' else {},
-                    description='Auto-enabled at customer creation (Beta)',
-                ))
-
-        db.session.commit()
-
-        result = {
-            'scope': 'customer',
-            'customer_id': customer_id,
-            'customer_name': name,
-            'customer_uuid': customer_uuid,
-            'domain': domain,
-            'vertical': vertical,
-            'created_at': customer.created_at.isoformat() if customer.created_at else None,
-            'admin_user_id': user.user_id,
-            'admin_email': admin_email,
-            'admin_setup_token': setup_token,
-            'admin_setup_token_note': 'Shown only once — use it at POST /app/api/auth/set-password to set the admin login password.',
-            'data_origin': data_origin,
-            'disclosure': _disclosure(data_origin),
-        }
-        from mcp_server import audit as _audit
-        _audit.record('mcp', 'create_customer', customer_id, key_kind='n/a', outcome='allowed', detail=f'data_origin={data_origin}')
-
-        if full_key:
-            result['api_key'] = full_key
-            result['api_key_note'] = (
-                'Save this API key — it is shown only once. '
-                'Use it for the intelligence tools (list_accounts, get_account_health, etc.).'
-            )
-            import logging as _key_log
-            _masked = full_key[:12] + '...' + full_key[-4:] if len(full_key) > 16 else '***'
-            _key_log.getLogger(__name__).info(
-                f"API key generated for customer {customer_id}: {_masked}"
-            )
-
-        if tier_info:
-            result['tier'] = tier_info
-
-        return result
+            return _create_customer_impl(name, domain, vertical, admin_email, admin_name, data_origin, tier)
+        except ValueError as e:
+            raise ToolError(str(e))
 
 
 @mcp.tool

@@ -11,6 +11,7 @@ import Interventions from './pages/Interventions'
 import JourneyCanvas from './pages/JourneyCanvas'
 import Login from './pages/Login'
 import Platform, { PlatformTenant } from './pages/Platform'
+import PlatformOnboarding, { PlatformOnboardingTenant } from './pages/PlatformOnboarding'
 import Portfolio from './pages/Portfolio'
 import ReviewQueue from './pages/ReviewQueue'
 import Roi from './pages/Roi'
@@ -51,6 +52,8 @@ export default function App() {
           />
           <Route path="/platform" element={<Platform />} />
           <Route path="/platform/tenants/:customerId" element={<PlatformTenant />} />
+          <Route path="/platform/onboarding" element={<PlatformOnboarding />} />
+          <Route path="/platform/onboarding/:customerId" element={<PlatformOnboardingTenant />} />
           <Route path="/" element={<Home />} />
         </Route>
       </Route>
