@@ -1643,3 +1643,179 @@ export interface ActivityResponse {
   coverage: string
   read_scope: 'tenant' | 'own_accounts'
 }
+
+// ── Platform console: tenant onboarding (backend/platform_admin/onboarding.py) ──
+
+export interface OnboardingTier {
+  id: string
+  name: string
+  description: string | null
+  kpi_count: number | null
+  prerequisites: unknown
+}
+
+export interface OnboardingVertical {
+  id: string
+  description: string | null
+  money_basis: string | null
+  tiers: { default: string | null; choices: OnboardingTier[] }
+}
+
+export interface OnboardingFileSpec {
+  file_type: string
+  label: string
+  expected: boolean
+  what: string | null
+  required_columns: string[]
+  optional_columns: string[]
+}
+
+export interface OnboardingOptions {
+  verticals: OnboardingVertical[]
+  data_origins: { id: string; label: string; synthetic: boolean; disclosure: string | null }[]
+  default_data_origin: string | null
+  files: OnboardingFileSpec[]
+  max_csv_bytes: number | null
+  modes: string[]
+  can_write: boolean
+}
+
+export interface OnboardingTenantInput {
+  name: string
+  domain: string
+  vertical: string
+  tier?: string
+  data_origin?: string
+  admin_name: string
+  admin_email: string
+}
+
+export interface OnboardingCreated {
+  customer_id: number
+  name: string
+  domain: string
+  vertical: string
+  data_origin: string
+  disclosure: string | null
+  admin_email: string
+  admin_setup_token: string
+  setup_token_expiry_minutes: number | null
+  api_key: string | null
+}
+
+export interface OnboardingFileResult {
+  status: 'success' | 'validation_error' | 'error'
+  file_type: string
+  dry_run: boolean
+  staged: boolean
+  row_count?: number
+  columns_found?: string[]
+  missing_required?: string[]
+  errors?: string[]
+  warnings?: string[]
+  message?: string
+}
+
+export interface PlatformRunView {
+  run_id: string
+  status: string
+  mode: string | null
+  started_at: string | null
+  finished_at: string | null
+  error_count: number
+  first_error: string | null
+}
+
+export interface RetentionGroup {
+  n_accounts: number
+  cohort_accounts: number
+  new_accounts_excluded: number
+  starting_arr: number
+  lost: number
+  expansion: number
+  protected_narrative: number
+  net_arr: number
+  nrr: number | null
+  grr: number | null
+  withheld: boolean
+  withheld_reason: string | null
+  observed_months: number
+  amount_coverage: number
+  outcomes_without_amount: number
+  outcomes_outside_window: number
+}
+
+export interface RetentionResult {
+  run_id: string
+  generated_at: string | null
+  basis: string
+  window: { start: string; end: string; months: number; anchor: string }
+  settings: Record<string, number | string>
+  portfolio: RetentionGroup
+}
+
+export interface OnboardingStatus {
+  tenant: {
+    customer_id: number
+    name: string
+    domain: string
+    vertical: string
+    data_origin: string
+    status: TenantStatus
+    created_at: string | null
+  }
+  admins: { user_id: number; email: string; name: string; password_set: boolean }[]
+  files: { file_type: string; label: string; expected: boolean; staged: boolean; row_count: number | null; staged_at: string | null }[]
+  missing_expected: string[]
+  pending_files: string[]
+  accounts: number
+  last_run: PlatformRunView | null
+  retention: RetentionResult | null
+  step: 'upload' | 'check' | 'processing' | 'done'
+}
+
+export interface OnboardingPreflight {
+  ok: boolean
+  summary: string[]
+  problems: { severity: 'error' | 'warning' | 'info'; code: string; message: string }[]
+  problem_count: number
+  error_count: number
+  staged_files: string[]
+  files?: Record<string, { rows: number; columns_read: string[]; columns_kept_as_attributes: string[]; missing_required_columns: string[] }>
+  accounts?: { new: number; already_loaded: number }
+}
+
+export interface OnboardingProcessResult {
+  status: string
+  mode: string | null
+  accounts: number | null
+  kpi_measurements: number | null
+  csv_files_processed: unknown
+  steps_completed: string[] | null
+  errors: unknown[] | null
+  data_warnings: unknown[] | null
+  duration_s: number | null
+  message: string | null
+}
+
+export interface RetentionField {
+  key: string
+  type: 'int' | 'float' | 'choice'
+  min?: number
+  max?: number
+  choices?: string[]
+  label: string
+  help: string
+  default: number | string
+  value: number | string
+  overridden: boolean
+}
+
+export interface RetentionSettings {
+  fields: RetentionField[]
+  defaults: Record<string, number | string>
+  overrides: Record<string, number | string>
+  effective: Record<string, number | string>
+  result: RetentionResult | null
+  recompute?: { status: string; reason: string | null }
+}

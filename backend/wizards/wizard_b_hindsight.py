@@ -12,11 +12,14 @@ Wizard A v2). Its job is to PROVE, on the tenant's own history:
                                 how long it takes, and what TRIGGERED it
                                 (role histogram from the journey's
                                 transition-trigger episodes)
-  3. realized NRR per arc     — (ARR − lost + expansion) / ARR from
-                                OUTCOME nodes in the taxonomy's lost /
-                                expansion buckets only; new_logo excluded
-                                from the denominator (old repo's rule,
-                                kept)
+  3. realized retention      — net and gross, over a trailing window, for
+                                the accounts that existed at its start;
+                                starting revenue reconstructed from the
+                                window's booked losses and expansion;
+                                only OUTCOME nodes in the taxonomy's lost /
+                                expansion buckets move it; withheld with a
+                                reason when the evidence is thin. Settings:
+                                config/wizard_b.json, with tenant overrides
   4. interventions            — before/after windows from the journeys'
                                 counterfactual hooks, and actual ending
                                 health vs the arc's expected path. A
@@ -39,7 +42,7 @@ import logging
 import statistics
 import uuid
 from collections import Counter, defaultdict
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 
 logger = logging.getLogger(__name__)
@@ -134,51 +137,140 @@ def transition_matrix(journeys: List[dict]) -> Dict[str, dict]:
 # 3. Realized NRR
 # ═══════════════════════════════════════════════════════════════════════
 
-def realized_nrr(customer_id: int, journeys: List[dict], vertical: str) -> dict:
-    from models import Account
-    from utils.taxonomy_loader import get_taxonomy
-    tax = get_taxonomy(vertical)
-    arr = {a.account_id: float(a.revenue or 0) for a in Account.query.filter_by(customer_id=customer_id).all()}
+def _as_date(value) -> Optional[datetime]:
+    if not value:
+        return None
+    try:
+        return datetime.fromisoformat(str(value)[:19])
+    except ValueError:
+        return None
 
-    per_account: Dict[int, dict] = defaultdict(lambda: {'lost': 0.0, 'expansion': 0.0, 'protected': 0.0, 'at_risk': 0.0, 'new_logo': False})
+
+def _first_seen(j: dict) -> Optional[datetime]:
+    """The earliest date this account's journey has evidence or a scored month for."""
+    dates = [_as_date((j.get('data_coverage') or {}).get('first_evidence_at'))]
+    dates += [_as_date(p.get('entered_at')) for p in (j.get('phases') or [])[:1]]
+    dates += [_as_date(e.get('date')) for e in j.get('episodes') or []]
+    dates = [d for d in dates if d is not None]
+    return min(dates) if dates else None
+
+
+def realized_nrr(customer_id: int, journeys: List[dict], vertical: str, settings: Optional[dict] = None) -> dict:
+    """Realized net and gross revenue retention over a trailing window.
+
+    Cohort: accounts that existed at the window start (an account whose new-account outcome
+    falls inside the window is left out of both sides). Starting revenue is the cohort's
+    revenue at the window start — reconstructed from today's revenue and the window's booked
+    losses and expansion, or the revenue column as loaded, per settings. Only outcomes dated
+    inside the window in the loss / expansion buckets move the figure. The figure is withheld,
+    with the reason, when the cohort, the observed history or the share of outcomes carrying
+    an amount is below the configured minimum. Settings: wizards/wizard_b_settings.retention.
+    """
+    from models import Account
+    from wizards import wizard_b_settings
+    cfg = settings or wizard_b_settings.retention(customer_id)
+    current = {a.account_id: float(a.revenue or 0) for a in Account.query.filter_by(customer_id=customer_id).all()}
+    return retention_figures(current, journeys, cfg)
+
+
+def retention_figures(current: Dict[int, float], journeys: List[dict], cfg: dict) -> dict:
+    """realized_nrr's arithmetic on plain values: today's revenue per account, the journeys, the settings."""
+    loss_b, exp_b, narr_b = set(cfg['loss_buckets']), set(cfg['expansion_buckets']), set(cfg['narrative_buckets'])
+    new_subtypes = set(cfg['new_account_subtypes'])
+
+    as_ofs = [d for d in (_as_date(j.get('as_of')) for j in journeys) if d is not None]
+    end = datetime.utcnow() if cfg['window_anchor'] == 'today' or not as_ofs else max(as_ofs)
+    start = end - timedelta(days=cfg['window_months'] * cfg['days_per_month'])
+    reconstructed = cfg['starting_revenue'] == 'reconstructed'
+
+    acct: Dict[int, dict] = {}
     for j in journeys:
         aid = j['account_id']
+        a = acct.setdefault(aid, {'lost': 0.0, 'expansion': 0.0, 'narrative': 0.0, 'new': False, 'with_amount': 0,
+                                  'without_amount': 0, 'outside_window': 0, 'first_seen': _first_seen(j)})
         for e in j['episodes']:
-            if e['kind'] != 'outcome' or e.get('revenue') is None:
+            if e['kind'] != 'outcome':
                 continue
-            amt = abs(float(e['revenue']))
-            if e.get('subtype') == 'new_logo':
-                per_account[aid]['expansion'] += amt
-                per_account[aid]['new_logo'] = True
-                continue
+            when = _as_date(e.get('date'))
+            in_window = when is not None and start < when <= end
+            is_new = e.get('subtype') in new_subtypes
             bucket = e.get('revenue_bucket')
-            if bucket in ('lost', 'expansion', 'protected', 'at_risk'):
-                per_account[aid][bucket] += amt
+            if is_new:
+                # A new account joined inside the window: not part of the starting cohort.
+                a['new'] = a['new'] or in_window
+                continue
+            if bucket not in loss_b and bucket not in exp_b and bucket not in narr_b:
+                continue
+            if not in_window:
+                a['outside_window'] += 1 if (bucket in loss_b or bucket in exp_b) else 0
+                continue
+            if bucket in narr_b:
+                a['narrative'] += abs(float(e['revenue'])) if e.get('revenue') is not None else 0.0
+                continue
+            if e.get('revenue') is None:
+                a['without_amount'] += 1
+                continue
+            a['with_amount'] += 1
+            a['lost' if bucket in loss_b else 'expansion'] += abs(float(e['revenue']))
+        now = current.get(aid, 0.0)
+        a['start'] = max(now - a['expansion'] + a['lost'], 0.0) if reconstructed else now
+        # A loss cannot exceed what the account was paying at the window start.
+        a['lost_counted'] = min(a['lost'], a['start'])
 
     def _group(js: List[dict]) -> dict:
-        total_arr = sum(arr.get(j['account_id'], 0) for j in js if not per_account[j['account_id']]['new_logo'])
-        lost = sum(per_account[j['account_id']]['lost'] for j in js)
-        exp = sum(per_account[j['account_id']]['expansion'] for j in js)
-        prot = sum(per_account[j['account_id']]['protected'] for j in js)
+        ids = [j['account_id'] for j in js]
+        cohort = [i for i in ids if not acct[i]['new']]
+        starting = sum(acct[i]['start'] for i in cohort)
+        lost = sum(acct[i]['lost_counted'] for i in cohort)
+        exp = sum(acct[i]['expansion'] for i in cohort)
+        with_amt = sum(acct[i]['with_amount'] for i in cohort)
+        without_amt = sum(acct[i]['without_amount'] for i in cohort)
+        seen = [acct[i]['first_seen'] for i in cohort if acct[i]['first_seen'] is not None]
+        observed_from = max(min(seen), start) if seen else None
+        observed_months = round((end - observed_from).days / cfg['days_per_month'], 1) if observed_from else 0.0
+        amount_coverage = round(with_amt / (with_amt + without_amt), 3) if (with_amt + without_amt) else 1.0
+        reasons = []
+        if len(cohort) < cfg['min_cohort_accounts']:
+            reasons.append(f"{len(cohort)} account(s) in the cohort; at least {cfg['min_cohort_accounts']} needed")
+        if observed_months < cfg['min_observed_months']:
+            reasons.append(f"{observed_months} month(s) of history in the window; at least {cfg['min_observed_months']} needed")
+        if amount_coverage < cfg['min_amount_coverage']:
+            reasons.append(f"{without_amt} of {with_amt + without_amt} loss and expansion outcomes carry no amount")
+        if starting <= 0:
+            reasons.append('the cohort has no starting revenue')
+        ok = not reasons
         successes = sum(
             1 for j in js
             if j['summary']['ending_health'] is not None and j['summary']['lowest_health'] is not None
             and j['summary']['ending_health'] > j['summary']['lowest_health'] + INTERVENTION_LIFT_PTS)
         return {
-            'n_accounts': len(js),
-            'starting_arr': round(total_arr, 2),
-            'lost': round(lost, 2), 'expansion': round(exp, 2), 'protected_narrative': round(prot, 2),
-            'net_arr': round(total_arr - lost + exp, 2),
-            'nrr': round((total_arr - lost + exp) / total_arr, 4) if total_arr > 0 else None,
+            'n_accounts': len(js), 'cohort_accounts': len(cohort), 'new_accounts_excluded': len(ids) - len(cohort),
+            'starting_arr': round(starting, 2),
+            'lost': round(lost, 2), 'expansion': round(exp, 2),
+            'protected_narrative': round(sum(acct[i]['narrative'] for i in cohort), 2),
+            'net_arr': round(starting - lost + exp, 2),
+            'nrr': round((starting - lost + exp) / starting, 4) if ok else None,
+            'grr': round((starting - lost) / starting, 4) if ok else None,
+            'withheld': not ok, 'withheld_reason': '; '.join(reasons) or None,
+            'observed_months': observed_months, 'amount_coverage': amount_coverage,
+            'outcomes_without_amount': without_amt,
+            'outcomes_outside_window': sum(acct[i]['outside_window'] for i in cohort),
             'recovered_from_low_share': round(successes / len(js), 3) if js else None,
         }
 
     by_arc: Dict[str, List[dict]] = defaultdict(list)
     for j in journeys:
         by_arc[j['arc'].get('arc_type') or j['state']].append(j)
+    starting_basis = ("starting revenue reconstructed as today's revenue less expansion plus losses booked in the window"
+                      if reconstructed else 'starting revenue is the revenue column as loaded')
     return {
-        'basis': 'Account.revenue as starting ARR; only OUTCOME nodes in the taxonomy lost/expansion buckets move NRR; '
-                 'protected/at_risk/pipeline are narrative and reported separately',
+        'basis': f"trailing {cfg['window_months']} months to {end.date().isoformat()}; cohort = accounts that existed at the "
+                 f"window start; {starting_basis}; only OUTCOME nodes dated in the window in the taxonomy lost/expansion "
+                 'buckets move the figure; protected/at_risk/pipeline are narrative and reported separately',
+        'window': {'start': start.date().isoformat(), 'end': end.date().isoformat(), 'months': cfg['window_months'],
+                   'anchor': cfg['window_anchor']},
+        'settings': {k: cfg[k] for k in ('window_months', 'window_anchor', 'starting_revenue', 'min_cohort_accounts',
+                                         'min_observed_months', 'min_amount_coverage')},
         'portfolio': _group(journeys),
         'by_arc': {k: _group(v) for k, v in by_arc.items()},
     }
@@ -328,4 +420,5 @@ def get_hindsight(customer_id: int) -> dict:
             'interventions': {k: iv.get(k) for k in ('basis', 'n', 'with_health_lift_share', 'median_lift_pts', 'followed_by_protected_or_expansion_share')},
             'intervention_rows': [{k: r.get(k) for k in ('account', 'date', 'title', 'lift_pts', 'outcomes_after', 'revenue_after_protected')} for r in iv.get('rows') or []],
             'realized_nrr': (res.get('realized_nrr') or {}).get('portfolio'), 'realized_nrr_basis': (res.get('realized_nrr') or {}).get('basis'),
+            'realized_nrr_window': (res.get('realized_nrr') or {}).get('window'),
             'journeys': res.get('journeys')}

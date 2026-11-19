@@ -274,6 +274,10 @@ class CustomerConfig(db.Model):
 
     nomenclature_overrides = db.Column(db.JSON, nullable=True)  # Deep-merged on top of vertical defaults
 
+    # A tenant's overrides of analysis settings, keyed by analysis: {'realized_retention': {...}}.
+    # Validated by wizards/wizard_b_settings.py against config/wizard_b.json; NULL = the config's defaults.
+    analysis_settings = db.Column(db.JSON, nullable=True)
+
     config_version = db.Column(db.String(20), default='1.0')
     customized_by = db.Column(db.String(255))
     # Who set pillar_weights / kpi_weights (2026-09-05, Wizard C): 'vertical_default' (create_customer copied the

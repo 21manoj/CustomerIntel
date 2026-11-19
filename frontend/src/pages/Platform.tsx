@@ -557,11 +557,18 @@ export default function Platform() {
   ]
   return (
     <div>
-      <div className="mb-6 flex items-baseline justify-between">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-xl font-semibold text-slate-900">Platform console</h1>
-        <span className="text-xs text-slate-500">
-          {user.platform_role === 'operator' ? 'Operator — can act' : 'Viewer — read-only'} · everything you open here is logged
-        </span>
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="text-xs text-slate-500">
+            {user.platform_role === 'operator' ? 'Operator — can act' : 'Viewer — read-only'} · everything you open here is logged
+          </span>
+          {user.platform_role === 'operator' && (
+            <Link to="/platform/onboarding" className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-700">
+              Onboard a tenant
+            </Link>
+          )}
+        </div>
       </div>
       {notice && <p className="mb-4 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900">{notice}</p>}
       <div className="mb-6 flex gap-1 border-b border-slate-200">
@@ -665,6 +672,9 @@ export function PlatformTenant() {
       <div className="mb-6 mt-2 flex flex-wrap items-center gap-3">
         <h1 className="text-xl font-semibold text-slate-900">{t.name}</h1>
         <Badge className={STATUS_STYLE[t.status]}>{t.status}</Badge>
+        <Link to={`/platform/onboarding/${cid}`} className={ACTION}>
+          Onboarding and retention settings
+        </Link>
         <span className="text-sm text-slate-500">
           #{t.customer_id} · {t.vertical ?? 'no vertical'}
           {t.data_origin ? ` · ${t.data_origin.replace(/_/g, ' ')}` : ''} · created {day(t.created_at)}

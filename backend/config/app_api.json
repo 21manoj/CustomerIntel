@@ -39,6 +39,21 @@
       "aws_timeout_seconds": 4
     },
     "audit_page_size": 100,
-    "audit_max_page_size": 500
+    "audit_max_page_size": 500,
+    "onboarding": {
+      "_doc": "platform_admin/onboarding.py — the console's tenant onboarding flow. files: what the upload step offers, in order; expected files are the ones the flow asks for before it moves on, the rest are optional. max_csv_bytes bounds one file sent through the console (larger loads go through scripts/onboard_tenant.py). modes: process_data modes offered, the first is the default. max_problems caps the pre-flight problems returned.",
+      "default_data_origin": "real",
+      "max_csv_bytes": 8000000,
+      "max_problems": 200,
+      "modes": ["auto"],
+      "files": [
+        {"file_type": "account_details.csv", "label": "Accounts", "expected": true, "what": "One row per account: name, revenue, status, renewal."},
+        {"file_type": "kpi_measurements.csv", "label": "KPI measurements", "expected": true, "what": "Dated KPI values per account; these drive the health scores."},
+        {"file_type": "enhanced_qualitative_signals.csv", "label": "Signals", "expected": false, "what": "Dated notes, tickets and call summaries per account."},
+        {"file_type": "outcomes.csv", "label": "Outcomes", "expected": false, "what": "Dated business results per account (loss, expansion, renewal), with amounts."},
+        {"file_type": "stakeholders.csv", "label": "Stakeholders", "expected": false, "what": "People at each account and their roles."},
+        {"file_type": "decisions.csv", "label": "Decisions", "expected": false, "what": "Dated decisions and interventions per account."}
+      ]
+    }
   }
 }

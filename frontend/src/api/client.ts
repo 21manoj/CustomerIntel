@@ -16,6 +16,14 @@ import type {
   InviteUserResponse,
   Journey,
   MeasuredRoiResponse,
+  OnboardingCreated,
+  OnboardingFileResult,
+  OnboardingOptions,
+  OnboardingPreflight,
+  OnboardingProcessResult,
+  OnboardingStatus,
+  OnboardingTenantInput,
+  RetentionSettings,
   ExposureResponse,
   VerticalInfo,
   PlatformAlerts,
@@ -398,4 +406,48 @@ export function platformSetUserActive(userId: number, active: boolean) {
 
 export function platformResetPassword(userId: number) {
   return request<SetupTokenResponse>(`/app/api/platform/users/${userId}/reset-password`, { method: 'POST' })
+}
+
+// ── Platform console: onboarding a tenant — the tenant, its files, the check, the load, the retention settings ──
+
+export function getOnboardingOptions() {
+  return request<OnboardingOptions>('/app/api/platform/onboarding/options')
+}
+
+export function onboardCreateTenant(input: OnboardingTenantInput) {
+  return request<OnboardingCreated>('/app/api/platform/onboarding/tenants', { method: 'POST', body: JSON.stringify(input) })
+}
+
+export function getOnboardingStatus(customerId: number) {
+  return request<OnboardingStatus>(`/app/api/platform/onboarding/tenants/${customerId}`)
+}
+
+// dry_run validates and stages nothing; without it the file replaces whatever was staged under that name.
+export function onboardFile(customerId: number, fileType: string, csvContent: string, dryRun: boolean) {
+  return request<OnboardingFileResult>(`/app/api/platform/onboarding/tenants/${customerId}/files`, {
+    method: 'POST',
+    body: JSON.stringify({ file_type: fileType, csv_content: csvContent, dry_run: dryRun }),
+  })
+}
+
+export function getOnboardingPreflight(customerId: number) {
+  return request<OnboardingPreflight>(`/app/api/platform/onboarding/tenants/${customerId}/preflight`)
+}
+
+export function onboardProcess(customerId: number, mode?: string) {
+  return request<OnboardingProcessResult>(`/app/api/platform/onboarding/tenants/${customerId}/process`, {
+    method: 'POST',
+    body: JSON.stringify({ mode }),
+  })
+}
+
+export function getRetentionSettings(customerId: number) {
+  return request<RetentionSettings>(`/app/api/platform/onboarding/tenants/${customerId}/settings`)
+}
+
+export function saveRetentionSettings(customerId: number, values: Record<string, number | string>, recompute: boolean) {
+  return request<RetentionSettings>(`/app/api/platform/onboarding/tenants/${customerId}/settings/save`, {
+    method: 'POST',
+    body: JSON.stringify({ values, recompute }),
+  })
 }

@@ -17,6 +17,14 @@ tenant role or tenant scope.
     GET  /app/api/platform/alerts
     POST /app/api/platform/alerts/recipients           {protocol, endpoint}   operator
     POST /app/api/platform/alerts/recipients/remove    {id}                   operator
+    GET  /app/api/platform/onboarding/options
+    POST /app/api/platform/onboarding/tenants          {name, domain, vertical, admin_name, admin_email, data_origin?, tier?}  operator
+    GET  /app/api/platform/onboarding/tenants/{id}
+    POST /app/api/platform/onboarding/tenants/{id}/files     {file_type, csv_content, dry_run}  operator
+    GET  /app/api/platform/onboarding/tenants/{id}/preflight
+    POST /app/api/platform/onboarding/tenants/{id}/process   {mode?}                operator
+    GET  /app/api/platform/onboarding/tenants/{id}/settings
+    POST /app/api/platform/onboarding/tenants/{id}/settings/save  {values, recompute?}  operator
 
 A refused attempt by a logged-in user is written to the audit log: somebody
 without the operator flag asking for the cross-tenant view is worth knowing about.
@@ -25,7 +33,7 @@ from __future__ import annotations
 
 from starlette.responses import JSONResponse
 
-from platform_admin import alerts, deletion, service
+from platform_admin import alerts, deletion, onboarding, service
 from platform_admin.access import require_platform
 from signal_engine.http import _json, _with_app
 
@@ -179,9 +187,82 @@ def register_platform_routes(mcp) -> None:
         return await _act(lambda: alerts.remove_recipient(op, data.get('id')))
 
 
+    # ── onboarding: create a tenant, stage its files, check them, load them ──
+
+    @mcp.custom_route('/app/api/platform/onboarding/options', methods=['GET'], name='platform_onboarding_options')
+    async def platform_onboarding_options(request):
+        op, err = await _guard(request, 'onboard_options')
+        if err:
+            return err
+        return await _act(lambda: onboarding.options(op))
+
+    @mcp.custom_route('/app/api/platform/onboarding/tenants', methods=['POST'], name='platform_onboarding_create')
+    async def platform_onboarding_create(request):
+        op, err = await _guard(request, 'onboard_create', write=True)
+        if err:
+            return err
+        data = await _json(request)
+        return await _act(lambda: onboarding.create_tenant(op, data))
+
+    @mcp.custom_route('/app/api/platform/onboarding/tenants/{customer_id:int}', methods=['GET'], name='platform_onboarding_status')
+    async def platform_onboarding_status(request):
+        op, err = await _guard(request, 'onboard_status')
+        if err:
+            return err
+        cid = request.path_params['customer_id']
+        return await _act(lambda: onboarding.status(op, cid))
+
+    @mcp.custom_route('/app/api/platform/onboarding/tenants/{customer_id:int}/files', methods=['POST'], name='platform_onboarding_file')
+    async def platform_onboarding_file(request):
+        op, err = await _guard(request, 'onboard_upload', write=True)
+        if err:
+            return err
+        cid = request.path_params['customer_id']
+        data = await _json(request)
+        return await _act(lambda: onboarding.stage_file(op, cid, data.get('file_type'), data.get('csv_content'),
+                                                        bool(data.get('dry_run'))))
+
+    @mcp.custom_route('/app/api/platform/onboarding/tenants/{customer_id:int}/preflight', methods=['GET'], name='platform_onboarding_preflight')
+    async def platform_onboarding_preflight(request):
+        op, err = await _guard(request, 'onboard_preflight')
+        if err:
+            return err
+        cid = request.path_params['customer_id']
+        return await _act(lambda: onboarding.preflight_report(op, cid))
+
+    @mcp.custom_route('/app/api/platform/onboarding/tenants/{customer_id:int}/process', methods=['POST'], name='platform_onboarding_process')
+    async def platform_onboarding_process(request):
+        op, err = await _guard(request, 'onboard_process', write=True)
+        if err:
+            return err
+        cid = request.path_params['customer_id']
+        data = await _json(request)
+        return await _act(lambda: onboarding.process(op, cid, data.get('mode')))
+
+    @mcp.custom_route('/app/api/platform/onboarding/tenants/{customer_id:int}/settings', methods=['GET'], name='platform_onboarding_settings')
+    async def platform_onboarding_settings(request):
+        op, err = await _guard(request, 'onboard_settings_read')
+        if err:
+            return err
+        cid = request.path_params['customer_id']
+        return await _act(lambda: onboarding.retention_settings(op, cid))
+
+    @mcp.custom_route('/app/api/platform/onboarding/tenants/{customer_id:int}/settings/save', methods=['POST'], name='platform_onboarding_settings_save')
+    async def platform_onboarding_settings_save(request):
+        op, err = await _guard(request, 'onboard_settings_save', write=True)
+        if err:
+            return err
+        cid = request.path_params['customer_id']
+        data = await _json(request)
+        return await _act(lambda: onboarding.save_retention_settings(op, cid, data))
+
 ROUTES = ('/app/api/platform/overview', '/app/api/platform/tenants', '/app/api/platform/tenants/{id}',
           '/app/api/platform/audit', '/app/api/platform/tenants/{id}/suspend', '/app/api/platform/tenants/{id}/reactivate',
           '/app/api/platform/keys/{id}/revoke', '/app/api/platform/users/{id}/active',
           '/app/api/platform/users/{id}/reset-password', '/app/api/platform/alerts',
           '/app/api/platform/alerts/recipients', '/app/api/platform/alerts/recipients/remove',
-          '/app/api/platform/tenants/{id}/delete')
+          '/app/api/platform/tenants/{id}/delete',
+          '/app/api/platform/onboarding/options', '/app/api/platform/onboarding/tenants',
+          '/app/api/platform/onboarding/tenants/{id}', '/app/api/platform/onboarding/tenants/{id}/files',
+          '/app/api/platform/onboarding/tenants/{id}/preflight', '/app/api/platform/onboarding/tenants/{id}/process',
+          '/app/api/platform/onboarding/tenants/{id}/settings', '/app/api/platform/onboarding/tenants/{id}/settings/save')

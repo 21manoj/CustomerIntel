@@ -105,6 +105,16 @@ def _platform_requests(w: dict) -> list:
         ('get', '/app/api/platform/alerts', None, False),
         ('post', '/app/api/platform/alerts/recipients', {'protocol': 'email', 'endpoint': 'oncall@ops.test'}, True),
         ('post', '/app/api/platform/alerts/recipients/remove', {'id': 'arn:aws:sns:us-east-1:1:t:x'}, True),
+        ('get', '/app/api/platform/onboarding/options', None, False),
+        ('post', '/app/api/platform/onboarding/tenants', {'name': 'Nope', 'domain': 'nope.test', 'vertical': 'saas_premium',
+                                                          'admin_name': 'N', 'admin_email': 'n@nope.test'}, True),
+        ('get', f"/app/api/platform/onboarding/tenants/{b['cid']}", None, False),
+        ('post', f"/app/api/platform/onboarding/tenants/{b['cid']}/files",
+         {'file_type': 'account_details.csv', 'csv_content': 'account_name\nX', 'dry_run': False}, True),
+        ('get', f"/app/api/platform/onboarding/tenants/{b['cid']}/preflight", None, False),
+        ('post', f"/app/api/platform/onboarding/tenants/{b['cid']}/process", None, True),
+        ('get', f"/app/api/platform/onboarding/tenants/{b['cid']}/settings", None, False),
+        ('post', f"/app/api/platform/onboarding/tenants/{b['cid']}/settings/save", {'values': {'window_months': 6}}, True),
     ]
 
 
@@ -704,3 +714,142 @@ def test_every_platform_route_is_exercised_here(world):
         covered.add('/'.join('{id}' if seg.isdigit() else seg for seg in path.split('?')[0].split('/')))
     assert covered == set(ROUTES)
 
+
+
+# ── onboarding: the tenant, its files, the check, the run, the retention settings ──
+
+def _onboarding_files() -> dict:
+    """Six accounts over eighteen months, written by the demo generator: one contraction and one
+    expansion inside the last year, one loss before it."""
+    from demo.generate import generate
+
+    def account(sid, arr, events=()):
+        return {'source_account_id': sid, 'name': f'{sid} Co', 'arr': arr, 'industry': 'Fintech', 'region': 'Europe',
+                'health': {'shape': 'flat', 'start': 80, 'noise': 1.0}, 'renewal_day': 200,
+                'signals': [{'day': -200, 'type': 'routine_review', 'sentiment': 0.2, 'content': f'Review held ({sid})'}],
+                'events': [dict(e, linked_signal_index=0) for e in events]}
+
+    accounts = [account('ONB-1', 400000, [{'day': -100, 'type': 'contraction', 'amount': -100000}]),
+                account('ONB-2', 600000, [{'day': -150, 'type': 'expansion_closed', 'amount': 150000}]),
+                account('ONB-3', 300000, [{'day': -450, 'type': 'contraction', 'amount': -200000}]),
+                account('ONB-4', 500000), account('ONB-5', 250000), account('ONB-6', 350000)]
+    return generate({'manifest_id': 'onboarding_test', 'vertical': 'saas_premium', 'customer_name': 'Onb', 'domain_prefix': 'onb',
+                     'seed': 7, 'timeline': {'t0': '2026-11-01', 'history_days': 540, 'future_days': 0, 'kpi_cadence_days': 30},
+                     'accounts': accounts})
+
+
+def test_operator_onboards_a_tenant_end_to_end_and_tunes_retention(client, world):
+    files = _onboarding_files()
+    tag = uuid.uuid4().hex[:8]
+    _login(client, world['operator'])
+    opts = client.get('/app/api/platform/onboarding/options').json()
+    assert opts['can_write'] is True and 'saas_premium' in [v['id'] for v in opts['verticals']]
+    expected = [f['file_type'] for f in opts['files'] if f['expected']]
+    assert expected == ['account_details.csv', 'kpi_measurements.csv']
+    assert all(f['required_columns'] for f in opts['files'] if f['expected'])
+
+    bad = client.post('/app/api/platform/onboarding/tenants', json={'name': 'X', 'domain': 'not a domain', 'vertical': 'saas_premium',
+                                                                    'admin_name': 'A', 'admin_email': 'a@x.test'})
+    assert bad.status_code == 400 and 'domain' in bad.json()['error']
+    made = client.post('/app/api/platform/onboarding/tenants',
+                       json={'name': f'Onboarded {tag}', 'domain': f'onb-{tag}.test', 'vertical': 'saas_premium',
+                             'admin_name': 'Ada Admin', 'admin_email': f'ada@onb-{tag}.test', 'data_origin': 'synthetic_demo'})
+    assert made.status_code == 200, made.text
+    t = made.json()
+    cid, token, key = t['customer_id'], t['admin_setup_token'], t['api_key']
+    assert token and t['data_origin'] == 'synthetic_demo'
+    again = client.post('/app/api/platform/onboarding/tenants',
+                        json={'name': 'Dup', 'domain': f'onb-{tag}.test', 'vertical': 'saas_premium',
+                              'admin_name': 'A', 'admin_email': f'b@onb-{tag}.test'})
+    assert again.status_code == 400
+
+    base = f'/app/api/platform/onboarding/tenants/{cid}'
+    st = client.get(base).json()
+    assert st['step'] == 'upload' and st['missing_expected'] == expected and st['accounts'] == 0
+    assert st['admins'][0]['password_set'] is False and st['retention'] is None
+
+    # A dry run reports and stages nothing; a file the flow does not take is refused.
+    dry = client.post(f'{base}/files', json={'file_type': 'account_details.csv', 'csv_content': files['account_details.csv'],
+                                             'dry_run': True}).json()
+    assert dry['status'] == 'success' and dry['staged'] is False and dry['row_count'] == 6
+    assert client.get(base).json()['step'] == 'upload'
+    assert client.post(f'{base}/files', json={'file_type': 'nonsense.csv', 'csv_content': 'a\n1', 'dry_run': True}).status_code == 400
+    broken = client.post(f'{base}/files', json={'file_type': 'account_details.csv', 'csv_content': 'account_name\nNo Id', 'dry_run': True}).json()
+    assert broken['status'] != 'success'
+
+    for name in ('account_details.csv', 'kpi_measurements.csv', 'enhanced_qualitative_signals.csv', 'outcomes.csv'):
+        r = client.post(f'{base}/files', json={'file_type': name, 'csv_content': files[name], 'dry_run': False})
+        assert r.status_code == 200 and r.json()['staged'] is True, (name, r.text)
+    st = client.get(base).json()
+    assert st['step'] == 'check' and st['missing_expected'] == [] and len(st['pending_files']) == 4
+
+    pre = client.get(f'{base}/preflight')
+    assert pre.status_code == 200 and pre.json()['error_count'] == 0, pre.text
+
+    ran = client.post(f'{base}/process', json={'mode': 'auto'})
+    assert ran.status_code == 200, ran.text
+    assert ran.json()['status'] in ('success', 'partial') and ran.json()['accounts'] == 6, ran.text
+    assert client.post(f'{base}/process', json={'mode': 'everything'}).status_code == 400
+    st = client.get(base).json()
+    assert st['step'] == 'done' and st['accounts'] == 6 and st['pending_files'] == []
+
+    # Defaults first: one contraction and one expansion in the trailing year; the older loss is outside it.
+    s = client.get(f'{base}/settings').json()
+    assert s['overrides'] == {} and {f['key'] for f in s['fields']} == set(s['defaults'])
+    p = s['result']['portfolio']
+    assert p['withheld'] is False and p['cohort_accounts'] == 6
+    assert (p['lost'], p['expansion'], p['starting_arr']) == (100000, 150000, 2350000)
+    assert p['nrr'] == pytest.approx(2400000 / 2350000, abs=1e-3) and p['grr'] == pytest.approx(2250000 / 2350000, abs=1e-3)
+    assert p['outcomes_outside_window'] == 1
+
+    # Eighteen months takes the older loss in; the figure moves and the tenant keeps the override.
+    wide = client.post(f'{base}/settings/save', json={'values': {'window_months': 18}, 'recompute': True}).json()
+    assert wide['overrides'] == {'window_months': 18} and wide['recompute']['status'] == 'completed'
+    p = wide['result']['portfolio']
+    assert (p['lost'], p['starting_arr']) == (300000, 2550000) and p['outcomes_outside_window'] == 0
+    assert [f for f in wide['fields'] if f['key'] == 'window_months'][0]['overridden'] is True
+
+    # A cohort floor above the book withholds the figure and says why.
+    held = client.post(f'{base}/settings/save', json={'values': {'min_cohort_accounts': 50}, 'recompute': True}).json()
+    p = held['result']['portfolio']
+    assert p['withheld'] is True and p['nrr'] is None and 'cohort' in p['withheld_reason']
+
+    assert client.post(f'{base}/settings/save', json={'values': {'window_months': 0}}).status_code == 400
+    assert client.post(f'{base}/settings/save', json={'values': {'made_up': 1}}).status_code == 400
+    cleared = client.post(f'{base}/settings/save', json={'values': {}, 'recompute': True}).json()
+    assert cleared['overrides'] == {} and cleared['result']['portfolio']['withheld'] is False
+    assert client.get(f'{base}/settings').json()['effective'] == cleared['defaults']
+    assert client.get('/app/api/platform/onboarding/tenants/99999999').status_code == 404
+
+    # The trail names every step and never carries the token, the key or file content.
+    rows = client.get(f'/app/api/platform/audit?customer_id={cid}&limit=200').json()['entries']
+    actions = {r['tool'] for r in rows}
+    for step in ('create', 'validate', 'upload', 'status', 'preflight', 'process', 'settings_read', 'settings_save'):
+        assert f'platform.onboard_{step}' in actions, step
+    blob = json.dumps(rows)
+    assert token not in blob and (not key or key not in blob) and 'ONB-1 Co' not in blob
+    _logout(client)
+
+    # The new admin can set a password with the token and sees their own six accounts.
+    with _ctx():
+        from app_api import auth as app_auth
+        app_auth.consume_setup_token(token, 'tenant-admin-password-1')
+    _login(client, (f'ada@onb-{tag}.test', 'tenant-admin-password-1'))
+    assert client.get('/app/api/platform/onboarding/options').status_code == 403
+    _logout(client)
+
+
+def test_viewer_follows_an_onboarding_but_cannot_drive_it(client, world):
+    b = world['B']
+    _login(client, world['viewer'])
+    assert client.get('/app/api/platform/onboarding/options').json()['can_write'] is False
+    assert client.get(f"/app/api/platform/onboarding/tenants/{b['cid']}").status_code == 200
+    r = client.post(f"/app/api/platform/onboarding/tenants/{b['cid']}/files",
+                    json={'file_type': 'account_details.csv', 'csv_content': 'x', 'dry_run': True})
+    assert r.status_code == 403
+    _logout(client)
+    with _ctx():
+        from models import CsvUploadStaging, CustomerConfig
+        assert CsvUploadStaging.query.filter_by(customer_id=b['cid']).count() == 0
+        cfg = CustomerConfig.query.filter_by(customer_id=b['cid']).first()
+        assert cfg is None or not cfg.analysis_settings

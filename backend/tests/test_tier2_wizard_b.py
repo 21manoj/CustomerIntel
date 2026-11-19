@@ -92,11 +92,17 @@ class TestHindsight:
             res = run_wizard_b(reg['customer_id'], min_events=1, persist=False)
             total_arr = sum(float(a.revenue) for a in Account.query.filter_by(customer_id=reg['customer_id']).all())
         nrr = res['realized_nrr']
-        assert nrr['portfolio']['starting_arr'] == total_arr
+        # Today's revenue already reflects the loss, so the window started 1.4M higher.
+        assert nrr['portfolio']['starting_arr'] == total_arr + 1_400_000
         assert nrr['portfolio']['lost'] == 1_400_000.0 and nrr['portfolio']['expansion'] == 0.0
-        assert nrr['portfolio']['nrr'] == round((total_arr - 1_400_000) / total_arr, 4)
+        assert nrr['portfolio']['nrr'] == round(total_arr / (total_arr + 1_400_000), 4)
+        assert nrr['portfolio']['grr'] == nrr['portfolio']['nrr'] and nrr['portfolio']['withheld'] is False
+        assert nrr['window']['months'] == nrr['settings']['window_months']
         arc_of_meridian = next(k for k, g in nrr['by_arc'].items() if g['lost'] == 1_400_000.0)
-        assert nrr['by_arc'][arc_of_meridian]['nrr'] < 1.0
+        arc = nrr['by_arc'][arc_of_meridian]
+        assert arc['net_arr'] < arc['starting_arr']
+        # one arc is a handful of accounts: a ratio on it is withheld, with the reason, unless the cohort is big enough
+        assert (arc['nrr'] is None and 'in the cohort' in arc['withheld_reason']) or arc['nrr'] < 1.0
 
     def test_interventions_and_expected_path(self, tenants):
         m, reg = tenants['demo_champion_departure_saas']

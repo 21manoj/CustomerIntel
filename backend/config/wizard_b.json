@@ -1,0 +1,27 @@
+{
+  "_doc": "Wizard B — Hindsight. realized_retention holds every number behind the realized net and gross retention figures (wizards/wizard_b_hindsight.realized_nrr). `defaults` apply to every tenant; a tenant may override the keys listed in `limits` (stored in customer_configs.analysis_settings.realized_retention, set from the platform console's onboarding flow). wizards/wizard_b_settings.py raises on a missing key and never invents a default.",
+  "realized_retention": {
+    "defaults": {
+      "_doc": "window_months: the trailing window, ending at window_anchor. window_anchor: 'data_as_of' (the latest date the tenant's journeys were built to) or 'today'. starting_revenue: 'reconstructed' (today's revenue, less expansion booked in the window, plus losses booked in the window — use when the revenue column is the current value) or 'current' (the revenue column as loaded — use when it holds the value at the start of the period). The figure is withheld, with the reason, when the cohort has fewer than min_cohort_accounts, when fewer than min_observed_months of the window are covered by evidence, or when less than min_amount_coverage of the loss and expansion outcomes in the window carry an amount.",
+      "window_months": 12,
+      "window_anchor": "data_as_of",
+      "starting_revenue": "reconstructed",
+      "min_cohort_accounts": 5,
+      "min_observed_months": 3,
+      "min_amount_coverage": 0.8
+    },
+    "limits": {
+      "window_months": {"type": "int", "min": 1, "max": 60, "label": "Window (months)", "help": "The trailing period the retention figures cover."},
+      "window_anchor": {"type": "choice", "choices": ["data_as_of", "today"], "label": "Window ends at", "help": "The latest date in the loaded data, or today."},
+      "starting_revenue": {"type": "choice", "choices": ["reconstructed", "current"], "label": "Starting revenue", "help": "Reconstructed: today's revenue less expansion plus losses in the window. Current: the revenue column as loaded."},
+      "min_cohort_accounts": {"type": "int", "min": 1, "max": 1000, "label": "Smallest cohort", "help": "Below this many accounts the figure is withheld."},
+      "min_observed_months": {"type": "int", "min": 1, "max": 60, "label": "Least history (months)", "help": "Below this many months of evidence inside the window the figure is withheld."},
+      "min_amount_coverage": {"type": "float", "min": 0, "max": 1, "label": "Amount coverage", "help": "Share of loss and expansion outcomes in the window that must carry an amount."}
+    },
+    "loss_buckets": ["lost"],
+    "expansion_buckets": ["expansion"],
+    "narrative_buckets": ["protected", "at_risk"],
+    "new_account_subtypes": ["new_logo"],
+    "days_per_month": 30.4375
+  }
+}
